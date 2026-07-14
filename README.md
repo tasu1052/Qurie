@@ -11,17 +11,17 @@
 <타입>/<이름이니셜>/<작업내용>
 ```
 
-- 예: `feature/jjh/login`, `fix/msk/header-bug`
+- 예: `feature/kjh/login`, `fix/wmk/header-bug`
 - 이니셜은 본인 영문 이니셜 (김준형 → jjh)
 - 작업 내용은 **영어 소문자 + 하이픈(-)** 으로 작성합니다.
 
 | 타입 | 용도 | 예시 |
 |---|---|---|
-| `feature/` | 새 기능 개발 | `feature/jjh/login` |
-| `fix/` | 버그 수정 | `fix/jjh/login-error` |
-| `refactor/` | 기능 변화 없는 코드 정리 | `refactor/jjh/api-service` |
-| `docs/` | 문서 작업 (README 등) | `docs/jjh/readme` |
-| `chore/` | 설정, 빌드 등 잡무 | `chore/jjh/eslint-setup` |
+| `feature/` | 새 기능 개발 | `feature/kjh/login` |
+| `fix/` | 버그 수정 | `fix/kjh/login-error` |
+| `refactor/` | 기능 변화 없는 코드 정리 | `refactor/kjh/api-service` |
+| `docs/` | 문서 작업 (README 등) | `docs/kjh/readme` |
+| `chore/` | 설정, 빌드 등 잡무 | `chore/kjh/eslint-setup` |
 
 ## 2. 작업 흐름 (전원 공통)
 
@@ -31,17 +31,17 @@ git switch master
 git pull
 
 # 2. 작업 브랜치 생성
-git switch -c feature/jjh/login
+git switch -c feature/kjh/login
 
 # 3. 작업 후 커밋
 git add .
 git commit -m "feat(login): 로그인 페이지 구현"
 
 # 4. 브랜치 push
-git push -u origin feature/jjh/login
+git push -u origin feature/kjh/login
 ```
 
-5. GitLab에서 `feature/jjh/login` → `master` 방향으로 **MR 생성**
+5. GitLab에서 `feature/kjh/login` → `master` 방향으로 **MR 생성**
 6. 팀원 1명 이상 리뷰 후, **방장이 Merge**
 7. merge 완료된 브랜치는 삭제, 다음 작업은 1번부터 다시
 
@@ -92,3 +92,9 @@ git push -u origin feature/jjh/login
 git config user.name
 git config user.email
 ```
+
+## 7. 규칙 위반 시 ⚖️
+
+- 위 규칙을 위반할 경우 **엄벌에 처한다.**
+- 엄벌의 종류와 수위는 나머지 팀원 5인의 만장일치로 결정한다.
+- 방장도 예외 없다. 오히려 가중처벌한다.
