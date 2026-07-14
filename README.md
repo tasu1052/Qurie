@@ -66,6 +66,7 @@ git push -u origin feature/kjh/login
 - 제목은 **한글 OK**, 무엇을 했는지 명확하게 씁니다.
 - 커밋에 작성자 이름은 쓰지 않습니다. (git이 자동으로 기록)
 - 예시:
+  - `docs(2026_7_14): 7월 14일 학습 기록`
   - `feat(login): 로그인 유효성 검사 추가`
   - `fix(main): 배너 이미지 깨짐 수정`
   - `refactor(api): axios 인스턴스 분리`
