@@ -1,6 +1,13 @@
-import { useMutation } from '@tanstack/react-query';
-import { createTrack } from '../track/track';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { createTrack } from './track';
+import { queryKeys } from '../core/queryKeys';
 
 export const useCreateTrack = () => {
-    return useMutation({ mutationFn: createTrack });
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: createTrack,
+        onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.tracks.all });
+        },
+    });
 };
