@@ -14,4 +14,8 @@ export const queryKeys = {
         all: ['invitation'] as const,
         byRole: (role: 'manager' | 'member') => [...queryKeys.invitation.all, role] as const,
     },
+    group: {
+        all: ['group'] as const,
+        byClass: (className: string) => [...queryKeys.group.all, className] as const,
+    },
 }
