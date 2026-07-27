@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/session")
+@RequestMapping("/api/sessions")
 @RequiredArgsConstructor
 public class SessionController {
 
@@ -29,7 +29,7 @@ public class SessionController {
     @PostMapping
     public ResponseEntity<SessionResponse> create(@Valid @RequestBody SessionCreateRequest request) {
         SessionResponse response = sessionService.create(request);
-        return ResponseEntity.created(URI.create("/api/session/" + response.id())).body(response);
+        return ResponseEntity.created(URI.create("/api/sessions/" + response.id())).body(response);
     }
 
     /** 방 단건 조회 */

@@ -20,11 +20,10 @@ public class SessionService {
     @Transactional
     public SessionResponse create(SessionCreateRequest request) {
         Session session =
-                Session.builder()
-                        .classId(request.classId())
-                        .title(request.title())
-                        .createdBy(request.createdBy())
-                        .build();
+                new Session(
+                        request.classId(),
+                        request.title(),
+                        request.createdBy());
         return SessionResponse.from(sessionRepository.save(session));
     }
 

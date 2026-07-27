@@ -20,7 +20,7 @@ import org.hibernate.annotations.UpdateTimestamp;
  * slug 는 방 제목이다. class_id, created_by 는 아직 엔티티가 없어 FK 값(Long) 으로만 보관한다.
  */
 @Entity
-@Table(name = "session")
+@Table(name = "sessions")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Session {
@@ -53,8 +53,7 @@ public class Session {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @Builder
-    private Session(
+    public Session(
         Long classId,
         String title,
         Long createdBy
