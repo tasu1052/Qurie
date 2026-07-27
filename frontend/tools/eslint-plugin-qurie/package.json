@@ -1,0 +1,7 @@
+{
+  "name": "eslint-plugin-qurie",
+  "version": "1.0.0",
+  "description": "Qurie Design System frontend conventions as lint rules",
+  "main": "index.js",
+  "peerDependencies": { "eslint": ">=9" }
+}
