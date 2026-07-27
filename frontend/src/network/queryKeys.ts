@@ -26,4 +26,8 @@ export const queryKeys = {
         all: ['project'] as const,
         bySession: (sessionId: string) => [...queryKeys.project.all, sessionId] as const,
     },
+    quiz: {
+        all: ['quiz'] as const,
+        byProject: (projectId: string) => [...queryKeys.quiz.all, projectId] as const,
+    },
 }
