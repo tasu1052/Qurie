@@ -9,5 +9,9 @@ export const queryKeys = {
     class: {
         all: ['class'] as const,
         byTrack: (track: string) => [...queryKeys.class.all, track] as const,
-    }
+    },
+    invitation: {
+        all: ['invitation'] as const,
+        byRole: (role: 'manager' | 'member') => [...queryKeys.invitation.all, role] as const,
+    },
 }
