@@ -18,4 +18,8 @@ export const queryKeys = {
         all: ['group'] as const,
         byClass: (className: string) => [...queryKeys.group.all, className] as const,
     },
+    session: {
+        all: ['session'] as const,
+        byClass: (className: string) => [...queryKeys.session.all, className] as const,
+    },
 }
