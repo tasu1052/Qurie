@@ -34,4 +34,8 @@ export const queryKeys = {
         all: ['sessionReport'] as const,
         detail: (sessionId: string, userId: string) => [...queryKeys.sessionReport.all, sessionId, userId] as const,
     },
+    finalReport: {
+        all: ['finalReport'] as const,
+        byUser: (userId: string) => [...queryKeys.finalReport.all, userId] as const,
+    },
 }
