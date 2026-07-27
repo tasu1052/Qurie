@@ -1,5 +1,8 @@
 package com.roma.qurie.session;
 
+import com.roma.qurie.report.dto.SessionReportCreateRequest;
+import com.roma.qurie.report.dto.SessionReportCreateResponse;
+import com.roma.qurie.report.service.SessionReportService;
 import com.roma.qurie.session.dto.SessionCreateRequest;
 import com.roma.qurie.session.dto.SessionResponse;
 import com.roma.qurie.session.dto.SessionUpdateRequest;
@@ -7,22 +10,15 @@ import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/sessions")
 @RequiredArgsConstructor
 public class SessionController {
-
+    private final SessionReportService sessionReportService;
     private final SessionService sessionService;
 
     /** 방 생성 */
@@ -56,5 +52,18 @@ public class SessionController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         sessionService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * todo: quiz_progress 엔티티가 생기면 집계 수치를 요청 바디로 받지 않고 서버에서 직접 계산해야 한다.
+     *
+     * @param sessionId: 리포트를 발급할 세션 id
+     * @param request: 세션 집계 수치와 AI 코멘트
+     */
+    @PostMapping("{sessionId}/reports")
+    @ResponseStatus(HttpStatus.CREATED)
+    public SessionReportCreateResponse createSessionReport(@PathVariable Long sessionId,
+                                                           @Valid @RequestBody SessionReportCreateRequest request) {
+        return sessionReportService.createSessionReport(sessionId, request);
     }
 }
