@@ -20,11 +20,9 @@ import org.hibernate.annotations.UpdateTimestamp;
  * slug 는 방 제목이다. class_id, created_by 는 아직 엔티티가 없어 FK 값(Long) 으로만 보관한다.
  */
 @Entity
-@Table(name = "session")
+@Table(name = "sessions")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
 public class Session {
 
     @Id
@@ -54,6 +52,17 @@ public class Session {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    public Session(
+        Long classId,
+        String title,
+        Long createdBy
+    ) {
+        this.classId = classId;
+        this.title = title;
+        this.createdBy = createdBy;
+        this.active = true;
+    }
 
     /** 방 제목을 변경한다. */
     public void changeTitle(String title) {

@@ -17,7 +17,7 @@ import java.util.Map;
 @Getter
 @Entity
 @Table(
-        name = "session_report",
+        name = "session_reports",
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_session_report_session_user",
                 columnNames = {"session_id", "ordinary_user_id"})
