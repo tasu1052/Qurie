@@ -3,7 +3,14 @@ import React from 'react';
 export function Timer({totalSeconds=60,remainingSeconds=null,running=false,size=64,variant='ring',label=null,onComplete,style={}}){
 const [internal,setInternal]=React.useState(remainingSeconds??totalSeconds);
 const remaining=remainingSeconds??internal;
-React.useEffect(()=>{if(remainingSeconds!=null||!running)return;const t=setInterval(()=>setInternal(r=>{if(r<=1){clearInterval(t);onComplete&&onComplete();return 0}return r-1}),1000);return()=>clearInterval(t)},[running,remainingSeconds]);
+React.useEffect(()=>{
+  if(remainingSeconds!=null||!running)return;
+  const t=setInterval(()=>setInternal(r=>{
+    if(r<=1){clearInterval(t);if(onComplete){onComplete();}return 0;}
+    return r-1;
+  }),1000);
+  return()=>clearInterval(t);
+},[running,remainingSeconds,onComplete]);
 const frac=Math.max(0,Math.min(1,remaining/totalSeconds));
 const mm=Math.floor(remaining/60),ss=String(remaining%60).padStart(2,'0');
 const text=remaining>=60?`${mm}:${ss}`:`${remaining}`;

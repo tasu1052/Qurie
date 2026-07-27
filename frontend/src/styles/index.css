@@ -1,2 +1,32 @@
 /* App-level stylesheet entry — DS tokens + motion keyframes. */
 @import '../ds/styles.css';
+
+/*
+ * Neutralize Vite scaffold #root rules in src/index.css
+ * (text-align:center + fixed 1126px width) so DS pages inherit left alignment
+ * and can use the full viewport; content width is owned by PageMain tokens.
+ */
+#root {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  text-align: left;
+  border-inline: none;
+  min-height: 100svh;
+  display: block;
+  box-sizing: border-box;
+}
+
+/* Master dashboard track + side column — fills content width, stacks on narrow viewports */
+.qurie-master-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 24px;
+  min-width: 0;
+  width: 100%;
+}
+@media (max-width: 960px) {
+  .qurie-master-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -4,8 +4,12 @@ export function DonutChart({segments=[],size=140,thickness=16,centerValue=null,c
 const total=segments.reduce((a,s)=>a+s.value,0)||1;
 const R=(100-thickness)/2,C=2*Math.PI*R;
 const palette=['var(--chart-primary)','var(--grey-400)','var(--grey-200)','var(--grey-100)'];
-let offset=0,gi=0;
-const segs=segments.map(s=>{const frac=s.value/total;const seg={...s,frac,offset,color:s.accent?'var(--chart-accent)':palette[gi++%palette.length]};offset+=frac;return seg});
+const segs=segments.reduce((acc,s,i)=>{
+  const frac=s.value/total;
+  const color=s.accent?'var(--chart-accent)':palette[i%palette.length];
+  const offset=acc.length?acc[acc.length-1].offset+acc[acc.length-1].frac:0;
+  return [...acc,{...s,frac,offset,color}];
+},[]);
 return <div style={{display:'inline-flex',alignItems:'center',gap:20,fontFamily:'var(--font-sans)',...style}}>
 <div style={{position:'relative',width:size,height:size}}>
 <svg viewBox="0 0 100 100" style={{width:size,height:size,transform:'rotate(-90deg)'}}>

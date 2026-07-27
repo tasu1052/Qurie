@@ -10,7 +10,8 @@ import {
   Bell,
   Search,
 } from 'lucide-react';
-import { Footer, Sidebar, Topbar } from '../ds';
+import { Footer, Sidebar, Topbar } from '../../ds';
+import logoSrc from '../../ds/assets/logo.png';
 
 const iconProps = { size: 16, strokeWidth: 1.75 } as const;
 
@@ -40,14 +41,23 @@ export function MasterShell({ activeKey, breadcrumbs, children }: AppShellProps)
       <Sidebar
         items={items}
         activeKey={activeKey}
+        logoSrc={logoSrc}
         onSelect={(key) => {
           const item = masterNav.find((n) => n.key === key);
           if (!item) return;
           navigate({ pathname: item.path, search: location.search });
         }}
         footer={
-          <div style={{ borderTop: '1px solid var(--divider)', paddingTop: 12, display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 6 }}>
-            <span
+          <div
+            style={{
+              borderTop: '1px solid var(--divider)',
+              paddingTop: 16,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              paddingLeft: 6,
+            }}
+          >            <span
               style={{
                 width: 32,
                 height: 32,
@@ -93,11 +103,16 @@ export function PageMain({ children }: { children: ReactNode }) {
     <main
       style={{
         flex: 1,
-        padding: 24,
+        width: '100%',
+        maxWidth: 'var(--content-max)',
+        marginInline: 'auto',
+        padding: 'var(--content-pad)',
         display: 'flex',
         flexDirection: 'column',
         gap: 24,
+        minWidth: 0,
         minHeight: 0,
+        boxSizing: 'border-box',
       }}
     >
       {children}

@@ -359,6 +359,198 @@ module.exports = {
       },
     },
 
+    /* == Brand logo ================================================== */
+    'brand-logo-png': {
+      meta: {
+        type: 'problem',
+        docs: {
+          description:
+            'Shell brand mark must be assets/logo.png via <Sidebar logoSrc={…}>. Do not substitute a typeset Q>rie wordmark in the sidebar header. Prefer height: var(--logo-height) with width:auto.',
+        },
+        messages: {
+          missing:
+            '<Sidebar> needs logoSrc pointing at ds/assets/logo.png — brand mark is the PNG asset, not a typeset wordmark.',
+          import:
+            'This file renders <Sidebar logoSrc> but never imports assets/logo.png. Import the canonical PNG from ds/assets/logo.png.',
+          wordmark:
+            'Typeset Q>rie wordmark in a shell/layout file — use <Sidebar logoSrc={logo from ds/assets/logo.png}> instead.',
+        },
+      },
+      create(ctx) {
+        const file = ctx.filename || '';
+        const inShell = /[\\/](layout|components[\\/]layout|pages)[\\/]/.test(file);
+        let sidebarWithLogo = null;
+        let importsLogoPng = false;
+        return {
+          ImportDeclaration(node) {
+            const src = node.source && node.source.value;
+            if (typeof src === 'string' && /(^|[\\/])logo\.png(\?|$)/.test(src)) {
+              importsLogoPng = true;
+            }
+          },
+          JSXOpeningElement(node) {
+            if (jsxTagName(node) !== 'Sidebar') return;
+            const logoSrc = getAttr(node, 'logoSrc');
+            if (!logoSrc) {
+              ctx.report({ node, messageId: 'missing' });
+              return;
+            }
+            sidebarWithLogo = node;
+          },
+          JSXText(node) {
+            if (!inShell) return;
+            const t = String(node.value || '').replace(/\s+/g, '');
+            if (/Q>rie|Q&gt;rie/.test(t)) ctx.report({ node, messageId: 'wordmark' });
+          },
+          'Program:exit'() {
+            if (sidebarWithLogo && !importsLogoPng) {
+              ctx.report({ node: sidebarWithLogo, messageId: 'import' });
+            }
+          },
+        };
+      },
+    },
+
+    /* Lessons from Master Dashboard layout bugs */
+    'no-center-shell': {
+      meta: {
+        type: 'problem',
+        docs: {
+          description:
+            'Do not set textAlign/text-align:center on shell or page roots — it inherits into every card. Center only inside EmptyState/ErrorState/FileDropzone.',
+        },
+        messages: {
+          center:
+            'textAlign:"center" on a shell/page container inherits into cards. Remove it; center only inside DS feedback/empty components.',
+        },
+      },
+      create(ctx) {
+        const file = ctx.filename || '';
+        if (!/[\\/](layout|pages)[\\/]/.test(file)) return {};
+        return {
+          Property(node) {
+            const key = node.key && (node.key.name || node.key.value);
+            if (key !== 'textAlign' && key !== 'text-align') return;
+            const v = node.value.type === 'Literal' ? node.value.value : undefined;
+            if (v === 'center') ctx.report({ node: node.value, messageId: 'center' });
+          },
+        };
+      },
+    },
+
+    'content-shell': {
+      meta: {
+        type: 'problem',
+        docs: {
+          description:
+            'Page <main> / PageMain must use width:100%, maxWidth:var(--content-max), marginInline:auto, padding:var(--content-pad), minWidth:0.',
+        },
+        messages: {
+          missing:
+            'Page main shell is missing content tokens (maxWidth: var(--content-max) and/or padding: var(--content-pad)). See ds/tokens/spacing.css.',
+        },
+      },
+      create(ctx) {
+        const file = ctx.filename || '';
+        if (!/[\\/](layout|pages)[\\/]/.test(file)) return {};
+        function styleHasContentTokens(styleAttr) {
+          if (!styleAttr || !styleAttr.value || styleAttr.value.type !== 'JSXExpressionContainer') return false;
+          const expr = styleAttr.value.expression;
+          if (expr.type !== 'ObjectExpression') return false;
+          let hasMax = false, hasPad = false;
+          for (const p of expr.properties || []) {
+            if (p.type !== 'Property') continue;
+            const k = p.key && (p.key.name || p.key.value);
+            const lit = p.value.type === 'Literal' ? String(p.value.value) : '';
+            if ((k === 'maxWidth' || k === 'max-width') && /--content-max/.test(lit)) hasMax = true;
+            if ((k === 'padding') && /--content-pad/.test(lit)) hasPad = true;
+          }
+          return hasMax && hasPad;
+        }
+        return {
+          JSXOpeningElement(node) {
+            const tag = jsxTagName(node);
+            // PageMain component or native <main> used as page chrome
+            if (tag !== 'main' && tag !== 'PageMain') return;
+            if (tag === 'PageMain') return; // defined in layout — checked via its <main>
+            if (!styleHasContentTokens(getAttr(node, 'style'))) {
+              ctx.report({ node, messageId: 'missing' });
+            }
+          },
+        };
+      },
+    },
+
+    'statcard-row-scroll': {
+      meta: {
+        type: 'problem',
+        docs: {
+          description:
+            'KPI StatCards stay in <StatCardRow> which scrolls with edge arrows — do not replace it with a wrapping repeat(var(--grid-kpi)) / auto-fill grid of StatCards.',
+        },
+        messages: {
+          wrap:
+            'Do not lay out <StatCard> with a wrapping CSS grid (grid-kpi / auto-fill). Wrap them in <StatCardRow> so overflow uses scroll arrows.',
+        },
+      },
+      create(ctx) {
+        return {
+          JSXOpeningElement(node) {
+            if (jsxTagName(node) !== 'StatCard') return;
+            if (hasAncestorTag(node, 'StatCardRow')) return;
+            // If a nearby ancestor style uses gridTemplateColumns with auto-fill or grid-kpi, flag
+            for (let p = node.parent; p; p = p.parent) {
+              if (p.type !== 'JSXElement') continue;
+              const style = getAttr(p.openingElement, 'style');
+              if (!style || !style.value || style.value.type !== 'JSXExpressionContainer') continue;
+              const expr = style.value.expression;
+              if (expr.type !== 'ObjectExpression') continue;
+              for (const prop of expr.properties || []) {
+                if (prop.type !== 'Property') continue;
+                const k = prop.key && (prop.key.name || prop.key.value);
+                if (k !== 'gridTemplateColumns' && k !== 'grid-template-columns') continue;
+                const lit = prop.value.type === 'Literal' ? String(prop.value.value) : '';
+                const tmpl = prop.value.type === 'TemplateLiteral'
+                  ? prop.value.quasis.map(q => q.value.cooked).join('')
+                  : '';
+                const val = lit || tmpl;
+                if (/auto-fill|auto-fit|--grid-kpi/.test(val)) {
+                  ctx.report({ node, messageId: 'wrap' });
+                  return;
+                }
+              }
+            }
+          },
+        };
+      },
+    },
+
+    'sidebar-footer-pin': {
+      meta: {
+        type: 'problem',
+        docs: {
+          description:
+            'App shells that render <Sidebar> must pass a footer (account chip). The DS Sidebar pins it to the bottom of the viewport with spacing above the nav items — do not leave the account block inline under the last nav item.',
+        },
+        messages: {
+          missing:
+            '<Sidebar> in a layout/shell needs a footer prop (account chip). Sidebar pins it to the viewport bottom with gap from nav items.',
+        },
+      },
+      create(ctx) {
+        const file = ctx.filename || '';
+        if (!/[\\/](layout|pages)[\\/]/.test(file)) return {};
+        return {
+          JSXOpeningElement(node) {
+            if (jsxTagName(node) !== 'Sidebar') return;
+            if (!getAttr(node, 'footer')) {
+              ctx.report({ node, messageId: 'missing' });
+            }
+          },
+        };
+      },
+    },
+
     /* ── Page chrome ──────────────────────────────────────────────────── */
     'page-footer': {
       meta: {

@@ -1,12 +1,32 @@
-/** Per-row load boundary: skeleton, scoped error, or content. Shell chrome stays outside it. */
+/**
+ * Row shell + the two fallbacks the data layer's <QueryAsyncBoundary> takes.
+ * The UI layer never writes the boundary itself.
+ */
 export interface RowSectionProps {
-  status?: 'loading' | 'error' | 'empty' | 'ready';
-  /** Same-height placeholder for this row — required whenever status can be 'loading'. */
-  skeleton?: React.ReactNode;
-  errorTitle?: React.ReactNode;
-  errorDescription?: React.ReactNode;
-  onRetry?: () => void;
+  /** Optional mono row label used in specs/debug views ("row 1 · kpi"). */
+  label?: React.ReactNode;
   children?: React.ReactNode;
   style?: React.CSSProperties;
 }
 export declare function RowSection(props: RowSectionProps): JSX.Element;
+
+export interface RowSkeletonProps {
+  /** Must equal the loaded row's height so nothing shifts. */
+  height?: number;
+  columns?: number;
+  gap?: number;
+  radius?: number;
+  style?: React.CSSProperties;
+}
+export declare function RowSkeleton(props: RowSkeletonProps): JSX.Element;
+
+export interface RowErrorFallbackProps {
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  /** From the error envelope; rendered in mono. */
+  requestId?: string | null;
+  /** Wire to the boundary's reset (resetErrorBoundary) — the data layer decides refetch policy. */
+  onRetry?: () => void;
+  style?: React.CSSProperties;
+}
+export declare function RowErrorFallback(props: RowErrorFallbackProps): JSX.Element;

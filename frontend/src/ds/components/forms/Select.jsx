@@ -12,7 +12,7 @@ return <div ref={ref} style={{position:'relative',display:'inline-block',...styl
 </button>
 {open&&<div style={{position:'absolute',top:'calc(100% + 4px)',left:0,minWidth:'100%',background:'var(--surface-card)',border:'1px solid var(--border-strong)',borderRadius:'var(--radius-md)',boxShadow:'var(--shadow-popover)',backdropFilter:'var(--surface-blur)',WebkitBackdropFilter:'var(--surface-blur)',padding:5,zIndex:30}}>
 {options.map((o,i)=>{const v=o.value??o;const sel=v===value;
-return <div key={i} onClick={()=>{setOpen(false);onChange&&onChange(v)}} style={{padding:'6px 12px',borderRadius:'var(--radius-sm)',fontSize:size==='sm'?12:13,fontFamily:'var(--font-sans)',fontWeight:sel?600:400,color:sel?'var(--accent)':'var(--ink)',background:sel?'var(--accent-softer)':'transparent',cursor:'pointer',whiteSpace:'nowrap'}}
+return <div key={i} onClick={()=>{setOpen(false);if(onChange){onChange(v);}}} style={{padding:'6px 12px',borderRadius:'var(--radius-sm)',fontSize:size==='sm'?12:13,fontFamily:'var(--font-sans)',fontWeight:sel?600:400,color:sel?'var(--accent)':'var(--ink)',background:sel?'var(--accent-softer)':'transparent',cursor:'pointer',whiteSpace:'nowrap'}}
 onMouseEnter={e=>{if(!sel)e.currentTarget.style.background='var(--surface-hover)'}} onMouseLeave={e=>{if(!sel)e.currentTarget.style.background='transparent'}}>{label(o)}</div>})}
 </div>}
 </div>;
