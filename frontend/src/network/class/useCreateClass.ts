@@ -4,12 +4,11 @@ import { queryKeys } from '../core/queryKeys';
 
 export const useCreateClass = () => {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: createClass,
-    onSuccess: (_, { track }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.class.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.class.byTrack(track) });
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.classes.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tracks.classes(data.trackId) });
     },
   });
 };
