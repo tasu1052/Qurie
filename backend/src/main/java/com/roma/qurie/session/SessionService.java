@@ -24,7 +24,6 @@ public class SessionService {
                         .classId(request.classId())
                         .title(request.title())
                         .createdBy(request.createdBy())
-                        .active(true)
                         .build();
         return SessionResponse.from(sessionRepository.save(session));
     }

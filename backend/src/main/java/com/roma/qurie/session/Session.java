@@ -23,8 +23,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Table(name = "session")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
 public class Session {
 
     @Id
@@ -54,6 +52,18 @@ public class Session {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @Builder
+    private Session(
+        Long classId,
+        String title,
+        Long createdBy
+    ) {
+        this.classId = classId;
+        this.title = title;
+        this.createdBy = createdBy;
+        this.active = true;
+    }
 
     /** 방 제목을 변경한다. */
     public void changeTitle(String title) {
