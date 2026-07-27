@@ -1,5 +1,6 @@
 package com.roma.qurie.master;
 
+import com.roma.qurie.common.entity.BaseTimeEntity;
 import com.roma.qurie.enterprise.Enterprise;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -24,12 +25,11 @@ import org.hibernate.annotations.UpdateTimestamp;
  * 마스터 계정은 회원가입 API 없이 운영팀이 DB에 직접 등록한다.
  */
 @Entity
-@Table(name = "master")
+@Table(name = "masters")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
-public class Master {
+public class Master extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,11 +48,10 @@ public class Master {
     @Column(name = "name", nullable = false, length = 50)
     private String name;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
+    public Master(Enterprise enterprise, String email, String password, String name) {
+        this.enterprise = enterprise;
+        this.email = email;
+        this.password = password;
+        this.name = name;
+    }
 }

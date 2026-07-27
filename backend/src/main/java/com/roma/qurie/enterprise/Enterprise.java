@@ -7,6 +7,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.util.Map;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,16 +16,17 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.roma.qurie.common.entity.BaseTimeEntity;
+
 /**
  * 계약을 맺은 부트캠프(고객사) 엔티티. 마스터는 이 엔터프라이즈 소속으로 등록된다.
  */
 @Entity
-@Table(name = "enterprise")
+@Table(name = "enterprises")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
-public class Enterprise {
+public class Enterprise extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,7 +35,7 @@ public class Enterprise {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    public Enterprise(String name) {
+        this.name = name;
+    }
 }
