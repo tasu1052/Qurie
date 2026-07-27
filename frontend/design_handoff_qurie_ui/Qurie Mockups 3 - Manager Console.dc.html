@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/qurie-design-system-1efd37a1-4731-4ea7-ad55-b6aa8fb5d9c6/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/qurie-design-system-1efd37a1-4731-4ea7-ad55-b6aa8fb5d9c6/tokens/primitives.css">
+<link rel="stylesheet" href="_ds/qurie-design-system-1efd37a1-4731-4ea7-ad55-b6aa8fb5d9c6/tokens/colors.css">
+<link rel="stylesheet" href="_ds/qurie-design-system-1efd37a1-4731-4ea7-ad55-b6aa8fb5d9c6/tokens/typography.css">
+<link rel="stylesheet" href="_ds/qurie-design-system-1efd37a1-4731-4ea7-ad55-b6aa8fb5d9c6/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/qurie-design-system-1efd37a1-4731-4ea7-ad55-b6aa8fb5d9c6/styles.css">
+<script src="_ds/qurie-design-system-1efd37a1-4731-4ea7-ad55-b6aa8fb5d9c6/_ds_bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.462.0/dist/umd/lucide.min.js"></script>
+<script>window.OM_SCENES = '[{"name":"인트로","dur":2},{"name":"실시간 리뷰","dur":3},{"name":"AI 퀴즈","dur":2.5},{"name":"시작하기","dur":2.5}]';window.OM_PLAYBACK = '{"mode":"loop"}';</script>
+<style>
+body{margin:0;background:#f0eee9;font-family:var(--font-sans)}
+a{color:var(--link);text-decoration:none}a:hover{color:var(--accent-strong);text-decoration:underline}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 var(--font-sans);color:#1a1a1a}
+.dv-tsub{font:400 12px/1.4 var(--font-sans);color:rgba(0,0,0,.5)}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 var(--font-sans);color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+:root{--font-mono:'JetBrains Mono','Noto Sans KR',ui-monospace,monospace}
+.qh{position:relative}.qh .qtt{opacity:0;pointer-events:none;transition:opacity .12s ease-out}.qh:hover .qtt{opacity:1}
+@keyframes qblink{0%,55%{opacity:1}56%,100%{opacity:0}}
+@keyframes qpulse{0%,100%{opacity:1}50%{opacity:.35}}
+</style>
+</helmet>
+
+<div style="display:flex;gap:14px;align-items:center;font-family:Inter,'Noto Sans KR',sans-serif;font-size:13px;color:#64748B;padding:2px 4px"><a href="Qurie%20Mockups%201%20-%20Marketing%20-%20Auth.dc.html" style="color:#6366F1;text-decoration:none">1 · Marketing & Auth</a><a href="Qurie%20Mockups%202%20-%20Master%20Console.dc.html" style="color:#6366F1;text-decoration:none">2 · Master Console</a><span style="font-weight:700;color:#111111">3 · Manager Console</span><a href="Qurie%20Mockups%204%20-%20Student.dc.html" style="color:#6366F1;text-decoration:none">4 · Student</a><a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html" style="color:#6366F1;text-decoration:none">5 · Session & Report</a><a href="Qurie%20Mockups%206%20-%20States.dc.html" style="color:#6366F1;text-decoration:none">6 · States</a></div>
+<section class="dv-turn" id="t1c">
+<div class="dv-thd"><a class="dv-tid" href="#t1c">3 · Class Manager 콘솔</a><span class="dv-tname">Class Manager Dashboard · Student Management · Student Overview</span><span class="dv-tsub">클래스 역할 ADMIN(김지원) 관점 — class_user 역할: ADMIN / STUDENT</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1j"><div class="dv-olabel"><a class="dv-oid" href="#1j">1j</a>Class Manager Dashboard</div>
+<div class="dv-card" style="width:1440px" data-screen-label="Class Manager Dashboard">
+<div style="display:flex;background:var(--bg-app)">
+  <aside style="width:232px;min-width:232px;background:var(--surface-card);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 12px;gap:4px">
+    <div style="display:flex;align-items:center;padding:4px 10px 12px;font-size:18px;font-weight:700;color:var(--ink);letter-spacing:-0.02em">Q<span style="color:var(--accent);font-weight:800">&gt;</span>rie</div>
+    <div style="margin:0 4px 12px;background:var(--surface-sunken);border:1px solid var(--border);border-radius:999px;padding:10px 16px;display:flex;flex-direction:column;gap:2px;cursor:pointer" style-hover="background:var(--surface-hover)">
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted)">Java 전공 (서울)</span>
+      <span style="display:flex;align-items:center;font-size:13px;font-weight:700;color:var(--ink)">서울 1반<span style="margin-left:auto;color:var(--text-muted);font-size:10px">▾</span></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;background:var(--accent-softer);color:var(--accent);font-size:14px;font-weight:600"><i data-lucide="home" width="16" height="16"></i>클래스 홈</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;color:var(--text-secondary);font-size:14px;font-weight:500;cursor:pointer" style-hover="background:var(--surface-hover)"><i data-lucide="play-circle" width="16" height="16"></i>세션<span style="margin-left:auto;display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:var(--status-success)"><span style="width:5px;height:5px;border-radius:50%;background:var(--status-success);animation:qpulse 1.6s infinite"></span>1</span></div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;color:var(--text-secondary);font-size:14px;font-weight:500;cursor:pointer" style-hover="background:var(--surface-hover)"><i data-lucide="users" width="16" height="16"></i>학생 관리</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;color:var(--text-secondary);font-size:14px;font-weight:500;cursor:pointer" style-hover="background:var(--surface-hover)"><i data-lucide="megaphone" width="16" height="16"></i>공지사항</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;color:var(--text-secondary);font-size:14px;font-weight:500;cursor:pointer" style-hover="background:var(--surface-hover)"><i data-lucide="settings" width="16" height="16"></i>클래스 설정</div>
+    <div style="margin-top:auto;border-top:1px solid var(--divider);padding-top:12px;display:flex;align-items:center;gap:10px;padding-left:6px">
+      <span style="width:32px;height:32px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">지</span>
+      <div style="display:flex;flex-direction:column;line-height:1.3"><span style="font-size:13px;font-weight:600;color:var(--ink)">김지원</span><span style="font-size:11px;color:var(--text-muted)">클래스 역할 · ADMIN</span></div>
+    </div>
+  </aside>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <header style="height:56px;background:var(--surface-card);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 20px">
+      <span style="font-size:14px;color:var(--text-secondary)">클래스 관리</span><span style="color:var(--accent);font-weight:800;font-size:12px">&gt;</span><span style="font-size:14px;color:var(--text-secondary)">서울 1반</span><span style="color:var(--accent);font-weight:800;font-size:12px">&gt;</span><span style="font-size:14px;font-weight:600;color:var(--ink)">클래스 홈</span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+        <div style="display:flex;align-items:center;gap:8px;border:1px solid var(--border-strong);border-radius:999px;padding:7px 14px;width:240px;color:var(--text-muted);font-size:13px"><i data-lucide="search" width="14" height="14"></i>검색 또는 명령…<span style="margin-left:auto;font-size:10px;border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--text-muted)">⌘K</span></div>
+        <span style="color:var(--text-secondary);display:flex;cursor:pointer"><i data-lucide="bell" width="17" height="17"></i></span>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">지</span><div style="display:flex;flex-direction:column;line-height:1.2"><span style="font-size:13px;font-weight:600;color:var(--ink)">김지원</span><span style="font-size:10px;color:var(--text-muted);letter-spacing:0.06em">ADMIN</span></div></div>
+      </div>
+    </header>
+    <main style="flex:1;padding:24px;display:flex;flex-direction:column;gap:24px">
+      <div style="background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);padding:24px;display:flex;align-items:center;gap:24px">
+        <div style="display:flex;flex-direction:column;gap:6px;flex:1">
+          <div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent)">Java 전공 (서울)</span><span style="display:inline-flex;align-items:center;gap:5px;background:var(--status-success-bg);color:var(--status-success);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em"><span style="width:5px;height:5px;border-radius:50%;background:var(--status-success)"></span>진행 중</span></div>
+          <h1 style="font-size:24px;font-weight:700;margin:0">서울 1반</h1>
+          <span style="font-size:13px;color:var(--text-secondary)">2026.05.04 – 2026.09.25 · D-65 · 학생 42명 · 그룹 6개 · 세션 12회 진행</span>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:6px;max-width:420px"><div style="flex:1;height:6px;border-radius:999px;background:var(--divider);overflow:hidden"><div style="width:58%;height:100%;background:var(--accent)"></div></div><span style="font-size:12px;font-weight:600;color:var(--ink)">진도 58%</span></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button style="display:inline-flex;align-items:center;gap:8px;background:var(--surface-card);color:var(--ink);border:1px solid var(--border-strong);border-radius:999px;padding:9px 14px;font-size:13px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--surface-hover)"><i data-lucide="settings" width="14" height="14"></i>클래스 설정</button>
+          <button style="display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:#fff;border:none;border-radius:999px;padding:9px 16px;font-size:13px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--grey-600)"><i data-lucide="plus" width="14" height="14"></i>세션 개설</button>
+        </div>
+      </div>
+      <x-import component-from-global-scope="QurieDesignSystem_1efd37.StatCardRow" hint-size="100%,132px">
+        <x-import component-from-global-scope="QurieDesignSystem_1efd37.StatCard" value="42" label="학생 (STUDENT)" caption="ADMIN 2" hint-size="100%,130px"></x-import>
+        <x-import component-from-global-scope="QurieDesignSystem_1efd37.StatCard" value="2" label="오늘 세션" caption="LIVE 1 · 18명 접속 중" hint-size="100%,130px"></x-import>
+        <x-import component-from-global-scope="QurieDesignSystem_1efd37.StatCard" value="78%" label="퀴즈 완료율" delta="+4%" delta-direction="up" caption="최근 4개 세션" hint-size="100%,130px"></x-import>
+        <x-import component-from-global-scope="QurieDesignSystem_1efd37.StatCard" accent="{{ true }}" value="81%" label="평균 정답률" delta="+2.5%" delta-direction="up" caption="지난 세션 대비" hint-size="100%,130px"></x-import>
+      </x-import>
+      <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:24px;align-items:start">
+        <div style="background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);overflow:hidden;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 14px"><span style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary)">오늘의 세션</span><span style="font-size:12px;color:var(--text-muted)">스크롤로 전체 세션을 열람할 수 있습니다</span></div>
+          <div style="max-height:430px;overflow-y:auto">
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--divider)">
+              <span style="display:inline-flex;align-items:center;gap:5px;background:var(--status-success-bg);color:var(--status-success);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em"><span style="width:5px;height:5px;border-radius:50%;background:var(--status-success);animation:qpulse 1.6s infinite"></span>LIVE</span>
+              <div style="display:flex;flex-direction:column;gap:2px;flex:1"><span style="font-size:14px;font-weight:600;color:var(--ink)">React Hooks 심화 실습</span><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-muted)">java-seoul-1/react-hooks-deep-dive</span></div>
+              <span style="font-size:12.5px;color:var(--text-secondary)">접속 18 / 42</span>
+              <div style="display:flex;gap:8px"><button style="background:var(--accent);color:#fff;border:none;border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--accent-strong)">입장</button><button style="display:inline-flex;align-items:center;gap:6px;background:var(--surface-card);color:var(--status-error);border:1px solid var(--border-strong);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--status-error-bg)"><i data-lucide="square" width="12" height="12"></i>세션 닫기</button></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--divider)">
+              <span style="background:var(--status-neutral-bg);color:var(--status-neutral);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em">예정</span>
+              <div style="display:flex;flex-direction:column;gap:2px;flex:1"><span style="font-size:14px;font-weight:600;color:var(--ink)">에러 핸들링 코드 리뷰</span><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-muted)">java-seoul-1/error-handling-review</span></div>
+              <span style="font-size:12.5px;color:var(--text-secondary)">그룹 A · B 대상</span>
+              <button style="background:var(--surface-card);color:var(--ink);border:1px solid var(--border-strong);border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--surface-hover)">준비</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--divider)">
+              <span style="background:var(--status-neutral-bg);color:var(--status-neutral);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em">예정</span>
+              <div style="display:flex;flex-direction:column;gap:2px;flex:1"><span style="font-size:14px;font-weight:600;color:var(--ink)">렌더링 성능 프로파일링</span><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-muted)">java-seoul-1/render-profiling</span></div>
+              <span style="font-size:12.5px;color:var(--text-secondary)">그룹 C 대상</span>
+              <button style="background:var(--surface-card);color:var(--ink);border:1px solid var(--border-strong);border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--surface-hover)">준비</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--divider)">
+              <span style="background:var(--status-neutral-bg);color:var(--status-neutral);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em">종료</span>
+              <div style="display:flex;flex-direction:column;gap:2px;flex:1"><span style="font-size:14px;font-weight:600;color:var(--ink)">상태 관리 패턴 리뷰</span><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-muted)">java-seoul-1/state-management</span></div>
+              <span style="font-size:12.5px;color:var(--text-secondary)">참여 40 / 42</span>
+              <a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html#1q" style="font-size:12.5px;font-weight:600">리포트 <span style="font-weight:800">&gt;</span></a>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--divider)">
+              <span style="background:var(--status-neutral-bg);color:var(--status-neutral);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em">종료</span>
+              <div style="display:flex;flex-direction:column;gap:2px;flex:1"><span style="font-size:14px;font-weight:600;color:var(--ink)">Suspense 패턴 실습</span><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-muted)">java-seoul-1/suspense-patterns</span></div>
+              <span style="font-size:12.5px;color:var(--text-secondary)">참여 38 / 42</span>
+              <a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html#1q" style="font-size:12.5px;font-weight:600">리포트 <span style="font-weight:800">&gt;</span></a>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--divider)">
+              <span style="background:var(--status-neutral-bg);color:var(--status-neutral);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em">종료</span>
+              <div style="display:flex;flex-direction:column;gap:2px;flex:1"><span style="font-size:14px;font-weight:600;color:var(--ink)">컴포넌트 테스트 자동화</span><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-muted)">java-seoul-1/component-testing</span></div>
+              <span style="font-size:12.5px;color:var(--text-secondary)">참여 41 / 42</span>
+              <a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html#1q" style="font-size:12.5px;font-weight:600">리포트 <span style="font-weight:800">&gt;</span></a>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:24px">
+          <div style="background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);padding:24px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary)">학생 목록</span><span style="font-size:12px;color:var(--text-muted)">42명</span></div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:var(--tertiary-100);color:var(--quaternary-400);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">민</span><div style="flex:1;display:flex;flex-direction:column"><span style="font-size:13px;font-weight:600;color:var(--ink)">박민수</span><span style="font-size:11.5px;color:var(--text-muted)">그룹 A · LEADER</span></div><span style="font-size:12px;font-weight:600;color:var(--ink)">완료율 94%</span></div>
+              <div style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:var(--surface-sunken);color:var(--text-secondary);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">서</span><div style="flex:1;display:flex;flex-direction:column"><span style="font-size:13px;font-weight:600;color:var(--ink)">이서연</span><span style="font-size:11.5px;color:var(--text-muted)">그룹 B · LEADER</span></div><span style="font-size:12px;font-weight:600;color:var(--ink)">완료율 88%</span></div>
+              <div style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:var(--surface-sunken);color:var(--text-secondary);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">유</span><div style="flex:1;display:flex;flex-direction:column"><span style="font-size:13px;font-weight:600;color:var(--ink)">정유진</span><span style="font-size:11.5px;color:var(--text-muted)">그룹 B</span></div><span style="font-size:12px;font-weight:600;color:var(--status-warning)">완료율 71%</span></div>
+              <div style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:var(--surface-sunken);color:var(--text-secondary);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">도</span><div style="flex:1;display:flex;flex-direction:column"><span style="font-size:13px;font-weight:600;color:var(--ink)">한도윤</span><span style="font-size:11.5px;color:var(--text-muted)">그룹 C</span></div><span style="font-size:12px;font-weight:600;color:var(--status-error)">완료율 58%</span></div>
+            </div>
+            <a href="#1k" style="text-decoration:none"><button style="width:100%;background:var(--surface-card);color:var(--ink);border:1px solid var(--border-strong);border-radius:999px;padding:9px 0;font-size:12.5px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--surface-hover)">더보기 — 학생 관리로 이동</button></a>
+          </div>
+          <div style="background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);padding:24px;display:flex;flex-direction:column;gap:12px">
+            <span style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary)">주의가 필요한 학생</span>
+            <div style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:var(--status-error-bg);color:var(--status-error);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">한</span><div style="flex:1;display:flex;flex-direction:column"><span style="font-size:13px;font-weight:600;color:var(--ink)">한도윤</span><span style="font-size:11.5px;color:var(--text-muted)">최근 3개 세션 정답률 58% · 스킵 6회</span></div><a href="#1l" style="font-size:12px;font-weight:600">현황 <span style="font-weight:800">&gt;</span></a></div>
+            <div style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:var(--status-warning-bg);color:var(--status-warning);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">정</span><div style="flex:1;display:flex;flex-direction:column"><span style="font-size:13px;font-weight:600;color:var(--ink)">정유진</span><span style="font-size:11.5px;color:var(--text-muted)">퀴즈 미응시 2회 연속 (is_attempted: false)</span></div><a href="#1l" style="font-size:12px;font-weight:600">현황 <span style="font-weight:800">&gt;</span></a></div>
+          </div>
+        </div>
+      </div>
+      <x-import component-from-global-scope="QurieDesignSystem_1efd37.Footer" hint-size="100%,34px"></x-import>
+    </main>
+  </div>
+</div>
+</div></div>
+
+<div class="dv-opt" id="1k"><div class="dv-olabel"><a class="dv-oid" href="#1k">1k</a>Student Management — 클래스 참여자 관리</div>
+<div class="dv-card" style="width:1440px" data-screen-label="Student Management">
+<div style="display:flex;background:var(--bg-app);position:relative">
+  <aside style="width:232px;min-width:232px;background:var(--surface-card);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 12px;gap:4px">
+    <div style="display:flex;align-items:center;padding:4px 10px 12px;font-size:18px;font-weight:700;color:var(--ink);letter-spacing:-0.02em">Q<span style="color:var(--accent);font-weight:800">&gt;</span>rie</div>
+    <div style="margin:0 4px 12px;background:var(--surface-sunken);border:1px solid var(--border);border-radius:999px;padding:10px 16px;display:flex;flex-direction:column;gap:2px;cursor:pointer" style-hover="background:var(--surface-hover)">
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted)">Java 전공 (서울)</span>
+      <span style="display:flex;align-items:center;font-size:13px;font-weight:700;color:var(--ink)">서울 1반<span style="margin-left:auto;color:var(--text-muted);font-size:10px">▾</span></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;color:var(--text-secondary);font-size:14px;font-weight:500;cursor:pointer" style-hover="background:var(--surface-hover)"><i data-lucide="home" width="16" height="16"></i>클래스 홈</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;color:var(--text-secondary);font-size:14px;font-weight:500;cursor:pointer" style-hover="background:var(--surface-hover)"><i data-lucide="play-circle" width="16" height="16"></i>세션</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;background:var(--accent-softer);color:var(--accent);font-size:14px;font-weight:600"><i data-lucide="users" width="16" height="16"></i>학생 관리</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;color:var(--text-secondary);font-size:14px;font-weight:500;cursor:pointer" style-hover="background:var(--surface-hover)"><i data-lucide="megaphone" width="16" height="16"></i>공지사항</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;color:var(--text-secondary);font-size:14px;font-weight:500;cursor:pointer" style-hover="background:var(--surface-hover)"><i data-lucide="settings" width="16" height="16"></i>클래스 설정</div>
+    <div style="margin-top:auto;border-top:1px solid var(--divider);padding-top:12px;display:flex;align-items:center;gap:10px;padding-left:6px">
+      <span style="width:32px;height:32px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">지</span>
+      <div style="display:flex;flex-direction:column;line-height:1.3"><span style="font-size:13px;font-weight:600;color:var(--ink)">김지원</span><span style="font-size:11px;color:var(--text-muted)">클래스 역할 · ADMIN</span></div>
+    </div>
+  </aside>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <header style="height:56px;background:var(--surface-card);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 20px">
+      <span style="font-size:14px;color:var(--text-secondary)">클래스 관리</span><span style="color:var(--accent);font-weight:800;font-size:12px">&gt;</span><span style="font-size:14px;color:var(--text-secondary)">서울 1반</span><span style="color:var(--accent);font-weight:800;font-size:12px">&gt;</span><span style="font-size:14px;font-weight:600;color:var(--ink)">학생 관리</span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+        <div style="display:flex;align-items:center;gap:8px;border:1px solid var(--border-strong);border-radius:999px;padding:7px 14px;width:240px;color:var(--text-muted);font-size:13px"><i data-lucide="search" width="14" height="14"></i>검색 또는 명령…<span style="margin-left:auto;font-size:10px;border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--text-muted)">⌘K</span></div>
+        <span style="color:var(--text-secondary);display:flex;cursor:pointer"><i data-lucide="bell" width="17" height="17"></i></span>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">지</span><div style="display:flex;flex-direction:column;line-height:1.2"><span style="font-size:13px;font-weight:600;color:var(--ink)">김지원</span><span style="font-size:10px;color:var(--text-muted);letter-spacing:0.06em">ADMIN</span></div></div>
+      </div>
+    </header>
+    <main style="flex:1;padding:24px;display:flex;flex-direction:column;gap:24px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div><h1 style="font-size:22px;font-weight:700;margin:0">학생 관리</h1><span style="font-size:13px;color:var(--text-secondary)">클래스 내 역할(ADMIN / STUDENT)과 그룹 배정을 관리합니다. 학생을 클릭하면 학생 현황으로 이동합니다.</span></div>
+        <button style="display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:#fff;border:none;border-radius:999px;padding:9px 16px;font-size:13px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--grey-600)"><i data-lucide="user-plus" width="14" height="14"></i>참여자 배정</button>
+      </div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;align-items:start">
+        <div style="background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);overflow:hidden">
+          <div style="display:flex;border-bottom:1px solid var(--divider);padding:0 24px;gap:4px">
+            <span style="padding:13px 14px;font-size:13px;font-weight:600;color:var(--ink);border-bottom:2px solid var(--accent)">학생 목록</span>
+            <span style="padding:13px 14px;font-size:13px;color:var(--text-muted);cursor:pointer" style-hover="color:var(--ink)">오늘 액티비티</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:16px 24px;border-bottom:1px solid var(--divider)">
+            <div style="display:flex;align-items:center;gap:8px;border:1px solid var(--border-strong);border-radius:999px;padding:8px 14px;width:240px;color:var(--text-muted);font-size:13px"><i data-lucide="search" width="14" height="14"></i>학생 검색…</div>
+            <span style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border-strong);border-radius:999px;padding:8px 14px;font-size:13px;color:var(--ink);cursor:pointer">전체 역할 <span style="color:var(--text-muted);font-size:10px">▾</span></span>
+            <span style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border-strong);border-radius:999px;padding:8px 14px;font-size:13px;color:var(--ink);cursor:pointer">전체 그룹 <span style="color:var(--text-muted);font-size:10px">▾</span></span>
+            <span style="margin-left:auto;font-size:12px;color:var(--text-muted)">45명</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1.7fr 1.1fr 0.8fr 1fr 1fr 48px;padding:10px 24px;border-bottom:1px solid var(--divider);font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted)"><span>학생</span><span>클래스 역할</span><span>그룹</span><span>퀴즈 완료율</span><span>오늘 액티비티</span><span></span></div>
+          <a href="#1l" style="display:grid;grid-template-columns:1.7fr 1.1fr 0.8fr 1fr 1fr 48px;padding:13px 24px;border-bottom:1px solid var(--divider);font-size:13px;align-items:center;text-decoration:none;color:inherit;cursor:pointer" style-hover="background:var(--surface-hover)">
+            <span style="display:flex;align-items:center;gap:10px"><span style="width:32px;height:32px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">지</span><span style="display:flex;flex-direction:column"><span style="font-weight:600;color:var(--ink)">김지원</span><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-muted)">jiwon@ssafy.com</span></span></span>
+            <span><span style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--accent);background:var(--accent-softer);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--accent);cursor:pointer">ADMIN <span style="font-size:9px">▾</span></span></span>
+            <span style="color:var(--text-muted)">—</span>
+            <span style="display:flex;align-items:center;gap:8px"><span style="flex:1;max-width:90px;height:5px;border-radius:999px;background:var(--divider);overflow:hidden"><span style="display:block;width:100%;height:100%;background:var(--accent)"></span></span><span style="font-size:12px;font-weight:600;color:var(--ink)">100%</span></span>
+            <span><span style="display:inline-flex;align-items:center;gap:5px;background:var(--status-success-bg);color:var(--status-success);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em"><span style="width:5px;height:5px;border-radius:50%;background:var(--status-success);animation:qpulse 1.6s infinite"></span>접속 중</span></span>
+            <span style="text-align:right;color:var(--text-muted);cursor:pointer;font-weight:700;letter-spacing:1px">⋯</span>
+          </a>
+          <a href="#1l" style="display:grid;grid-template-columns:1.7fr 1.1fr 0.8fr 1fr 1fr 48px;padding:13px 24px;border-bottom:1px solid var(--divider);font-size:13px;align-items:center;text-decoration:none;color:inherit;cursor:pointer" style-hover="background:var(--surface-hover)">
+            <span style="display:flex;align-items:center;gap:10px"><span style="width:32px;height:32px;border-radius:50%;background:var(--tertiary-100);color:var(--quaternary-400);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">민</span><span style="display:flex;flex-direction:column"><span style="font-weight:600;color:var(--ink)">박민수</span><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-muted)">minsu@ssafy.com</span></span></span>
+            <span><span style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border-strong);border-radius:999px;padding:5px 12px;font-size:12px;color:var(--ink);cursor:pointer">STUDENT <span style="color:var(--text-muted);font-size:9px">▾</span></span></span>
+            <span><span style="background:var(--accent-softer);color:var(--accent);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600">A · LEADER</span></span>
+            <span style="display:flex;align-items:center;gap:8px"><span style="flex:1;max-width:90px;height:5px;border-radius:999px;background:var(--divider);overflow:hidden"><span style="display:block;width:94%;height:100%;background:var(--accent)"></span></span><span style="font-size:12px;font-weight:600;color:var(--ink)">94%</span></span>
+            <span><span style="display:inline-flex;align-items:center;gap:5px;background:var(--status-success-bg);color:var(--status-success);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em"><span style="width:5px;height:5px;border-radius:50%;background:var(--status-success);animation:qpulse 1.6s infinite"></span>접속 중</span></span>
+            <span style="text-align:right;color:var(--text-muted);cursor:pointer;font-weight:700;letter-spacing:1px">⋯</span>
+          </a>
+          <a href="#1l" style="display:grid;grid-template-columns:1.7fr 1.1fr 0.8fr 1fr 1fr 48px;padding:13px 24px;border-bottom:1px solid var(--divider);font-size:13px;align-items:center;text-decoration:none;color:inherit;cursor:pointer" style-hover="background:var(--surface-hover)">
+            <span style="display:flex;align-items:center;gap:10px"><span style="width:32px;height:32px;border-radius:50%;background:var(--surface-sunken);color:var(--text-secondary);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">서</span><span style="display:flex;flex-direction:column"><span style="font-weight:600;color:var(--ink)">이서연</span><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-muted)">seoyeon@ssafy.com</span></span></span>
+            <span><span style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border-strong);border-radius:999px;padding:5px 12px;font-size:12px;color:var(--ink);cursor:pointer">STUDENT <span style="color:var(--text-muted);font-size:9px">▾</span></span></span>
+            <span><span style="background:var(--accent-softer);color:var(--accent);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600">B · LEADER</span></span>
+            <span style="display:flex;align-items:center;gap:8px"><span style="flex:1;max-width:90px;height:5px;border-radius:999px;background:var(--divider);overflow:hidden"><span style="display:block;width:88%;height:100%;background:var(--accent)"></span></span><span style="font-size:12px;font-weight:600;color:var(--ink)">88%</span></span>
+            <span><span style="background:var(--status-accent-bg);color:var(--status-accent);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em">오늘 활동</span></span>
+            <span style="text-align:right;color:var(--text-muted);cursor:pointer;font-weight:700;letter-spacing:1px">⋯</span>
+          </a>
+          <a href="#1l" style="display:grid;grid-template-columns:1.7fr 1.1fr 0.8fr 1fr 1fr 48px;padding:13px 24px;border-bottom:1px solid var(--divider);font-size:13px;align-items:center;text-decoration:none;color:inherit;cursor:pointer" style-hover="background:var(--surface-hover)">
+            <span style="display:flex;align-items:center;gap:10px"><span style="width:32px;height:32px;border-radius:50%;background:var(--surface-sunken);color:var(--text-secondary);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">도</span><span style="display:flex;flex-direction:column"><span style="font-weight:600;color:var(--ink)">한도윤</span><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-muted)">doyoon@ssafy.com</span></span></span>
+            <span><span style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border-strong);border-radius:999px;padding:5px 12px;font-size:12px;color:var(--ink);cursor:pointer">STUDENT <span style="color:var(--text-muted);font-size:9px">▾</span></span></span>
+            <span><span style="background:var(--status-neutral-bg);color:var(--status-neutral);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600">C · 참여자</span></span>
+            <span style="display:flex;align-items:center;gap:8px"><span style="flex:1;max-width:90px;height:5px;border-radius:999px;background:var(--divider);overflow:hidden"><span style="display:block;width:58%;height:100%;background:var(--status-error)"></span></span><span style="font-size:12px;font-weight:600;color:var(--status-error)">58%</span></span>
+            <span><span style="background:var(--status-neutral-bg);color:var(--status-neutral);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em">미접속</span></span>
+            <span style="text-align:right;color:var(--text-muted);cursor:pointer;font-weight:700;letter-spacing:1px">⋯</span>
+          </a>
+          <a href="#1l" style="display:grid;grid-template-columns:1.7fr 1.1fr 0.8fr 1fr 1fr 48px;padding:13px 24px;font-size:13px;align-items:center;text-decoration:none;color:inherit;cursor:pointer" style-hover="background:var(--surface-hover)">
+            <span style="display:flex;align-items:center;gap:10px"><span style="width:32px;height:32px;border-radius:50%;background:var(--surface-sunken);color:var(--text-secondary);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">유</span><span style="display:flex;flex-direction:column"><span style="font-weight:600;color:var(--ink)">정유진</span><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-muted)">yujin@ssafy.com</span></span></span>
+            <span><span style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border-strong);border-radius:999px;padding:5px 12px;font-size:12px;color:var(--ink);cursor:pointer">STUDENT <span style="color:var(--text-muted);font-size:9px">▾</span></span></span>
+            <span><span style="background:var(--status-neutral-bg);color:var(--status-neutral);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600">B · 참여자</span></span>
+            <span style="display:flex;align-items:center;gap:8px"><span style="flex:1;max-width:90px;height:5px;border-radius:999px;background:var(--divider);overflow:hidden"><span style="display:block;width:71%;height:100%;background:var(--status-warning)"></span></span><span style="font-size:12px;font-weight:600;color:var(--status-warning)">71%</span></span>
+            <span><span style="background:var(--status-neutral-bg);color:var(--status-neutral);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em">미접속</span></span>
+            <span style="text-align:right;color:var(--text-muted);cursor:pointer;font-weight:700;letter-spacing:1px">⋯</span>
+          </a>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:24px">
+          <div style="background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);padding:24px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary)">그룹</span><div style="display:flex;gap:6px"><button title="무작위 그룹 생성" style="display:inline-flex;align-items:center;gap:6px;background:var(--surface-card);color:var(--ink);border:1px solid var(--border-strong);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--surface-hover)"><i data-lucide="shuffle" width="12" height="12"></i>랜덤 셔플</button><button style="display:inline-flex;align-items:center;gap:6px;background:var(--ink);color:#fff;border:none;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--grey-600)"><i data-lucide="plus" width="12" height="12"></i>그룹 생성</button></div></div>
+            <div style="border:1px solid var(--border);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px" style-hover="background:var(--surface-hover)">
+              <div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;font-weight:700;color:var(--ink)">그룹 A — 렌더링 최적화</span><span style="margin-left:auto;font-size:11.5px;color:var(--text-muted)">7명</span></div>
+              <span style="font-size:12px;color:var(--text-secondary)">2026.06.01 – 2026.08.31</span>
+              <div style="display:flex;gap:6px;flex-wrap:wrap"><span style="background:var(--accent-softer);color:var(--accent);border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:600">LEADER 박민수</span><span style="background:var(--status-neutral-bg);color:var(--status-neutral);border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:600">PARTICIPANT 6</span></div>
+            </div>
+            <div style="border:1px solid var(--border);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px" style-hover="background:var(--surface-hover)">
+              <div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;font-weight:700;color:var(--ink)">그룹 B — 상태 관리</span><span style="margin-left:auto;font-size:11.5px;color:var(--text-muted)">7명</span></div>
+              <span style="font-size:12px;color:var(--text-secondary)">2026.06.01 – 2026.08.31</span>
+              <div style="display:flex;gap:6px;flex-wrap:wrap"><span style="background:var(--accent-softer);color:var(--accent);border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:600">LEADER 이서연</span><span style="background:var(--status-neutral-bg);color:var(--status-neutral);border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:600">PARTICIPANT 6</span></div>
+            </div>
+            <div style="border:1px solid var(--border);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px" style-hover="background:var(--surface-hover)">
+              <div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;font-weight:700;color:var(--ink)">그룹 C — 테스트 자동화</span><span style="margin-left:auto;font-size:11.5px;color:var(--text-muted)">7명</span></div>
+              <span style="font-size:12px;color:var(--text-secondary)">2026.06.15 – 2026.09.12</span>
+              <div style="display:flex;gap:6px;flex-wrap:wrap"><span style="background:var(--accent-softer);color:var(--accent);border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:600">LEADER 한도윤</span><span style="background:var(--status-neutral-bg);color:var(--status-neutral);border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:600">PARTICIPANT 6</span></div>
+            </div>
+          </div>
+          <div style="background:var(--accent-softer);border:1px solid var(--accent-soft);border-radius:16px;padding:18px 20px;display:flex;gap:10px">
+            <i data-lucide="info" width="15" height="15" style="color:var(--accent);flex-shrink:0;margin-top:2px"></i>
+            <span style="font-size:12.5px;line-height:1.6;color:var(--text-body)">클래스 역할은 ADMIN과 STUDENT 두 가지입니다. 세션 운영 권한은 ADMIN에게만 부여됩니다.</span>
+          </div>
+        </div>
+      </div>
+      <x-import component-from-global-scope="QurieDesignSystem_1efd37.Footer" hint-size="100%,34px"></x-import>
+    </main>
+  </div>
+  <sc-if value="{{ groupModalOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;inset:0;background:rgba(17,17,17,0.32);backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px) saturate(1.4);display:flex;align-items:center;justify-content:center;z-index:5">
+    <div style="width:620px;background:linear-gradient(155deg,rgba(255,255,255,0.86),rgba(255,255,255,0.74));backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);border:1px solid rgba(255,255,255,0.7);border-radius:20px;box-shadow:var(--shadow-modal),inset 0 1px 0 rgba(255,255,255,0.8);overflow:hidden">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:24px 24px 16px;border-bottom:1px solid var(--divider)">
+        <div style="display:flex;flex-direction:column;gap:4px"><h3 style="font-size:17px;font-weight:700;color:var(--ink);margin:0">그룹 생성 · 배정</h3><span style="font-size:13px;color:var(--text-secondary)">학생을 직접 선택하거나 랜덤 셔플로 무작위 배정할 수 있습니다.</span></div>
+        <span style="color:var(--text-muted);cursor:pointer;display:flex"><i data-lucide="x" width="18" height="18"></i></span>
+      </div>
+      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:13px;font-weight:600;color:var(--ink)">그룹 이름</label><div style="border:1px solid var(--border-strong);border-radius:999px;padding:10px 16px;font-size:14px;color:var(--ink)">그룹 D — 에러 핸들링</div></div>
+          <div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:13px;font-weight:600;color:var(--ink)">운영 기간</label><div style="border:1px solid var(--border-strong);border-radius:999px;padding:10px 16px;font-size:14px;color:var(--text-muted)">2026.08.01 – 2026.09.25</div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;justify-content:space-between"><label style="font-size:13px;font-weight:600;color:var(--ink)">학생 배정 <span style="color:var(--text-muted);font-weight:500">· 선택 3명</span></label><button style="display:inline-flex;align-items:center;gap:6px;background:var(--surface-card);color:var(--ink);border:1px solid var(--border-strong);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--surface-hover)"><i data-lucide="shuffle" width="12" height="12"></i>랜덤 셔플</button></div>
+          <div style="border:1px solid var(--border);border-radius:12px;max-height:180px;overflow-y:auto;display:flex;flex-direction:column">
+            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--divider);font-size:13px;color:var(--ink);cursor:pointer" style-hover="background:var(--surface-hover)"><span style="width:15px;height:15px;border-radius:4px;background:var(--accent);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:800">✓</span>정유진 <span style="margin-left:auto;font-size:11.5px;color:var(--text-muted)">현재 그룹 B</span></label>
+            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--divider);font-size:13px;color:var(--ink);cursor:pointer" style-hover="background:var(--surface-hover)"><span style="width:15px;height:15px;border-radius:4px;background:var(--accent);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:800">✓</span>한도윤 <span style="margin-left:auto;font-size:11.5px;color:var(--text-muted)">현재 그룹 C</span></label>
+            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--divider);font-size:13px;color:var(--ink);cursor:pointer" style-hover="background:var(--surface-hover)"><span style="width:15px;height:15px;border-radius:4px;background:var(--accent);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:800">✓</span>오세훈 <span style="margin-left:auto;font-size:11.5px;color:var(--text-muted)">미배정</span></label>
+            <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:13px;color:var(--text-secondary);cursor:pointer" style-hover="background:var(--surface-hover)"><span style="width:15px;height:15px;border:1.5px solid var(--grey-200);border-radius:4px;display:inline-block"></span>배수지 <span style="margin-left:auto;font-size:11.5px;color:var(--text-muted)">미배정</span></label>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:13px;font-weight:600;color:var(--ink)">리더 (LEADER)</label><div style="display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border-strong);border-radius:999px;padding:10px 16px;font-size:14px;color:var(--ink);cursor:pointer">정유진<span style="color:var(--text-muted);font-size:10px">▾</span></div></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;padding:16px 24px;border-top:1px solid var(--divider)">
+        <button style="background:var(--surface-card);color:var(--ink);border:1px solid var(--border-strong);border-radius:999px;padding:9px 18px;font-size:13px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--surface-hover)">취소</button>
+        <button style="background:var(--ink);color:#fff;border:none;border-radius:999px;padding:9px 18px;font-size:13px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--grey-600)">그룹 생성</button>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+</div>
+</div></div>
+
+<div class="dv-opt" id="1l"><div class="dv-olabel"><a class="dv-oid" href="#1l">1l</a>Student Overview — 학생 개인 현황</div>
+<div class="dv-card" style="width:1440px" data-screen-label="Student Overview">
+<div style="display:flex;background:var(--bg-app)">
+  <aside style="width:232px;min-width:232px;background:var(--surface-card);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 12px;gap:4px">
+    <div style="display:flex;align-items:center;padding:4px 10px 12px;font-size:18px;font-weight:700;color:var(--ink);letter-spacing:-0.02em">Q<span style="color:var(--accent);font-weight:800">&gt;</span>rie</div>
+    <div style="margin:0 4px 12px;background:var(--surface-sunken);border:1px solid var(--border);border-radius:999px;padding:10px 16px;display:flex;flex-direction:column;gap:2px;cursor:pointer" style-hover="background:var(--surface-hover)">
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted)">Java 전공 (서울)</span>
+      <span style="display:flex;align-items:center;font-size:13px;font-weight:700;color:var(--ink)">서울 1반<span style="margin-left:auto;color:var(--text-muted);font-size:10px">▾</span></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;color:var(--text-secondary);font-size:14px;font-weight:500;cursor:pointer" style-hover="background:var(--surface-hover)"><i data-lucide="home" width="16" height="16"></i>클래스 홈</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;color:var(--text-secondary);font-size:14px;font-weight:500;cursor:pointer" style-hover="background:var(--surface-hover)"><i data-lucide="play-circle" width="16" height="16"></i>세션</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;background:var(--accent-softer);color:var(--accent);font-size:14px;font-weight:600"><i data-lucide="users" width="16" height="16"></i>학생 관리</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;color:var(--text-secondary);font-size:14px;font-weight:500;cursor:pointer" style-hover="background:var(--surface-hover)"><i data-lucide="megaphone" width="16" height="16"></i>공지사항</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:999px;color:var(--text-secondary);font-size:14px;font-weight:500;cursor:pointer" style-hover="background:var(--surface-hover)"><i data-lucide="settings" width="16" height="16"></i>클래스 설정</div>
+    <div style="margin-top:auto;border-top:1px solid var(--divider);padding-top:12px;display:flex;align-items:center;gap:10px;padding-left:6px">
+      <span style="width:32px;height:32px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">지</span>
+      <div style="display:flex;flex-direction:column;line-height:1.3"><span style="font-size:13px;font-weight:600;color:var(--ink)">김지원</span><span style="font-size:11px;color:var(--text-muted)">클래스 역할 · ADMIN</span></div>
+    </div>
+  </aside>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <header style="height:56px;background:var(--surface-card);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 20px">
+      <span style="font-size:14px;color:var(--text-secondary)">서울 1반</span><span style="color:var(--accent);font-weight:800;font-size:12px">&gt;</span><span style="font-size:14px;color:var(--text-secondary)">학생 관리</span><span style="color:var(--accent);font-weight:800;font-size:12px">&gt;</span><span style="font-size:14px;font-weight:600;color:var(--ink)">박민수</span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+        <div style="display:flex;align-items:center;gap:8px;border:1px solid var(--border-strong);border-radius:999px;padding:7px 14px;width:240px;color:var(--text-muted);font-size:13px"><i data-lucide="search" width="14" height="14"></i>검색 또는 명령…<span style="margin-left:auto;font-size:10px;border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--text-muted)">⌘K</span></div>
+        <span style="color:var(--text-secondary);display:flex;cursor:pointer"><i data-lucide="bell" width="17" height="17"></i></span>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">지</span><div style="display:flex;flex-direction:column;line-height:1.2"><span style="font-size:13px;font-weight:600;color:var(--ink)">김지원</span><span style="font-size:10px;color:var(--text-muted);letter-spacing:0.06em">ADMIN</span></div></div>
+      </div>
+    </header>
+    <main style="flex:1;padding:24px;display:flex;flex-direction:column;gap:24px">
+      <div style="background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);padding:24px;display:flex;align-items:center;gap:20px">
+        <span style="width:56px;height:56px;border-radius:50%;background:var(--tertiary-100);color:var(--quaternary-400);display:inline-flex;align-items:center;justify-content:center;font-size:20px;font-weight:700">민</span>
+        <div style="display:flex;flex-direction:column;gap:4px;flex:1">
+          <div style="display:flex;align-items:center;gap:10px"><h1 style="font-size:22px;font-weight:700;margin:0">박민수</h1><span style="background:var(--status-neutral-bg);color:var(--status-neutral);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em">STUDENT</span><span style="background:var(--accent-softer);color:var(--accent);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em">그룹 A · LEADER</span></div>
+          <span style="font-size:13px;color:var(--text-secondary)"><span style="font-family:var(--font-mono);font-size:12.5px">minsu@ssafy.com</span> · 클래스 합류 2026.05.04 · 최근 접속 오늘 08:47</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button style="display:inline-flex;align-items:center;gap:7px;background:var(--surface-card);color:var(--ink);border:1px solid var(--border-strong);border-radius:999px;padding:9px 14px;font-size:13px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--surface-hover)"><i data-lucide="file-text" width="14" height="14"></i>리포트 이력</button>
+          <button style="display:inline-flex;align-items:center;gap:7px;background:var(--ink);color:#fff;border:none;border-radius:999px;padding:9px 16px;font-size:13px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--grey-600)"><i data-lucide="message-square" width="14" height="14"></i>코멘트 작성</button>
+        </div>
+      </div>
+      <x-import component-from-global-scope="QurieDesignSystem_1efd37.StatCardRow" hint-size="100%,132px">
+        <x-import component-from-global-scope="QurieDesignSystem_1efd37.StatCard" value="94%" label="퀴즈 완료율" caption="quiz_completion" hint-size="100%,130px"></x-import>
+        <x-import component-from-global-scope="QurieDesignSystem_1efd37.StatCard" accent="{{ true }}" value="88%" label="정답률" delta="+5%" delta-direction="up" caption="최근 4개 세션" hint-size="100%,130px"></x-import>
+        <x-import component-from-global-scope="QurieDesignSystem_1efd37.StatCard" value="4.5" label="평균 평점" caption="5.0 만점 · rating" hint-size="100%,130px"></x-import>
+        <x-import component-from-global-scope="QurieDesignSystem_1efd37.StatCard" value="12" label="참여 세션" caption="스킵 1회 · 미응시 0회" hint-size="100%,130px"></x-import>
+      </x-import>
+      <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:24px">
+        <div style="background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);padding:24px;display:flex;flex-direction:column;gap:16px">
+          <span style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary)">난이도별 정답 분포</span>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;min-height:164px"><x-import component-from-global-scope="QurieDesignSystem_1efd37.DonutChart" size="{{ 140 }}" center-value="88%" center-label="전체 정답률" segments="{{ donutStudentDiff }}" hint-size="auto,164px"></x-import></div>
+        </div>
+        <div style="background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);padding:24px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary)">세션별 지표 추이</span><span style="font-size:12px;color:var(--text-muted)">지표 칩으로 켜고 끄기 · 호버 시 수치 표시</span></div>
+          <div style="display:flex;gap:8px">
+            <span onClick="{{ tgStAcc }}" style="{{ chipStAcc }}">정답률</span>
+            <span onClick="{{ tgStStreak }}" style="{{ chipStStreak }}">Streak</span>
+            <span onClick="{{ tgStSolved }}" style="{{ chipStSolved }}">푼 개수</span>
+          </div>
+          <div style="position:relative">
+            <x-import component-from-global-scope="QurieDesignSystem_1efd37.LineChart" series="{{ stSeries }}" labels="{{ labelsStudent }}" height="{{ 170 }}" show-dots="{{ true }}" hint-size="100%,180px"></x-import>
+            <div style="position:absolute;left:34px;right:8px;top:0;bottom:24px;display:flex">
+              <sc-for list="{{ stPoints }}" as="pt" hint-placeholder-count="6">
+                <div class="qh" style="flex:1;height:100%;cursor:crosshair;border-radius:6px" style-hover="background:rgba(99,102,241,0.06)">
+                  <div class="qtt" style="position:absolute;top:2px;left:50%;transform:translateX(-50%);background:rgba(17,17,17,0.68);backdrop-filter:blur(12px) saturate(1.3);-webkit-backdrop-filter:blur(12px) saturate(1.3);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:10px;padding:7px 12px;font-size:11px;line-height:1.6;white-space:nowrap;z-index:3;box-shadow:var(--shadow-modal)">{{ pt.tip }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <x-import component-from-global-scope="QurieDesignSystem_1efd37.ChartLegend" items="{{ stLegend }}" hint-size="100%,18px"></x-import>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px">
+        <a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html#1q" style="background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);padding:20px 24px;display:flex;align-items:center;gap:14px;text-decoration:none;color:inherit;cursor:pointer" style-hover="background:var(--surface-hover)"><span style="width:38px;height:38px;border-radius:10px;background:var(--accent-softer);color:var(--accent);display:inline-flex;align-items:center;justify-content:center"><i data-lucide="user" width="17" height="17"></i></span><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13.5px;font-weight:700;color:var(--ink)">학생 전체 리포트</span><span style="font-size:11.5px;color:var(--text-muted)">누적 성과 종합 · 12개 세션 기준</span></div><span style="margin-left:auto;color:var(--accent);font-weight:800">&gt;</span></a>
+        <a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html#1q" style="background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);padding:20px 24px;display:flex;align-items:center;gap:14px;text-decoration:none;color:inherit;cursor:pointer" style-hover="background:var(--surface-hover)"><span style="width:38px;height:38px;border-radius:10px;background:var(--surface-sunken);color:var(--text-secondary);display:inline-flex;align-items:center;justify-content:center"><i data-lucide="file-text" width="17" height="17"></i></span><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13.5px;font-weight:700;color:var(--ink)">세션별 개인 리포트</span><span style="font-size:11.5px;color:var(--text-muted)">리포트 이력에서 세션마다 확인</span></div><span style="margin-left:auto;color:var(--accent);font-weight:800">&gt;</span></a>
+        <a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html#1q" style="background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);padding:20px 24px;display:flex;align-items:center;gap:14px;text-decoration:none;color:inherit;cursor:pointer" style-hover="background:var(--surface-hover)"><span style="width:38px;height:38px;border-radius:10px;background:var(--surface-sunken);color:var(--text-secondary);display:inline-flex;align-items:center;justify-content:center"><i data-lucide="users" width="17" height="17"></i></span><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13.5px;font-weight:700;color:var(--ink)">세션별 그룹 리포트</span><span style="font-size:11.5px;color:var(--text-muted)">세션 참여 인원 전체의 결과</span></div><span style="margin-left:auto;color:var(--accent);font-weight:800">&gt;</span></a>
+      </div>
+      <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:24px;align-items:start">
+        <div style="background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);overflow:hidden">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 14px"><span style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary)">세션별 성과</span><a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html#1q" style="font-size:13px;font-weight:600">리포트 이력 전체 보기</a></div>
+          <div style="display:grid;grid-template-columns:1.7fr 0.8fr 0.7fr 0.7fr 0.5fr 1fr;padding:10px 24px;border-bottom:1px solid var(--divider);font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted)"><span>세션</span><span>날짜</span><span>완료율</span><span>정답률</span><span>평점</span><span style="text-align:right">리포트 (개인 · 그룹)</span></div>
+          <div style="display:grid;grid-template-columns:1.7fr 0.8fr 0.7fr 0.7fr 0.5fr 1fr;padding:13px 24px;border-bottom:1px solid var(--divider);font-size:13px;align-items:center" style-hover="background:var(--surface-hover)"><span style="font-family:var(--font-mono);font-size:12px;color:var(--ink)">react-hooks-deep-dive</span><span style="color:var(--text-muted)">07.21</span><span>100%</span><span style="color:var(--accent);font-weight:700">92%</span><span>4.8</span><span style="text-align:right;display:inline-flex;gap:10px;justify-content:flex-end"><a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html#1q" style="font-size:12px;font-weight:600">개인</a><a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html#1q" style="font-size:12px;font-weight:600">그룹</a></span></div>
+          <div style="display:grid;grid-template-columns:1.7fr 0.8fr 0.7fr 0.7fr 0.5fr 1fr;padding:13px 24px;border-bottom:1px solid var(--divider);font-size:13px;align-items:center" style-hover="background:var(--surface-hover)"><span style="font-family:var(--font-mono);font-size:12px;color:var(--ink)">state-management</span><span style="color:var(--text-muted)">07.14</span><span>100%</span><span>86%</span><span>4.4</span><span style="text-align:right;display:inline-flex;gap:10px;justify-content:flex-end"><a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html#1q" style="font-size:12px;font-weight:600">개인</a><a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html#1q" style="font-size:12px;font-weight:600">그룹</a></span></div>
+          <div style="display:grid;grid-template-columns:1.7fr 0.8fr 0.7fr 0.7fr 0.5fr 1fr;padding:13px 24px;border-bottom:1px solid var(--divider);font-size:13px;align-items:center" style-hover="background:var(--surface-hover)"><span style="font-family:var(--font-mono);font-size:12px;color:var(--ink)">suspense-patterns</span><span style="color:var(--text-muted)">07.07</span><span>90%</span><span>82%</span><span>4.2</span><span style="text-align:right;display:inline-flex;gap:10px;justify-content:flex-end"><a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html#1q" style="font-size:12px;font-weight:600">개인</a><a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html#1q" style="font-size:12px;font-weight:600">그룹</a></span></div>
+          <div style="display:grid;grid-template-columns:1.7fr 0.8fr 0.7fr 0.7fr 0.5fr 1fr;padding:13px 24px;font-size:13px;align-items:center" style-hover="background:var(--surface-hover)"><span style="font-family:var(--font-mono);font-size:12px;color:var(--ink)">component-testing</span><span style="color:var(--text-muted)">06.30</span><span>100%</span><span>74%</span><span>3.9</span><span style="text-align:right;display:inline-flex;gap:10px;justify-content:flex-end"><a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html#1q" style="font-size:12px;font-weight:600">개인</a><a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html#1q" style="font-size:12px;font-weight:600">그룹</a></span></div>
+        </div>
+        <div style="background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);padding:24px;display:flex;flex-direction:column;gap:14px">
+          <span style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary)">매니저 코멘트</span>
+          <div style="background:var(--surface-sunken);border:1px solid var(--border);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px"><span style="width:24px;height:24px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">지</span><span style="font-size:12.5px;font-weight:600;color:var(--ink)">김지원</span><span style="margin-left:auto;font-size:11px;color:var(--text-muted)">07.21 발급 리포트</span></div>
+            <p style="margin:0;font-size:13px;line-height:1.6;color:var(--text-body)">상태 관리 로직 구현이 특히 우수합니다. 그룹 A 리더로서 코드 리뷰 참여도가 높습니다.</p>
+            <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary)"><i data-lucide="paperclip" width="12" height="12"></i>review-notes-0721.pdf</span>
+          </div>
+          <div style="border:1px solid var(--border-strong);border-radius:8px;padding:12px;font-size:13px;color:var(--text-muted);min-height:72px;line-height:1.6">새 코멘트를 입력하세요… (최대 2048자)</div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);cursor:pointer" style-hover="color:var(--ink)"><i data-lucide="paperclip" width="13" height="13"></i>파일 첨부</span>
+            <div style="display:flex;align-items:center;gap:10px"><span style="font-size:11px;color:var(--text-muted)">0 / 2048</span><button style="background:var(--ink);color:#fff;border:none;border-radius:999px;padding:8px 14px;font-size:12.5px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--grey-600)">코멘트 등록</button></div>
+          </div>
+        </div>
+      </div>
+      <x-import component-from-global-scope="QurieDesignSystem_1efd37.Footer" hint-size="100%,34px"></x-import>
+    </main>
+  </div>
+</div>
+</div></div>
+
+</div>
+<p class="dv-next" style="margin:22px 0 0;font:12px/1.5 var(--font-sans);color:rgba(0,0,0,.5)">학생 현황은 별도 메뉴 없이 학생 관리 → 학생 클릭 flow로 진입합니다. <a class="dv-oid" href="#1k">1k</a>의 그룹 배정 모달은 Tweaks의 "그룹 생성 모달"로 열 수 있습니다. 리포트는 ① 학생 전체 ② 세션별 개인 ③ 세션별 그룹 세 가지입니다.</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;inviteModalOpen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;모달&quot;,&quot;description&quot;:&quot;1g 회원 관리의 초대 모달 표시&quot;},&quot;quizPanelState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;create&quot;,&quot;question&quot;,&quot;result&quot;],&quot;default&quot;:&quot;question&quot;,&quot;tsType&quot;:&quot;'create'|'question'|'result'&quot;,&quot;section&quot;:&quot;세션 화면&quot;},&quot;gitMenuOpen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;세션 화면&quot;},&quot;annModalOpen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;모달&quot;},&quot;groupModalOpen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;모달&quot;},&quot;sessionModalOpen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;모달&quot;},&quot;sessionWarnOpen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;모달&quot;}}">
+class Component extends DCLogic {
+  state = { warnOpen: false, gitOpen: false, trackMetric: 'part', ga: { acc: true, comp: true, act: false, sess: false, rate: false }, st: { acc: true, streak: false, solved: false } };
+  chip(on) {
+    return on
+      ? 'display:inline-flex;align-items:center;gap:6px;background:var(--accent-softer);border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;user-select:none'
+      : 'display:inline-flex;align-items:center;gap:6px;background:var(--surface-card);border:1px solid var(--border-strong);color:var(--text-secondary);border-radius:999px;padding:5px 14px;font-size:12px;cursor:pointer;user-select:none';
+  }
+  tg(group, key) { return () => this.setState(s => ({ [group]: { ...s[group], [key]: !s[group][key] } })); }
+  gaVals() {
+    const ga = this.state.ga, st = this.state.st, tm = this.state.trackMetric;
+    const TM = {
+      part: { label: '퀴즈 참여율', a: [92, 95, 91, 96, 94, 97, 95, 96], b: [90, 92, 89, 93, 91, 94, 92, 93], bars: [96, 93, 89, 84] },
+      acc: { label: '정답률', a: [82, 84, 80, 85, 86, 88, 87, 88], b: [80, 81, 83, 82, 84, 83, 85, 84], bars: [88, 84, 81, 76] },
+      streak: { label: 'Streak 유지율', a: [70, 72, 68, 74, 71, 76, 75, 77], b: [66, 68, 70, 67, 71, 69, 72, 70], bars: [77, 70, 64, 58] },
+      freq: { label: '세션 빈도 (주당)', a: [3, 4, 3, 5, 4, 5, 4, 5], b: [2, 3, 3, 4, 3, 4, 3, 4], bars: [5, 4, 3, 2] },
+    };
+    const L = ['S5','S6','S7','S8','S9','S10','S11','S12'];
+    const acc = [78,82,80,85,84,88,86,88], comp = [90,94,92,96,95,98,96,96], act = [82,80,78,76,74,75,74,74], sess = [1,2,1,2,1,2,2,1], rate = [4.0,4.2,4.1,4.4,4.3,4.6,4.5,4.6];
+    const gaSeries = [];
+    if (ga.acc) gaSeries.push({ name: '정답률', accent: true, values: acc });
+    if (ga.comp) gaSeries.push({ name: '퀴즈 참여율', values: comp });
+    if (ga.act) gaSeries.push({ name: 'Streak 유지율', values: act });
+    if (ga.sess) gaSeries.push({ name: '세션 빈도', values: sess.map(v => v * 40) });
+    if (ga.rate) gaSeries.push({ name: '평점', values: rate.map(v => v * 20) });
+    const gaPoints = L.map((l, i) => {
+      const parts = [];
+      if (ga.acc) parts.push('정답률 ' + acc[i] + '%');
+      if (ga.comp) parts.push('참여율 ' + comp[i] + '%');
+      if (ga.act) parts.push('streak 유지 ' + act[i] + '%');
+      if (ga.sess) parts.push('세션 ' + sess[i] + '회');
+      if (ga.rate) parts.push('평점 ' + rate[i].toFixed(1));
+      return { tip: l + ' — ' + (parts.join(' · ') || '지표 없음') };
+    });
+    const sL = ['S7','S8','S9','S10','S11','S12'];
+    const sAcc = [72,78,85,82,90,92], sStreak = [2,3,4,1,5,6], sSolved = [8,10,9,10,10,10];
+    const stSeries = [];
+    if (st.acc) stSeries.push({ name: '정답률', accent: true, values: sAcc });
+    if (st.streak) stSeries.push({ name: 'Streak', values: sStreak.map(v => v * 15) });
+    if (st.solved) stSeries.push({ name: '푼 개수', values: sSolved.map(v => v * 10) });
+    const stPoints = sL.map((l, i) => {
+      const parts = [];
+      if (st.acc) parts.push('정답률 ' + sAcc[i] + '%');
+      if (st.streak) parts.push('streak ' + sStreak[i]);
+      if (st.solved) parts.push('푼 개수 ' + sSolved[i] + '/10');
+      return { tip: l + ' — ' + (parts.join(' · ') || '지표 없음') };
+    });
+    return {
+      gaLabels: L, gaSeries: gaSeries.length ? gaSeries : [{ name: '—', values: L.map(() => 0) }], gaPoints,
+      gaLegend: gaSeries.map(s => ({ label: s.name, accent: !!s.accent })),
+      tgAcc: this.tg('ga','acc'), tgComp: this.tg('ga','comp'), tgAct: this.tg('ga','act'), tgSess: this.tg('ga','sess'), tgRate: this.tg('ga','rate'),
+      chipAcc: this.chip(ga.acc), chipComp: this.chip(ga.comp), chipAct: this.chip(ga.act), chipSess: this.chip(ga.sess), chipRate: this.chip(ga.rate),
+      stSeries: stSeries.length ? stSeries : [{ name: '—', values: sL.map(() => 0) }], stPoints,
+      stLegend: stSeries.map(s => ({ label: s.name, accent: !!s.accent })),
+      tgStAcc: this.tg('st','acc'), tgStStreak: this.tg('st','streak'), tgStSolved: this.tg('st','solved'),
+      chipStAcc: this.chip(st.acc), chipStStreak: this.chip(st.streak), chipStSolved: this.chip(st.solved),
+      lineTrackActivity: [
+        { name: '서울 2반', values: TM[tm].b },
+        { name: '서울 1반', accent: true, values: TM[tm].a }
+      ],
+      labelsTrack: ['W1','W2','W3','W4','W5','W6','W7','W8'],
+      legendTrack: [{ label: '서울 2반' }, { label: '서울 1반', accent: true }],
+      legendBarTrack: [{ label: '서울 1반 (현재)', accent: true }, { label: '트랙 내 클래스' }],
+      trackMetricLabel: TM[tm].label,
+      barClassAcc: ['서울 1반', '서울 2반', '서울 3반', '서울 5반'].map((l, i) => ({ label: l, value: TM[tm].bars[i], highlight: i === 0 })),
+      tgTrackPart: () => this.setState({ trackMetric: 'part' }),
+      tgTrackAcc: () => this.setState({ trackMetric: 'acc' }),
+      tgTrackStreak: () => this.setState({ trackMetric: 'streak' }),
+      tgTrackFreq: () => this.setState({ trackMetric: 'freq' }),
+      chipTrackPart: this.chip(tm === 'part'), chipTrackAcc: this.chip(tm === 'acc'),
+      chipTrackStreak: this.chip(tm === 'streak'), chipTrackFreq: this.chip(tm === 'freq')
+    };
+  }
+  componentDidMount() {
+    const run = () => { if (window.lucide) lucide.createIcons({ attrs: { 'stroke-width': 1.75 } }); };
+    run(); setTimeout(run, 600); setTimeout(run, 2000); setTimeout(run, 4500);
+  }
+  renderVals() {
+    return {
+      inviteModalOpen: this.props.inviteModalOpen ?? false,
+      quizIsCreate: (this.props.quizPanelState ?? 'question') === 'create',
+      quizIsQuestion: (this.props.quizPanelState ?? 'question') === 'question',
+      quizIsResult: (this.props.quizPanelState ?? 'question') === 'result',
+      annModalOpen: this.props.annModalOpen ?? false,
+      groupModalOpen: this.props.groupModalOpen ?? false,
+      sessionModalOpen: this.props.sessionModalOpen ?? false,
+      sessionWarnOpen: (this.props.sessionWarnOpen ?? false) || this.state.warnOpen,
+      gitMenuOpen: (this.props.gitMenuOpen ?? false) || this.state.gitOpen,
+      toggleGitMenu: () => this.setState(s => ({ gitOpen: !s.gitOpen })),
+      openWarn: () => this.setState({ warnOpen: true }),
+      closeWarn: () => this.setState({ warnOpen: false }),
+      ...this.gaVals(),
+      donutQuizResult: [{label:'정답',value:8,accent:true},{label:'오답',value:1},{label:'스킵',value:1}],
+      barHero: [{label:'월',value:14},{label:'화',value:22,highlight:true},{label:'수',value:17},{label:'목',value:19},{label:'금',value:12}],
+      donutLandingDiff: [{label:'EASY',value:20},{label:'NORMAL',value:40,accent:true},{label:'HARD',value:40}],
+      barWeekly: [{label:'월',value:12},{label:'화',value:18,highlight:true},{label:'수',value:9},{label:'목',value:15},{label:'금',value:14},{label:'토',value:4},{label:'일',value:2}],
+      donutClassAcc: [{label:'서울 1반',value:34,accent:true},{label:'BE 트랙 2기',value:28},{label:'데이터 1기',value:22},{label:'신입 온보딩',value:16}],
+      lineAnalytics: [{values:[71,74,72,78,76,81,83,84]},{values:[62,66,71,69,74,78,80,84],accent:true}],
+      labelsAnalytics: ['S-01','S-02','S-03','S-04','S-05','S-06','S-07','S-08'],
+      barCategory: [{label:'기초 문법',value:92},{label:'알고리즘',value:74},{label:'자료구조',value:81},{label:'예외 처리',value:58},{label:'코드 스타일',value:88,highlight:true}],
+      legendBarCategory: [{ label: '카테고리 평균 정답률' }, { label: '최고 성과 카테고리', accent: true }],
+      donutDifficulty: [{label:'EASY',value:32},{label:'NORMAL',value:46,accent:true},{label:'HARD',value:22}],
+      lineStudent: [{values:[72,78,74,82,86,88],accent:true}],
+      labelsStudent: ['S-07','S-08','S-09','S-10','S-11','S-12'],
+      donutStudentDiff: [{label:'EASY',value:38,accent:true},{label:'NORMAL',value:44},{label:'HARD',value:18}],
+      donutWeeklyGoal: [{label:'달성',value:68,accent:true},{label:'남음',value:32}],
+      donutReportDiff: [{label:'EASY',value:20},{label:'NORMAL',value:40},{label:'HARD',value:40,accent:true}],
+      barReportCat: [{label:'기초 문법',value:95},{label:'알고리즘',value:68},{label:'자료구조',value:82},{label:'예외 처리',value:45},{label:'코드 스타일',value:90,highlight:true}],
+      legendReportCat: [{ label: '카테고리 평균 정답률' }, { label: '최고 성과 카테고리', accent: true }],
+    };
+  }
+}
+</script>
+</body>
+</html>
