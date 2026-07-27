@@ -2,7 +2,7 @@
 export interface TopbarProps {
   breadcrumbs?: React.ReactNode[];
   searchPlaceholder?: string;
-  onSearch?: (e: any) => void;
+  onSearch?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   actions?: React.ReactNode;
   userName?: string;
   userRole?: string | null;

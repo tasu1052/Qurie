@@ -56,6 +56,16 @@ UI work in the target repo covers **components, pages, and UI elements only**. A
 - **6g Row progressive loading** — the same dashboard mid-load: shell rendered, row 1 (KPI) ready, row 2 (analytics) skeleton, row 3 (sessions) failed with a row-scoped retry, plus a load-order strip. This is the intended production loading model.
 - **6f Connection & toasts** — ConnectionBar offline/reconnecting/connected, ink Toasts (success, in-progress with mono counter, error with retry), editor status strip (동기화 대기 중, 읽기 전용).
 
+**7 · Action & control elements** (`Qurie Mockups 6 - States.dc.html`, section 7)
+- **7a Confirm delete** — type-the-name destructive modal in two states: input empty (delete disabled) and name matched (delete enabled) with the `409 CONFLICT` warning + `?cascade=true` opt-in and the list of child data that goes with it. Required on every track / class / member / session DELETE.
+- **7b List controls** — pagination (`page`/`size` + per-page select), 더보기 button for Top-N dashboard cards, and infinite-load row with skeleton + spinner.
+- **7c Sortable table header** — three header states (unsorted / asc / desc + sort priority index) mapping to `?sort=field,desc`; a third click clears the sort.
+- **7d At-risk students** — 주의 / 위험 badges with the reason line, plus the `?flag=at-risk` filter chip and its criteria caption.
+- **7e Import dropzone** — 1o's no-project state (drag-drop zip, 50MB cap, Git disabled), upload in progress with ProgressBar, and a `413` failure row.
+- **7f Quiz generation panel** — the 202-polling states PENDING / GENERATING (n of m + per-question list) / FAILED (`error_message`, retry, or continue with what generated).
+- **7g Session end → report** — end-session confirm (participants, submission rate, generate-report opt-in), report-generation waiting card (202 polling, aggregation progress), and the below-threshold / failed variants.
+- **7h Invitation actions** — resend + cancel per row, 60s resend cooldown, EXPIRED resend, ACCEPTED link-through, and the resend toast with undo.
+
 Modals (1f, 1g, 1m) and the quiz panel states are toggled by boolean props in the DC script block — read it for open/close behavior.
 
 ## Interactions & Behavior
@@ -89,7 +99,7 @@ Copy exact values from `ds/tokens/*.css` (included in this bundle). Key values:
 - Shadows: hairline `--shadow-card`; modal `--shadow-modal`. No gradients outside the glass recipe above.
 
 ## Component Mapping
-Recreate with the design-system components (source in `ds/components/`, one folder per group, `.jsx` + `.d.ts` + `.prompt.md`): Button, Badge, Input, Select, DataTable, StatCard, **StatCardRow**, BarChart, LineChart, DonutChart, **ChartLegend**, Modal, EmptyState, Timer, Sidebar, Topbar, Chevron, **Footer**, and the state components **Skeleton / SkeletonText, Spinner, ProgressBar, AlertBanner, ErrorState, Toast / ToastStack, ConnectionBar, RowSection** (all in `ds/components/feedback/`). Icons: Lucide (1.75px stroke). No emoji, no imagery.
+Recreate with the design-system components (source in `ds/components/`, one folder per group, `.jsx` + `.d.ts` + `.prompt.md`): Button, Badge, Input, Select, DataTable, StatCard, **StatCardRow**, BarChart, LineChart, DonutChart, **ChartLegend**, Modal, EmptyState, Timer, Sidebar, Topbar, Chevron, **Footer**, and the state components **Skeleton / SkeletonText, Spinner, ProgressBar, AlertBanner, ErrorState, Toast / ToastStack, ConnectionBar, RowSection, AsyncJobPanel** (`ds/components/feedback/`), and the action/control set **ConfirmDeleteModal** (`overlays/`), **Pagination / LoadMore, SortableHeader, InvitationRow** (`data/`), **RiskBadge** (`badges/`), **FileDropzone / UploadRow** (`forms/`). Icons: Lucide (1.75px stroke). No emoji, no imagery.
 
 ## Frontend conventions & ESLint (binding)
 `eslint.config.mjs` + `tools/eslint-plugin-qurie/` encode the design conventions as lint rules — any agent writing UI in this repo (Claude Code included) is subject to them. Run with `npx eslint .` (ESLint 9+, flat config; add typescript-eslint parser for `.tsx`).
@@ -117,10 +127,21 @@ Recreate with the design-system components (source in `ds/components/`, one fold
 
 **Row-level loading (binding)**
 - Pages load in two tiers: the **shell** — Sidebar, Topbar/Header, Footer — renders immediately with no data, and the content region below it resolves **one grid row at a time**. Never a single page-wide spinner over the whole route. *(qurie/shell-outside-state)*
-- Each grid row is its own boundary: `<RowSection status skeleton onRetry>` wraps the row, owns its own fetch, and renders skeleton → content or a **row-scoped** error ("이 행만 다시 시도"). One row failing or hanging never blocks the rows above or below it.
+- Each grid row is wrapped in the **data layer's** `<QueryAsyncBoundary suspenseFallback errorFallback>` (owned by the other developer — do not write Suspense or an error boundary here). The UI layer supplies the two fallbacks and the row shell: `<RowSkeleton>` for suspense, `<RowErrorFallback onRetry={reset}>` for errors, `<RowSection>` around the loaded content. One boundary per row — never one around the whole page. *(qurie/boundary-fallbacks)*
+- A failing or hanging row never blocks the rows above or below it; its fallback is row-scoped ("이 행만 다시 시도") and `onRetry` is wired to the boundary's reset, not to a fetch written in the UI layer.
+- Empty is not a boundary concern: a successful query with no rows renders `<EmptyState>` inside `<RowSection>`.
 - Rows resolve in visual order (KPI → charts → lists) so the page fills top-down; a later row must not delay an earlier one.
 - Each row's skeleton occupies the loaded row's exact height (same card padding, same grid template) — no reflow when data lands.
 - 6a's whole-content states are the fallback for a route that genuinely has one data source; 6g is the default.
+
+**Actions & list controls (binding)**
+- Every destructive action (track, class, session, group, member, notice) goes through `<ConfirmDeleteModal>`: the confirm button unlocks only when the user types the record's exact name, the child-data counts are listed up front, and a server `409 CONFLICT` gates the delete behind an explicit `?cascade=true` checkbox. No `window.confirm`, no one-click delete. *(qurie/destructive-confirm)*
+- Truncated lists always carry a control: `<Pagination>` (page/size, always with the total in the range label) on list pages, `<LoadMore>` naming the remaining count under Top-N dashboard cards.
+- Sortable columns use `<SortableHeader>` — unsorted / asc / desc with a third click clearing it; sorting is server-side and maps to `?sort=field,desc`. Columns the API cannot sort stay plain.
+- At-risk learners: `<RiskBadge>` (주의 / 위험) always with the reason line, and the `?flag=at-risk` filter chip states its criteria.
+- Uploads use `<FileDropzone>` + `<UploadRow>`: constraint stated in mono up front, progress inline (never a blocking modal), failures naming the status code.
+- Every 202-accepted job renders in `<AsyncJobPanel>`, whose badge shows the server status verbatim (PENDING → GENERATING → DONE | FAILED), progress as "n / m" not a fake percentage, and on failure the job's own `error_message` plus retry — and, where partial output is usable, a way to continue with it. Closing the panel never cancels the job.
+- Invitations are actionable in place with `<InvitationRow>`: resend (60s cooldown as a live countdown) and cancel; EXPIRED promotes resend, ACCEPTED links to the member. A resend confirms with a Toast stating the new expiry + undo.
 
 **Async states (binding)**
 - Every data view implements four states — loading, error, empty, ready — from the DS feedback components. No ad-hoc "로딩 중" text and no hand-rolled skeleton/spinner markup. *(qurie/state-components)*

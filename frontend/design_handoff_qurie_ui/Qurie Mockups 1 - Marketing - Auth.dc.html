@@ -9,13 +9,13 @@
 <x-dc>
 <helmet>
 <meta name="design_doc_mode" content="canvas">
-<link rel="stylesheet" href="_ds/qurie-design-system-1efd37a1-4731-4ea7-ad55-b6aa8fb5d9c6/tokens/fonts.css">
-<link rel="stylesheet" href="_ds/qurie-design-system-1efd37a1-4731-4ea7-ad55-b6aa8fb5d9c6/tokens/primitives.css">
-<link rel="stylesheet" href="_ds/qurie-design-system-1efd37a1-4731-4ea7-ad55-b6aa8fb5d9c6/tokens/colors.css">
-<link rel="stylesheet" href="_ds/qurie-design-system-1efd37a1-4731-4ea7-ad55-b6aa8fb5d9c6/tokens/typography.css">
-<link rel="stylesheet" href="_ds/qurie-design-system-1efd37a1-4731-4ea7-ad55-b6aa8fb5d9c6/tokens/spacing.css">
-<link rel="stylesheet" href="_ds/qurie-design-system-1efd37a1-4731-4ea7-ad55-b6aa8fb5d9c6/styles.css">
-<script src="_ds/qurie-design-system-1efd37a1-4731-4ea7-ad55-b6aa8fb5d9c6/_ds_bundle.js"></script>
+<link rel="stylesheet" href="ds/tokens/fonts.css">
+<link rel="stylesheet" href="ds/tokens/primitives.css">
+<link rel="stylesheet" href="ds/tokens/colors.css">
+<link rel="stylesheet" href="ds/tokens/typography.css">
+<link rel="stylesheet" href="ds/tokens/spacing.css">
+<link rel="stylesheet" href="ds/styles.css">
+<script src="ds/_ds_bundle.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.462.0/dist/umd/lucide.min.js"></script>
 <script>window.OM_SCENES = '[{"name":"인트로","dur":2},{"name":"실시간 리뷰","dur":3},{"name":"AI 퀴즈","dur":2.5},{"name":"시작하기","dur":2.5}]';window.OM_PLAYBACK = '{"mode":"loop"}';</script>
 <style>
@@ -41,7 +41,7 @@ a{color:var(--link);text-decoration:none}a:hover{color:var(--accent-strong);text
 
 <div style="display:flex;gap:14px;align-items:center;font-family:Inter,'Noto Sans KR',sans-serif;font-size:13px;color:#64748B;padding:2px 4px"><span style="font-weight:700;color:#111111">1 · Marketing & Auth</span><a href="Qurie%20Mockups%202%20-%20Master%20Console.dc.html" style="color:#6366F1;text-decoration:none">2 · Master Console</a><a href="Qurie%20Mockups%203%20-%20Manager%20Console.dc.html" style="color:#6366F1;text-decoration:none">3 · Manager Console</a><a href="Qurie%20Mockups%204%20-%20Student.dc.html" style="color:#6366F1;text-decoration:none">4 · Student</a><a href="Qurie%20Mockups%205%20-%20Session%20-%20Report.dc.html" style="color:#6366F1;text-decoration:none">5 · Session & Report</a><a href="Qurie%20Mockups%206%20-%20States.dc.html" style="color:#6366F1;text-decoration:none">6 · States</a></div>
 <section class="dv-turn" id="t1a">
-<div class="dv-thd"><a class="dv-tid" href="#t1a">1 · 마케팅 &amp; 인증</a><span class="dv-tname">Landing · Login · Signup · Password Reset</span><span class="dv-tsub">B2B 기업 도입 톤 · 계정은 Master 초대 기반 (invitation: PENDING → ACCEPTED / EXPIRED)</span></div>
+<div class="dv-thd"><a class="dv-tid" href="#t1a">1 · 마케팅 &amp; 인증</a><span class="dv-tname">Landing · Login · Signup · Invitation Accept · Password Reset</span><span class="dv-tsub">B2B 기업 도입 톤 · 계정은 Master 초대 기반 (invitation: PENDING → ACCEPTED / EXPIRED)</span></div>
 <div class="dv-opts">
 
 <div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Landing — B2B 기업 대상</div>
@@ -235,6 +235,57 @@ a{color:var(--link);text-decoration:none}a:hover{color:var(--accent-strong);text
     <button style="width:100%;background:var(--ink);color:#fff;border:none;border-radius:999px;padding:12px 16px;font-size:14px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--grey-600)">초대 수락하고 시작하기</button>
   </div>
   <span style="font-size:13px;color:var(--text-secondary)">이미 계정이 있으신가요? <a href="#1b">로그인하기</a></span>
+</div>
+</div></div>
+
+<div class="dv-opt" id="1y"><div class="dv-olabel"><a class="dv-oid" href="#1y">1y</a>Invitation Accept — 초대 링크 진입 (유효 · 만료 · 이미 수락 / <code style="font-family:var(--font-mono);font-size:11px">GET /invitations/{token}</code>)</div>
+<div class="dv-card" style="width:1024px" data-screen-label="Invitation Accept">
+<div style="background:var(--bg-app);min-height:900px;display:flex;flex-direction:column;align-items:center;padding:56px 0;gap:24px">
+  <div style="font-size:28px;font-weight:700;color:var(--ink);letter-spacing:-0.02em">Q<span style="color:var(--accent);font-weight:800">&gt;</span>rie</div>
+  <span style="display:inline-flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:12px;color:var(--text-secondary);background:var(--surface-card);border:1px solid var(--border);border-radius:999px;padding:5px 14px"><i data-lucide="link" width="12" height="12"></i>qurie.app/invite/<span style="color:var(--accent);font-weight:700">8f21c0ae</span></span>
+  <div style="width:440px;background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);padding:32px;display:flex;flex-direction:column;gap:18px">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
+      <span style="width:44px;height:44px;border-radius:50%;background:var(--accent-softer);display:inline-flex;align-items:center;justify-content:center"><i data-lucide="mail-check" width="20" height="20" style="color:var(--accent)"></i></span>
+      <h1 style="font-size:22px;font-weight:700;color:var(--ink);margin:0">클래스 초대를 받았습니다</h1>
+      <span style="font-size:13px;line-height:1.6;color:var(--text-secondary);text-wrap:pretty">수락하면 아래 클래스의 학생으로 등록되고, 세션과 퀴즈에 참여할 수 있습니다.</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;background:var(--surface-sunken);border:1px solid var(--border);border-radius:12px;padding:16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="width:38px;height:38px;border-radius:10px;background:var(--surface-card);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0"><img src="assets/java_50.png" alt="Java" width="22" height="22" style="object-fit:contain"></span>
+        <div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted)">Java 전공 (서울)</span><span style="font-size:14px;font-weight:700;color:var(--ink)">서울 1반</span></div>
+        <span style="margin-left:auto;background:var(--status-warning-bg);color:var(--status-warning);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em">PENDING</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--divider);padding-top:10px;font-size:12.5px">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text-secondary)">기업</span><span style="color:var(--ink);font-weight:600">SSAFY 서울캠퍼스</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text-secondary)">초대 대상</span><span style="font-family:var(--font-mono);font-size:12px;color:var(--ink)">minsu@ssafy.com</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text-secondary)">부여 역할</span><span style="font-family:var(--font-mono);font-size:12px;color:var(--ink)">STUDENT</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text-secondary)">초대한 사람</span><span style="color:var(--ink)">김지원 · ADMIN</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text-secondary)">만료</span><span style="display:inline-flex;align-items:center;gap:6px;color:var(--ink)"><i data-lucide="clock" width="12" height="12" style="color:var(--text-muted)"></i>2026-07-29 14:00 · D-2</span></div>
+      </div>
+    </div>
+    <button style="width:100%;background:var(--ink);color:#fff;border:none;border-radius:999px;padding:12px 16px;font-size:14px;font-weight:600;font-family:var(--font-sans);cursor:pointer" style-hover="background:var(--grey-600)">초대 수락하고 시작하기</button>
+    <div style="display:flex;align-items:center;justify-content:center;gap:14px"><a href="#1b" style="font-size:13px;font-weight:600">다른 계정으로 로그인</a><span style="color:var(--border-strong)">·</span><a href="#1y" style="font-size:13px;color:var(--text-secondary)">초대 거절</a></div>
+    <span style="font-size:12px;color:var(--text-muted);text-align:center">계정이 없으면 수락 시 <a href="#1c">가입 화면</a>으로 이동합니다.</span>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:8px">
+    <span style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted)">토큰 상태 변형</span>
+    <div style="display:flex;gap:24px">
+  <div style="width:440px;background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);padding:28px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center">
+    <span style="width:44px;height:44px;border-radius:50%;background:var(--status-error-bg);display:inline-flex;align-items:center;justify-content:center"><i data-lucide="clock-alert" width="20" height="20" style="color:var(--status-error)"></i></span>
+    <span style="background:var(--status-error-bg);color:var(--status-error);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em">EXPIRED</span>
+    <span style="font-size:17px;font-weight:700;color:var(--ink)">만료된 초대 링크입니다</span>
+    <span style="font-size:13px;line-height:1.6;color:var(--text-secondary);text-wrap:pretty">이 초대는 2026-07-25에 만료되었습니다. 초대한 담당자에게 재발송을 요청해 주세요.</span>
+    <button style="height:36px;padding:0 18px;margin-top:4px;border-radius:999px;border:none;background:var(--ink);color:#fff;font-family:var(--font-sans);font-size:13px;font-weight:600;cursor:pointer" style-hover="background:var(--grey-600)">재발송 요청</button>
+  </div>
+  <div style="width:440px;background:var(--surface-card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card);padding:28px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center">
+    <span style="width:44px;height:44px;border-radius:50%;background:var(--status-success-bg);display:inline-flex;align-items:center;justify-content:center"><i data-lucide="check" width="20" height="20" style="color:var(--status-success)"></i></span>
+    <span style="background:var(--status-success-bg);color:var(--status-success);border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.06em">ACCEPTED</span>
+    <span style="font-size:17px;font-weight:700;color:var(--ink)">이미 수락한 초대입니다</span>
+    <span style="font-size:13px;line-height:1.6;color:var(--text-secondary);text-wrap:pretty">이 계정은 서울 1반에 등록되어 있습니다. 로그인 후 대시보드에서 세션을 확인하세요.</span>
+    <button style="height:36px;padding:0 18px;margin-top:4px;border-radius:999px;border:1px solid var(--border-strong);background:var(--surface-card);color:var(--ink);font-family:var(--font-sans);font-size:13px;cursor:pointer" style-hover="background:var(--surface-hover)">로그인하기</button>
+  </div>
+    </div>
+  </div>
 </div>
 </div></div>
 

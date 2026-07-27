@@ -84,11 +84,77 @@ module.exports = {
         };
       },
     },
+    'boundary-fallbacks': {
+      meta: {
+        type: 'problem',
+        docs: { description: 'Every <QueryAsyncBoundary> carries both fallbacks — the UI layer owns them.' },
+        messages: {
+          missing: '<QueryAsyncBoundary> is missing {{which}}: pass suspenseFallback={<RowSkeleton …/>} and errorFallback={<RowErrorFallback …/>}.',
+          nested: 'Nested <QueryAsyncBoundary>: one boundary per grid row, never one wrapping the whole page.',
+        },
+      },
+      create(ctx) {
+        return {
+          JSXElement(node) {
+            if (jsxTagName(node.openingElement) !== 'QueryAsyncBoundary') return;
+            if (hasAncestorTag(node, 'QueryAsyncBoundary')) {
+              ctx.report({ node: node.openingElement, messageId: 'nested' });
+              return;
+            }
+            const missing = [];
+            if (!getAttr(node.openingElement, 'suspenseFallback')) missing.push('suspenseFallback');
+            if (!getAttr(node.openingElement, 'errorFallback')) missing.push('errorFallback');
+            if (missing.length) {
+              ctx.report({ node: node.openingElement, messageId: 'missing', data: { which: missing.join(' + ') } });
+            }
+          },
+        };
+      },
+    },
+    'destructive-confirm': {
+      meta: {
+        type: 'problem',
+        docs: { description: 'Destructive actions go through <ConfirmDeleteModal> — never window.confirm, never a bare delete button.' },
+        messages: {
+          native: 'window.confirm/alert is not a Qurie pattern: use <ConfirmDeleteModal> (type-the-name gate + 409 cascade opt-in).',
+          bare: 'Delete-labelled <{{tag}}> with no confirmation in this component. Route it through <ConfirmDeleteModal>.',
+        },
+      },
+      create(ctx) {
+        const DESTRUCTIVE = /(삭제|영구|remove|delete)/i;
+        let sawModal = false;
+        const suspects = [];
+        return {
+          'CallExpression'(node) {
+            const c = node.callee;
+            const name = c.type === 'MemberExpression' ? (c.property && c.property.name) : c.name;
+            if (name === 'confirm' || name === 'alert') ctx.report({ node, messageId: 'native' });
+          },
+          JSXOpeningElement(node) {
+            const tag = jsxTagName(node);
+            if (tag === 'ConfirmDeleteModal') sawModal = true;
+          },
+          JSXElement(node) {
+            const tag = jsxTagName(node.openingElement);
+            if (tag !== 'button' && tag !== 'Button') return;
+            const text = (node.children || [])
+              .filter(c => c.type === 'JSXText')
+              .map(c => String(c.value).trim())
+              .join(' ');
+            if (text && DESTRUCTIVE.test(text)) suspects.push({ node: node.openingElement, tag });
+          },
+          'Program:exit'() {
+            if (sawModal) return;
+            suspects.forEach(s => ctx.report({ node: s.node, messageId: 'bare', data: { tag: s.tag } }));
+          },
+        };
+      },
+    },
     'shell-outside-state': {
       meta: {
         type: 'problem',
         docs: { description: 'Shell chrome (Sidebar/Topbar/Header/Navbar/Footer) renders immediately — never inside a row load boundary.' },
-        messages: { shell: '<{{tag}}> is page shell: render it outside <RowSection> / skeleton / error boundaries so it paints before any data arrives.' },
+        messages: { shell: '<{{tag}}> is page shell: render it outside <QueryAsyncBoundary> / <RowSection> / skeleton / error fallbacks so it paints before any data arrives.' },
       },
       create(ctx) {
         const SHELL = ['Sidebar', 'Topbar', 'Header', 'Navbar', 'Footer'];
@@ -96,7 +162,7 @@ module.exports = {
           JSXElement(node) {
             const tag = jsxTagName(node.openingElement);
             if (!SHELL.includes(tag)) return;
-            if (hasAncestorTag(node, 'RowSection') || hasAncestorTag(node, 'Skeleton') || hasAncestorTag(node, 'ErrorState')) {
+            if (hasAncestorTag(node, 'QueryAsyncBoundary') || hasAncestorTag(node, 'RowSection') || hasAncestorTag(node, 'Skeleton') || hasAncestorTag(node, 'ErrorState')) {
               ctx.report({ node: node.openingElement, messageId: 'shell', data: { tag } });
             }
           },

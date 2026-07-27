@@ -36,6 +36,10 @@ export default [
       'qurie/state-components': 'error',
       'qurie/state-action': 'error',
       'qurie/shell-outside-state': 'error',
+      /* Async boundaries belong to the data layer; the UI layer supplies both fallbacks. */
+      'qurie/boundary-fallbacks': 'error',
+      /* Destructive actions: type-the-name confirmation, never window.confirm. */
+      'qurie/destructive-confirm': 'error',
       /* Page chrome: every <main> page closes with the DS <Footer />. */
       'qurie/page-footer': 'error',
       /* One component source of truth: no external UI/chart/styling libraries. */

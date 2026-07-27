@@ -13,4 +13,13 @@
 --shadow-modal:0 8px 30px rgba(17,17,17,0.10);
 --shadow-popover:0 4px 16px rgba(17,17,17,0.08);
 --sidebar-width:232px;--sidebar-width-collapsed:64px;--topbar-height:56px;
+--logo-height:32px;/* sidebar brand PNG — height only; width:auto to keep aspect */
+/* content shell + responsive card grids */
+--content-max:1280px;--content-pad:24px;--min-card:250px;--grid-kpi:4;
+}
+@media (max-width:1024px){
+:root{--grid-kpi:2;--content-pad:20px}
+}
+@media (max-width:640px){
+:root{--grid-kpi:1;--content-pad:16px;--min-card:200px}
 }

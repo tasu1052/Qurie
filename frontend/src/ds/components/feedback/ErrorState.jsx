@@ -7,7 +7,7 @@ return <div role="alert" style={{display:'flex',flexDirection:'column',alignItem
 {code&&<span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text-muted)',background:'var(--surface-sunken)',border:'1px solid var(--border)',borderRadius:'var(--radius-md)',padding:'8px 12px'}}>{code}</span>}
 <div style={{display:'flex',gap:10,marginTop:4}}>
 {actionLabel&&<button onClick={onRetry} style={{height:36,padding:'0 18px',borderRadius:'var(--radius-control)',border:'none',background:'var(--ink)',color:'var(--text-inverse)',fontFamily:'var(--font-sans)',fontSize:13,fontWeight:600,cursor:'pointer'}}>{actionLabel}</button>}
-{secondaryLabel&&<button onClick={onSecondary} style={{height:36,padding:'0 18px',borderRadius:'var(--radius-control)',border:'1px solid var(--border-strong)',background:'var(--surface-card)',color:'var(--ink)',fontFamily:'var(--font-sans)',fontSize:13,cursor:'pointer'}}>{secondaryLabel}</button>}
+{secondaryLabel&&<button onClick={onSecondary} style={{height:36,padding:'0 18px',borderRadius:'var(--radius-control)',border:'1px solid var(--border-strong)',background:'#fff',color:'var(--ink)',fontFamily:'var(--font-sans)',fontSize:13,cursor:'pointer'}}>{secondaryLabel}</button>}
 </div>
 </div>;
 }

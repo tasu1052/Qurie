@@ -6,6 +6,7 @@ export interface SidebarProps {
   activeKey?: string;
   onSelect?: (key: string) => void;
   collapsed?: boolean;
+  /** Account/profile slot — pinned to the bottom of the viewport by Sidebar. Required on app shells. */
   footer?: React.ReactNode;
   /** path to assets/logo.png; falls back to type-set Q>rie wordmark */
   logoSrc?: string | null;
