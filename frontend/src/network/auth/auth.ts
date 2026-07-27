@@ -1,4 +1,4 @@
-import { axiosInstance } from '../axiosInstance';
+import { axiosInstance } from '../core/axiosInstance';
 
 export type UserRole = 'manager' | 'member';
 

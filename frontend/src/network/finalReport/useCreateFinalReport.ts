@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createFinalReport } from '../api/finalReport';
-import { queryKeys } from '../queryKeys';
+import { createFinalReport } from '../finalReport/finalReport';
+import { queryKeys } from '../core/queryKeys';
 
 export const useCreateFinalReport = () => {
     const queryClient = useQueryClient();

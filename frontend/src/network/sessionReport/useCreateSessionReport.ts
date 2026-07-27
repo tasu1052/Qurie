@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createSessionReport } from '../api/sessionReport';
-import { queryKeys } from '../queryKeys';
+import { createSessionReport } from '../sessionReport/sessionReport';
+import { queryKeys } from '../core/queryKeys';
 
 export const useCreateSessionReport = () => {
     const queryClient = useQueryClient();

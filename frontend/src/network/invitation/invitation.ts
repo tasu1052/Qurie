@@ -1,4 +1,4 @@
-import { axiosInstance } from '../axiosInstance';
+import { axiosInstance } from '../core/axiosInstance';
 
 export type InvitationRole = 'manager' | 'member';
 

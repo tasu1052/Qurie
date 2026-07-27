@@ -1,4 +1,4 @@
-import { axiosInstance } from '../axiosInstance';
+import { axiosInstance } from '../core/axiosInstance';
 
 export interface CreateTrackRequest {
     name: string;
