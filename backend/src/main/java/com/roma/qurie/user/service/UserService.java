@@ -1,20 +1,28 @@
 package com.roma.qurie.user.service;
 
+import java.time.LocalDateTime;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.roma.qurie.common.dto.PageResponse;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.user.dto.UserProfileResponse;
 import com.roma.qurie.user.dto.UserProfileUpdateRequest;
 import com.roma.qurie.user.dto.UserSignUpRequest;
 import com.roma.qurie.user.dto.UserSignUpResponse;
+import com.roma.qurie.user.dto.UserSummaryResponse;
 import com.roma.qurie.user.entity.User;
+import com.roma.qurie.user.entity.UserRole;
 import com.roma.qurie.user.repository.UserRepository;
 
 @Service
@@ -25,6 +33,8 @@ public class UserService {
 	private static final String DUPLICATE_EMAIL_MESSAGE = "이미 사용 중인 이메일입니다.";
 	private static final String USER_NOT_FOUND_MESSAGE = "사용자를 찾을 수 없습니다.";
 	private static final String FORBIDDEN_MESSAGE = "본인 또는 소속 기업의 마스터만 접근할 수 있습니다.";
+	private static final int MAX_PAGE_SIZE = 100;
+	private static final int ACTIVITY_WINDOW_DAYS = 7;
 
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
@@ -90,6 +100,50 @@ public class UserService {
 		userRepository.flush();
 
 		return UserProfileResponse.from(user);
+	}
+
+	/**
+	 * 회원 목록 조회. 마스터 대시보드의 매니저 활동 카드도 role=MANAGER, size=3 으로 같은 조회를 잘라 쓴다.
+	 *
+	 * todo: 활동량을 최근 7일 세션 운영 횟수로만 계산한다. 목업의 "리포트 N건 발급"까지 넣으려면
+	 *       session_reports 에 발급자 컬럼이 필요하다.
+	 */
+	@Transactional(readOnly = true)
+	public PageResponse<UserSummaryResponse> getUserSummaries(
+			AuthUser requester, UserRole role, String keyword, Pageable pageable) {
+		requireMaster(requester);
+
+		LocalDateTime activitySince = LocalDateTime.now().minusDays(ACTIVITY_WINDOW_DAYS);
+		Page<UserSummaryResponse> summaries = userRepository.findSummaries(
+				requester.enterpriseId(), role, blankToNull(keyword), activitySince, toPageRequest(pageable));
+
+		return PageResponse.from(summaries);
+	}
+
+	private void requireMaster(AuthUser requester) {
+		if (requester == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
+		if (!isMaster(requester)) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "회원 목록을 조회할 권한이 없습니다.");
+		}
+	}
+
+	/*
+	 * Sort 는 일부러 버린다. findSummaries 쿼리에 order by 가 이미 있어서 Pageable 의 Sort 를 그대로 넘기면
+	 * Spring Data 가 order by 를 덧붙이는데, activity 는 매핑된 속성이 아니라 그 시점에 쿼리가 깨진다.
+	 */
+	private PageRequest toPageRequest(Pageable pageable) {
+		int pageSize = Math.min(Math.max(pageable.getPageSize(), 1), MAX_PAGE_SIZE);
+		return PageRequest.of(pageable.getPageNumber(), pageSize);
+	}
+
+	/* 빈 문자열이 그대로 들어오면 아무것도 맞지 않는 조건이 되므로 null 로 바꾼다. */
+	private String blankToNull(String value) {
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+		return value;
 	}
 
 	private User findUser(Long userId) {
