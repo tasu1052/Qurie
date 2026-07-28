@@ -313,7 +313,7 @@ module.exports = {
     'font-family-token': {
       meta: {
         type: 'problem',
-        docs: { description: 'fontFamily comes from tokens: var(--font-sans) (Inter + Noto Sans KR) or var(--font-mono) (JetBrains Mono) - no raw font stacks outside ds/tokens.' },
+        docs: { description: 'fontFamily comes from tokens: var(--font-sans) (Nunito Sans + Noto Sans KR) or var(--font-mono) (JetBrains Mono) - no raw font stacks outside ds/tokens.' },
         messages: { fam: 'Raw fontFamily "{{val}}" - use var(--font-sans) or var(--font-mono) from tokens/fonts.css.' },
       },
       create(ctx) {

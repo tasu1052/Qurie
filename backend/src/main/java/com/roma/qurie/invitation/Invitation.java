@@ -2,7 +2,9 @@ package com.roma.qurie.invitation;
 
 import com.roma.qurie.classes.ClassEntity;
 import com.roma.qurie.common.entity.BaseTimeEntity;
-import com.roma.qurie.user.entity.UserRole;
+import com.roma.qurie.enterprise.Enterprise;
+import com.roma.qurie.master.Master;
+import com.roma.qurie.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -20,12 +22,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 메일로 보내는 가입 초대. 초대 링크의 토큰이 곧 "이 이메일로, 이 반에, 이 역할로 가입해도 된다"는 증표라
- * 가입 요청은 email/role/classId 를 받지 않고 이 행에서 읽는다.
- *
- * 토큰 원문은 저장하지 않고 해시만 저장한다(RefreshToken 과 동일). 원문은 초대 생성 응답에서 한 번만 나간다.
- * invited_by 는 마스터(masters)와 매니저(ordinary_users)가 별도 테이블이라 FK 하나로 못 묶어
- * 두 컬럼으로 나누고, 감사 목적이라 연관관계 대신 FK 값(Long)으로 둔다.
+ * 초대장. role, invitedByMaster, invitedByUser, classEntity로 마스터-매니저, 매니저-학생 두 흐름을 하나의 테이블로 표현한다.
+ * classEntity/invitedByMaster/invitedByUser 중 정확히 하나(또는 정해진 조합)만 채워지는 게 규칙이라,
+ * 생성자를 감추고 forManagerInvite/forStudentInvite 정적 팩토리로만 만들 수 있게 한다.
  */
 @Entity
 @Table(name = "invitations")
@@ -33,83 +32,85 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Invitation extends BaseTimeEntity {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-	@Column(name = "token_hash", nullable = false, unique = true, length = 64)
-	private String tokenHash;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "enterprise_id", nullable = false)
+    private Enterprise enterprise;
 
-	@Column(name = "email", nullable = false, length = 255)
-	private String email;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "class_id")
+    private ClassEntity classEntity;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "class_id", nullable = false)
-	private ClassEntity classEntity;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 20)
+    private InvitationRole role;
 
-	@Enumerated(EnumType.STRING)
-	@Column(name = "role", nullable = false, length = 20)
-	private UserRole role;
+    @Column(name = "email", nullable = false, length = 255)
+    private String email;
 
-	@Column(name = "invited_by_master_id")
-	private Long invitedByMasterId;
+    @Column(name = "token", nullable = false, unique = true, length = 255)
+    private String token;
 
-	@Column(name = "invited_by_user_id")
-	private Long invitedByUserId;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private InvitationStatus status;
 
-	@Column(name = "expires_at", nullable = false)
-	private LocalDateTime expiresAt;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "invited_by_master_id")
+    private Master invitedByMaster;
 
-	@Column(name = "accepted_at")
-	private LocalDateTime acceptedAt;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "invited_by_user_id")
+    private User invitedByUser;
 
-	private Invitation(
-			String tokenHash,
-			String email,
-			ClassEntity classEntity,
-			UserRole role,
-			LocalDateTime expiresAt) {
-		this.tokenHash = tokenHash;
-		this.email = email;
-		this.classEntity = classEntity;
-		this.role = role;
-		this.expiresAt = expiresAt;
-	}
+    @Column(name = "expires_at", nullable = false)
+    private LocalDateTime expiresAt;
 
-	public static Invitation byMaster(
-			String tokenHash,
-			String email,
-			ClassEntity classEntity,
-			UserRole role,
-			LocalDateTime expiresAt,
-			Long masterId) {
-		Invitation invitation = new Invitation(tokenHash, email, classEntity, role, expiresAt);
-		invitation.invitedByMasterId = masterId;
-		return invitation;
-	}
+    private Invitation(
+            Enterprise enterprise,
+            ClassEntity classEntity,
+            InvitationRole role,
+            String email,
+            String token,
+            Master invitedByMaster,
+            User invitedByUser,
+            LocalDateTime expiresAt) {
+        this.enterprise = enterprise;
+        this.classEntity = classEntity;
+        this.role = role;
+        this.email = email;
+        this.token = token;
+        this.status = InvitationStatus.PENDING;
+        this.invitedByMaster = invitedByMaster;
+        this.invitedByUser = invitedByUser;
+        this.expiresAt = expiresAt;
+    }
 
-	public static Invitation byUser(
-			String tokenHash,
-			String email,
-			ClassEntity classEntity,
-			UserRole role,
-			LocalDateTime expiresAt,
-			Long userId) {
-		Invitation invitation = new Invitation(tokenHash, email, classEntity, role, expiresAt);
-		invitation.invitedByUserId = userId;
-		return invitation;
-	}
+    public static Invitation forManagerInvite(
+            Enterprise enterprise, String email, String token, Master invitedBy, LocalDateTime expiresAt) {
+        return new Invitation(enterprise, null, InvitationRole.MANAGER, email, token, invitedBy, null, expiresAt);
+    }
 
-	public boolean isPending() {
-		return acceptedAt == null && expiresAt.isAfter(LocalDateTime.now());
-	}
+    public static Invitation forStudentInvite(
+            Enterprise enterprise,
+            ClassEntity classEntity,
+            String email,
+            String token,
+            User invitedBy,
+            LocalDateTime expiresAt) {
+        return new Invitation(
+                enterprise, classEntity, InvitationRole.STUDENT, email, token, null, invitedBy, expiresAt);
+    }
 
-	public void accept() {
-		this.acceptedAt = LocalDateTime.now();
-	}
+    public boolean isExpired() {
+        return expiresAt.isBefore(LocalDateTime.now());
+    }
 
-	/** 가입할 사용자의 소속 기업. 반이 속한 트랙의 기업을 그대로 따른다. */
-	public Long enterpriseId() {
-		return classEntity.getTrack().getEnterprise().getId();
-	}
+    /** 초대 수락(회원가입 완료) 처리. 회원가입 연동 전이라 현재는 호출부가 없다. */
+    public void accept() {
+        this.status = InvitationStatus.ACCEPTED;
+    }
 }

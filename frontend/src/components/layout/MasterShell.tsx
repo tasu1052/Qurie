@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
+  Layers,
   BookOpen,
   Users,
   Megaphone,
@@ -23,6 +24,7 @@ type AppShellProps = {
 
 const masterNav = [
   { key: 'dashboard', label: '대시보드', path: '/master', icon: <LayoutDashboard {...iconProps} /> },
+  { key: 'tracks', label: '트랙 관리', path: '/master/tracks', icon: <Layers {...iconProps} />, badge: '4' },
   { key: 'classes', label: '클래스 관리', path: '/master/classes', icon: <BookOpen {...iconProps} />, badge: '6' },
   { key: 'members', label: '회원 관리', path: '/master/members', icon: <Users {...iconProps} /> },
   { key: 'announcements', label: '공지사항', path: '/master/announcements', icon: <Megaphone {...iconProps} /> },

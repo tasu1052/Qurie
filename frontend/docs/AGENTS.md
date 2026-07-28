@@ -21,3 +21,5 @@ This repo is split between two people. **Stay inside your lane.**
 Two seams, both owned by the teammate:
 1. `<QueryAsyncBoundary>` — we pass `suspenseFallback` and `errorFallback`; he decides when they show.
 2. His query hooks — we call them and render the result. Where a hook does not exist yet, `src/mocks/adapters.ts` stands in with the **same call signature and return shape**, so integration is an import swap. Do not change either shape unilaterally; list what you need instead.
+
+**UI import rule:** pages and feedback import data hooks/types from `src/data/` only (never deep-import `mocks/` or `network/` query modules). Swap real hooks by editing `src/data/index.ts`. Needed endpoints + hook names: `docs/API_HOOK_CONTRACTS.md`.

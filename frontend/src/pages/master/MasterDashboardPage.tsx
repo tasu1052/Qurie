@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { Download, ShieldAlert } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
@@ -13,8 +14,8 @@ import {
   useMasterKpiRow,
   useMasterReportsRow,
   useMasterTracksRow,
-} from '../../mocks/adapters';
-import type { ManagerActivity, ReportRow, TrackCard } from '../../mocks/fixtures';
+} from '../../data';
+import type { ManagerActivity, ReportRow, TrackCard } from '../../data';
 import javaTech from '../../ds/assets/tech/java_50.png';
 import pythonTech from '../../ds/assets/tech/python_50.png';
 import dbTech from '../../ds/assets/tech/database_50.png';
@@ -132,10 +133,14 @@ function ReportsSkeleton() {
   );
 }
 
-function TrackCardItem({ track }: { track: TrackCard }) {
+function TrackCardItem({ track, onClick }: { track: TrackCard; onClick: () => void }) {
   const active = track.status === 'active';
   return (
     <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => e.key === 'Enter' && onClick()}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -246,6 +251,7 @@ function ReportTableRow({ r }: { r: ReportRow }) {
 }
 
 export default function MasterDashboardPage() {
+  const navigate = useNavigate();
   const kpi = useMasterKpiRow();
   const tracks = useMasterTracksRow();
   const reports = useMasterReportsRow();
@@ -265,12 +271,12 @@ export default function MasterDashboardPage() {
           </Button>
         </div>
 
-        {/* Row 1 — KPI */}
         <MockRowBoundary
           status={kpi.status}
           skeleton={<KpiSkeleton />}
           onRetry={kpi.refetch}
           emptyMessage="KPI 데이터가 없습니다"
+          label="row 1 · kpi"
         >
           <StatCardRow>
             {(kpi.data ?? []).map((item, i) => (
@@ -279,13 +285,13 @@ export default function MasterDashboardPage() {
           </StatCardRow>
         </MockRowBoundary>
 
-        {/* Row 2 — Tracks + Managers */}
         <MockRowBoundary
           status={tracks.status}
           skeleton={<TracksSkeleton />}
           onRetry={tracks.refetch}
           emptyMessage="트랙이 없습니다"
           emptyActionLabel="트랙 생성"
+          label="row 2 · tracks"
         >
           {tracks.data && (
             <div className="qurie-master-split">
@@ -309,7 +315,7 @@ export default function MasterDashboardPage() {
                   <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>카드를 클릭하면 트랙 상세로 이동합니다</span>
                 </div>
                 {tracks.data.tracks.map((t) => (
-                  <TrackCardItem key={t.id} track={t} />
+                  <TrackCardItem key={t.id} track={t} onClick={() => navigate(`/master/tracks/${t.id}`)} />
                 ))}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
@@ -366,12 +372,12 @@ export default function MasterDashboardPage() {
           )}
         </MockRowBoundary>
 
-        {/* Row 3 — Recent reports */}
         <MockRowBoundary
           status={reports.status}
           skeleton={<ReportsSkeleton />}
           onRetry={reports.refetch}
           emptyMessage="발급된 리포트가 없습니다"
+          label="row 3 · reports"
         >
           {reports.data && (
             <div
