@@ -1,0 +1,259 @@
+QURIE · Learning Platform
+
+SOFTWARE REQUIREMENTS
+SPECIFICATION
+
+ 
+
+    & AI   -- Qurie
+
+   v1.0
+   2026 7 21
+   Qurie ERD (DBML) -- enterprise / master / ordinary_user / class / session / project / quiz /
+   report  12 
+   · , ··, , AI ,  
+   Draft --    ,    6 
+QURIE --                                                         v1.0
+
+1. 
+
+  1.1  
+
+  Qurie   (ERD)     · 
+.       1:1  , ··QA   
+       .
+
+  1.2  
+
+Qurie /(Enterprise)   (Class)        
+ .  (Session)    ,    AI  
+ .             .
+
+  1.3  
+
+ 1-1.  
+
+               
+
+Enterprise     Qurie     .  Enterprise   Master Ordinary User()
+                .
+
+Master         Enterprise   .  ,      .
+
+Ordinary User    ·  .   (Student)    
+()             Master·Manager    .
+
+Class              ( ).  Session Group .
+
+Session            / . (slug)    .
+
+Project           .     .
+
+Group              . (LEADER) (PARTICIPANT) .
+
+Quiz             AI  . (CONCEPTUAL)·(MICRO)   
+               .
+
+Report              . ·· · .
+
+                 2 / 8
+QURIE --           v1.0
+
+2.   
+
+ERD   (enterprise, master, invitation, ordinary_user)      
+  .
+
+  2.1 Enterprise (/)
+
+  ·    , (name)   .
+  ·  Master  Ordinary User()   1:N .
+
+  2.2 Master ( )
+
+  · (unique)·   Enterprise .
+  · (Ordinary User) (invitation),    ( )    
+
+     .
+
+  2.3 Ordinary User ()
+
+  · Enterprise  role(category)     .
+  ·  · · ·      .
+  ·         -- Master/Manager 2 .
+
+  2.4 Invitation ( )
+
+  · Master    ,  (token)  (expires_at) .
+  ·  PENDING / ACCEPTED / EXPIRED   .
+
+            3 / 8
+QURIE --                                          v1.0
+
+3.  
+
+3.1    
+
+ID          
+              Enterprise  .
+FR-01  
+            ()·· Master  · Enterprise 
+FR-02       .
+
+FR-03       Master   ,     . 
+            PENDING  ACCEPTED / EXPIRED .
+FR-04    
+FR-05          Ordinary User()   role    .
+
+            Master      (  )   .
+
+3.2  
+
+ID          
+
+FR-06  /    ····   ·.  Enterprise
+             Class   .
+FR-07   
+                 (ADMIN / TEMP_ADMIN / STUDENT) 
+            .     role  .
+
+3.3    
+
+ID          
+
+FR-08          slug  () . (created_by) 
+             (is_active)    .
+
+FR-09          .  (path) Git   
+            nullable .
+
+3.4  
+
+ID          
+              ··    .
+FR-10  /       LEADER / PARTICIPANT  .
+
+FR-11    
+
+              4 / 8
+QURIE --                               v1.0
+
+3.5 AI    
+
+ID           
+
+FR-12           (TRUE_FALSE / MULTIPLE_CHOICE /
+             FILL_IN_BLANK) (CONCEPTUAL· / MICRO· )  
+FR-13         . 1  (MULTIPLE_CHOICE) .
+
+FR-14  AI    AI         ,   
+FR-15         (EASY/NORMAL/HARD)   2  .
+FR-16    
+               (explanation) AI   .
+
+               (time_limit_sec)      AI   .
+
+                · ·    .
+
+3.6   
+
+ID           
+                  ·· ·   
+FR-17        .
+               ( 2048)  (file_url)  .
+FR-18          (issued_at)   .
+FR-19    
+
+  .   "AI        "   .  (FR-05)
+Master  ·   , (3.6) ·    .
+
+             5 / 8
+QURIE --                                                                                          v1.0
+
+4.   ( )
+
+ERD(DBML)   13  ,  Enterprise  Class  Session/Group  Quiz/Report  
+  .
+
+ 4-1.     
+
+                                                      
+
+enterprise     name, created_at                        . master·ordinary_user·class 
+
+master         email(unique), password, name enterprise 1:N , invitation  
+
+invitation     email, token(unique), status,          master (invited_by)
+               expires_at
+
+ordinary_user  email(unique), role, password,         enterprise 1:N ,
+               name                                   class_user·group_participants·quiz_progress·report
+                                                      
+
+class          name, track, description,              enterprise 1:N , session·group·class_user 
+
+class_user     role(ADMIN/TEMP_ADMIN/                 class  ordinary_user 
+               STUDENT)
+
+session        slug, is_active, ended_at              class 1:N , created_by(ordinary_user), project 
+                                                      
+
+project        path(nullable), imported_by            session 1:N , quiz 
+
+group          name, description,                     class 1:N , group_participants 
+
+group_participants role(LEADER/PARTICIPANT)           group  ordinary_user 
+
+quiz           type, purpose, difficulty,             project 1:N , quiz_progress 
+
+               time_limit_sec
+
+quiz_progress  is_attempted, is_correct,              quiz    
+               is_skipped
+
+report         quiz_completion, accuracy,             ordinary_user·session   
+               difficulty_ratio, rating
+
+                                               6 / 8
+QURIE --           v1.0
+
+5.  
+
+        .
+
+ID          
+
+NFR-01      master.email, ordinary_user.email, invitation.token    
+            ·    .
+NFR-02   
+            invitation expires_at    EXPIRED  /  
+NFR-03      .
+NFR-04   
+            quiz.time_limit_sec      AI      .
+
+              created_at/updated_at , (audit)   
+               .
+
+            7 / 8
+QURIE --                                                                v1.0
+
+6.   (Open Issues)
+
+ERD    ,     .
+
+ID                        
+OI-01
+OI-02  Git                project.path  (  / Git   )  , 
+OI-03                      nullable   .
+OI-04
+       quiz_progress      is_correct, is_skipped null  (: '  ' )  
+                          .
+
+       member               member ( )    ordinary_user 
+                            .
+
+       quiz_progress FK   quiz_progress.ordinary_user_id  group.id   ,
+                          ordinary_user.id   .
+
+                            8 / 8
+

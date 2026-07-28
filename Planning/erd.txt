@@ -1,0 +1,81 @@
+invitation                 bigint
+id          varchar(255)
+email       varchar(255)
+token        varchar(20)
+status
+created_at        datetime
+updated_at        datetime
+expires_at        datetime
+
+enterprise                bigint 1      master                        bigint       class                 bigint 1      class_user               bigint             project                 bigint 1              quiz                         bigint 1      quiz_progress            bigint
+id          varchar(100)                id                      bigint             id               bigint                                bigint                   id                 bigint                     id                     bigint              id                 bigint
+name                                * enterprise_id    varchar(255)            * track_id                              id                 bigint               * session_id        varchar(500)              * project_id        varchar(30)            * ordinary_user_id     bigint
+created_at        datetime              email          varchar(255)                class_number         int        * class_id          datetime                    path               bigint                     type            varchar(20)            * quiz_id
+                                        password        varchar(50)                description   varchar(255)      * ordinary_user_id                          * imported_by       datetime                      purpose                                    is_attempted          bool
+                                        name                 datetime              started_at    datetime                                                          created_at      datetime                      question                  text             is_correct                  bool
+                                        created_at                                 ended_at      datetime              joined_at                                   updated_at                                    answer                    text             is_skipped                  bool
+                                        updated_at                 datetime        created_at    datetime                                                                                                        explanation                                finished_at
+                                                                                   updated_at    datetime                                                                                                        difficulty                       text                      datetime
+                                                                                                                                                                                                                 time_limit_sec        varchar(10)
+                                                                                                                       session                    bigint 1     group_participants                                created_at
+                                                                                                                       id                    bigint                                                              updated_at                        int
+                                        ordinary_user                bigint 1                                      * class_id       varchar(100)                   id                            bigint                              datetime
+                                        id                      bigint                                                 slug                  bigint            * group_id                  bigint                                    datetime
+                                    * enterprise_id    varchar(255)                                                * created_by                                * ordinary_user_id          bigint
+                                        email                category                                                  is_active                bool
+                                        role           varchar(255)                                                    created_at         datetime             role                varchar(20)
+                                        password        varchar(50)                                                    ended_at
+                                        name                 datetime                                                  updated_at               datetime           report                            bigint
+                                        created_at           datetime                                                                     datetime                 id                          bigint
+                                        updated_at                                                                                                             * user_id                       bigint
+                                                                                                                                                               * session_id                    bigint
+                                        track                        bigint 1                                          group                         bigint 1      quiz_completion             bigint
+                                        id                      bigint                                                 id                       bigint             quiz_progress_accuracy      bigint
+                                    * enterprise_id    varchar(100)                                                * class_id          varchar(100)                quiz_difficulty_ratio       bigint
+                                        name                 varchar(255)                                              name            varchar(255)                quiz_rating             varchar(2048)
+                                        description          datetime                                                  description           datetime              manager_comment          varchar(500)
+                                        created_at           datetime                                                  started_at            datetime              file_url                 datetime
+                                        updated_at                                                                     ended_at              datetime              issued_at
+                                                                                                                       created_at            datetime
+                                                                                                                       updated_at
+invitation                 bigint
+id          varchar(255)
+email       varchar(255)
+token        varchar(20)
+status
+created_at        datetime
+updated_at        datetime
+expires_at        datetime
+
+enterprise                bigint 1      master                        bigint       class                 bigint 1      class_user               bigint             project                 bigint 1              quiz                         bigint 1      quiz_progress            bigint
+id          varchar(100)                id                      bigint             id               bigint                                bigint                   id                 bigint                     id                     bigint              id                 bigint
+name                                * enterprise_id    varchar(255)            * track_id                              id                 bigint               * session_id        varchar(500)              * project_id        varchar(30)            * ordinary_user_id     bigint
+created_at        datetime              email          varchar(255)                class_number         int        * class_id          datetime                    path               bigint                     type            varchar(20)            * quiz_id
+                                        password        varchar(50)                description   varchar(255)      * ordinary_user_id                          * imported_by       datetime                      purpose                                    is_attempted          bool
+                                        name                 datetime              started_at    datetime                                                          created_at      datetime                      question                  text             is_correct                  bool
+                                        created_at                                 ended_at      datetime              joined_at                                   updated_at                                    answer                    text             is_skipped                  bool
+                                        updated_at                 datetime        created_at    datetime                                                                                                        explanation                                finished_at
+                                                                                   updated_at    datetime                                                                                                        difficulty                       text                      datetime
+                                                                                                                                                                                                                 time_limit_sec        varchar(10)
+                                                                                                                       session                    bigint 1     group_participants                                created_at
+                                                                                                                       id                    bigint                                                              updated_at                        int
+                                        ordinary_user                bigint 1                                      * class_id       varchar(100)                   id                            bigint                              datetime
+                                        id                      bigint                                                 slug                  bigint            * group_id                  bigint                                    datetime
+                                    * enterprise_id    varchar(255)                                                * created_by                                * ordinary_user_id          bigint
+                                        email                category                                                  is_active                bool
+                                        role           varchar(255)                                                    created_at         datetime             role                varchar(20)
+                                        password        varchar(50)                                                    ended_at
+                                        name                 datetime                                                  updated_at               datetime           report                            bigint
+                                        created_at           datetime                                                                     datetime                 id                          bigint
+                                        updated_at                                                                                                             * user_id                       bigint
+                                                                                                                                                               * session_id                    bigint
+                                        track                        bigint 1                                          group                         bigint 1      quiz_completion             bigint
+                                        id                      bigint                                                 id                       bigint             quiz_progress_accuracy      bigint
+                                    * enterprise_id    varchar(100)                                                * class_id          varchar(100)                quiz_difficulty_ratio       bigint
+                                        name                 varchar(255)                                              name            varchar(255)                quiz_rating             varchar(2048)
+                                        description          datetime                                                  description           datetime              manager_comment          varchar(500)
+                                        created_at           datetime                                                  started_at            datetime              file_url                 datetime
+                                        updated_at                                                                     ended_at              datetime              issued_at
+                                                                                                                       created_at            datetime
+                                                                                                                       updated_at
+

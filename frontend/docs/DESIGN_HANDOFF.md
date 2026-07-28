@@ -93,7 +93,7 @@ Modals (1f, 1g, 1m) and the quiz panel states are toggled by boolean props in th
 Copy exact values from `ds/tokens/*.css` (included in this bundle). Key values:
 - Ink `#111111`, accent indigo `#6366F1` (single accent), app bg `#FAFAFA`, cards `#FFFFFF`, border `rgb(232,232,234)`, muted text `#64748B` / `#9c9ca1`.
 - Status colors: desaturated green/amber/red/slate (see `tokens/colors.css` `--status-*`).
-- Type: Inter (Latin) + Noto Sans KR (self-hosted, `ds/assets/fonts/`), JetBrains Mono for code/ids. Scale: KPI 36–44 bold, H1 28 / H2 22 / H3 17 / H4 14, body 14, caption 12.
+- Type: Nunito Sans (Latin) + Noto Sans KR (self-hosted, `ds/assets/fonts/`), JetBrains Mono for code/ids. Scale: KPI 36–44 bold, H1 28 / H2 22 / H3 17 / H4 14, body 14, caption 12.
 - Spacing: 8px grid, 24px card padding (stat cards 20px), 24px gutters.
 - Radii: pill controls (999px), cards 16px, modals 20px, popovers 12px, badges pill.
 - Shadows: hairline `--shadow-card`; modal `--shadow-modal`. No gradients outside the glass recipe above.
@@ -118,7 +118,7 @@ Recreate with the design-system components (source in `ds/components/`, one fold
 **Typography**
 - `fontSize` sticks to the Qurie scale — caption 10–13.5 (12 default), body 14, H3 17, H2 22, H1 28, KPI 36–44, display 79; no in-between sizes (16, 18, 20, 24…). *(qurie/font-size-scale)*
 - `fontWeight` 400/500/600/700 only; 800 is reserved for the `Q>rie` chevron/wordmark; never thin (<400) or 900. *(qurie/font-weight-scale)*
-- `fontFamily` is always a token: `var(--font-sans)` (Inter + Noto Sans KR) or `var(--font-mono)` (JetBrains Mono) — raw font stacks live only in `ds/tokens`. *(qurie/font-family-token)*
+- `fontFamily` is always a token: `var(--font-sans)` (Nunito Sans + Noto Sans KR) or `var(--font-mono)` (JetBrains Mono) — raw font stacks live only in `ds/tokens`. *(qurie/font-family-token)*
 
 **Tech-stack icons**
 - Raster tech logos live in `ds/assets/tech/` named `{tech}_{size}.png` — tech ∈ java, python, javascript, typescript, react, vuejs, spring, django, bootstrap, html5, css3, database; `{tech}_light_{size}.png` variants for dark/ink surfaces. *(qurie/tech-icon)*
