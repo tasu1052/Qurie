@@ -2,12 +2,19 @@ import { useState } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
-import { Badge, Button, Input, Modal, Pagination, Skeleton } from '../../ds';
+import { Badge, LiveBadge, Button, Input, Modal, Pagination, Skeleton } from '../../ds';
 import { useManagerSessionsRow } from '../../data';
 
 function TableSkeleton() {
   return (
-    <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 16, padding: 24 }}>
+    <div
+      style={{
+        background: 'var(--surface-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        padding: 24,
+      }}
+    >
       {[0, 1, 2, 3].map((i) => (
         <Skeleton key={i} width="100%" height={36} delay={i * 0.08} style={{ marginBottom: 10 }} />
       ))}
@@ -31,9 +38,15 @@ export default function SessionListPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>세션</h1>
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>클래스 세션을 생성하고 상태를 관리하세요.</span>
+            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              클래스 세션을 생성하고 상태를 관리하세요.
+            </span>
           </div>
-          <Button variant="primary" icon={<Plus size={14} strokeWidth={1.75} />} onClick={() => setCreateOpen(true)}>
+          <Button
+            variant="primary"
+            icon={<Plus size={14} strokeWidth={1.75} />}
+            onClick={() => setCreateOpen(true)}
+          >
             세션 만들기
           </Button>
         </div>
@@ -72,7 +85,14 @@ export default function SessionListPage() {
           />
         </div>
 
-        <MockRowBoundary status={row.status} skeleton={<TableSkeleton />} onRetry={row.refetch} emptyMessage="세션이 없습니다" emptyActionLabel="세션 만들기" onEmptyAction={() => setCreateOpen(true)} label="row · sessions">
+        <MockRowBoundary
+          status={row.status}
+          skeleton={<TableSkeleton />}
+          onRetry={row.refetch}
+          emptyMessage="세션이 없습니다"
+          emptyActionLabel="세션 만들기"
+          onEmptyAction={() => setCreateOpen(true)}
+        >
           {row.data && (
             <>
               <div
@@ -123,12 +143,33 @@ export default function SessionListPage() {
                         alignItems: 'center',
                       }}
                     >
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)' }}>{s.slug}</span>
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 12.5,
+                          color: 'var(--ink)',
+                        }}
+                      >
+                        {s.slug}
+                      </span>
                       <span style={{ color: 'var(--text-secondary)' }}>{s.creator}</span>
                       <span style={{ color: 'var(--text-secondary)' }}>{s.start}</span>
                       <span style={{ color: 'var(--ink)' }}>{s.participants}</span>
-                      <Badge status={s.status === 'LIVE' ? 'accent' : s.status === '예정' ? 'warning' : 'neutral'}>{s.status}</Badge>
-                      <span style={{ textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      {s.status === 'LIVE' ? (
+                        <LiveBadge />
+                      ) : (
+                        <Badge status={s.status === '예정' ? 'warning' : 'neutral'}>
+                          {s.status}
+                        </Badge>
+                      )}
+                      <span
+                        style={{
+                          textAlign: 'right',
+                          display: 'flex',
+                          gap: 6,
+                          justifyContent: 'flex-end',
+                        }}
+                      >
                         <Button variant="secondary" size="sm" onClick={() => undefined}>
                           {s.status === '종료' ? '리포트' : s.status === 'LIVE' ? '입장' : '편집'}
                         </Button>
@@ -160,7 +201,12 @@ export default function SessionListPage() {
         >
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>세션 제목</span>
-            <Input placeholder="react-hooks-deep-dive" value={title} onChange={(e) => setTitle(e.target.value)} width="100%" />
+            <Input
+              placeholder="react-hooks-deep-dive"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              width="100%"
+            />
           </label>
         </Modal>
       </PageMain>

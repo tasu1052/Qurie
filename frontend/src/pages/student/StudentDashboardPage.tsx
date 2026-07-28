@@ -3,16 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { StudentShell, PageMain } from '../../components/layout/StudentShell';
 import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
-import {
-  Badge,
-  Button,
-  DonutChart,
-  Modal,
-  Select,
-  Skeleton,
-  StatCard,
-  StatCardRow,
-} from '../../ds';
+import { Badge, LiveBadge, Button, CardScrollRow, DonutChart, Modal, Select, Skeleton, StatCard, StatCardRow } from '../../ds';
 import { useStudentDashboardRow } from '../../data';
 
 function DashSkeleton() {
@@ -21,7 +12,7 @@ function DashSkeleton() {
       <Skeleton width="100%" height={140} radius={16} />
       <StatCardRow>
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 'var(--card-radius)', padding: 'var(--stat-card-padding)' }}>
+          <div key={i} style={{ background: 'var(--surface-card-solid)', border: '1px solid var(--border)', borderRadius: 'var(--card-radius)', padding: 'var(--stat-card-padding)' }}>
             <Skeleton width="50%" height={14} delay={i * 0.08} />
           </div>
         ))}
@@ -57,17 +48,18 @@ export default function StudentDashboardPage() {
                 <div
                   style={{
                     background: 'var(--ink)',
-                    color: 'var(--surface-card)',
+                    color: 'var(--text-inverse)',
                     borderRadius: 16,
                     padding: 28,
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 14,
                     minWidth: 0,
+                    animation: 'qurie-live-card-glow 2.6s ease-in-out infinite',
                   }}
                 >
                   <span style={{ fontSize: 13, opacity: 0.72 }}>안녕하세요, 박민수님</span>
-                  <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'var(--surface-card)' }}>
+                  <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'var(--text-inverse)' }}>
                     오늘 LIVE 세션이 진행 중입니다
                   </h1>
                   <span style={{ fontSize: 13, opacity: 0.72 }}>react-hooks-deep-dive · 14:00–16:00</span>
@@ -124,13 +116,13 @@ export default function StudentDashboardPage() {
                     나의 세션
                   </span>
                 </div>
-                <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 4 }}>
+                <CardScrollRow>
                   {row.data.sessions.map((s) => (
                     <div
                       key={s.id}
                       style={{
                         minWidth: 260,
-                        background: 'var(--surface-card)',
+                        background: 'var(--surface-card-solid)',
                         border: '1px solid var(--border)',
                         borderRadius: 16,
                         boxShadow: 'var(--shadow-card)',
@@ -138,12 +130,17 @@ export default function StudentDashboardPage() {
                         display: 'flex',
                         flexDirection: 'column',
                         gap: 10,
+                        ...(s.status === 'LIVE'
+                          ? { animation: 'qurie-live-card-glow 2.6s ease-in-out infinite' }
+                          : {}),
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Badge status={s.status === 'LIVE' ? 'accent' : s.status === '예정' ? 'warning' : 'neutral'}>
-                          {s.status}
-                        </Badge>
+                        {s.status === 'LIVE' ? (
+                          <LiveBadge />
+                        ) : (
+                          <Badge status={s.status === '예정' ? 'warning' : 'neutral'}>{s.status}</Badge>
+                        )}
                       </div>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
                         {s.title}
@@ -179,7 +176,7 @@ export default function StudentDashboardPage() {
                     <Plus size={18} strokeWidth={1.75} />
                     <span style={{ fontSize: 13, fontWeight: 600 }}>세션 생성</span>
                   </button>
-                </div>
+                </CardScrollRow>
               </div>
 
               <div className="qurie-master-split">

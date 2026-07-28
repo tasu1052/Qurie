@@ -62,7 +62,13 @@ export function MockRowBoundary({
       />
     );
   } else {
-    body = <RowSection label={label}>{children}</RowSection>;
+    // gap 24 matches the PageMain gutter: pages that render several sections
+    // inside one boundary keep the same rhythm as separate rows.
+    body = (
+      <RowSection label={label} style={{ gap: 24 }}>
+        {children}
+      </RowSection>
+    );
   }
 
   return (

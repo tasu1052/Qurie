@@ -2,19 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { Download, ShieldAlert } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
-import {
-  Badge,
-  Button,
-  Chevron,
-  Skeleton,
-  StatCard,
-  StatCardRow,
-} from '../../ds';
-import {
-  useMasterKpiRow,
-  useMasterReportsRow,
-  useMasterTracksRow,
-} from '../../data';
+import { Badge, Button, Chevron, Skeleton, StatCard, StatCardRow } from '../../ds';
+import { useMasterKpiRow, useMasterReportsRow, useMasterTracksRow } from '../../data';
 import type { ManagerActivity, ReportRow, TrackCard } from '../../data';
 import javaTech from '../../ds/assets/tech/java_50.png';
 import pythonTech from '../../ds/assets/tech/python_50.png';
@@ -162,7 +151,13 @@ function TrackCardItem({ track, onClick }: { track: TrackCard; onClick: () => vo
           justifyContent: 'center',
         }}
       >
-        <img src={techImg[track.tech]} width={22} height={22} alt={track.tech} style={{ objectFit: 'contain' }} />
+        <img
+          src={techImg[track.tech]}
+          width={22}
+          height={22}
+          alt={track.tech}
+          style={{ objectFit: 'contain' }}
+        />
       </span>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -172,7 +167,13 @@ function TrackCardItem({ track, onClick }: { track: TrackCard; onClick: () => vo
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{track.meta}</span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: track.accentMetric ? 'var(--accent)' : 'var(--ink)' }}>
+        <span
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            color: track.accentMetric ? 'var(--accent)' : 'var(--ink)',
+          }}
+        >
           {track.metricValue}
         </span>
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{track.metricLabel}</span>
@@ -228,7 +229,11 @@ function ManagerActivityItem({ m }: { m: ManagerActivity }) {
 
 function ReportTableRow({ r }: { r: ReportRow }) {
   const quizColor =
-    r.quizTone === 'accent' ? 'var(--accent)' : r.quizTone === 'error' ? 'var(--status-error)' : 'var(--ink)';
+    r.quizTone === 'accent'
+      ? 'var(--accent)'
+      : r.quizTone === 'error'
+        ? 'var(--status-error)'
+        : 'var(--ink)';
   return (
     <div
       style={{
@@ -240,7 +245,9 @@ function ReportTableRow({ r }: { r: ReportRow }) {
         alignItems: 'center',
       }}
     >
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)' }}>{r.session}</span>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)' }}>
+        {r.session}
+      </span>
       <span style={{ color: 'var(--text-secondary)' }}>{r.className}</span>
       <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{r.manager}</span>
       <span style={{ color: quizColor, fontWeight: 700 }}>{r.quizRate}</span>
@@ -266,7 +273,11 @@ export default function MasterDashboardPage() {
               SSAFY 서울캠퍼스의 학습 운영 현황을 한눈에 확인하세요.
             </span>
           </div>
-          <Button variant="secondary" icon={<Download size={14} strokeWidth={1.75} />} onClick={() => undefined}>
+          <Button
+            variant="secondary"
+            icon={<Download size={14} strokeWidth={1.75} />}
+            onClick={() => undefined}
+          >
             리포트 내보내기
           </Button>
         </div>
@@ -276,7 +287,6 @@ export default function MasterDashboardPage() {
           skeleton={<KpiSkeleton />}
           onRetry={kpi.refetch}
           emptyMessage="KPI 데이터가 없습니다"
-          label="row 1 · kpi"
         >
           <StatCardRow>
             {(kpi.data ?? []).map((item, i) => (
@@ -291,7 +301,6 @@ export default function MasterDashboardPage() {
           onRetry={tracks.refetch}
           emptyMessage="트랙이 없습니다"
           emptyActionLabel="트랙 생성"
-          label="row 2 · tracks"
         >
           {tracks.data && (
             <div className="qurie-master-split">
@@ -308,14 +317,30 @@ export default function MasterDashboardPage() {
                   minWidth: 0,
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                >
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
                     트랙 현황
                   </span>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>카드를 클릭하면 트랙 상세로 이동합니다</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    카드를 클릭하면 트랙 상세로 이동합니다
+                  </span>
                 </div>
                 {tracks.data.tracks.map((t) => (
-                  <TrackCardItem key={t.id} track={t} onClick={() => navigate(`/master/tracks/${t.id}`)} />
+                  <TrackCardItem
+                    key={t.id}
+                    track={t}
+                    onClick={() => navigate(`/master/tracks/${t.id}`)}
+                  />
                 ))}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
@@ -332,11 +357,34 @@ export default function MasterDashboardPage() {
                     minWidth: 0,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
                       매니저 액티비티
                     </span>
-                    <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent)', cursor: 'pointer' }}>회원 관리</span>
+                    <span
+                      style={{
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        color: 'var(--accent)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      회원 관리
+                    </span>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {tracks.data.managers.map((m) => (
@@ -357,10 +405,23 @@ export default function MasterDashboardPage() {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <ShieldAlert size={16} strokeWidth={1.75} style={{ color: 'var(--status-warning)' }} />
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>인사 관리 알림</span>
+                    <ShieldAlert
+                      size={16}
+                      strokeWidth={1.75}
+                      style={{ color: 'var(--status-warning)' }}
+                    />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                      인사 관리 알림
+                    </span>
                   </div>
-                  <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 12.5,
+                      lineHeight: 1.6,
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
                     {tracks.data.hrAlert.body}
                   </p>
                   <Button variant="secondary" size="sm" onClick={() => undefined}>
@@ -377,7 +438,6 @@ export default function MasterDashboardPage() {
           skeleton={<ReportsSkeleton />}
           onRetry={reports.refetch}
           emptyMessage="발급된 리포트가 없습니다"
-          label="row 3 · reports"
         >
           {reports.data && (
             <div
@@ -389,11 +449,35 @@ export default function MasterDashboardPage() {
                 overflow: 'hidden',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px 14px' }}>
-                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '20px 24px 14px',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
                   최근 발급 리포트
                 </span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', cursor: 'pointer' }}>전체 보기</span>
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: 'var(--accent)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  전체 보기
+                </span>
               </div>
               <div
                 style={{

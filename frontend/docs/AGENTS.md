@@ -23,3 +23,13 @@ Two seams, both owned by the teammate:
 2. His query hooks — we call them and render the result. Where a hook does not exist yet, `src/mocks/adapters.ts` stands in with the **same call signature and return shape**, so integration is an import swap. Do not change either shape unilaterally; list what you need instead.
 
 **UI import rule:** pages and feedback import data hooks/types from `src/data/` only (never deep-import `mocks/` or `network/` query modules). Swap real hooks by editing `src/data/index.ts`. Needed endpoints + hook names: `docs/API_HOOK_CONTRACTS.md`.
+
+## Component placement (binding — also linted)
+
+| Location | What belongs here |
+| --- | --- |
+| `src/ds/components/{group}/` | Pure design components (`Badge`, `LiveBadge`, `RiskBadge`, `StatCard`, `Button`, charts, forms, feedback DS, navigation DS, overlays DS). Export from `src/ds/index.ts`. |
+| `src/components/` | App seams only: `layout/*Shell`, `feedback/MockRowBoundary`, `overlays/*Overlay` wrappers, page helpers like `CardScrollRow`. |
+| Never | `src/components/badges/**` — LIVE / status pills are DS. Import `<LiveBadge />` from `../../ds`. |
+
+LIVE session status always uses `<LiveBadge />` (not `<Badge status="accent">LIVE</Badge>`). LiveBadge must stay content-sized (`width: fit-content`) so CSS Grid table cells cannot stretch the glow. *(qurie/ds-component-placement, qurie/live-status-badge, qurie/livebadge-fit-content)*

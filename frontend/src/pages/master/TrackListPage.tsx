@@ -72,37 +72,77 @@ function TrackCardView({
             flexShrink: 0,
           }}
         >
-          <img src={techImg[track.tech]} width={22} height={22} alt={track.tech} style={{ objectFit: 'contain' }} />
+          <img
+            src={techImg[track.tech]}
+            width={22}
+            height={22}
+            alt={track.tech}
+            style={{ objectFit: 'contain' }}
+          />
         </span>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+            }}
+          >
             {track.techLabel}
           </span>
-          <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>{track.name}</h3>
+          <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>
+            {track.name}
+          </h3>
         </div>
         <Badge status={active ? 'success' : 'neutral'} style={{ marginLeft: 'auto' }}>
           {track.statusLabel}
         </Badge>
       </div>
-      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>{track.description}</p>
+      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
+        {track.description}
+      </p>
       <div style={{ display: 'flex', gap: 14, fontSize: 12.5, color: 'var(--text-secondary)' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <BookOpen size={13} strokeWidth={1.75} />클래스 {track.classCount}
+          <BookOpen size={13} strokeWidth={1.75} />
+          클래스 {track.classCount}
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <Users size={13} strokeWidth={1.75} />{track.studentCount}명
+          <Users size={13} strokeWidth={1.75} />
+          {track.studentCount}명
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <PlayCircle size={13} strokeWidth={1.75} />세션 {track.sessionCount}
+          <PlayCircle size={13} strokeWidth={1.75} />
+          세션 {track.sessionCount}
         </span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ flex: 1, height: 6, borderRadius: 999, background: 'var(--divider)', overflow: 'hidden' }}>
-          <div style={{ width: `${track.progress}%`, height: '100%', background: 'var(--accent)' }} />
+        <div
+          style={{
+            flex: 1,
+            height: 6,
+            borderRadius: 999,
+            background: 'var(--divider)',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{ width: `${track.progress}%`, height: '100%', background: 'var(--accent)' }}
+          />
         </div>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>{track.progress}%</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>
+          {track.progress}%
+        </span>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--divider)', paddingTop: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          borderTop: '1px solid var(--divider)',
+          paddingTop: 12,
+        }}
+      >
         <button
           type="button"
           onClick={onOpen}
@@ -177,7 +217,11 @@ export default function TrackListPage() {
               기술 트랙 단위로 커리큘럼을 만들고 클래스를 배정하세요.
             </span>
           </div>
-          <Button variant="primary" icon={<Plus size={15} strokeWidth={1.75} />} onClick={() => setCreateOpen(true)}>
+          <Button
+            variant="primary"
+            icon={<Plus size={15} strokeWidth={1.75} />}
+            onClick={() => setCreateOpen(true)}
+          >
             트랙 생성
           </Button>
         </div>
@@ -228,7 +272,6 @@ export default function TrackListPage() {
           emptyMessage="트랙이 없습니다"
           emptyActionLabel="트랙 생성"
           onEmptyAction={() => setCreateOpen(true)}
-          label="row · tracks"
         >
           <div className="qurie-card-grid">
             {filtered.map((t) => (
@@ -271,8 +314,12 @@ export default function TrackListPage() {
               >
                 <Plus size={18} strokeWidth={1.75} />
               </span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>새 트랙 만들기</span>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>이름 · 기술 스택 · 설명을 설정하세요</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                새 트랙 만들기
+              </span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                이름 · 기술 스택 · 설명을 설정하세요
+              </span>
             </button>
           </div>
           <Pagination
@@ -298,7 +345,12 @@ export default function TrackListPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>트랙 이름</span>
-              <Input placeholder="예: Java 전공 (부산)" value={name} onChange={(e) => setName(e.target.value)} width="100%" />
+              <Input
+                placeholder="예: Java 전공 (부산)"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                width="100%"
+              />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>기술 스택</span>
@@ -314,7 +366,12 @@ export default function TrackListPage() {
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>설명</span>
-              <Input placeholder="커리큘럼 요약을 입력하세요" value={desc} onChange={(e) => setDesc(e.target.value)} width="100%" />
+              <Input
+                placeholder="커리큘럼 요약을 입력하세요"
+                value={desc}
+                onChange={(e) => setDesc(e.target.value)}
+                width="100%"
+              />
             </label>
           </div>
         </Modal>
@@ -326,7 +383,11 @@ export default function TrackListPage() {
           confirmText={deleteTarget?.name ?? ''}
           childCounts={
             deleteTarget
-              ? [`클래스 ${deleteTarget.classCount}`, `학생 ${deleteTarget.studentCount}명`, `세션 ${deleteTarget.sessionCount}`]
+              ? [
+                  `클래스 ${deleteTarget.classCount}`,
+                  `학생 ${deleteTarget.studentCount}명`,
+                  `세션 ${deleteTarget.sessionCount}`,
+                ]
               : []
           }
           conflict

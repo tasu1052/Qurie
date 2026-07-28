@@ -22,7 +22,7 @@ function DetailSkeleton() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <StatCardRow>
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 'var(--card-radius)', padding: 'var(--stat-card-padding)' }}>
+          <div key={i} style={{ background: 'var(--surface-card-solid)', border: '1px solid var(--border)', borderRadius: 'var(--card-radius)', padding: 'var(--stat-card-padding)' }}>
             <Skeleton width="50%" height={14} delay={i * 0.08} />
             <Skeleton width="40%" height={28} delay={i * 0.08 + 0.04} style={{ marginTop: 12 }} />
           </div>

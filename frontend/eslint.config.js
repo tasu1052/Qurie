@@ -45,12 +45,35 @@ export default defineConfig([
       'qurie/state-action': 'error',
       'qurie/shell-outside-state': 'error',
       'qurie/page-footer': 'error',
+      'qurie/ds-component-placement': 'error',
+      'qurie/live-status-badge': 'error',
+      'qurie/livebadge-fit-content': 'error',
       'no-restricted-imports': ['error', {
+        paths: [{
+          name: '../../components/badges/LiveBadge',
+          message: 'Import LiveBadge from "../../ds" (ds/components/badges) — not from src/components.',
+        }],
         patterns: [{
           group: ['@mui/*', 'antd', 'antd/*', 'bootstrap', 'bootstrap/*', 'recharts', 'recharts/*', 'chart.js', 'chart.js/*', 'echarts', 'echarts/*', 'styled-components', '@emotion/*'],
           message: 'Use Qurie DS components (ds/components) and token CSS — no external UI, chart, or CSS-in-JS libraries.',
+        }, {
+          group: ['**/components/badges/**', '**/src/components/badges/**'],
+          message: 'Badge / LiveBadge / RiskBadge live under src/ds/components/badges — import from "../../ds" (or ds/index).',
         }],
       }],
+    },
+  },
+  {
+    files: ['**/*.{js,jsx}'],
+    languageOptions: {
+      globals: globals.browser,
+      parserOptions: { ecmaFeatures: { jsx: true } },
+    },
+    plugins: { qurie },
+    rules: {
+      'qurie/ds-component-placement': 'error',
+      'qurie/live-status-badge': 'error',
+      'qurie/livebadge-fit-content': 'error',
     },
   },
   {

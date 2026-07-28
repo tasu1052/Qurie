@@ -4,7 +4,10 @@ import React from 'react';
  * text (LIVE, PENDING…) belongs in `caption`, never in `delta`. */
 export function StatCard({icon=null,label,value,delta=null,deltaDirection=null,caption=null,accent=false,style={}}){
 const dir=delta==null?null:(deltaDirection==='up'||deltaDirection==='down')?deltaDirection:String(delta).trim().startsWith('-')?'down':'up';
-return <div style={{background:'var(--surface-card)',border:'1px solid var(--border)',borderRadius:'var(--card-radius)',boxShadow:'var(--shadow-card)',backdropFilter:'var(--surface-blur)',WebkitBackdropFilter:'var(--surface-blur)',padding:'var(--stat-card-padding)',display:'flex',flexDirection:'column',gap:12,minWidth:0,fontFamily:'var(--font-sans)',...style}}>
+/* No backdrop-filter: StatCards always sit in a StatCardRow scroll container,
+   where backdrop-filter causes compositing artifacts. --surface-card-solid
+   approximates the frosted look with plain opacity. */
+return <div style={{background:'var(--surface-card-solid)',border:'1px solid var(--border)',borderRadius:'var(--card-radius)', padding:'var(--stat-card-padding)',display:'flex',flexDirection:'column',gap:12,minWidth:0,fontFamily:'var(--font-sans)',...style}}>
 {icon&&<span style={{width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:'var(--radius-md)',background:accent?'var(--accent-soft)':'var(--surface-sunken)',color:accent?'var(--accent)':'var(--text-secondary)'}}>{icon}</span>}
 <div style={{display:'flex',flexDirection:'column',gap:4}}>
 <div style={{display:'flex',alignItems:'baseline',gap:8,minWidth:0}}>

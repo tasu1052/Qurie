@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { StudentShell, PageMain } from '../../components/layout/StudentShell';
 import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
-import { Badge, Button, Skeleton } from '../../ds';
+import { Badge, LiveBadge, Button, Skeleton } from '../../ds';
 import { useClassLobbyRow } from '../../data';
 import javaTech from '../../ds/assets/tech/java_100.png';
 
@@ -41,7 +41,7 @@ export default function ClassLobbyPage() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 20,
-                  color: 'var(--surface-card)',
+                  color: 'var(--text-inverse)',
                 }}
               >
                 <span
@@ -64,9 +64,13 @@ export default function ClassLobbyPage() {
                     <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.72 }}>
                       {row.data.track}
                     </span>
-                    <Badge status="accent">{row.data.statusLabel}</Badge>
+                    {row.data.statusLabel === 'LIVE' ? (
+                      <LiveBadge />
+                    ) : (
+                      <Badge status="accent">{row.data.statusLabel}</Badge>
+                    )}
                   </div>
-                  <h1 style={{ fontSize: 22, fontWeight: 700, margin: '4px 0 0', color: 'var(--surface-card)' }}>{row.data.name}</h1>
+                  <h1 style={{ fontSize: 22, fontWeight: 700, margin: '4px 0 0', color: 'var(--text-inverse)' }}>{row.data.name}</h1>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, maxWidth: 320 }}>
                     <div style={{ flex: 1, height: 6, borderRadius: 999, background: 'var(--grey-600)', overflow: 'hidden' }}>
                       <div style={{ width: `${row.data.progress}%`, height: '100%', background: 'var(--accent)' }} />
@@ -100,7 +104,11 @@ export default function ClassLobbyPage() {
                       <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px' }}>
                         <span style={{ flex: 1, fontFamily: 'var(--font-mono)', fontSize: 12.5, fontWeight: 600 }}>{s.title}</span>
                         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{s.date}</span>
-                        <Badge status={s.status === 'LIVE' ? 'accent' : 'neutral'}>{s.status}</Badge>
+                        {s.status === 'LIVE' ? (
+                          <LiveBadge />
+                        ) : (
+                          <Badge status="neutral">{s.status}</Badge>
+                        )}
                       </div>
                     ))}
                   </div>

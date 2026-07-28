@@ -120,6 +120,10 @@ Recreate with the design-system components (source in `ds/components/`, one fold
 - `fontWeight` 400/500/600/700 only; 800 is reserved for the `Q>rie` chevron/wordmark; never thin (<400) or 900. *(qurie/font-weight-scale)*
 - `fontFamily` is always a token: `var(--font-sans)` (Nunito Sans + Noto Sans KR) or `var(--font-mono)` (JetBrains Mono) — raw font stacks live only in `ds/tokens`. *(qurie/font-family-token)*
 
+**Component placement (binding)**
+- Pure design components live under `src/ds/components/{group}/` and export from `src/ds/index.ts`. `src/components/` is only for app seams (`layout/*Shell`, `feedback/MockRowBoundary`, `overlays/*Overlay`, scroll helpers). Never recreate Badge / LiveBadge / RiskBadge / StatCard under `src/components/`. *(qurie/ds-component-placement)*
+- LIVE session status always uses `<LiveBadge />` from the DS — never `<Badge status="accent">LIVE</Badge>`. LiveBadge owns glow + ping and must keep `width: fit-content` (+ `alignSelf` / `justifySelf`) so CSS Grid cells (e.g. manager Session List) cannot stretch the glow larger than the pill. *(qurie/live-status-badge, qurie/livebadge-fit-content)*
+
 **Tech-stack icons**
 - Raster tech logos live in `ds/assets/tech/` named `{tech}_{size}.png` — tech ∈ java, python, javascript, typescript, react, vuejs, spring, django, bootstrap, html5, css3, database; `{tech}_light_{size}.png` variants for dark/ink surfaces. *(qurie/tech-icon)*
 - Track, class, and session elements show their track's tech icon: 38px tile (10px radius, `--surface-sunken`; `--accent-softer` when active) with a 22px `object-fit:contain` img + alt text; 52px tile / 30px img on detail headers. On ink surfaces use a `rgba(255,255,255,0.92)` plate or the `_light` variant.

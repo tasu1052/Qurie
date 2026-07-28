@@ -20,7 +20,15 @@ function KpiSkeleton() {
   return (
     <StatCardRow>
       {[0, 1, 2, 3].map((i) => (
-        <div key={i} style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 'var(--card-radius)', padding: 'var(--stat-card-padding)' }}>
+        <div
+          key={i}
+          style={{
+            background: 'var(--surface-card-solid)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--card-radius)',
+            padding: 'var(--stat-card-padding)',
+          }}
+        >
           <Skeleton width="50%" height={14} delay={i * 0.08} />
           <Skeleton width="30%" height={28} delay={i * 0.08 + 0.04} style={{ marginTop: 12 }} />
         </div>
@@ -31,7 +39,14 @@ function KpiSkeleton() {
 
 function TableSkeleton() {
   return (
-    <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 16, padding: 24 }}>
+    <div
+      style={{
+        background: 'var(--surface-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        padding: 24,
+      }}
+    >
       {[0, 1, 2, 3, 4].map((i) => (
         <Skeleton key={i} width="100%" height={40} delay={i * 0.08} style={{ marginBottom: 10 }} />
       ))}
@@ -62,7 +77,11 @@ function inviteBadge(status: MemberRow['inviteStatus']) {
 
 function accountBadge(status: MemberRow['accountStatus']) {
   if (!status) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
-  return <Badge status={status === 'active' ? 'success' : 'error'}>{status === 'active' ? '활성' : '비활성'}</Badge>;
+  return (
+    <Badge status={status === 'active' ? 'success' : 'error'}>
+      {status === 'active' ? '활성' : '비활성'}
+    </Badge>
+  );
 }
 
 export default function MemberManagementPage() {
@@ -84,16 +103,29 @@ export default function MemberManagementPage() {
             </span>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="secondary" icon={<Filter size={14} strokeWidth={1.75} />} onClick={() => undefined}>
+            <Button
+              variant="secondary"
+              icon={<Filter size={14} strokeWidth={1.75} />}
+              onClick={() => undefined}
+            >
               필터
             </Button>
-            <Button variant="primary" icon={<UserPlus size={14} strokeWidth={1.75} />} onClick={() => setInviteOpen(true)}>
+            <Button
+              variant="primary"
+              icon={<UserPlus size={14} strokeWidth={1.75} />}
+              onClick={() => setInviteOpen(true)}
+            >
               멤버 초대하기
             </Button>
           </div>
         </div>
 
-        <MockRowBoundary status={kpi.status} skeleton={<KpiSkeleton />} onRetry={kpi.refetch} emptyMessage="KPI 데이터가 없습니다" label="row 1 · kpi">
+        <MockRowBoundary
+          status={kpi.status}
+          skeleton={<KpiSkeleton />}
+          onRetry={kpi.refetch}
+          emptyMessage="KPI 데이터가 없습니다"
+        >
           <StatCardRow>
             {(kpi.data ?? []).map((item, i) => (
               <StatCard key={i} {...item} />
@@ -108,7 +140,6 @@ export default function MemberManagementPage() {
           emptyMessage="멤버가 없습니다"
           emptyActionLabel="멤버 초대하기"
           onEmptyAction={() => setInviteOpen(true)}
-          label="row 2 · members"
         >
           {list.data && (
             <>
@@ -121,7 +152,15 @@ export default function MemberManagementPage() {
                   overflow: 'hidden',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 24px', borderBottom: '1px solid var(--divider)' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '16px 24px',
+                    borderBottom: '1px solid var(--divider)',
+                  }}
+                >
                   <Input
                     placeholder="이름 또는 이메일 검색…"
                     icon={<Search size={14} strokeWidth={1.75} />}
@@ -129,7 +168,11 @@ export default function MemberManagementPage() {
                     onChange={(e) => setQuery(e.target.value)}
                     width={260}
                   />
-                  <Select options={[{ value: 'all', label: '전체 상태' }]} value="all" onChange={() => undefined} />
+                  <Select
+                    options={[{ value: 'all', label: '전체 상태' }]}
+                    value="all"
+                    onChange={() => undefined}
+                  />
                   <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
                     정렬: <span style={{ color: 'var(--ink)', fontWeight: 600 }}>최신순 ↕</span>
                   </span>
@@ -176,7 +219,10 @@ export default function MemberManagementPage() {
                             width: 32,
                             height: 32,
                             borderRadius: '50%',
-                            background: m.systemRole === 'MASTER' ? 'var(--secondary-100)' : 'var(--accent-soft)',
+                            background:
+                              m.systemRole === 'MASTER'
+                                ? 'var(--secondary-100)'
+                                : 'var(--accent-soft)',
                             color: m.systemRole === 'MASTER' ? 'var(--ink)' : 'var(--accent)',
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -189,21 +235,54 @@ export default function MemberManagementPage() {
                         </span>
                         <span style={{ display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>{m.email}</span>
+                          <span
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: 12,
+                              color: 'var(--text-muted)',
+                            }}
+                          >
+                            {m.email}
+                          </span>
                         </span>
                       </span>
                       <span>{roleBadge(m.systemRole)}</span>
                       <span>{inviteBadge(m.inviteStatus)}</span>
                       <span>{accountBadge(m.accountStatus)}</span>
-                      <span style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{m.lastSeen}</span>
-                      <span style={{ textAlign: 'right', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 700, letterSpacing: 1 }}>⋯</span>
+                      <span style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
+                        {m.lastSeen}
+                      </span>
+                      <span
+                        style={{
+                          textAlign: 'right',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          fontWeight: 700,
+                          letterSpacing: 1,
+                        }}
+                      >
+                        ⋯
+                      </span>
                     </div>
                   ))}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px' }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>총 48명 중 1–6 표시</span>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '14px 24px',
+                  }}
+                >
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    총 48명 중 1–6 표시
+                  </span>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <Button variant="secondary" size="sm" onClick={() => undefined}>이전</Button>
-                    <Button variant="secondary" size="sm" onClick={() => undefined}>다음</Button>
+                    <Button variant="secondary" size="sm" onClick={() => undefined}>
+                      이전
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => undefined}>
+                      다음
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -221,7 +300,15 @@ export default function MemberManagementPage() {
                     gap: 12,
                   }}
                 >
-                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
                     대기 중 초대
                   </span>
                   {list.data.invites.map((inv) => (
@@ -254,7 +341,9 @@ export default function MemberManagementPage() {
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>이메일 주소</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                이메일 주소
+              </span>
               <Input
                 placeholder="name@ssafy.com, name2@ssafy.com"
                 icon={<Mail size={15} strokeWidth={1.75} />}
@@ -262,10 +351,14 @@ export default function MemberManagementPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 width="100%"
               />
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>쉼표(,)로 구분하여 여러 명을 한꺼번에 초대할 수 있습니다.</span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                쉼표(,)로 구분하여 여러 명을 한꺼번에 초대할 수 있습니다.
+              </span>
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>시스템 역할</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                시스템 역할
+              </span>
               <Select
                 options={[
                   { value: 'MANAGER', label: '매니저 (MANAGER)' },
@@ -288,7 +381,8 @@ export default function MemberManagementPage() {
             >
               <span style={{ fontWeight: 600, color: 'var(--ink)' }}>보안 안내</span>
               <br />
-              초대받은 사용자는 이메일로 전송된 링크를 통해 비밀번호를 설정합니다. 초대 링크(token)는 48시간 후 EXPIRED 처리됩니다.
+              초대받은 사용자는 이메일로 전송된 링크를 통해 비밀번호를 설정합니다. 초대
+              링크(token)는 48시간 후 EXPIRED 처리됩니다.
             </div>
           </div>
         </Modal>
