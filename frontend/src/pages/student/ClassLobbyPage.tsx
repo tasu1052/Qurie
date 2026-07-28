@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { StudentShell, PageMain } from '../../components/layout/StudentShell';
 import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
-import { Badge, LiveBadge, Button, Skeleton } from '../../ds';
+import { Badge, Button, LiveBadge, Skeleton } from '../../ds';
 import { useClassLobbyRow } from '../../data';
 import javaTech from '../../ds/assets/tech/java_100.png';
 
@@ -11,6 +11,7 @@ function LobbySkeleton() {
       <Skeleton width="100%" height={120} radius={16} />
       <div className="qurie-master-split">
         <Skeleton width="100%" height={280} radius={16} />
+
         <Skeleton width="100%" height={280} radius={16} />
       </div>
     </div>
