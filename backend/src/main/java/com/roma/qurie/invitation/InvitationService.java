@@ -27,8 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
  * - 마스터는 자기 기업 트랙의 반에 매니저를 초대한다.
  * - 매니저는 자기가 속한 반에만 학생을 초대한다.
  *
- * todo: 메일 발송이 붙기 전까지는 초대 링크를 응답으로 돌려주고 수동 전달한다.
- *       spring-boot-starter-mail 은 이미 의존성에 있으나 SMTP 설정이 없어 실제 발송은 하지 않는다.
+ * 초대 링크는 메일로 보내고 응답에도 함께 담는다 — SMTP 를 설정하지 않은 환경에서도 수동 전달로 흐름을 이어갈 수 있게 한다.
  */
 @Service
 @RequiredArgsConstructor
@@ -43,6 +42,7 @@ public class InvitationService {
 	private final ClassRepository classRepository;
 	private final ClassUserRepository classUserRepository;
 	private final UserRepository userRepository;
+	private final InvitationMailSender mailSender;
 
 	@Value("${app.frontend.base-url:http://localhost:5173}")
 	private String frontendBaseUrl;
@@ -64,10 +64,11 @@ public class InvitationService {
 				? createByMaster(inviter, classEntity, request, rawToken, expiresAt)
 				: createByManager(inviter, classEntity, request, rawToken, expiresAt);
 
-		return InvitationCreateResponse.of(
-				invitationRepository.save(invitation),
-				rawToken,
-				signUpUrl(rawToken));
+		Invitation saved = invitationRepository.save(invitation);
+		String signUpUrl = signUpUrl(rawToken);
+		mailSender.send(saved, signUpUrl);
+
+		return InvitationCreateResponse.of(saved, rawToken, signUpUrl);
 	}
 
 	@Transactional(readOnly = true)
