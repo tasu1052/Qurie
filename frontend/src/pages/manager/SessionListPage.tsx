@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
@@ -158,7 +158,9 @@ function SessionTable({
 
 export default function SessionListPage() {
   const [params] = useSearchParams();
-  const classId = Number(params.get('classId') || '1');
+  const classIdParam = params.get('classId');
+  const classId = classIdParam ? Number(classIdParam) : NaN;
+  const hasValidClassId = Number.isFinite(classId) && classId > 0;
   const { data: me } = useMe();
   const createSession = useCreateSession();
   const [status, setStatus] = useState('전체');
@@ -170,7 +172,14 @@ export default function SessionListPage() {
 
   const chips = ['전체', '진행', '예정', '종료'];
 
+  useEffect(() => {
+    if (hasValidClassId) {
+      localStorage.setItem('qurie.lastClassId', String(classId));
+    }
+  }, [classId, hasValidClassId]);
+
   const onCreate = () => {
+    if (!hasValidClassId) return;
     if (!title.trim()) return;
     createSession.mutate(
       { classId, title: title.trim(), createdBy: me.id },
@@ -191,7 +200,7 @@ export default function SessionListPage() {
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>세션</h1>
             <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-              클래스 세션을 생성하고 상태를 관리하세요. (classId={classId})
+              클래스 세션을 생성하고 상태를 관리하세요.
             </span>
           </div>
           <Button
@@ -237,26 +246,33 @@ export default function SessionListPage() {
           />
         </div>
 
-        <QueryAsyncBoundary
-          key={rowKey}
-          suspenseFallback={<TableSkeleton />}
-          errorFallback={
-            <RowErrorFallback
-              onRetry={() => setRowKey((k) => k + 1)}
-              title="이 영역을 불러오지 못했습니다"
-              description="이 행만 실패했습니다. 나머지 영역은 정상적으로 표시됩니다."
-            />
-          }
-        >
-          <SessionTable
-            classId={classId}
-            statusFilter={status}
-            query={query}
-            page={page}
-            onPage={setPage}
-            onEmptyCreate={() => setCreateOpen(true)}
+        {!hasValidClassId ? (
+          <EmptyState
+            message="classId 쿼리스트링이 없습니다"
+            description="예: /manager/sessions?classId=12"
           />
-        </QueryAsyncBoundary>
+        ) : (
+          <QueryAsyncBoundary
+            key={rowKey}
+            suspenseFallback={<TableSkeleton />}
+            errorFallback={
+              <RowErrorFallback
+                onRetry={() => setRowKey((k) => k + 1)}
+                title="이 영역을 불러오지 못했습니다"
+                description="이 행만 실패했습니다. 나머지 영역은 정상적으로 표시됩니다."
+              />
+            }
+          >
+            <SessionTable
+              classId={classId}
+              statusFilter={status}
+              query={query}
+              page={page}
+              onPage={setPage}
+              onEmptyCreate={() => setCreateOpen(true)}
+            />
+          </QueryAsyncBoundary>
+        )}
 
         <Modal
           open={createOpen}

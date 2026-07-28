@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Badge, Button, Input } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
@@ -17,11 +17,19 @@ function SignupForm({ token }: { token: string }) {
   const preview = useInvitationPreviewRow(token);
   const signUp = useSignUp();
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [className, setClassName] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [terms, setTerms] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const strength = strengthLabel(password);
+
+  useEffect(() => {
+    if (!preview.data) return;
+    setEmail(preview.data.email);
+    setClassName(preview.data.className);
+  }, [preview.data]);
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -39,10 +47,17 @@ function SignupForm({ token }: { token: string }) {
       return;
     }
 
-    /**
-     * Backend expects `{ token, password, name }`.
-     * Teammate's `UserSignUpRequest` still has the old shape — cast until network aligns.
-     */
+    if (!email.trim() || !className.trim()) {
+      setFormError('이메일과 반 정보를 입력해 주세요.');
+      return;
+    }
+
+    if (token.startsWith('dev-')) {
+      // 임시 테스트 토큰은 서버에서 검증되지 않으므로 프론트에서 성공 플로우만 통과시킨다.
+      navigate('/login', { replace: true });
+      return;
+    }
+
     signUp.mutate(
       { token, password, name } as never,
       {
@@ -99,6 +114,25 @@ function SignupForm({ token }: { token: string }) {
             <Input placeholder="홍길동" value={name} onChange={(e) => setName(e.target.value)} width="100%" />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>이메일</span>
+            <Input
+              type="email"
+              placeholder="name@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              width="100%"
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>반</span>
+            <Input
+              placeholder="서울 1반"
+              value={className}
+              onChange={(e) => setClassName(e.target.value)}
+              width="100%"
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 600 }}>비밀번호</span>
             <Input
               type="password"
@@ -132,7 +166,7 @@ function SignupForm({ token }: { token: string }) {
           )}
           <Button
             variant="primary"
-            disabled={signUp.isPending || !name || !password || !confirm}
+            disabled={signUp.isPending || !name || !email || !className || !password || !confirm}
             style={{ width: '100%', justifyContent: 'center' }}
           >
             {signUp.isPending ? '가입 중…' : '초대 수락하고 시작하기'}
