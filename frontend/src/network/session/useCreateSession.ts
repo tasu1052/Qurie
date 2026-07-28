@@ -7,9 +7,8 @@ export const useCreateSession = () => {
 
     return useMutation({
         mutationFn: createSession,
-        onSuccess: (_, { class: className }) => {
-        queryClient.invalidateQueries({ queryKey: queryKeys.session.all });
-        queryClient.invalidateQueries({ queryKey: queryKeys.session.byClass(className) });
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
         },
     });
 };
