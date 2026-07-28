@@ -7,7 +7,10 @@ import com.roma.qurie.master.MasterRepository;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.security.JwtTokenProvider;
 import com.roma.qurie.security.RefreshTokenProvider;
+import com.roma.qurie.user.entity.User;
+import com.roma.qurie.user.repository.UserRepository;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,19 +24,27 @@ public class AuthService {
     private static final String MASTER_ROLE = "MASTER";
 
     private final MasterRepository masterRepository;
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
     private final RefreshTokenProvider refreshTokenProvider;
 
-    /* 마스터 계정으로 로그인한다. 매니저/학생(ordinary_user) 로그인은 그 엔티티가 만들어지는 다음 단계에서 추가한다. */
+    /** 이메일로 마스터를 먼저 찾고, 없으면 매니저/학생(ordinary_user)을 찾아 로그인한다. */
     @Transactional
     public AuthResult login(LoginRequest request) {
-        Master master = masterRepository.findByEmail(request.email()).orElseThrow(this::invalidCredentials);
-        if (!passwordEncoder.matches(request.password(), master.getPassword())) {
+        Optional<Master> master = masterRepository.findByEmail(request.email());
+        if (master.isPresent()) {
+            if (!passwordEncoder.matches(request.password(), master.get().getPassword())) {
+                throw invalidCredentials();
+            }
+            return issueTokens(master.get());
+        }
+        User user = userRepository.findByEmail(request.email()).orElseThrow(this::invalidCredentials);
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw invalidCredentials();
         }
-        return issueTokens(master);
+        return issueTokens(user);
     }
 
     /** 리프레시 토큰으로 액세스 토큰을 재발급한다. 탈취 재사용 방지를 위해 기존 토큰은 폐기하고 새로 발급한다(회전). */
@@ -45,7 +56,10 @@ public class AuthService {
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN", "유효하지 않은 리프레시 토큰입니다."));
         refreshToken.revoke();
-        return issueTokens(refreshToken.getMaster());
+        if (refreshToken.getMaster() != null) {
+            return issueTokens(refreshToken.getMaster());
+        }
+        return issueTokens(refreshToken.getUser());
     }
 
     /** 로그아웃. 해당 리프레시 토큰을 폐기한다. 쿠키가 없거나 이미 폐기/존재하지 않는 토큰이어도 그냥 성공 처리한다(멱등). */
@@ -68,17 +82,38 @@ public class AuthService {
 
     private AuthResult issueTokens(Master master) {
         AuthUser authUser = toAuthUser(master);
+        String rawRefreshToken = generateRefreshToken();
+        String tokenHash = refreshTokenProvider.hash(rawRefreshToken);
+        refreshTokenRepository.save(new RefreshToken(master, tokenHash, refreshTokenExpiry()));
         String accessToken = jwtTokenProvider.generateAccessToken(authUser);
-        String rawRefreshToken = refreshTokenProvider.generateToken();
-        LocalDateTime expiresAt = LocalDateTime.now().plus(refreshTokenProvider.getExpiration());
-        refreshTokenRepository.save(
-                new RefreshToken(master, refreshTokenProvider.hash(rawRefreshToken), expiresAt));
         return new AuthResult(accessToken, rawRefreshToken, LoginResponse.from(authUser));
+    }
+
+    private AuthResult issueTokens(User user) {
+        AuthUser authUser = toAuthUser(user);
+        String rawRefreshToken = generateRefreshToken();
+        String tokenHash = refreshTokenProvider.hash(rawRefreshToken);
+        refreshTokenRepository.save(new RefreshToken(user, tokenHash, refreshTokenExpiry()));
+        String accessToken = jwtTokenProvider.generateAccessToken(authUser);
+        return new AuthResult(accessToken, rawRefreshToken, LoginResponse.from(authUser));
+    }
+
+    private String generateRefreshToken() {
+        return refreshTokenProvider.generateToken();
+    }
+
+    private LocalDateTime refreshTokenExpiry() {
+        return LocalDateTime.now().plus(refreshTokenProvider.getExpiration());
     }
 
     private AuthUser toAuthUser(Master master) {
         return new AuthUser(
                 master.getId(), MASTER_ROLE, master.getEnterprise().getId(), master.getEmail(), master.getName());
+    }
+
+    private AuthUser toAuthUser(User user) {
+        return new AuthUser(
+                user.getId(), user.getRole().name(), user.getEnterpriseId(), user.getEmail(), user.getName());
     }
 
     private AuthException invalidCredentials() {

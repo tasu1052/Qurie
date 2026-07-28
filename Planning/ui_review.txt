@@ -1,0 +1,524 @@
+Q>rie API   ·                                         v0.1 · 2026-07-27
+
+  API
+
+(1a-1t + )   ,   Spring   .  
+  ERD    .
+
+1.                    
+
+                       : /api/v1/tracks/{id}. ?id=  . Spring
+                      @PathVariable  @RequestParam  
+   +                  ?trackId=&status=&q=&page=&size=&sort=field,desc -- Spring Pageable
+                       
+  ··                  GET / POST / PUT( ) / PATCH( ) / DELETE. UPDATE HTTP 
+                         PUT·PATCH 
+ HTTP                 ?enterprise=id   . JWT enterprise_id  
+                       (    )
+ enterprise             5 = ?sort=classCount,desc&size=5.    
+                       
+ Top-N    +               quiz_set    POST /projects/{id}/quiz-
+ 
+                      sets
+
+    202 +              ·  202 Accepted + {id, status} ,  GET  
+                       ( WS push)
+   ,                  /classes/{id}/members() vs /users?role=MANAGER( )
+                         .     409 CONFLICT, ?
+                      cascade=true   .   deleted_at soft delete 
+                      { code, message, requestId } .    requestId mono
+                      (6c·6d )
+
+2.                                                    
+
+                      GET /api/v1/tracks/{id}            .
+                                                      / 
+ GET api/track?id     PUT|PATCH /api/v1/classes/{id}   
+                                                      UPDATE HTTP 
+ UPDATE api/class?id                                   
+
+Qurie  ·                                              ERD_().pdf 
+Q>rie API   ·                                                                     v0.1 · 2026-07-27
+
+                                                                                  
+
+api/manager + api/member                 /api/v1/users?role=MANAGER,              ERD  
+                                         /api/v1/classes/{id}/members?            ordinary_user  
+POST api/invitation?role=manager         role=STUDENT                             .  
+GET api/user?id/manager-comment?id                                                ·  
+                                         POST /api/v1/invitations + body {email,  
+POST api/quiz?project=                   role, classId?}                            body.
+GET api/session-report?session=&userId=  PUT /api/v1/reports/{id}/manager-          
+GET api/final-report?userId=             comment                                     
+POST api/project?session=                                                            URL
+                                         POST /api/v1/projects/{id}/quiz-sets       .
+POST api/auth                                                                     ERD 
+                                         GET /api/v1/reports?sessionId=&userId=
+GET api/class?track=id                                                            report.manager_co
+                                         GET /api/v1/users/{id}/report-summary
+  filter=java                                                                     mment 
+                                         POST /api/v1/sessions/{id}/project         
+                                         (multipart)                              (quiz_set). 
+                                                                                  quiz   
+                                          (AuthController),                       
+                                                                                  ERD 
+                                                                                  report. 
+                                         GET /api/v1/tracks/{id}/classes           
+                                                                                    
+                                         ?tech=java (  )                              
+                                                                                    
+                                                                                  project session
+                                                                                  1:1    
+                                                                                  .  
+
+                                                                                  multipart
+
+                                                                                  login/signup/refresh/r
+
+                                                                                  eset ··
+                                                                                    . 
+                                                                                   type 
+                                                                                     
+                                                                                   
+                                                                                     
+                                                                                      
+                                                                                    
+                                                                                    
+                                                                                    . ERD
+                                                                                     (§5)
+
+Qurie  ·                                                                          ERD_().pdf 
+Q>rie API   ·                                                                             v0.1 · 2026-07-27
+
+3.                       
+
+                         POST /auth/login · GET /auth/me
+
+1b Login                 GET /invitations/{token} (·) · POST /auth/signup
+
+1c Signup                POST /auth/password-reset
+                         GET /analytics/overview
+1d Reset            
+                         GET /tracks?sort=classCount,desc&size=5 ·  " 
+1e Master           KPI   "(1u)
+Dashboard                GET /users?role=MANAGER&sort=activity,desc&size=3 · 
+                          "  "(1g)
+                         GET /notices?size=5&sort=createdAt,desc ·  "
+                          "(1h)
+
+                         GET /tracks?q=&tech=&page= · POST /tracks
+                         GET|PUT|DELETE /tracks/{id}
+1u Track List            GET /tracks/{id}/classes · POST /classes · PATCH|DELETE
+1s Track Detail     
+                         /classes/{id} ·   /classes?trackId=
+
+                         GET /tracks/{id}/managers · PATCH|DELETE
+                         /classes/{classId}/members/{userId}
+1f Class                 GET /classes?trackId=&tech=&status=&q=&page= · POST
+Management               /classes · PATCH|DELETE /classes/{id}
+                         GET /users?role=&q=&page= · PATCH|DELETE /users/{id}
+1g Member
+Management               POST /invitations · GET /invitations?status=PENDING · POST
+                         /invitations/{id}/resend · DELETE /invitations/{id}
+1h Announcements         GET /notices?scope=&trackId=&classId=&page= · POST
+                         /notices · PUT|DELETE /notices/{id}
+1i Track Analytics  
+                         GET /analytics/tracks/{id}?from=&to= · GET /tracks()
+1t Class Analytics  
+                         GET /analytics/classes/{id}?metric=&from=&to=&dimension=
+1j Manager               GET /sessions?classId=&status=ACTIVE · POST /sessions ·
+Dashboard                PATCH|DELETE /sessions/{id}
+                         GET /classes/{id}/members?
+                         role=STUDENT&sort=completion,desc&size=5
+
+Qurie  ·                 GET /classes/{id}/members?flag=at-risk&size=5 (:  
+                           or   20%)
+
+                                                                                          ERD_().pdf 
+Q>rie API   ·                                                                           v0.1 · 2026-07-27
+
+                       
+
+                       GET /classes/{id}/groups?size=3 ·   1v
+
+1k Student             GET /classes/{id}/members?role=STUDENT&page= · PATCH
+
+Management             /classes/{id}/members/{userId}() · DELETE
+
+                       /classes/{id}/members/{userId}
+1v Group List  
+                       POST /invitations body {email, role:'STUDENT', classId}
+1l Student Overview  
+                       GET|POST /classes/{id}/groups · GET|PUT|DELETE
+                       /groups/{id} · POST /groups/{id}/participants · DELETE
+                       /groups/{id}/participants/{userId}
+1n Student          
+Dashboard              GET /users/{id} · DELETE /users/{id} · GET
+                       /analytics/users/{id}
+1m Class Lobby     
+                       GET /reports?userId=&page= · GET /reports/{id} · GET
+                   ·   /users/{id}/report-summary
+
+1r My Page             PUT|DELETE /reports/{id}/manager-comment
+1o Code Editor     
+                       GET /sessions?mine=true&status=ACTIVE (·  ) ·
+                       POST /sessions( )
+                   
+                       GET /reports?userId=me · GET /reports/{id}
+1p Quiz            
+                       GET /sessions?classId=&mine=true&status=ALL
+                   
+                       GET /classes/{id}/groups?mine=true · GET /notices?
+1q Session Report      classId={id}&includeEnterprise=true
+                   
+                       API  --  
+                   
+                       GET /users/{id} · PATCH /users/{id} · PATCH /auth/password
+Qurie  ·   
+                       GET /sessions/{id}/project · POST|PUT|DELETE
+
+                       /sessions/{id}/project( ) · GET
+
+                       /projects/{id}/files?path=
+
+                       WS /ws/sessions/{id} -- CRDT , presence, , 
+
+                       POST /projects/{id}/snapshots  POST
+
+                       /projects/{id}/quiz-sets  202 · GET /quiz-sets/{id} 
+
+                       GET /quiz-sets/{id}/quizzes · POST /quizzes/{id}/progress
+                       · GET /quiz-sets/{id}/progress?userId=me
+
+                       PATCH|DELETE /quizzes/{id} · POST /quiz-sets/{id}/publish
+
+                       POST /sessions/{id}/reports(+  , 202) · GET
+                       /reports?sessionId={id}( ) · GET /reports/{id}
+                       GET /quiz-sets/{id}/stats(  ) · GET
+                       /sessions/{id}( ) · GET /reports/{id}/export?
+
+                       format=pdf(report.file_url)
+
+                                                                                        ERD_().pdf 
+Q>rie API   ·                                                                                      v0.1 · 2026-07-27
+
+                                  
+
+1x Final Report                   GET /users/{id}/report-summary · GET /reports?
+                                  userId=&page=
+
+
+4.   ( )
+
+METHOD  PATH                                                            
+
+AuthController · /api/v1/auth               , ·                         PUBLIC
+                                                                        PUBLIC
+POST    /auth/login                                                     PUBLIC
+                                                                        ALL
+POST    /auth/signup                                                    PUBLIC
+                                                                        ALL
+POST    /auth/refresh                        ·· (  )                    ALL
+
+POST    /auth/logout                                                    MASTER,
+                                                                        MANAGER
+POST    /auth/password-reset                (PENDING/ACCEPTED/EXPIRED)  MASTER,
+                                                                        MANAGER
+PATCH   /auth/password                        {email, role, classId?}   PUBLIC
+                                                                        MASTER,
+GET     /auth/me                                                        MANAGER
+                                                                        MASTER,
+InvitationController                                                    MANAGER
+
+GET     /invitations?                                                   MASTER,
+                                                                        MANAGER
+        status=&role=&classId=                                          MASTER
+
+POST    /invitations                                                    MASTER,
+                                                                        MANAGER
+GET     /invitations/{token}                 ·                          MASTER
+POST    /invitations/{id}/resend             (expires_at )              MASTER
+
+DELETE /invitations/{id}                     
+
+TrackController
+
+GET     /tracks?q=&tech=&sort=&page=&size=   · Top 5
+
+POST    /tracks                               {name, description,
+GET     /tracks/{id}
+                                            tech}
+
+                                             
+
+PUT     /tracks/{id}                         
+DELETE  /tracks/{id}?cascade=                (   409)
+
+Qurie  ·                                                                ERD_().pdf 
+Q>rie API   ·                                                          v0.1 · 2026-07-27
+
+METHOD  PATH                                                         
+
+GET     /tracks/{id}/classes                                         MASTER,
+                                                                     MANAGER
+GET     /tracks/{id}/managers                                        MASTER
+
+ClassController · ClassMemberController
+
+GET     /classes?                                                    MASTER,
+                                           {trackId, name,           MANAGER
+        trackId=&tech=&status=&q=&page=
+                                         classNumber, capacity}      MASTER
+POST    /classes
+                                                                     MASTER,
+GET     /classes/{id}
+                                                                     MANAGER, 
+PATCH   /classes/{id}                     
+                                          (·, at-risk )              STUDENT
+DELETE  /classes/{id}?cascade=              {userId, role}
+GET                                          (ADMIN/STUDENT)         MASTER, 
+        /classes/{id}/members?            
+POST    role=&flag=&sort=&page=                                      MANAGER
+
+        /classes/{id}/members                                        MASTER
+
+PATCH   /classes/{id}/members/{userId}                               MASTER, 
+
+DELETE /classes/{id}/members/{userId}                                MANAGER
+
+                                                                     MASTER, 
+
+                                                                     MANAGER
+
+                                                                     MASTER, 
+
+                                                                     MANAGER
+
+                                                                     MASTER, 
+
+                                                                     MANAGER
+
+UserController
+
+GET     /users?role=&q=&sort=&page=         ·                        MASTER
+                                          
+GET     /users/{id}                                                  MASTER, 
+                                                                     MANAGER, 
+PATCH   /users/{id}                        (soft delete )            MASTER, 
+DELETE  /users/{id}                         ( )
+GET     /users/{id}/report-summary                                   MASTER
+
+                                                                     MASTER, 
+                                                                     MANAGER, 
+
+NoticeController
+
+GET     /notices?                          (··)                      ALL (  
+                                                                     )
+        scope=&trackId=&classId=&page=     {scope, targetId, title,
+                                                                     MASTER,
+POST    /notices                         body}                       MANAGER
+
+Qurie  ·                                                             ERD_().pdf 
+Q>rie API   ·                                                          v0.1 · 2026-07-27
+
+METHOD  PATH                                                         
+
+GET     /notices/{id}                                                ALL
+                                       
+PUT     /notices/{id}                                                , MASTER
+                                                                     , MASTER
+DELETE /notices/{id}
+
+SessionController
+
+GET     /sessions?                      ( · )                        ALL ( )
+
+        classId=&status=&mine=&page=
+
+POST    /sessions                       {classId, title}  slug       MANAGER, 
+                                      
+GET     /sessions/{id}                  (Room )                      ADMIN
+PATCH   /sessions/{id}                  {isActive:false} ·  
+                                                                      
+DELETE /sessions/{id}                                                , MANAGER
+                                         (presence )
+GET     /sessions/{id}/participants   CRDT ···                       , MANAGER
+                                                                      
+WS      /ws/sessions/{id}                                             
+
+ProjectController
+
+GET     /sessions/{id}/project          (1:1,  404                    
+                                        )
+POST    /sessions/{id}/project           (multipart)                  
+PUT     /sessions/{id}/project                                        
+DELETE  /sessions/{id}/project                                        
+GET     /projects/{id}/files?path=     ·                              
+POST    /projects/{id}/snapshots                                     MANAGER, 
+
+                                                                     ADMIN
+
+QuizController
+
+POST    /projects/{id}/quiz-sets           202 {id,                  MANAGER, 
+
+GET     /quiz-sets/{id}               status}                        ADMIN
+
+GET     /quiz-sets/{id}/quizzes          {status,                    
+PATCH   /quizzes/{id}
+DELETE  /quizzes/{id}                 generatedCount, errorMessage}   
+POST    /quiz-sets/{id}/publish
+                                        (  )                         MANAGER
+                                        ()                           MANAGER
+                                                                     MANAGER
+                                       · 
+
+Qurie  ·                                                             ERD_().pdf 
+Q>rie API   ·                                                          v0.1 · 2026-07-27
+
+METHOD  PATH                                                         
+
+POST    /quizzes/{id}/progress               (quiz_progress upsert)   
+                                           ·                         , MANAGER
+GET     /quiz-sets/{id}/progress?userId=     ( )
+                                                                     MANAGER
+GET     /quiz-sets/{id}/stats                    202
+                                                                     MANAGER, 
+ReportController                                                     , 
+                                            
+POST    /sessions/{id}/reports               ·                       MANAGER,
+                                                                     MASTER
+GET     /reports?userId=&sessionId=&page=  PDF  (report.file_url)
+                                                                     , 
+GET     /reports/{id}                        (  3)
+                                                                     MANAGER
+PUT     /reports/{id}/manager-comment       
+DELETE  /reports/{id}/manager-comment                                 MANAGER
+GET     /reports/{id}/export?format=pdf                               MANAGER
+                                             {userId, role}          , 
+GroupController                             
+                                                                     MANAGER
+GET     /classes/{id}/groups?mine=&size=    KPI 4 ( )
+                                             ( · )                    
+POST    /classes/{id}/groups                                         MANAGER, 
+                                             ( · )
+GET     /groups/{id}                                                 ADMIN
+
+PUT     /groups/{id}                                                  
+                                                                     MANAGER,  
+DELETE  /groups/{id}                                                 
+POST    /groups/{id}/participants
+                                                                     MANAGER
+DELETE /groups/{id}/participants/{userId}
+                                                                     MANAGER,  
+AnalyticsController                                                  
+                                                                     MANAGER,  
+GET     /analytics/overview                                          
+
+GET     /analytics/tracks/{id}?from=&to=                             MASTER
+
+GET     /analytics/classes/{id}?                                     MASTER
+
+        metric=&dimension=&from=&to=                                 MASTER, 
+
+GET     /analytics/users/{id}                                        MANAGER
+
+                                                                      MANAGER, 
+                                                                     
+
+Qurie  ·                                                             ERD_().pdf 
+Q>rie API   ·                                    v0.1 · 2026-07-27
+
+5. ERD  
+
+   ERD     API   .   .
+
+                        
+
+ notice ()                 ERD . 1e·1h·1m   . ERD  (
+                        snake_case)  notice  : id bigint, enterprise_id bigint,
+
+                        scope varchar(12) -- ENTERPRISE|TRACK|CLASS, track_id bigint?,
+
+                        class_id bigint?, title varchar(200), body text, created_by bigint,
+
+                        created_at datetime, updated_at datetime.   /api/v1/notices,
+                        UI  ""  (announcement  )
+
+  invitation            role, enterprise_id, class_id, invited_by    ·   
+                        . 4  
+
+  track                 ·  . UI    ?tech=    tech
+                        varchar(20) 
+
+  class_user              (ADMIN/STUDENT)  . 1k     role
+                        varchar(20)  (group_participants  )
+
+  class                 class_number  " 2"     name varchar(50)  region
+                        
+
+  session               title (slug).  ·   
+
+ report.manager_comme  varchar  ··  .   CRUD 
+                        manager_comment  ,     
+  nt
+
+                        deleted_at   "·  "    . soft delete 
+                        
+
+  project               session 1:1 unique(session_id)    (  1:N )
+
+  quiz_progress            ·     .   quiz_attempt(
+                         )  
+
+ master / ordinary_user   ·  . ordinary_user.role MASTER 
+                              (   )
+
+6.   · 
+
+                          
+
+1u Track List              "  " GET /tracks .    
+                          
+1v Group List              ""  (/classes/{id}/groups  + CRUD)
+                              · status  (ACTIVE/ENDED)
+1w Session List           /users/{id}/report-summary    (· )
+                           ··  3 .  1c   
+1x Final Report       
+                                                                                                 ERD_().pdf 
+1y Invitation Accept  
+
+Qurie  ·   
+Q>rie API   ·                                                                            v0.1 · 2026-07-27
+
+                 
+
+                 ·· DELETE . "  "  + 
+                   (409 )
+ ·                Top-N    (page/size ).    
+                 
+                 sort=field,desc UI  (DataTable   )
+at-risk  ·       "  "     
+                 1o "  "  (multipart  +  = 6b
+
+                 ProgressBar)
+
+   +             202 +   (PENDING/GENERATING/FAILED). 1p   
+                 ·  
+ ·               PATCH /sessions/{id}  POST /sessions/{id}/reports  ·
+                  
+                 1g PENDING  resend/cancel  
+
+7.    
+
+     { data: [...], meta: { page, size, total } } --     (6e), total=0
+    0    
+    requestId  · mono (6c·6d). code UPPER_SNAKE 
+   grid row      4-5  (KPI···).   
+          (6g)
+  202   status   UI  : PENDING|GENERATING  / , FAILED +
+  errorMessage    + 
+
+Qurie  ·         ERD_().pdf 
+
