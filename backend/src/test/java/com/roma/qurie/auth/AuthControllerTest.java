@@ -12,7 +12,9 @@ import com.roma.qurie.auth.dto.LoginResponse;
 import com.roma.qurie.config.SecurityConfig;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.security.JwtTokenProvider;
+import com.roma.qurie.security.RefreshTokenProvider;
 import jakarta.servlet.http.Cookie;
+import java.util.Collection;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -32,7 +34,7 @@ import tools.jackson.databind.ObjectMapper;
  * 목(mock)으로 대체하면 인증된 요청 테스트가 항상 principal=null이 되어 버린다.
  */
 @WebMvcTest(AuthController.class)
-@Import({SecurityConfig.class, JwtTokenProvider.class})
+@Import({SecurityConfig.class, JwtTokenProvider.class, RefreshTokenProvider.class})
 @TestPropertySource(properties = "jwt.secret=test-only-secret-key-must-be-at-least-32-bytes-long!!")
 class AuthControllerTest {
 
@@ -49,9 +51,9 @@ class AuthControllerTest {
     private AuthService authService;
 
     @Test
-    void login_성공하면_ACCESS_TOKEN_쿠키와_사용자정보를_반환한다() throws Exception {
+    void login_성공하면_ACCESS_TOKEN과_REFRESH_TOKEN_쿠키와_사용자정보를_반환한다() throws Exception {
         LoginResponse user = new LoginResponse(1L, "김대표", "master@test.com", "MASTER", 1L);
-        given(authService.login(any())).willReturn(new AuthResult("token-value", user));
+        given(authService.login(any())).willReturn(new AuthResult("access-token-value", "refresh-token-value", user));
 
         MvcResult result =
                 mockMvc.perform(
@@ -63,10 +65,13 @@ class AuthControllerTest {
                         .andExpect(status().isOk())
                         .andReturn();
 
-        String setCookie = result.getResponse().getHeader("Set-Cookie");
-        assertThat(setCookie)
-                .contains("ACCESS_TOKEN=token-value", "Path=/", "HttpOnly", "SameSite=Lax")
-                .doesNotContain("Secure");
+        Collection<String> setCookies = result.getResponse().getHeaders("Set-Cookie");
+        assertThat(setCookies).hasSize(2);
+        assertThat(setCookies)
+                .anySatisfy(cookie -> assertThat(cookie)
+                        .contains("ACCESS_TOKEN=access-token-value", "Path=/", "HttpOnly", "SameSite=Lax"))
+                .anySatisfy(cookie -> assertThat(cookie)
+                        .contains("REFRESH_TOKEN=refresh-token-value", "Path=/api/auth", "HttpOnly", "SameSite=Lax"));
 
         JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
         assertThat(body.get("role").asText()).isEqualTo("MASTER");
@@ -91,6 +96,42 @@ class AuthControllerTest {
         JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
         assertThat(body.get("code").asText()).isEqualTo("INVALID_CREDENTIALS");
         assertThat(body.get("requestId").asText()).isNotBlank();
+    }
+
+    @Test
+    void refresh_성공하면_새_쿠키와_사용자정보를_반환한다() throws Exception {
+        LoginResponse user = new LoginResponse(1L, "김대표", "master@test.com", "MASTER", 1L);
+        given(authService.refresh("old-refresh-token"))
+                .willReturn(new AuthResult("new-access-token", "new-refresh-token", user));
+
+        MvcResult result =
+                mockMvc.perform(post("/api/auth/refresh").cookie(new Cookie("REFRESH_TOKEN", "old-refresh-token")))
+                        .andExpect(status().isOk())
+                        .andReturn();
+
+        Collection<String> setCookies = result.getResponse().getHeaders("Set-Cookie");
+        assertThat(setCookies)
+                .anySatisfy(cookie -> assertThat(cookie).contains("ACCESS_TOKEN=new-access-token"))
+                .anySatisfy(cookie -> assertThat(cookie).contains("REFRESH_TOKEN=new-refresh-token"));
+    }
+
+    @Test
+    void refresh_쿠키가_없으면_401을_반환한다() throws Exception {
+        mockMvc.perform(post("/api/auth/refresh")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void refresh_유효하지_않은_토큰이면_에러포맷으로_401을_반환한다() throws Exception {
+        given(authService.refresh("bad-token"))
+                .willThrow(new AuthException(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN", "유효하지 않은 리프레시 토큰입니다."));
+
+        MvcResult result =
+                mockMvc.perform(post("/api/auth/refresh").cookie(new Cookie("REFRESH_TOKEN", "bad-token")))
+                        .andExpect(status().isUnauthorized())
+                        .andReturn();
+
+        JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(body.get("code").asText()).isEqualTo("INVALID_REFRESH_TOKEN");
     }
 
     @Test
