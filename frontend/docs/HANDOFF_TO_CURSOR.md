@@ -12,7 +12,7 @@ cd design_handoff_qurie_ui
 python3 -m http.server 8000     # 또는: npx serve .
 # http://localhost:8000/Qurie%20Mockups%201%20-%20Marketing%20-%20Auth.dc.html
 ```
-이 폴더는 자체 완결형입니다: `ds/`(토큰 · styles.css · `_ds_bundle.js` · 폰트), `assets/`(기술 아이콘 · 히어로 이미지), `support.js`, `hero-animation.jsx`, `animations-v2.jsx`가 모두 포함돼 있고 HTML은 이 상대 경로들을 참조합니다. 인터넷 연결도 필요합니다 (Lucide 아이콘 · Inter/JetBrains Mono는 CDN).
+이 폴더는 자체 완결형입니다: `ds/`(토큰 · styles.css · `_ds_bundle.js` · 폰트), `assets/`(기술 아이콘 · 히어로 이미지), `support.js`, `hero-animation.jsx`, `animations-v2.jsx`가 모두 포함돼 있고 HTML은 이 상대 경로들을 참조합니다. 인터넷 연결도 필요합니다 (Lucide 아이콘 · Nunito Sans/JetBrains Mono는 CDN).
 
 ## Suggested local stack
 Vite + React + TypeScript + React Router. No UI, chart, or CSS-in-JS libraries — the design system is the component source of truth (`ds/components/`), styling is inline styles + `ds/tokens/*.css` custom properties.

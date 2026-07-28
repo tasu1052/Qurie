@@ -2,16 +2,14 @@ import type { ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Layers,
-  BookOpen,
   Users,
-  Megaphone,
-  BarChart3,
+  PlayCircle,
+  Grid2x2,
   Settings,
   Bell,
   Search,
 } from 'lucide-react';
-import { Footer, Sidebar, Topbar } from '../../ds';
+import { Sidebar, Topbar } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
 
 const iconProps = { size: 16, strokeWidth: 1.75 } as const;
@@ -22,21 +20,18 @@ type AppShellProps = {
   children: ReactNode;
 };
 
-const masterNav = [
-  { key: 'dashboard', label: '대시보드', path: '/master', icon: <LayoutDashboard {...iconProps} /> },
-  { key: 'tracks', label: '트랙 관리', path: '/master/tracks', icon: <Layers {...iconProps} />, badge: '4' },
-  { key: 'classes', label: '클래스 관리', path: '/master/classes', icon: <BookOpen {...iconProps} />, badge: '6' },
-  { key: 'members', label: '회원 관리', path: '/master/members', icon: <Users {...iconProps} /> },
-  { key: 'announcements', label: '공지사항', path: '/master/announcements', icon: <Megaphone {...iconProps} /> },
-  { key: 'analytics', label: '분석 리포트', path: '/master/analytics', icon: <BarChart3 {...iconProps} /> },
-  { key: 'settings', label: '설정', path: '/master/settings', icon: <Settings {...iconProps} /> },
+const managerNav = [
+  { key: 'dashboard', label: '대시보드', path: '/manager', icon: <LayoutDashboard {...iconProps} /> },
+  { key: 'students', label: '학생 관리', path: '/manager/students', icon: <Users {...iconProps} /> },
+  { key: 'sessions', label: '세션', path: '/manager/sessions', icon: <PlayCircle {...iconProps} /> },
+  { key: 'groups', label: '그룹', path: '/manager/groups', icon: <Grid2x2 {...iconProps} /> },
+  { key: 'settings', label: '설정', path: '/manager/settings', icon: <Settings {...iconProps} /> },
 ];
 
-export function MasterShell({ activeKey, breadcrumbs, children }: AppShellProps) {
+export function ManagerShell({ activeKey, breadcrumbs, children }: AppShellProps) {
   const navigate = useNavigate();
   const location = useLocation();
-
-  const items = masterNav.map(({ key, label, icon, badge }) => ({ key, label, icon, badge }));
+  const items = managerNav.map(({ key, label, icon }) => ({ key, label, icon }));
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-app)', fontFamily: 'var(--font-sans)' }}>
@@ -45,7 +40,7 @@ export function MasterShell({ activeKey, breadcrumbs, children }: AppShellProps)
         activeKey={activeKey}
         logoSrc={logoSrc}
         onSelect={(key) => {
-          const item = masterNav.find((n) => n.key === key);
+          const item = managerNav.find((n) => n.key === key);
           if (!item) return;
           navigate({ pathname: item.path, search: location.search });
         }}
@@ -59,7 +54,8 @@ export function MasterShell({ activeKey, breadcrumbs, children }: AppShellProps)
               gap: 10,
               paddingLeft: 6,
             }}
-          >            <span
+          >
+            <span
               style={{
                 width: 32,
                 height: 32,
@@ -73,11 +69,11 @@ export function MasterShell({ activeKey, breadcrumbs, children }: AppShellProps)
                 fontWeight: 700,
               }}
             >
-              김
+              지
             </span>
             <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>김마스터</span>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>master@ssafy.com</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>김지원</span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>jiwon@ssafy.com</span>
             </div>
           </div>
         }
@@ -85,8 +81,8 @@ export function MasterShell({ activeKey, breadcrumbs, children }: AppShellProps)
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Topbar
           breadcrumbs={breadcrumbs}
-          userName="김마스터"
-          userRole="MASTER"
+          userName="김지원"
+          userRole="MANAGER"
           searchIcon={<Search size={14} strokeWidth={1.75} />}
           actions={
             <span style={{ color: 'var(--text-secondary)', display: 'flex', cursor: 'pointer' }}>
@@ -100,25 +96,4 @@ export function MasterShell({ activeKey, breadcrumbs, children }: AppShellProps)
   );
 }
 
-export function PageMain({ children }: { children: ReactNode }) {
-  return (
-    <main
-      style={{
-        flex: 1,
-        width: '100%',
-        maxWidth: 'var(--content-max)',
-        marginInline: 'auto',
-        padding: 'var(--content-pad)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 24,
-        minWidth: 0,
-        minHeight: 0,
-        boxSizing: 'border-box',
-      }}
-    >
-      {children}
-      <Footer />
-    </main>
-  );
-}
+export { PageMain } from './MasterShell';
