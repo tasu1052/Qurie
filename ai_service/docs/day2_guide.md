@@ -2,7 +2,7 @@
 
 > 목표: `call_llm(model, prompt, purpose)` 한 곳에서 OpenAI/Claude/Gemini 호출 + mock + 토큰 실측.  
 > 계약: `quiz_generation_contract.md` §3 공통 규칙, 부록 상수  
-> 참고 구현: `files/quiz_experiment.py` (`call_llm`, `call_gemini`, `Usage` 패턴)
+> Gemini: SSAFY 예제와 동일하게 **`google.genai` + GMS `base_url`** (requests 직접 호출 안 함)
 
 ---
 
@@ -20,14 +20,14 @@
 
 ```bash
 source venv/Scripts/activate
-pip install openai anthropic requests
+pip install openai anthropic google-genai
 pip freeze > requirements.txt
 ```
 
 - Claude → `anthropic`
 - GPT → `openai` (OpenAI 호환)
-- Gemini → GMS **네이티브** `generateContent` + `requests`  
-  (OpenAI 호환 경로는 GMS에서 401/400 — 실험으로 확인됨)
+- Gemini → **`google-genai`** (`from google import genai`), GMS `base_url`  
+  (OpenAI 호환 경로로 Gemini를 치면 GMS에서 401/400 — 쓰지 말 것)
 
 ---
 
@@ -54,7 +54,6 @@ import json
 import time
 from dataclasses import dataclass, field
 
-import requests
 from openai import OpenAI
 
 from app import config
@@ -92,6 +91,7 @@ def provider_of(model: str) -> str:
 
 _openai = None
 _anthropic = None
+_gemini = None
 
 
 def get_openai() -> OpenAI:
@@ -109,25 +109,35 @@ def get_anthropic():
     return _anthropic
 
 
+def get_gemini():
+    """SSAFY GMS + google.genai 공식 클라이언트."""
+    global _gemini
+    if _gemini is None:
+        from google import genai
+        _gemini = genai.Client(
+            api_key=config.GMS_API_KEY or "x",
+            http_options={"base_url": config.GEMINI_BASE},
+        )
+    return _gemini
+
+
 def call_gemini(model: str, prompt: str) -> tuple[str, int, int]:
-    """네이티브 generateContent. (text, in_tok, out_tok)"""
-    r = requests.post(
-        f"{config.GEMINI_BASE}/v1beta/models/{model}:generateContent",
-        headers={"x-goog-api-key": config.GMS_API_KEY},
-        json={
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {
-                "maxOutputTokens": config.MAX_TOKENS,
-                "responseMimeType": "application/json",
-            },
-        },
-        timeout=120,
+    """google.genai SDK로 generateContent. (text, in_tok, out_tok)"""
+    from google.genai import types
+
+    resp = get_gemini().models.generate_content(
+        model=model,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            max_output_tokens=config.MAX_TOKENS,
+            response_mime_type="application/json",
+        ),
     )
-    r.raise_for_status()
-    data = r.json()
-    text = data["candidates"][0]["content"]["parts"][0]["text"]
-    u = data.get("usageMetadata", {})
-    return text, u.get("promptTokenCount", 0), u.get("candidatesTokenCount", 0)
+    text = resp.text or ""
+    u = resp.usage_metadata
+    tin = int(getattr(u, "prompt_token_count", 0) or 0) if u else 0
+    tout = int(getattr(u, "candidates_token_count", 0) or 0) if u else 0
+    return text, tin, tout
 
 
 # ---------------------------------------------------------------------------
@@ -226,6 +236,9 @@ def parse_json(raw: str) -> dict:
     return json.loads(s[a : b + 1] if a >= 0 else s)
 ```
 
+키는 `.env`의 `GMS_API_KEY`.  
+`GEMINI_BASE` = `https://gms.ssafy.io/gmsapi/generativelanguage.googleapis.com` (`config.py`)
+
 ---
 
 ## 3. 확인
@@ -263,7 +276,7 @@ GMS 사용 현황과 `m.rows`의 토큰을 대조해 환산비를 적어 둔다.
 ## 4. 커밋
 
 ```bash
-git commit -m "feat(ai): GMS LLM 클라이언트 (mock·usage·멀티프로바이더)"
+git commit -m "feat(ai): GMS LLM 클라이언트 (mock·usage·google.genai)"
 ```
 
 ---
