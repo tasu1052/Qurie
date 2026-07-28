@@ -572,5 +572,140 @@ module.exports = {
         };
       },
     },
+
+    /* ── Component placement & LIVE badge ─────────────────────────────── */
+    'ds-component-placement': {
+      meta: {
+        type: 'problem',
+        docs: {
+          description:
+            'Pure design components live under src/ds/components/{group}/. src/components/ is only for app seams (layout shells, MockRowBoundary, page overlays). Never recreate Badge/LiveBadge/RiskBadge/StatCard/… under src/components.',
+        },
+        messages: {
+          badgesDir:
+            'Do not put badge components under src/components/badges/. LiveBadge, Badge, and RiskBadge belong in src/ds/components/badges/ and export from src/ds/index.ts.',
+          dsOnly:
+            '"{{name}}" is a design-system component — place it under src/ds/components/{group}/ (and export from ds/index.ts), not under src/components/. src/components/ is for app seams only (layout/*Shell, feedback/MockRowBoundary, overlays/*Overlay).',
+        },
+      },
+      create(ctx) {
+        const file = (ctx.filename || '').replace(/\\/g, '/');
+        if (!file.includes('/src/components/')) return {};
+        const FORBIDDEN_NAME =
+          /\/(Badge|LiveBadge|RiskBadge|StatCard|StatCardRow|Button|Modal|AlertBanner|EmptyState|ErrorState|Skeleton|Spinner|ProgressBar|Toast|Input|Select|DataTable|Pagination|Sidebar|Topbar|Footer)\.(tsx|jsx|ts|js)$/;
+        return {
+          Program(node) {
+            if (/\/src\/components\/badges\//.test(file)) {
+              ctx.report({ node, messageId: 'badgesDir' });
+              return;
+            }
+            if (FORBIDDEN_NAME.test(file)) {
+              const name = file.split('/').pop();
+              ctx.report({ node, messageId: 'dsOnly', data: { name } });
+            }
+          },
+        };
+      },
+    },
+
+    'live-status-badge': {
+      meta: {
+        type: 'problem',
+        docs: {
+          description:
+            'LIVE session status must render <LiveBadge /> from the DS — never <Badge status="accent">LIVE</Badge>. LiveBadge owns the glow + ping and stays content-sized so CSS Grid table cells cannot stretch the halo.',
+        },
+        messages: {
+          useLive:
+            'Use <LiveBadge /> from ds (not <Badge> with LIVE / status="accent") for live session status. LiveBadge keeps the glow box fit-content so grid cells (e.g. manager Session List) do not inflate the halo.',
+        },
+      },
+      create(ctx) {
+        function childText(el) {
+          return (el.children || [])
+            .map((c) => {
+              if (c.type === 'JSXText') return String(c.value || '').trim();
+              if (
+                c.type === 'JSXExpressionContainer' &&
+                c.expression &&
+                c.expression.type === 'Literal' &&
+                typeof c.expression.value === 'string'
+              ) {
+                return c.expression.value.trim();
+              }
+              return '';
+            })
+            .filter(Boolean)
+            .join('');
+        }
+        return {
+          JSXElement(node) {
+            if (jsxTagName(node.openingElement) !== 'Badge') return;
+            const text = childText(node);
+            if (/^LIVE$/i.test(text)) {
+              ctx.report({ node: node.openingElement, messageId: 'useLive' });
+            }
+          },
+        };
+      },
+    },
+
+    'livebadge-fit-content': {
+      meta: {
+        type: 'problem',
+        docs: {
+          description:
+            'LiveBadge root must stay content-sized (width: fit-content + alignSelf/justifySelf) so CSS Grid stretch cannot make the glow larger than the pill.',
+        },
+        messages: {
+          width:
+            'LiveBadge root style must set width: "fit-content" (grid cells stretch by default and would inflate the glow halo).',
+          self:
+            'LiveBadge root style must set alignSelf: "center" and justifySelf: "start" so table/grid rows cannot stretch the glow box.',
+        },
+      },
+      create(ctx) {
+        const file = (ctx.filename || '').replace(/\\/g, '/');
+        if (!/LiveBadge\.(jsx|tsx)$/.test(file)) return {};
+
+        function styleObjectHas(obj, key, expected) {
+          if (!obj || obj.type !== 'ObjectExpression') return false;
+          for (const prop of obj.properties || []) {
+            if (prop.type !== 'Property' || prop.computed) continue;
+            const k = prop.key.name || prop.key.value;
+            if (k !== key) continue;
+            if (prop.value.type === 'Literal' && prop.value.value === expected) return true;
+          }
+          return false;
+        }
+
+        return {
+          ReturnStatement(node) {
+            const arg = node.argument;
+            if (!arg) return;
+            // return <span style={{...}}> or return (<span ...>)
+            let jsx = arg;
+            if (arg.type === 'JSXFragment') return;
+            if (arg.type !== 'JSXElement') return;
+            const open = jsx.openingElement;
+            const styleAttr = getAttr(open, 'style');
+            if (!styleAttr || !styleAttr.value || styleAttr.value.type !== 'JSXExpressionContainer') {
+              ctx.report({ node: open, messageId: 'width' });
+              return;
+            }
+            let expr = styleAttr.value.expression;
+            // style={{ ...a, ...style }} — walk ObjectExpression; if Spread, still require literals present
+            if (expr.type === 'ObjectExpression') {
+              if (!styleObjectHas(expr, 'width', 'fit-content')) {
+                ctx.report({ node: styleAttr, messageId: 'width' });
+              }
+              if (!styleObjectHas(expr, 'alignSelf', 'center') || !styleObjectHas(expr, 'justifySelf', 'start')) {
+                ctx.report({ node: styleAttr, messageId: 'self' });
+              }
+            }
+          },
+        };
+      },
+    },
   },
 };

@@ -26,7 +26,7 @@ function DetailSkeleton() {
           <div
             key={i}
             style={{
-              background: 'var(--surface-card)',
+              background: 'var(--surface-card-solid)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--card-radius)',
               padding: 'var(--stat-card-padding)',

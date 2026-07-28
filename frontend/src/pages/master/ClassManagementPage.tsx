@@ -12,7 +12,16 @@ function GridSkeleton() {
   return (
     <div className="qurie-card-grid">
       {[0, 1, 2, 3, 4, 5].map((i) => (
-        <div key={i} style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, minHeight: 260 }}>
+        <div
+          key={i}
+          style={{
+            background: 'var(--surface-card)',
+            border: '1px solid var(--border)',
+            borderRadius: 16,
+            padding: 24,
+            minHeight: 260,
+          }}
+        >
           <Skeleton width="50%" height={12} delay={i * 0.08} />
           <Skeleton width="70%" height={17} delay={i * 0.08 + 0.04} style={{ marginTop: 12 }} />
           <Skeleton width="100%" height={40} delay={i * 0.08 + 0.08} style={{ marginTop: 14 }} />
@@ -22,7 +31,15 @@ function GridSkeleton() {
   );
 }
 
-function ClassCardView({ item, onOpen, onDelete }: { item: ClassCard; onOpen: () => void; onDelete: () => void }) {
+function ClassCardView({
+  item,
+  onOpen,
+  onDelete,
+}: {
+  item: ClassCard;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
   const active = item.status === 'active';
   return (
     <div
@@ -52,17 +69,38 @@ function ClassCardView({ item, onOpen, onDelete }: { item: ClassCard; onOpen: ()
         <Badge status={active ? 'success' : 'neutral'}>{item.statusLabel}</Badge>
       </div>
       <div>
-        <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>{item.name}</h3>
+        <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>
+          {item.name}
+        </h3>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{item.period}</span>
       </div>
-      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>{item.description}</p>
+      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
+        {item.description}
+      </p>
       <div style={{ display: 'flex', gap: 14, fontSize: 12.5, color: 'var(--text-secondary)' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Users size={13} strokeWidth={1.75} />{item.students}명</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><PlayCircle size={13} strokeWidth={1.75} />세션 {item.sessions}</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Grid2x2 size={13} strokeWidth={1.75} />그룹 {item.groups}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Users size={13} strokeWidth={1.75} />
+          {item.students}명
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <PlayCircle size={13} strokeWidth={1.75} />
+          세션 {item.sessions}
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Grid2x2 size={13} strokeWidth={1.75} />
+          그룹 {item.groups}
+        </span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ flex: 1, height: 6, borderRadius: 999, background: 'var(--divider)', overflow: 'hidden' }}>
+        <div
+          style={{
+            flex: 1,
+            height: 6,
+            borderRadius: 999,
+            background: 'var(--divider)',
+            overflow: 'hidden',
+          }}
+        >
           <div
             style={{
               width: `${item.progress}%`,
@@ -71,11 +109,24 @@ function ClassCardView({ item, onOpen, onDelete }: { item: ClassCard; onOpen: ()
             }}
           />
         </div>
-        <span style={{ fontSize: 12, fontWeight: 600, color: item.status === 'ended' ? 'var(--text-muted)' : 'var(--ink)' }}>
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: item.status === 'ended' ? 'var(--text-muted)' : 'var(--ink)',
+          }}
+        >
           {item.progress}%
         </span>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--divider)', paddingTop: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          borderTop: '1px solid var(--divider)',
+          paddingTop: 12,
+        }}
+      >
         <button
           type="button"
           onClick={onOpen}
@@ -90,7 +141,8 @@ function ClassCardView({ item, onOpen, onDelete }: { item: ClassCard; onOpen: ()
             fontFamily: 'var(--font-sans)',
           }}
         >
-          {item.status === 'ended' ? '결과 리포트 보기' : '클래스 열기'} <span style={{ fontWeight: 800 }}>&gt;</span>
+          {item.status === 'ended' ? '결과 리포트 보기' : '클래스 열기'}{' '}
+          <span style={{ fontWeight: 800 }}>&gt;</span>
         </button>
         <button
           type="button"
@@ -125,7 +177,9 @@ export default function ClassManagementPage() {
   const [name, setName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<ClassCard | null>(null);
 
-  const filtered = (row.data ?? []).filter((c) => !query || c.name.includes(query) || c.trackLabel.includes(query));
+  const filtered = (row.data ?? []).filter(
+    (c) => !query || c.name.includes(query) || c.trackLabel.includes(query),
+  );
 
   return (
     <MasterShell activeKey="classes" breadcrumbs={['SSAFY 서울캠퍼스', '클래스 관리']}>
@@ -137,7 +191,11 @@ export default function ClassManagementPage() {
               트랙 과정 단위로 클래스를 생성하고 참여자를 배정하세요.
             </span>
           </div>
-          <Button variant="primary" icon={<Plus size={15} strokeWidth={1.75} />} onClick={() => setCreateOpen(true)}>
+          <Button
+            variant="primary"
+            icon={<Plus size={15} strokeWidth={1.75} />}
+            onClick={() => setCreateOpen(true)}
+          >
             클래스 생성
           </Button>
         </div>
@@ -168,7 +226,9 @@ export default function ClassManagementPage() {
             value="all"
             onChange={() => undefined}
           />
-          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>총 {filtered.length}개 클래스</span>
+          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
+            총 {filtered.length}개 클래스
+          </span>
         </div>
 
         <MockRowBoundary
@@ -178,7 +238,6 @@ export default function ClassManagementPage() {
           emptyMessage="클래스가 없습니다"
           emptyActionLabel="클래스 생성"
           onEmptyAction={() => setCreateOpen(true)}
-          label="row · classes"
         >
           <div className="qurie-card-grid">
             {filtered.map((c) => (
@@ -225,8 +284,12 @@ export default function ClassManagementPage() {
               >
                 <Plus size={18} strokeWidth={1.75} />
               </span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>새 클래스 만들기</span>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>이름 · 트랙 · 운영 기간을 설정하세요</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                새 클래스 만들기
+              </span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                이름 · 트랙 · 운영 기간을 설정하세요
+              </span>
             </button>
           </div>
         </MockRowBoundary>
@@ -244,8 +307,15 @@ export default function ClassManagementPage() {
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>클래스 이름</span>
-              <Input placeholder="예: 서울 6반" value={name} onChange={(e) => setName(e.target.value)} width="100%" />
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                클래스 이름
+              </span>
+              <Input
+                placeholder="예: 서울 6반"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                width="100%"
+              />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>트랙</span>
@@ -260,7 +330,9 @@ export default function ClassManagementPage() {
               />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>담당 매니저</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                담당 매니저
+              </span>
               <Select
                 options={[
                   { value: 'jiwon', label: '김지원' },
@@ -285,7 +357,11 @@ export default function ClassManagementPage() {
           confirmText={deleteTarget?.name ?? ''}
           childCounts={
             deleteTarget
-              ? [`학생 ${deleteTarget.students}명`, `세션 ${deleteTarget.sessions}`, `그룹 ${deleteTarget.groups}`]
+              ? [
+                  `학생 ${deleteTarget.students}명`,
+                  `세션 ${deleteTarget.sessions}`,
+                  `그룹 ${deleteTarget.groups}`,
+                ]
               : []
           }
           conflict

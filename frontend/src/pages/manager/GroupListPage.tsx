@@ -33,7 +33,11 @@ export default function GroupListPage() {
               그룹 역할은 LEADER / PARTICIPANT입니다.
             </span>
           </div>
-          <Button variant="primary" icon={<Plus size={14} strokeWidth={1.75} />} onClick={() => setCreateOpen(true)}>
+          <Button
+            variant="primary"
+            icon={<Plus size={14} strokeWidth={1.75} />}
+            onClick={() => setCreateOpen(true)}
+          >
             그룹 만들기
           </Button>
         </div>
@@ -72,7 +76,14 @@ export default function GroupListPage() {
           />
         </div>
 
-        <MockRowBoundary status={row.status} skeleton={<GridSkeleton />} onRetry={row.refetch} emptyMessage="그룹이 없습니다" emptyActionLabel="그룹 만들기" onEmptyAction={() => setCreateOpen(true)} label="row · groups">
+        <MockRowBoundary
+          status={row.status}
+          skeleton={<GridSkeleton />}
+          onRetry={row.refetch}
+          emptyMessage="그룹이 없습니다"
+          emptyActionLabel="그룹 만들기"
+          onEmptyAction={() => setCreateOpen(true)}
+        >
           {row.data && (
             <>
               <div className="qurie-card-grid">
@@ -96,9 +107,17 @@ export default function GroupListPage() {
                         gap: 12,
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
                         <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>{g.name}</h3>
-                        <Badge status={g.status === '활동' ? 'success' : 'neutral'}>{g.status}</Badge>
+                        <Badge status={g.status === '활동' ? 'success' : 'neutral'}>
+                          {g.status}
+                        </Badge>
                       </div>
                       <div style={{ display: 'flex', gap: -6 }}>
                         {Array.from({ length: Math.min(g.members, 4) }).map((_, i) => (
@@ -150,7 +169,9 @@ export default function GroupListPage() {
                   }}
                 >
                   <Plus size={18} strokeWidth={1.75} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>새 그룹</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    새 그룹
+                  </span>
                 </button>
               </div>
               <Pagination
@@ -178,7 +199,12 @@ export default function GroupListPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>그룹 이름</span>
-              <Input placeholder="그룹 E" value={groupName} onChange={(e) => setGroupName(e.target.value)} width="100%" />
+              <Input
+                placeholder="그룹 E"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                width="100%"
+              />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>LEADER</span>

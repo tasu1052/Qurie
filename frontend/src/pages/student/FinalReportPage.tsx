@@ -21,7 +21,7 @@ function ReportSkeleton() {
       <Skeleton width="100%" height={80} radius={16} />
       <StatCardRow>
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 'var(--card-radius)', padding: 'var(--stat-card-padding)' }}>
+          <div key={i} style={{ background: 'var(--surface-card-solid)', border: '1px solid var(--border)', borderRadius: 'var(--card-radius)', padding: 'var(--stat-card-padding)' }}>
             <Skeleton width="50%" height={14} delay={i * 0.08} />
           </div>
         ))}

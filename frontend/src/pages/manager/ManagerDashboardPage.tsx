@@ -2,15 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Settings } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
-import {
-  Badge,
-  Button,
-  LoadMore,
-  RiskBadge,
-  Skeleton,
-  StatCard,
-  StatCardRow,
-} from '../../ds';
+import { Badge, LiveBadge, Button, LoadMore, RiskBadge, Skeleton, StatCard, StatCardRow } from '../../ds';
 import { useManagerDashboardRow } from '../../data';
 
 function DashSkeleton() {
@@ -19,7 +11,7 @@ function DashSkeleton() {
       <Skeleton width="100%" height={100} radius={16} />
       <StatCardRow>
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 'var(--card-radius)', padding: 'var(--stat-card-padding)' }}>
+          <div key={i} style={{ background: 'var(--surface-card-solid)', border: '1px solid var(--border)', borderRadius: 'var(--card-radius)', padding: 'var(--stat-card-padding)' }}>
             <Skeleton width="50%" height={14} delay={i * 0.08} />
             <Skeleton width="40%" height={28} delay={i * 0.08 + 0.04} style={{ marginTop: 12 }} />
           </div>
@@ -117,6 +109,9 @@ export default function ManagerDashboardPage() {
                         border: '1px solid var(--border)',
                         borderRadius: 12,
                         padding: '12px 14px',
+                        ...(s.status === 'LIVE'
+                          ? { animation: 'qurie-live-card-glow 2.6s ease-in-out infinite' }
+                          : {}),
                       }}
                     >
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -124,9 +119,11 @@ export default function ManagerDashboardPage() {
                           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)' }}>
                             {s.title}
                           </span>
-                          <Badge status={s.status === 'LIVE' ? 'accent' : s.status === '예정' ? 'warning' : 'neutral'}>
-                            {s.status}
-                          </Badge>
+                          {s.status === 'LIVE' ? (
+                            <LiveBadge />
+                          ) : (
+                            <Badge status={s.status === '예정' ? 'warning' : 'neutral'}>{s.status}</Badge>
+                          )}
                         </div>
                         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                           {s.time} · {s.participants}
