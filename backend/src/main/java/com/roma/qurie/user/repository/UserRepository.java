@@ -18,6 +18,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 	boolean existsByEmail(String email);
 	Optional<User> findByEmail(String email);
 
+	long countByEnterpriseIdAndRole(Long enterpriseId, UserRole role);
+
 	/*
 	 * 세션 운영 횟수는 상관 서브쿼리로 센다. join + group by 로 세면 이후 리포트 발급 수 같은 다른 집계를
 	 * 같은 쿼리에 더할 때 카티션 곱으로 개수가 부풀려지기 때문이다.

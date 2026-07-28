@@ -11,6 +11,8 @@ public interface TrackRepository extends JpaRepository<Track, Long> {
 
     boolean existsByEnterpriseIdAndName(Long enterpriseId, String name);
 
+    long countByEnterpriseId(Long enterpriseId);
+
     /*
      * 클래스 수는 상관 서브쿼리로 센다. join + group by로 세면 나중에 세션 등 다른 컬렉션을 함께 집계할 때
      * 카티션 곱으로 개수가 부풀려지기 때문이다.
