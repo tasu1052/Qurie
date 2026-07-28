@@ -126,6 +126,23 @@ export type PendingInvite = {
   cooldownSec: number;
 };
 
+/** Invite-token signup preview (stands in until teammate ships GET /invitations/{token}). */
+export type InvitationPreview = {
+  email: string;
+  role: 'MASTER' | 'MANAGER' | 'STUDENT';
+  classId: number;
+  className: string;
+  expiresAt: string;
+};
+
+export const invitationPreviewFixture: InvitationPreview = {
+  email: 'invitee@ssafy.com',
+  role: 'STUDENT',
+  classId: 1,
+  className: '서울 1반',
+  expiresAt: '2026-08-15T23:59:59',
+};
+
 export type NoticeItem = {
   id: string;
   pinned?: boolean;

@@ -1,4 +1,9 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { AuthGate } from './components/auth/AuthGate';
+import LandingPage from './pages/marketing/LandingPage';
+import LoginPage from './pages/auth/LoginPage';
+import SignupPage from './pages/auth/SignupPage';
+import ResetPage from './pages/auth/ResetPage';
 import MasterDashboardPage from './pages/master/MasterDashboardPage';
 import TrackListPage from './pages/master/TrackListPage';
 import TrackDetailPage from './pages/master/TrackDetailPage';
@@ -39,32 +44,36 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Master */}
-        <Route path="/master" element={<MasterDashboardPage />} />
-        <Route path="/master/tracks" element={<TrackListPage />} />
-        <Route path="/master/tracks/:id" element={<TrackDetailPage />} />
-        <Route path="/master/classes" element={<ClassManagementPage />} />
-        <Route path="/master/members" element={<MemberManagementPage />} />
-        <Route path="/master/announcements" element={<AnnouncementsPage />} />
-        <Route path="/master/analytics" element={<TrackAnalyticsPage />} />
-        <Route path="/master/analytics/:classId" element={<ClassAnalyticsDetailPage />} />
-        <Route path="/master/settings" element={<PlaceholderPage title="설정" />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/reset" element={<ResetPage />} />
 
-        {/* Manager */}
-        <Route path="/manager" element={<ManagerDashboardPage />} />
-        <Route path="/manager/students" element={<StudentManagementPage />} />
-        <Route path="/manager/students/:id" element={<StudentOverviewPage />} />
-        <Route path="/manager/sessions" element={<SessionListPage />} />
-        <Route path="/manager/groups" element={<GroupListPage />} />
-        <Route path="/manager/settings" element={<PlaceholderPage title="설정" />} />
+        <Route element={<AuthGate />}>
+          <Route path="/master" element={<MasterDashboardPage />} />
+          <Route path="/master/tracks" element={<TrackListPage />} />
+          <Route path="/master/tracks/:id" element={<TrackDetailPage />} />
+          <Route path="/master/classes" element={<ClassManagementPage />} />
+          <Route path="/master/members" element={<MemberManagementPage />} />
+          <Route path="/master/announcements" element={<AnnouncementsPage />} />
+          <Route path="/master/analytics" element={<TrackAnalyticsPage />} />
+          <Route path="/master/analytics/:classId" element={<ClassAnalyticsDetailPage />} />
+          <Route path="/master/settings" element={<PlaceholderPage title="설정" />} />
 
-        {/* Member (Student) */}
-        <Route path="/app" element={<StudentDashboardPage />} />
-        <Route path="/app/classes/:id" element={<ClassLobbyPage />} />
-        <Route path="/app/me" element={<MyPage />} />
-        <Route path="/app/report" element={<FinalReportPage />} />
+          <Route path="/manager" element={<ManagerDashboardPage />} />
+          <Route path="/manager/students" element={<StudentManagementPage />} />
+          <Route path="/manager/students/:id" element={<StudentOverviewPage />} />
+          <Route path="/manager/sessions" element={<SessionListPage />} />
+          <Route path="/manager/groups" element={<GroupListPage />} />
+          <Route path="/manager/settings" element={<PlaceholderPage title="설정" />} />
 
-        <Route path="*" element={<Navigate to="/master" replace />} />
+          <Route path="/app" element={<StudentDashboardPage />} />
+          <Route path="/app/classes/:id" element={<ClassLobbyPage />} />
+          <Route path="/app/me" element={<MyPage />} />
+          <Route path="/app/report" element={<FinalReportPage />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

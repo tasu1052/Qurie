@@ -34,6 +34,7 @@ export {
   useClassLobbyRow,
   useMyPageRow,
   useFinalReportRow,
+  useInvitationPreviewRow,
 } from '../mocks/adapters';
 
 export type {
@@ -41,6 +42,7 @@ export type {
   ClassCard,
   ClassRole,
   HrAlert,
+  InvitationPreview,
   KpiItem,
   ManagerActivity,
   MemberRow,
@@ -66,3 +68,36 @@ export type {
   PageResponse,
   UserRole,
 } from '../network/core/types';
+
+/**
+ * Auth / user / session hooks — re-exported from teammate's `network/`.
+ * Pages and shells import from here only (never deep-import network query modules).
+ */
+export { useLogin, useLogout, useMe } from '../network/auth';
+export type { AuthUserResponse, LoginRequest } from '../network/auth';
+export {
+  useSignUp,
+  useGetUserProfile,
+  useUpdateUserProfile,
+} from '../network/user';
+export type {
+  UserSignUpRequest,
+  UserSignUpResponse,
+  UserProfileResponse,
+  UserProfileUpdateRequest,
+} from '../network/user';
+export {
+  useCreateSession,
+  useGetSessions,
+  useGetSession,
+  useUpdateSession,
+  useDeleteSession,
+} from '../network/session';
+export type {
+  SessionCreateRequest,
+  SessionResponse,
+  SessionUpdateRequest,
+} from '../network/session';
+
+/** Teammate boundary — UI supplies fallbacks only. */
+export { QueryAsyncBoundary } from '../network/boundaries/QueryAsyncBoundary';
