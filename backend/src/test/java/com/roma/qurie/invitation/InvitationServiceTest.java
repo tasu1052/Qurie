@@ -3,6 +3,7 @@ package com.roma.qurie.invitation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -57,6 +58,9 @@ class InvitationServiceTest {
 	@Mock
 	private UserRepository userRepository;
 
+	@Mock
+	private InvitationMailSender mailSender;
+
 	@InjectMocks
 	private InvitationService invitationService;
 
@@ -89,6 +93,18 @@ class InvitationServiceTest {
 
 		assertThat(response.token()).isEqualTo(RAW_TOKEN);
 		assertThat(response.signUpUrl()).isEqualTo("http://localhost:5173/signup?token=raw-token");
+		verify(mailSender).send(saved, "http://localhost:5173/signup?token=raw-token");
+	}
+
+	@Test
+	void createDoesNotSendMailWhenInviteIsRejected() {
+		givenClassExists();
+		given(userRepository.existsByEmail(INVITEE_EMAIL)).willReturn(true);
+
+		assertThatThrownBy(() -> invitationService.create(master(ENTERPRISE_ID), request(UserRole.MANAGER)))
+				.isInstanceOf(ResponseStatusException.class);
+
+		verify(mailSender, never()).send(any(Invitation.class), anyString());
 	}
 
 	@Test
