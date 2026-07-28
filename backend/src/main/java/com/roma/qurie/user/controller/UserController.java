@@ -4,6 +4,8 @@ import jakarta.validation.Valid;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,14 +14,18 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.roma.qurie.common.dto.PageResponse;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.user.dto.UserProfileResponse;
 import com.roma.qurie.user.dto.UserProfileUpdateRequest;
 import com.roma.qurie.user.dto.UserSignUpRequest;
 import com.roma.qurie.user.dto.UserSignUpResponse;
+import com.roma.qurie.user.dto.UserSummaryResponse;
+import com.roma.qurie.user.entity.UserRole;
 import com.roma.qurie.user.service.UserService;
 
 @RestController
@@ -39,6 +45,23 @@ public class UserController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public UserSignUpResponse signUp(@Valid @RequestBody UserSignUpRequest request) {
 		return userService.signUp(request);
+	}
+
+	/**
+	 * 회원 목록 조회 (MASTER). 마스터 대시보드의 매니저 활동 카드는 role=MANAGER, size=3 으로 상위 N명만 잘라 쓴다.
+	 *
+	 * todo: 정렬은 활동량(최근 7일 세션 운영 횟수) desc 로 고정되어 있다. 회원 관리 화면(1g)에서
+	 *       다른 정렬 기준이 필요해지면 sort 파라미터를 받도록 확장해야 한다.
+	 *
+	 * @param role: MANAGER 또는 STUDENT. 없으면 전체
+	 * @param keyword: 이름 또는 이메일 부분 검색
+	 */
+	@GetMapping
+	public PageResponse<UserSummaryResponse> getUsers(@AuthenticationPrincipal AuthUser requester,
+			@RequestParam(name = "role", required = false) UserRole role,
+			@RequestParam(name = "q", required = false) String keyword,
+			@PageableDefault(size = 20) Pageable pageable) {
+		return userService.getUserSummaries(requester, role, keyword, pageable);
 	}
 
 	/**
