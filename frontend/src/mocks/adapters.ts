@@ -10,6 +10,7 @@ import {
   classLobby,
   classSessionSummaries,
   finalReport,
+  invitationPreviewFixture,
   managerAtRisk,
   managerClassHeader,
   managerGroups,
@@ -45,6 +46,7 @@ import {
   type AnalyticsClassSummary,
   type ClassCard,
   type HrAlert,
+  type InvitationPreview,
   type KpiItem,
   type ManagerActivity,
   type MemberRow,
@@ -328,6 +330,20 @@ export function useClassLobbyRow(_classId?: string): MockRowResult<typeof classL
 
 export function useMyPageRow(): MockRowResult<typeof myPageProfile> {
   return useMockRow(myPageProfile);
+}
+
+/**
+ * Invite preview for `/signup?token=…`.
+ * Swap for teammate's `useInvitationPreview(token)` via `src/data/index.ts`.
+ */
+export function useInvitationPreviewRow(token?: string | null): MockRowResult<InvitationPreview> {
+  const preview: InvitationPreview = token
+    ? {
+        ...invitationPreviewFixture,
+        email: `${token.slice(0, 6) || 'invite'}@ssafy.com`,
+      }
+    : invitationPreviewFixture;
+  return useMockRow(preview, { emptyAs: token ? undefined : null });
 }
 
 /** @param _userId reserved for `GET /users/{id}/report-summary` */
