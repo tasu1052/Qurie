@@ -8,7 +8,7 @@ import {
   updateSession,
   type SessionCreateRequest,
   type SessionUpdateRequest,
-} from './session';
+} from './session-apis';
 
 export const useCreateSession = () => {
     const queryClient = useQueryClient();
