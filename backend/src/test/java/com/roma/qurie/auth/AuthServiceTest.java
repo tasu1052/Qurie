@@ -10,6 +10,9 @@ import com.roma.qurie.master.Master;
 import com.roma.qurie.master.MasterRepository;
 import com.roma.qurie.security.JwtTokenProvider;
 import com.roma.qurie.security.RefreshTokenProvider;
+import com.roma.qurie.user.entity.User;
+import com.roma.qurie.user.entity.UserRole;
+import com.roma.qurie.user.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +33,9 @@ class AuthServiceTest {
     private MasterRepository masterRepository;
 
     @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @Mock
@@ -43,6 +49,7 @@ class AuthServiceTest {
     void setUp() {
         authService = new AuthService(
                 masterRepository,
+                userRepository,
                 passwordEncoder,
                 new JwtTokenProvider(SECRET),
                 refreshTokenRepository,
@@ -80,10 +87,40 @@ class AuthServiceTest {
     @Test
     void login_존재하지_않는_이메일이면_401을_던진다() {
         when(masterRepository.findByEmail("nobody@test.com")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("nobody@test.com")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.login(new LoginRequest("nobody@test.com", "whatever")))
                 .isInstanceOf(AuthException.class)
                 .satisfies(e -> assertThat(((AuthException) e).getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
+
+    @Test
+    void login_마스터에_없으면_매니저_학생_계정으로_로그인한다() {
+        User user = createUser(UserRole.MANAGER);
+        when(masterRepository.findByEmail("manager@test.com")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("manager@test.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("plain-password", "encoded-password")).thenReturn(true);
+
+        AuthResult result = authService.login(new LoginRequest("manager@test.com", "plain-password"));
+
+        assertThat(result.accessToken()).isNotBlank();
+        assertThat(result.refreshToken()).isNotBlank();
+        assertThat(result.user().id()).isEqualTo(20L);
+        assertThat(result.user().role()).isEqualTo("MANAGER");
+        assertThat(result.user().enterpriseId()).isEqualTo(1L);
+        assertThat(result.user().email()).isEqualTo("manager@test.com");
+    }
+
+    @Test
+    void login_매니저_학생_계정의_비밀번호가_틀리면_401을_던진다() {
+        User user = createUser(UserRole.STUDENT);
+        when(masterRepository.findByEmail("student@test.com")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("student@test.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrong-password", "encoded-password")).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.login(new LoginRequest("student@test.com", "wrong-password")))
+                .isInstanceOf(AuthException.class)
+                .satisfies(e -> assertThat(((AuthException) e).getCode()).isEqualTo("INVALID_CREDENTIALS"));
     }
 
     @Test
@@ -144,6 +181,22 @@ class AuthServiceTest {
     }
 
     @Test
+    void refresh_매니저_학생_계정의_토큰도_재발급된다() {
+        User user = createUser(UserRole.MANAGER);
+        String rawRefreshToken = "user-refresh-token";
+        RefreshToken storedToken =
+                new RefreshToken(user, refreshTokenProvider.hash(rawRefreshToken), LocalDateTime.now().plusDays(1));
+        when(refreshTokenRepository.findByTokenHash(refreshTokenProvider.hash(rawRefreshToken)))
+                .thenReturn(Optional.of(storedToken));
+
+        AuthResult result = authService.refresh(rawRefreshToken);
+
+        assertThat(result.user().id()).isEqualTo(20L);
+        assertThat(result.user().role()).isEqualTo("MANAGER");
+        assertThat(storedToken.isValid()).isFalse();
+    }
+
+    @Test
     void logout_하면_해당_리프레시토큰이_폐기된다() {
         Master master = createMaster();
         String rawRefreshToken = "raw-refresh-token";
@@ -176,5 +229,17 @@ class AuthServiceTest {
         Master master = new Master(enterprise, "master@test.com", "encoded-password", "김대표");
         ReflectionTestUtils.setField(master, "id", 10L);
         return master;
+    }
+
+    private User createUser(UserRole role) {
+        User user = User.builder()
+                .enterpriseId(1L)
+                .email(role == UserRole.MANAGER ? "manager@test.com" : "student@test.com")
+                .role(role)
+                .password("encoded-password")
+                .name("김담당")
+                .build();
+        ReflectionTestUtils.setField(user, "id", 20L);
+        return user;
     }
 }
