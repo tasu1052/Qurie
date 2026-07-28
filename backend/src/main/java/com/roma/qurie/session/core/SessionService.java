@@ -1,8 +1,9 @@
-package com.roma.qurie.session;
+package com.roma.qurie.session.core;
 
-import com.roma.qurie.session.dto.SessionCreateRequest;
-import com.roma.qurie.session.dto.SessionResponse;
-import com.roma.qurie.session.dto.SessionUpdateRequest;
+import com.roma.qurie.security.AuthUser;
+import com.roma.qurie.session.core.dto.SessionCreateRequest;
+import com.roma.qurie.session.core.dto.SessionResponse;
+import com.roma.qurie.session.core.dto.SessionUpdateRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,14 +17,17 @@ public class SessionService {
 
     private final SessionRepository sessionRepository;
 
-    /* 방을 생성하는 함수 */
+    /* 방을 생성하는 함수. 생성자는 요청 본문이 아니라 인증된 사용자로 고정한다. */
     @Transactional
-    public SessionResponse create(SessionCreateRequest request) {
+    public SessionResponse create(SessionCreateRequest request, AuthUser creator) {
+        if (creator == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+        }
         Session session =
                 new Session(
                         request.classId(),
                         request.title(),
-                        request.createdBy());
+                        creator.id());
         return SessionResponse.from(sessionRepository.save(session));
     }
 

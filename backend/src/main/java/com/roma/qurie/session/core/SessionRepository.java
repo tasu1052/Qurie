@@ -1,4 +1,4 @@
-package com.roma.qurie.session;
+package com.roma.qurie.session.core;
 
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;

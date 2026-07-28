@@ -1,4 +1,4 @@
-package com.roma.qurie.session.dto;
+package com.roma.qurie.session.core.dto;
 
 import jakarta.validation.constraints.Size;
 
