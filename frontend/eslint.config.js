@@ -10,7 +10,7 @@ const require = createRequire(import.meta.url)
 const qurie = require('./tools/eslint-plugin-qurie/index.js')
 
 export default defineConfig([
-  globalIgnores(['dist', 'design_handoff_qurie_ui/**', 'frontend_tools_tmp/**']),
+  globalIgnores(['dist', 'frontend_tools_tmp/**']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
