@@ -1,0 +1,6 @@
+dist
+node_modules
+package-lock.json
+
+# Qurie 디자인 시스템: 개인 레포에서 포팅된 압축 스타일 — 리포맷 제외
+src/ds
