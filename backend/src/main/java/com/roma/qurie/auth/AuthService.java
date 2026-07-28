@@ -48,6 +48,17 @@ public class AuthService {
         return issueTokens(refreshToken.getMaster());
     }
 
+    /** 로그아웃. 해당 리프레시 토큰을 폐기한다. 쿠키가 없거나 이미 폐기/존재하지 않는 토큰이어도 그냥 성공 처리한다(멱등). */
+    @Transactional
+    public void logout(String rawRefreshToken) {
+        if (rawRefreshToken == null) {
+            return;
+        }
+        refreshTokenRepository
+                .findByTokenHash(refreshTokenProvider.hash(rawRefreshToken))
+                .ifPresent(RefreshToken::revoke);
+    }
+
     public LoginResponse me(AuthUser authUser) {
         if (authUser == null) {
             throw new AuthException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "로그인이 필요합니다.");

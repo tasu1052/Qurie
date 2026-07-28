@@ -135,6 +135,25 @@ class AuthControllerTest {
     }
 
     @Test
+    void logout_하면_두_쿠키를_모두_지운다() throws Exception {
+        MvcResult result =
+                mockMvc.perform(post("/api/auth/logout").cookie(new Cookie("REFRESH_TOKEN", "some-refresh-token")))
+                        .andExpect(status().isNoContent())
+                        .andReturn();
+
+        Collection<String> setCookies = result.getResponse().getHeaders("Set-Cookie");
+        assertThat(setCookies).hasSize(2);
+        assertThat(setCookies)
+                .anySatisfy(cookie -> assertThat(cookie).contains("ACCESS_TOKEN=", "Max-Age=0", "Path=/"))
+                .anySatisfy(cookie -> assertThat(cookie).contains("REFRESH_TOKEN=", "Max-Age=0", "Path=/api/auth"));
+    }
+
+    @Test
+    void logout_쿠키가_없어도_204를_반환한다() throws Exception {
+        mockMvc.perform(post("/api/auth/logout")).andExpect(status().isNoContent());
+    }
+
+    @Test
     void me_인증없이_호출하면_401을_반환한다() throws Exception {
         given(authService.me(null))
                 .willThrow(new AuthException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "로그인이 필요합니다."));

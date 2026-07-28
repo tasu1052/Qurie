@@ -143,6 +143,33 @@ class AuthServiceTest {
                 .satisfies(e -> assertThat(((AuthException) e).getCode()).isEqualTo("INVALID_REFRESH_TOKEN"));
     }
 
+    @Test
+    void logout_하면_해당_리프레시토큰이_폐기된다() {
+        Master master = createMaster();
+        String rawRefreshToken = "raw-refresh-token";
+        RefreshToken storedToken =
+                new RefreshToken(master, refreshTokenProvider.hash(rawRefreshToken), LocalDateTime.now().plusDays(1));
+        when(refreshTokenRepository.findByTokenHash(refreshTokenProvider.hash(rawRefreshToken)))
+                .thenReturn(Optional.of(storedToken));
+
+        authService.logout(rawRefreshToken);
+
+        assertThat(storedToken.isValid()).isFalse();
+    }
+
+    @Test
+    void logout_쿠키가_없어도_예외없이_끝난다() {
+        authService.logout(null);
+    }
+
+    @Test
+    void logout_존재하지_않는_토큰이어도_예외없이_끝난다() {
+        when(refreshTokenRepository.findByTokenHash(refreshTokenProvider.hash("unknown-token")))
+                .thenReturn(Optional.empty());
+
+        authService.logout("unknown-token");
+    }
+
     private Master createMaster() {
         Enterprise enterprise = new Enterprise("SSAFY 서울캠퍼스");
         ReflectionTestUtils.setField(enterprise, "id", 1L);

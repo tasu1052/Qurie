@@ -53,10 +53,35 @@ public class AuthController {
         return withTokenCookies(result);
     }
 
+    /** 로그아웃. 리프레시 토큰을 폐기하고 쿠키를 지운다. */
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            @CookieValue(name = REFRESH_TOKEN_COOKIE_NAME, required = false) String refreshToken) {
+        authService.logout(refreshToken);
+        ResponseCookie expiredAccessTokenCookie = expireCookie(JwtAuthenticationFilter.ACCESS_TOKEN_COOKIE_NAME, "/");
+        ResponseCookie expiredRefreshTokenCookie = expireCookie(REFRESH_TOKEN_COOKIE_NAME, "/api/auth");
+        return ResponseEntity.noContent()
+                .header(
+                        HttpHeaders.SET_COOKIE,
+                        expiredAccessTokenCookie.toString(),
+                        expiredRefreshTokenCookie.toString())
+                .build();
+    }
+
     /** 현재 로그인한 사용자 정보. httpOnly 쿠키라 프론트가 직접 못 읽으므로 셸 렌더링에 사용한다. */
     @GetMapping("/me")
     public LoginResponse me(@AuthenticationPrincipal AuthUser authUser) {
         return authService.me(authUser);
+    }
+
+    private ResponseCookie expireCookie(String name, String path) {
+        return ResponseCookie.from(name, "")
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite("Lax")
+                .path(path)
+                .maxAge(0)
+                .build();
     }
 
     private ResponseEntity<LoginResponse> withTokenCookies(AuthResult result) {
