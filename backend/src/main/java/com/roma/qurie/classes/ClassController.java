@@ -5,9 +5,11 @@ import com.roma.qurie.classes.dto.ClassResponse;
 import com.roma.qurie.security.AuthUser;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,5 +28,11 @@ public class ClassController {
             @AuthenticationPrincipal AuthUser authUser, @Valid @RequestBody ClassCreateRequest request) {
         ClassResponse response = classService.create(authUser, request);
         return ResponseEntity.created(URI.create("/api/classes/" + response.id())).body(response);
+    }
+
+    /** 내가 속한 반 목록. 열린 방 목록을 조회하려면 여기서 classId 를 얻는다. */
+    @GetMapping("/me")
+    public List<ClassResponse> myClasses(@AuthenticationPrincipal AuthUser authUser) {
+        return classService.getMyClasses(authUser);
     }
 }

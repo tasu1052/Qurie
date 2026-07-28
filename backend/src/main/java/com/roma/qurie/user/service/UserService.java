@@ -9,6 +9,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.roma.qurie.classes.ClassUser;
+import com.roma.qurie.classes.ClassUserRepository;
+import com.roma.qurie.invitation.Invitation;
+import com.roma.qurie.invitation.InvitationService;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.user.dto.UserProfileResponse;
 import com.roma.qurie.user.dto.UserProfileUpdateRequest;
@@ -28,30 +32,38 @@ public class UserService {
 
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
+	private final InvitationService invitationService;
+	private final ClassUserRepository classUserRepository;
 
 	/**
-	 * todo: enterpriseId 가 실제로 존재하는 기업인지 검증하지 않는다. enterprise 도메인에 조회 수단이 생기면 검증을 추가한다.
+	 * 초대 기반 회원가입. 이메일·역할·소속 반은 요청이 아니라 초대에서 읽고,
+	 * 가입과 동시에 해당 반 명단(class_users)에 넣는다 — 명단에 없으면 방에 입장할 수 없다.
 	 */
 	@Transactional
 	public UserSignUpResponse signUp(UserSignUpRequest request) {
-		if (userRepository.existsByEmail(request.email())) {
+		Invitation invitation = invitationService.consume(request.token());
+		if (userRepository.existsByEmail(invitation.getEmail())) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, DUPLICATE_EMAIL_MESSAGE);
 		}
 
 		User user = User.builder()
-				.enterpriseId(request.enterpriseId())
-				.email(request.email())
-				.role(request.role())
+				.enterpriseId(invitation.enterpriseId())
+				.email(invitation.getEmail())
+				.role(invitation.getRole())
 				.password(passwordEncoder.encode(request.password()))
 				.name(request.name())
 				.build();
 
+		User saved;
 		try {
-			return UserSignUpResponse.from(userRepository.save(user));
+			saved = userRepository.save(user);
 		} catch (DataIntegrityViolationException e) {
 			// 중복 확인과 저장 사이에 같은 이메일이 먼저 저장되면 unique 제약으로만 걸러진다.
 			throw new ResponseStatusException(HttpStatus.CONFLICT, DUPLICATE_EMAIL_MESSAGE, e);
 		}
+		classUserRepository.save(new ClassUser(invitation.getClassEntity(), saved.getId()));
+
+		return UserSignUpResponse.from(saved);
 	}
 
 	/**

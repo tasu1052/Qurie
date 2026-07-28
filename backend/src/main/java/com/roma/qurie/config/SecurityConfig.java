@@ -1,15 +1,22 @@
 package com.roma.qurie.config;
 
 import com.roma.qurie.security.JwtAuthenticationFilter;
+import java.time.Duration;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * 보안 설정. session 등 다른 도메인이 아직 인증을 다루지 않으므로 엔드포인트 접근 제어는
@@ -19,6 +26,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * CSRF: JWT를 헤더가 아니라 httpOnly 쿠키로 내려주는 방식이라 원칙적으로 CSRF 노출이 있지만,
  * ACCESS_TOKEN 쿠키의 SameSite=Lax가 cross-site POST/PUT/DELETE 요청에는 쿠키를 실어 보내지 않아
  * 1차 방어가 된다. 세션 상태가 없는 stateless API라 CSRF 토큰 기반 방어는 이번 단계에서 추가하지 않는다.
+ *
+ * CORS: 프론트(다른 origin)가 쿠키를 실어 보내야 하므로 allowCredentials를 켠다. 이 경우
+ * Access-Control-Allow-Origin에 와일드카드를 쓸 수 없어 허용 origin을 설정값으로 명시한다.
+ * WebSocket 핸드셰이크의 origin 검사는 WebSocketConfig가 따로 처리한다.
  */
 @Configuration
 @RequiredArgsConstructor
@@ -28,10 +39,26 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http.csrf(AbstractHttpConfigurer::disable)
+        http.cors(Customizer.withDefaults())
+                .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource(
+            @Value("${app.cors.allowed-origin-patterns:http://localhost:5173}") String allowedOriginPatterns) {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(List.of(allowedOriginPatterns.split(",")));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(Duration.ofHours(1));
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     @Bean

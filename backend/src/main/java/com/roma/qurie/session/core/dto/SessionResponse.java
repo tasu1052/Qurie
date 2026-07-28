@@ -1,6 +1,6 @@
-package com.roma.qurie.session.dto;
+package com.roma.qurie.session.core.dto;
 
-import com.roma.qurie.session.Session;
+import com.roma.qurie.session.core.Session;
 import java.time.LocalDateTime;
 
 public record SessionResponse(

@@ -5,6 +5,7 @@ import com.roma.qurie.classes.dto.ClassResponse;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.track.Track;
 import com.roma.qurie.track.TrackRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class ClassService {
 
     private final ClassRepository classRepository;
     private final TrackRepository trackRepository;
+    private final ClassUserRepository classUserRepository;
 
     /* 클래스를 생성하는 함수 */
     @Transactional
@@ -52,6 +54,22 @@ public class ClassService {
                         .build();
 
         return ClassResponse.from(classRepository.save(classEntity));
+    }
+
+    /**
+     * 내가 속한 반 목록. 프론트는 이 결과의 classId 로 열린 방 목록을 조회한다 —
+     * 로그인 응답과 JWT 에는 반 정보가 없어 이 경로가 유일한 출처다.
+     * 마스터는 명단(class_users)에 담기지 않으므로 빈 목록이 나온다.
+     */
+    @Transactional(readOnly = true)
+    public List<ClassResponse> getMyClasses(AuthUser authUser) {
+        if (authUser == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+        }
+        return classUserRepository.findAllWithClassByUserId(authUser.id()).stream()
+                .map(ClassUser::getClassEntity)
+                .map(ClassResponse::from)
+                .toList();
     }
 
     /**
