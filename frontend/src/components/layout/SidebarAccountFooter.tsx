@@ -21,7 +21,9 @@ export function SidebarAccountFooter({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <ThemeToggle />
+      <div style={{ padding: '2px 6px 0' }}>
+        <ThemeToggle label="다크 모드" />
+      </div>
       <div
         style={{
           borderTop: '1px solid var(--divider)',

@@ -49,3 +49,8 @@ export function useTheme(): ThemeContextValue {
   }
   return ctx;
 }
+
+/** For ThemeToggle — returns null outside provider instead of throwing. */
+export function useThemeOptional(): ThemeContextValue | null {
+  return useContext(ThemeContext);
+}
