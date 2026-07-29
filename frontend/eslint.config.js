@@ -10,7 +10,13 @@ const require = createRequire(import.meta.url)
 const qurie = require('./tools/eslint-plugin-qurie/index.js')
 
 export default defineConfig([
-  globalIgnores(['dist', 'frontend_tools_tmp/**']),
+  globalIgnores([
+    'dist',
+    'frontend_tools_tmp/**',
+    // Legacy marketing landing animation is intentionally kept as-is.
+    'src/pages/marketing/LandingPage.tsx',
+    'src/pages/marketing/hero/**',
+  ]),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

@@ -1,245 +1,591 @@
 import { Link } from 'react-router-dom';
-import { Button } from '../../ds';
+import { BarChart3, Brain, Check, Users } from 'lucide-react';
+import { Button, DonutChart } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
+import { QurieHeroAnimation } from './hero/HeroAnimation';
 
-const features = [
-  {
-    title: '실시간 세션',
-    body: '클래스 단위로 라이브 코딩 세션을 열고, 참여·퀴즈·리포트를 한곳에서 관리합니다.',
-  },
-  {
-    title: 'AI 퀴즈·리포트',
-    body: '세션 내용을 바탕으로 퀴즈를 생성하고, 참여도와 정답률을 정량적으로 추적합니다.',
-  },
-  {
-    title: '역할 기반 운영',
-    body: 'Master·Manager·Student 역할로 트랙·클래스·멤버 초대를 분리해 운영합니다.',
-  },
-];
+const mailDemo = 'mailto:contact@qurie.app?subject=Qurie%20데모%20요청';
+const mailConsult = 'mailto:contact@qurie.app?subject=Qurie%20도입%20문의';
 
 const kpis = [
-  { value: '실시간', label: '세션 협업' },
-  { value: '역할별', label: '콘솔 UX' },
-  { value: 'AI', label: '퀴즈·리포트' },
+  { value: '120+', label: '도입 기업 · 기관' },
+  { value: '1,800+', label: '운영 클래스' },
+  { value: '52,000+', label: 'AI 생성 퀴즈' },
+  { value: '87%', label: '퀴즈 평균 정답률', accent: true },
 ];
 
 export default function LandingPage() {
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-app)', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--surface-card)', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
+      {/* Topbar — mockup 1a */}
       <header
         style={{
-          height: 64,
           display: 'flex',
           alignItems: 'center',
-          gap: 28,
-          padding: '0 40px',
-          borderBottom: '1px solid var(--border)',
+          gap: 32,
+          padding: '0 64px',
+          height: 64,
+          borderBottom: '1px solid var(--divider)',
           background: 'var(--surface-card)',
+          backdropFilter: 'blur(32px) saturate(1.6)',
+          WebkitBackdropFilter: 'blur(32px) saturate(1.6)',
           position: 'sticky',
           top: 0,
           zIndex: 10,
         }}
       >
-        <Link to="/" style={{ display: 'inline-flex', textDecoration: 'none' }}>
+        <Link to="/" style={{ textDecoration: 'none', display: 'inline-flex' }}>
           <img
             src={logoSrc}
             alt="Qurie"
             style={{ height: 28, width: 'auto', objectFit: 'contain', display: 'block' }}
           />
         </Link>
-        <nav style={{ display: 'flex', gap: 20, fontSize: 13, color: 'var(--text-secondary)' }}>
+        <nav style={{ display: 'flex', gap: 24, fontSize: 14, color: 'var(--text-secondary)' }}>
           <a href="#features" style={{ color: 'inherit', textDecoration: 'none' }}>주요 기능</a>
           <a href="#process" style={{ color: 'inherit', textDecoration: 'none' }}>도입 프로세스</a>
-          <a href="#cta" style={{ color: 'inherit', textDecoration: 'none' }}>요금·문의</a>
+          <a href="#cta" style={{ color: 'inherit', textDecoration: 'none' }}>요금제</a>
         </nav>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
           <Link to="/login" style={{ textDecoration: 'none' }}>
             <Button variant="ghost">로그인</Button>
           </Link>
-          <a href="mailto:contact@qurie.app?subject=Qurie%20도입%20문의" style={{ textDecoration: 'none' }}>
+          <a href={mailConsult} style={{ textDecoration: 'none' }}>
             <Button variant="primary">도입 문의</Button>
           </a>
         </div>
       </header>
 
+      {/* Hero — centered copy + animated product mock */}
       <section
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)',
-          gap: 48,
+          display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          padding: '72px 40px 64px',
-          maxWidth: 1120,
-          margin: '0 auto',
+          textAlign: 'center',
+          padding: '88px 64px 64px',
+          gap: 20,
         }}
       >
-        <div>
-          <p style={{ margin: '0 0 12px', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent)' }}>
-            Enterprise learning
-          </p>
-          <h1 style={{ margin: 0, fontSize: 42, fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.03em' }}>
-            팀의 코딩 학습을<br />실시간으로 운영하세요
-          </h1>
-          <p style={{ margin: '18px 0 28px', fontSize: 16, lineHeight: 1.65, color: 'var(--text-secondary)', maxWidth: 480 }}>
-            Qurie는 기업·기관을 위한 실시간 협업 코드 학습 플랫폼입니다. 클래스와 세션 단위로 학습을 운영하고,
-            AI 퀴즈와 리포트로 성장을 정량적으로 관리하세요.
-          </p>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <a href="mailto:contact@qurie.app?subject=Qurie%20데모%20요청" style={{ textDecoration: 'none' }}>
-              <Button variant="accent">데모 요청</Button>
-            </a>
-            <a href="mailto:contact@qurie.app?subject=Qurie%20도입%20문의" style={{ textDecoration: 'none' }}>
-              <Button variant="secondary">도입 문의</Button>
-            </a>
-          </div>
-        </div>
-        <div
+        <h1
           style={{
-            minHeight: 320,
-            borderRadius: 20,
-            border: '1px solid var(--border)',
-            background: 'var(--ink)',
-            color: 'var(--text-inverse)',
-            padding: 28,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            boxShadow: 'var(--shadow-card)',
+            fontSize: 56,
+            fontWeight: 800,
+            letterSpacing: '-1.2px',
+            lineHeight: 1.15,
+            color: 'var(--ink)',
+            margin: 0,
           }}
         >
-          <div>
-            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7 }}>
-              Live session
-            </span>
-            <div style={{ marginTop: 10, fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 600 }}>
-              react-hooks-deep-dive
+          AI 시대, 부트캠프를 위한
+          <br />
+          최적의 코드 교육 솔루션
+        </h1>
+        <p
+          style={{
+            maxWidth: 560,
+            margin: 0,
+            fontSize: 16,
+            lineHeight: 1.6,
+            color: 'var(--text-secondary)',
+          }}
+        >
+          Qurie는 기업·기관을 위한 실시간 협업 코드 학습 플랫폼입니다. 클래스와 세션 단위로 학습을 운영하고,
+          AI가 생성한 퀴즈와 세션 리포트로 구성원의 성장을 정량적으로 관리하세요.
+        </p>
+        <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+          <a href={mailDemo} style={{ textDecoration: 'none' }}>
+            <Button variant="primary" style={{ padding: '13px 24px', fontSize: 15 }}>
+              데모 요청하기 <span style={{ color: 'var(--primary-300)', fontWeight: 800 }}>&gt;</span>
+            </Button>
+          </a>
+          <a href={mailConsult} style={{ textDecoration: 'none' }}>
+            <Button variant="secondary" style={{ padding: '13px 24px', fontSize: 15 }}>
+              도입 문의
+            </Button>
+          </a>
+        </div>
+
+        <div
+          style={{
+            marginTop: 40,
+            width: 1040,
+            maxWidth: '100%',
+            height: 585,
+            position: 'relative',
+            border: '1px solid var(--border)',
+            borderRadius: 16,
+            boxShadow: 'var(--shadow-modal)',
+            overflow: 'hidden',
+            textAlign: 'left',
+            background: '#F4F4F6',
+          }}
+        >
+          <QurieHeroAnimation />
+        </div>
+      </section>
+
+      {/* KPI band */}
+      <section
+        style={{
+          background: 'var(--ink)',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          padding: '44px 64px',
+          gap: 24,
+          textAlign: 'center',
+        }}
+      >
+        {kpis.map((kpi) => (
+          <div key={kpi.label}>
+            <div
+              style={{
+                fontSize: 36,
+                fontWeight: 700,
+                color: kpi.accent ? 'var(--primary-300)' : '#fff',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              {kpi.value}
             </div>
-            <div style={{ marginTop: 8, fontSize: 13, opacity: 0.72 }}>참여 24 · 퀴즈 진행 중</div>
+            <div style={{ fontSize: 12, color: 'var(--grey-300)', marginTop: 4 }}>{kpi.label}</div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {['정답률 86%', '액티비티 74%', 'LIVE', '리포트 준비'].map((label) => (
-              <div
-                key={label}
-                style={{
-                  borderRadius: 12,
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  padding: '14px 16px',
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
-              >
-                {label}
-              </div>
+        ))}
+      </section>
+
+      {/* Features */}
+      <section id="features" style={{ display: 'flex', flexDirection: 'column', gap: 80, padding: '88px 120px' }}>
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--accent)',
+            }}
+          >
+            Core features
+          </span>
+          <h2 style={{ fontSize: 32, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>
+            학습 관리부터 트랙 운영까지, 하나의 흐름으로
+          </h2>
+        </div>
+
+        {/* Feature 1 — realtime session */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <span
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: 'var(--accent-softer)',
+                color: 'var(--accent)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Users size={20} strokeWidth={1.75} />
+            </span>
+            <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>실시간 협업 세션</h3>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+              클래스 안에서 slug로 식별되는 세션을 열고, 프로젝트 코드를 불러와 여러 명이 동시에 편집합니다.
+              CRDT 기반 동기화로 충돌 없이 협업하세요.
+            </p>
+            {[
+              '동시 편집 · 원격 커서 · 접속자 표시',
+              '세션 내 실시간 채팅과 터미널 공유',
+              '그룹(LEADER / PARTICIPANT) 단위 학습 운영',
+            ].map((item) => (
+              <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-body)' }}>
+                <Check size={14} style={{ color: 'var(--status-success)' }} />
+                {item}
+              </span>
             ))}
           </div>
-        </div>
-      </section>
-
-      <section style={{ background: 'var(--ink)', color: 'var(--text-inverse)', padding: '36px 40px' }}>
-        <div
-          style={{
-            maxWidth: 1120,
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            gap: 24,
-          }}
-        >
-          {kpis.map((kpi) => (
-            <div key={kpi.label}>
-              <div style={{ fontSize: 28, fontWeight: 700 }}>{kpi.value}</div>
-              <div style={{ marginTop: 6, fontSize: 13, opacity: 0.72 }}>{kpi.label}</div>
+          <div
+            style={{
+              background: 'var(--secondary-700)',
+              borderRadius: 12,
+              padding: 20,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12.5,
+              lineHeight: 1.8,
+              color: 'var(--grey-200)',
+              boxShadow: 'var(--shadow-modal)',
+            }}
+          >
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+              <span style={{ fontSize: 10, letterSpacing: '0.06em', color: 'var(--grey-300)', textTransform: 'uppercase' }}>
+                session
+              </span>
+              <span style={{ color: 'var(--primary-300)' }}>java-seoul-1/react-hooks</span>
+              <span
+                style={{
+                  marginLeft: 'auto',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: '#7ee2a8',
+                }}
+              >
+                <span className="qurie-live-dot" style={{ width: 6, height: 6, background: '#7ee2a8' }} />
+                LIVE · 4명 접속
+              </span>
             </div>
-          ))}
+            <div>
+              <span style={{ color: '#c792ea' }}>function</span> <span style={{ color: '#82aaff' }}>useDebounce</span>
+              (value, delay) {'{'}
+            </div>
+            <div>
+              &nbsp;&nbsp;<span style={{ color: '#c792ea' }}>const</span> [v, setV] ={' '}
+              <span style={{ color: '#82aaff' }}>useState</span>(value);
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 2,
+                  height: 14,
+                  background: '#f5a97f',
+                  verticalAlign: 'middle',
+                  marginLeft: 1,
+                  animation: 'qurie-live-ping 1.1s infinite',
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 9,
+                  fontWeight: 600,
+                  background: '#f5a97f',
+                  color: '#111',
+                  borderRadius: 3,
+                  padding: '1px 5px',
+                  marginLeft: 2,
+                  verticalAlign: 'middle',
+                }}
+              >
+                박민수
+              </span>
+            </div>
+            <div>
+              &nbsp;&nbsp;<span style={{ color: '#c792ea' }}>useEffect</span>(() =&gt; {'{'}
+            </div>
+            <div>
+              &nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: '#697098' }}>// 300ms 이후 반영</span>
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 2,
+                  height: 14,
+                  background: '#82aaff',
+                  verticalAlign: 'middle',
+                  marginLeft: 1,
+                  animation: 'qurie-live-ping 1.4s infinite',
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 9,
+                  fontWeight: 600,
+                  background: '#82aaff',
+                  color: '#111',
+                  borderRadius: 3,
+                  padding: '1px 5px',
+                  marginLeft: 2,
+                  verticalAlign: 'middle',
+                }}
+              >
+                김지원
+              </span>
+            </div>
+            <div>&nbsp;&nbsp;{'}, [value, delay]);'}</div>
+            <div>{'}'}</div>
+          </div>
         </div>
-      </section>
 
-      <section id="features" style={{ padding: '72px 40px', maxWidth: 1120, margin: '0 auto' }}>
-        <h2 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 700 }}>주요 기능</h2>
-        <p style={{ margin: '0 0 32px', color: 'var(--text-secondary)', fontSize: 15 }}>
-          운영·학습·측정이 한 흐름으로 이어집니다.
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 20 }}>
-          {features.map((f) => (
+        {/* Feature 2 — AI quiz */}
+        <div id="process" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
+          <div
+            style={{
+              background: 'var(--surface-sunken)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: 24,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {['AI 난이도 산정', '문제 생성', '재검증 · 조정'].map((label, i) => (
+                <span key={label} style={{ display: 'contents' }}>
+                  <span
+                    style={{
+                      flex: 1,
+                      background: 'var(--surface-card)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 8,
+                      padding: '12px 14px',
+                      fontSize: 13,
+                      color: 'var(--text-body)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 6,
+                        background: 'var(--accent-softer)',
+                        color: 'var(--accent)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 11,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {i + 1}
+                    </span>
+                    {label}
+                  </span>
+                  {i < 2 && <span style={{ color: 'var(--accent)', fontWeight: 800 }}>&gt;</span>}
+                </span>
+              ))}
+            </div>
             <div
-              key={f.title}
               style={{
                 background: 'var(--surface-card)',
                 border: '1px solid var(--border)',
-                borderRadius: 16,
-                padding: 24,
-                boxShadow: 'var(--shadow-card)',
+                borderRadius: 8,
+                padding: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
               }}
             >
-              <h3 style={{ margin: '0 0 10px', fontSize: 17, fontWeight: 700 }}>{f.title}</h3>
-              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>{f.body}</p>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ background: 'var(--status-neutral-bg)', color: 'var(--status-neutral)', borderRadius: 999, padding: '3px 10px', fontSize: 10.5, fontWeight: 600 }}>
+                  MULTIPLE_CHOICE
+                </span>
+                <span style={{ background: 'var(--accent-softer)', color: 'var(--accent)', borderRadius: 999, padding: '3px 10px', fontSize: 10.5, fontWeight: 600 }}>
+                  CONCEPTUAL
+                </span>
+                <span style={{ background: 'var(--status-warning-bg)', color: 'var(--status-warning)', borderRadius: 999, padding: '3px 10px', fontSize: 10.5, fontWeight: 600 }}>
+                  NORMAL
+                </span>
+                <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
+                  time_limit 90s
+                </span>
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>
+                useEffect의 cleanup 함수가 실행되는 시점은 언제인가요?
+              </div>
+              <div style={{ border: '1px solid var(--accent)', background: 'var(--accent-softer)', borderRadius: 999, padding: '9px 14px', fontSize: 13, color: 'var(--ink)' }}>
+                다음 effect 실행 직전과 언마운트 시점
+              </div>
+              <div style={{ border: '1px solid var(--border-strong)', borderRadius: 999, padding: '9px 14px', fontSize: 13, color: 'var(--text-secondary)' }}>
+                컴포넌트가 처음 마운트될 때 한 번
+              </div>
             </div>
-          ))}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <span
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: 'var(--accent-softer)',
+                color: 'var(--accent)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Brain size={20} strokeWidth={1.75} />
+            </span>
+            <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>AI 퀴즈 자동 생성</h3>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+              세션에 연결된 프로젝트 코드를 기반으로 AI가 퀴즈를 생성합니다. 난이도를 먼저 산정하고, 생성된 문제를
+              재검증해 EASY / NORMAL / HARD로 최종 조정하는 2단계 프로세스를 따릅니다.
+            </p>
+            {[
+              '개념형(CONCEPTUAL) · 코드형(MICRO) 목적 지정',
+              '문제별 제한 시간으로 부정행위 방지',
+              '정답 해설(explanation)까지 AI가 함께 생성',
+            ].map((item) => (
+              <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-body)' }}>
+                <Check size={14} style={{ color: 'var(--status-success)' }} />
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Feature 3 — report */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <span
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: 'var(--accent-softer)',
+                color: 'var(--accent)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <BarChart3 size={20} strokeWidth={1.75} />
+            </span>
+            <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>세션 리포트 & 인사 데이터 연계</h3>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+              세션이 끝나면 구성원별 퀴즈 완료율·정답률·난이도 비율·평점이 리포트로 발급됩니다. Master는 이 데이터를
+              근거로 매니저 평가와 인사 관리를 수행합니다.
+            </p>
+            {[
+              '세션 단위 자동 집계 · 발급 이력 관리',
+              '매니저 코멘트와 첨부 파일 등록',
+              '불성실 계정 비활성화 등 인사 조치 근거',
+            ].map((item) => (
+              <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-body)' }}>
+                <Check size={14} style={{ color: 'var(--status-success)' }} />
+                {item}
+              </span>
+            ))}
+          </div>
+          <div
+            style={{
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 16,
+              boxShadow: 'var(--shadow-modal)',
+              padding: 24,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                Session report
+              </span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>SR-20260722-JW</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, textAlign: 'center' }}>
+              {[
+                { v: '100%', l: '퀴즈 완료율' },
+                { v: '92%', l: '정답률', accent: true },
+                { v: '4.8', l: '평점' },
+              ].map((m) => (
+                <div key={m.l} style={{ background: 'var(--surface-sunken)', borderRadius: 8, padding: '14px 8px' }}>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: m.accent ? 'var(--accent)' : 'var(--ink)' }}>{m.v}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{m.l}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <DonutChart
+                size={110}
+                thickness={14}
+                centerValue="H 40%"
+                centerLabel="난이도 비율"
+                segments={[
+                  { label: 'EASY', value: 20 },
+                  { label: 'NORMAL', value: 40, accent: true },
+                  { label: 'HARD', value: 40 },
+                ]}
+              />
+            </div>
+          </div>
         </div>
       </section>
 
-      <section id="process" style={{ padding: '0 40px 72px', maxWidth: 1120, margin: '0 auto' }}>
-        <h2 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 700 }}>도입 프로세스</h2>
-        <p style={{ margin: '0 0 24px', color: 'var(--text-secondary)', fontSize: 15 }}>
-          초대 링크로 계정을 만들고, 역할별 콘솔에서 바로 운영을 시작합니다.
-        </p>
-        <ol style={{ margin: 0, paddingLeft: 20, color: 'var(--text-secondary)', lineHeight: 1.8, fontSize: 14 }}>
-          <li>기업 Master가 멤버를 초대합니다.</li>
-          <li>초대 메일의 링크로 이름·비밀번호를 설정해 가입합니다.</li>
-          <li>역할에 맞는 콘솔(Master / Manager / Student)로 이동합니다.</li>
-        </ol>
-      </section>
-
+      {/* CTA */}
       <section
         id="cta"
         style={{
-          margin: '0 40px 64px',
-          maxWidth: 1120,
-          marginInline: 'auto',
-          borderRadius: 20,
           background: 'var(--ink)',
-          color: 'var(--text-inverse)',
-          padding: '48px 40px',
+          textAlign: 'center',
+          padding: '72px 64px',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 24,
-          flexWrap: 'wrap',
+          gap: 18,
         }}
       >
-        <div>
-          <h2 style={{ margin: 0, fontSize: 28, fontWeight: 700 }}>지금 Qurie로 팀의 학습을 시작하세요</h2>
-          <p style={{ margin: '10px 0 0', opacity: 0.72, fontSize: 14 }}>이미 초대받으셨다면 로그인하거나 초대 링크로 가입하세요.</p>
-        </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <Link to="/login" style={{ textDecoration: 'none' }}>
-            <Button variant="accent">로그인</Button>
-          </Link>
-          <a href="mailto:contact@qurie.app?subject=Qurie%20도입%20문의" style={{ textDecoration: 'none' }}>
-            <Button variant="secondary" style={{ background: 'transparent', color: 'var(--text-inverse)', borderColor: 'rgba(255,255,255,0.28)' }}>
-              도입 문의
+        <h2 style={{ fontSize: 32, fontWeight: 700, color: '#fff', margin: 0 }}>지금 Qurie로 팀의 학습을 시작하세요</h2>
+        <p style={{ margin: 0, fontSize: 14, color: 'var(--grey-300)', maxWidth: 480 }}>
+          기업 등록부터 매니저 초대, 첫 세션 개설까지 하루면 충분합니다. 도입 상담을 통해 조직에 맞는 운영 방식을
+          제안해 드립니다.
+        </p>
+        <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
+          <a href={mailDemo} style={{ textDecoration: 'none' }}>
+            <Button variant="accent" style={{ padding: '13px 24px', fontSize: 15 }}>
+              데모 요청하기
+            </Button>
+          </a>
+          <a href={mailConsult} style={{ textDecoration: 'none' }}>
+            <Button
+              variant="secondary"
+              style={{
+                padding: '13px 24px',
+                fontSize: 15,
+                background: 'transparent',
+                color: '#fff',
+                borderColor: 'var(--grey-500)',
+              }}
+            >
+              전문가 상담 신청
             </Button>
           </a>
         </div>
       </section>
 
+      {/* Footer */}
       <footer
         style={{
+          display: 'grid',
+          gridTemplateColumns: '1.4fr 1fr 1fr 1fr',
+          gap: 32,
+          padding: '48px 64px',
           borderTop: '1px solid var(--divider)',
-          padding: '20px 40px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: 11,
-          color: 'var(--text-muted)',
-          background: 'var(--surface-card)',
         }}
       >
-        <span>© 2026 Qurie Education. All rights reserved.</span>
-        <span style={{ display: 'flex', gap: 16 }}>
-          <span>이용약관</span>
-          <span>개인정보처리방침</span>
-          <a href="mailto:contact@qurie.app" style={{ color: 'inherit', textDecoration: 'none' }}>문의하기</a>
-        </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <img
+            src={logoSrc}
+            alt="Qurie"
+            style={{ height: 24, width: 'auto', objectFit: 'contain', objectPosition: 'left', display: 'block' }}
+          />
+          <p style={{ margin: 0, fontSize: 12, lineHeight: 1.6, color: 'var(--text-muted)' }}>
+            기업을 위한 실시간 협업 코드 학습 & AI 퀴즈 플랫폼.
+          </p>
+          <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>© 2026 Qurie · 현재 데모 버전</p>
+        </div>
+        {[
+          { title: '제품', items: ['주요 기능', '업데이트 노트', '보안'] },
+          { title: '리소스', items: ['도움말 센터', 'API 가이드', '커뮤니티'] },
+          { title: '회사', items: ['소개', '채용', '개인정보처리방침'] },
+        ].map((col) => (
+          <div key={col.title} style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink)' }}>
+              {col.title}
+            </span>
+            {col.items.map((item) => (
+              <span key={item}>{item}</span>
+            ))}
+          </div>
+        ))}
       </footer>
     </div>
   );
