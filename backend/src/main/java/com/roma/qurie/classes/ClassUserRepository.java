@@ -1,5 +1,6 @@
 package com.roma.qurie.classes;
 
+import com.roma.qurie.user.entity.UserRole;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -25,7 +26,11 @@ public interface ClassUserRepository extends JpaRepository<ClassUser, Long> {
 	/** 클래스 삭제 시 명단을 함께 정리한다. 명단은 클래스에 종속된 데이터라 남겨둘 이유가 없다. */
 	void deleteByClassEntityId(Long classId);
 
-	/** 반 명단 전체. 그룹 편집 화면의 후보 목록과 랜덤 배정 대상이 된다. */
-	@Query("select cu from ClassUser cu join fetch cu.user where cu.classEntity.id = :classId")
-	List<ClassUser> findAllWithUserByClassEntityId(@Param("classId") Long classId);
+	/**
+	 * 반 명단을 역할로 걸러 조회한다. 그룹 배정 후보·랜덤 배정 대상은 학생뿐이다 —
+	 * 매니저도 반 명단(class_users)에 있으므로 role 필터 없이 쓰면 매니저가 그룹에 섞여 들어간다.
+	 */
+	@Query("select cu from ClassUser cu join fetch cu.user u where cu.classEntity.id = :classId and u.role = :role")
+	List<ClassUser> findAllWithUserByClassEntityIdAndRole(
+			@Param("classId") Long classId, @Param("role") UserRole role);
 }

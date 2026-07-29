@@ -14,6 +14,7 @@ import com.roma.qurie.group.dto.GroupShuffleRequest;
 import com.roma.qurie.group.dto.GroupUpdateRequest;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.user.entity.User;
+import com.roma.qurie.user.entity.UserRole;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -120,7 +121,7 @@ public class GroupService {
             groupByUserId.put(participant.getUser().getId(), participant.getGroup());
         }
 
-        return classUserRepository.findAllWithUserByClassEntityId(classId).stream()
+        return classUserRepository.findAllWithUserByClassEntityIdAndRole(classId, UserRole.STUDENT).stream()
                 .map(ClassUser::getUser)
                 .map(user -> {
                     Group current = groupByUserId.get(user.getId());
@@ -201,54 +202,99 @@ public class GroupService {
     }
 
     /**
-     * 반 인원을 대상 그룹들에 무작위로 나눠 담는 함수. 대상 그룹의 기존 구성원은 모두 지우고 새로 채운다.
+     * 랜덤 배정. 모달에서 받은 그룹 수만큼 그룹을 새로 만들어 반의 학생을 무작위로 나눠 담는다.
+     * 매니저도 반 명단(class_users)에 있으므로 학생만 걸러서 섞는다.
      *
-     * 인원이 그룹 수로 나누어떨어지지 않으면 앞쪽 그룹이 한 명 더 받는다.
+     * 인원이 나누어떨어지지 않으면 몫만큼 채우고 나머지는 전부 마지막 그룹이 받는다(예: 7명 3그룹 → 2·2·3).
      */
     @Transactional
     public List<GroupDetailResponse> shuffle(AuthUser authUser, Long classId, GroupShuffleRequest request) {
         requireMasterOrOwnClassManager(authUser, classId);
 
-        List<Group> targets = groupRepository.findAllById(request.groupIds());
-        if (targets.size() != new HashSet<>(request.groupIds()).size()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 그룹이 포함되어 있습니다.");
-        }
-        boolean allInClass = targets.stream().allMatch(group -> classId.equals(group.getClassId()));
-        if (!allInClass) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "다른 반의 그룹은 함께 배정할 수 없습니다.");
-        }
-
-        List<User> members = new ArrayList<>(classUserRepository.findAllWithUserByClassEntityId(classId).stream()
+        List<User> students = new ArrayList<>(classUserRepository
+                .findAllWithUserByClassEntityIdAndRole(classId, UserRole.STUDENT).stream()
                 .map(ClassUser::getUser)
                 .toList());
-        if (members.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "반에 배정할 인원이 없습니다.");
+        if (students.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "반에 배정할 학생이 없습니다.");
         }
-        Collections.shuffle(members);
+        if (request.groupCount() > students.size()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "그룹 수가 학생 수보다 많습니다.");
+        }
 
-        request.groupIds().forEach(groupParticipantRepository::deleteByGroupId);
-        // 아래 saveAll 이 같은 (group_id, user_id) 로 들어갈 수 있어 삭제를 먼저 DB 에 반영한다.
+        // 이미 배정된 인원이 있으면 덮어쓰기 전에 멈춘다. 프론트가 경고를 띄우고 confirmed=true 로 재호출한다.
+        List<GroupParticipant> existing = groupParticipantRepository.findAllWithGroupAndUserByClassId(classId);
+        if (!existing.isEmpty() && !request.isConfirmed()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 그룹에 배정된 인원이 있습니다.");
+        }
+
+        LocalDateTime startedAt = request.startedAt();
+        LocalDateTime endedAt = request.endedAt();
+        if (startedAt == null || endedAt == null) {
+            ClassEntity classEntity = classRepository
+                    .findById(classId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "클래스를 찾을 수 없습니다."));
+            startedAt = startedAt != null ? startedAt : classEntity.getStartedAt();
+            endedAt = endedAt != null ? endedAt : classEntity.getEndedAt();
+        }
+        if (startedAt == null || endedAt == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "새 그룹의 운영 기간을 지정해 주세요. 반의 운영 기간도 비어 있습니다.");
+        }
+
+        // 기존 배정만 비우고 그룹 자체는 남긴다. 빈 그룹 정리는 매니저가 화면에서 따로 한다.
+        existing.stream()
+                .map(participant -> participant.getGroup().getId())
+                .distinct()
+                .forEach(groupParticipantRepository::deleteByGroupId);
         groupParticipantRepository.flush();
 
+        List<Group> created = new ArrayList<>();
+        for (int index = 0; index < request.groupCount(); index++) {
+            created.add(Group.builder()
+                    .classId(classId)
+                    .name(generateGroupName(index))
+                    .description("랜덤 배정으로 생성된 그룹")
+                    .startedAt(startedAt)
+                    .endedAt(endedAt)
+                    .build());
+        }
+        groupRepository.saveAll(created);
+
+        Collections.shuffle(students);
+
+        int quota = students.size() / created.size();
         List<GroupParticipant> assignments = new ArrayList<>();
-        for (int index = 0; index < members.size(); index++) {
-            Group target = targets.get(index % targets.size());
-            boolean firstOfGroup = index < targets.size();
-            GroupParticipantRole role = request.shouldAssignLeader() && firstOfGroup
-                    ? GroupParticipantRole.LEADER
-                    : GroupParticipantRole.PARTICIPANT;
-            assignments.add(new GroupParticipant(target, members.get(index), role));
+        int cursor = 0;
+        for (int index = 0; index < created.size(); index++) {
+            boolean lastGroup = index == created.size() - 1;
+            int headcount = lastGroup ? students.size() - cursor : quota;
+            for (int offset = 0; offset < headcount; offset++) {
+                GroupParticipantRole role = request.shouldAssignLeader() && offset == 0
+                        ? GroupParticipantRole.LEADER
+                        : GroupParticipantRole.PARTICIPANT;
+                assignments.add(new GroupParticipant(created.get(index), students.get(cursor + offset), role));
+            }
+            cursor += headcount;
         }
         groupParticipantRepository.saveAll(assignments);
 
         Map<Long, List<GroupParticipant>> byGroupId = assignments.stream()
                 .collect(Collectors.groupingBy(participant -> participant.getGroup().getId()));
-        return targets.stream()
+        return created.stream()
                 .map(group -> GroupDetailResponse.of(group, byGroupId.getOrDefault(group.getId(), List.of())))
                 .toList();
     }
 
-    /* 최종 명단으로 구성원을 교체한다. 반 명단에 없는 사람은 그룹에 넣을 수 없다. */
+    /* 화면 표기(그룹 A·B·C)에 맞춰 알파벳으로 짓고, 26개를 넘으면 숫자로 잇는다. */
+    private String generateGroupName(int index) {
+        if (index < 26) {
+            return "그룹 " + (char) ('A' + index);
+        }
+        return "그룹 " + (index + 1);
+    }
+
+    /* 최종 명단으로 구성원을 교체한다. 그룹에 넣을 수 있는 대상은 반의 학생뿐이다. */
     private void replaceMembers(Group group, List<Long> memberIds, Long leaderId) {
         Set<Long> distinctIds = new HashSet<>(memberIds);
         if (leaderId != null && !distinctIds.contains(leaderId)) {
@@ -256,7 +302,7 @@ public class GroupService {
         }
 
         Map<Long, User> classMembers = classUserRepository
-                .findAllWithUserByClassEntityId(group.getClassId()).stream()
+                .findAllWithUserByClassEntityIdAndRole(group.getClassId(), UserRole.STUDENT).stream()
                 .map(ClassUser::getUser)
                 .collect(Collectors.toMap(User::getId, Function.identity(), (left, right) -> left));
 
@@ -264,7 +310,7 @@ public class GroupService {
         for (Long memberId : distinctIds) {
             User user = classMembers.get(memberId);
             if (user == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "반 명단에 없는 사용자는 배정할 수 없습니다.");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "반의 학생만 그룹에 배정할 수 있습니다.");
             }
             GroupParticipantRole role = memberId.equals(leaderId)
                     ? GroupParticipantRole.LEADER
