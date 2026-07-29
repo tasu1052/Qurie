@@ -77,4 +77,24 @@ public class Group {
         this.startedAt = startedAt;
         this.endedAt = endedAt;
     }
+
+    public void rename(String name) {
+        this.name = name;
+    }
+
+    public void changeDescription(String description) {
+        this.description = description;
+    }
+
+    /* 시작·종료는 앞뒤가 맞아야 하므로 반드시 함께 바꾼다. */
+    public void changePeriod(LocalDateTime startedAt, LocalDateTime endedAt) {
+        if (startedAt == null || endedAt == null) {
+            throw new IllegalArgumentException("운영 기간은 비워둘 수 없습니다.");
+        }
+        if (endedAt.isBefore(startedAt)) {
+            throw new IllegalArgumentException("종료일이 시작일보다 앞설 수 없습니다.");
+        }
+        this.startedAt = startedAt;
+        this.endedAt = endedAt;
+    }
 }

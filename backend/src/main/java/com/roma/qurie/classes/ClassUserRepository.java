@@ -24,4 +24,8 @@ public interface ClassUserRepository extends JpaRepository<ClassUser, Long> {
 
 	/** 클래스 삭제 시 명단을 함께 정리한다. 명단은 클래스에 종속된 데이터라 남겨둘 이유가 없다. */
 	void deleteByClassEntityId(Long classId);
+
+	/** 반 명단 전체. 그룹 편집 화면의 후보 목록과 랜덤 배정 대상이 된다. */
+	@Query("select cu from ClassUser cu join fetch cu.user where cu.classEntity.id = :classId")
+	List<ClassUser> findAllWithUserByClassEntityId(@Param("classId") Long classId);
 }
