@@ -100,7 +100,10 @@ public class GroupController {
         return ResponseEntity.created(URI.create("/api/groups/" + response.id())).body(response);
     }
 
-    /** 랜덤 배정(셔플) — 반 인원을 대상 그룹들에 무작위로 나눠 담는다 (MASTER, 담당 MANAGER) */
+    /**
+     * 랜덤 배정(셔플) — 그룹 수만큼 그룹을 새로 만들어 반의 학생을 무작위로 나눠 담는다 (MASTER, 담당 MANAGER).
+     * 이미 배정된 인원이 있으면 409 를 돌려주며, 프론트가 경고 후 confirmed=true 로 재호출한다.
+     */
     @PostMapping("/shuffle")
     public List<GroupDetailResponse> shuffle(@AuthenticationPrincipal AuthUser authUser,
             @RequestParam("classId") Long classId, @Valid @RequestBody GroupShuffleRequest request) {
