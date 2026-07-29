@@ -2,8 +2,10 @@ import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-q
 import { queryKeys } from '../core/queryKeys';
 import {
     getUserProfile,
+    getUsers,
     signUp,
     updateUserProfile,
+    type UserListParams,
     type UserProfileUpdateRequest,
     type UserSignUpRequest,
 } from './user-apis';
@@ -11,6 +13,13 @@ import {
 export const useSignUp = () => {
     return useMutation({
         mutationFn: (body: UserSignUpRequest) => signUp(body),
+    });
+};
+
+export const useGetUsers = (filters: UserListParams = {}) => {
+    return useSuspenseQuery({
+        queryKey: queryKeys.users.list(filters),
+        queryFn: () => getUsers(filters),
     });
 };
 
@@ -25,9 +34,11 @@ export const useUpdateUserProfile = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ userId, ...body }: UserProfileUpdateRequest & { userId: number }) => updateUserProfile(userId, body),
+        mutationFn: ({ userId, ...body }: UserProfileUpdateRequest & { userId: number }) =>
+            updateUserProfile(userId, body),
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(data.userId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
             queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
         },
     });
