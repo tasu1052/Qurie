@@ -6,6 +6,8 @@ set -euo pipefail
 
 DEPLOY_DIR="${DEPLOY_DIR:-/home/ubuntu/S15P11A604}"
 BRANCH="${BRANCH:-master}"
+# 기본값은 호스트에서 수동 실행하는 경우다. CI(Jenkins 컨테이너)에서는 컨테이너의 127.0.0.1 이
+# 호스트가 아니므로 Jenkinsfile 이 공개 URL 로 덮어쓴다.
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8080/api/auth/me}"
 HEALTH_RETRY="${HEALTH_RETRY:-45}"
 
@@ -16,6 +18,10 @@ if [ ! -f .env ]; then
 	echo "[deploy] .env 가 없다: $DEPLOY_DIR/.env" >&2
 	exit 1
 fi
+
+# CI 에서는 root 가, 수동 실행에서는 ubuntu 가 이 저장소를 만진다. 소유자가 다르면 git 이
+# dubious ownership 으로 거부하므로 예외를 등록해 둔다.
+git config --global --replace-all safe.directory "$DEPLOY_DIR" || true
 
 echo "[deploy] origin/$BRANCH 최신 코드로 맞춘다"
 git fetch --prune origin "$BRANCH"
