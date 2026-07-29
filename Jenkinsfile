@@ -9,7 +9,10 @@ pipeline {
 
 	environment {
 		DEPLOY_DIR = '/home/ubuntu/S15P11A604'
-		HEALTH_URL = 'http://127.0.0.1:8080/api/auth/me'
+		// 이 스텝은 Jenkins 컨테이너 안에서 돈다. 컨테이너의 127.0.0.1 은 호스트가 아니고,
+		// 백엔드는 호스트 루프백에만 바인딩되어 있어 브리지 주소로도 닿지 않는다.
+		// 공개 URL 로 확인하면 nginx 까지 포함한 실제 사용자 경로를 검증하게 된다.
+		HEALTH_URL = 'https://i15a604.p.ssafy.io/api/auth/me'
 		// 볼륨 안에 두어 빌드마다 의존성을 다시 받지 않게 한다.
 		GRADLE_USER_HOME = '/var/jenkins_home/.gradle'
 	}
@@ -25,6 +28,10 @@ pipeline {
 		stage('Checkout') {
 			steps {
 				sh '''
+					# Jenkins 는 root 로 돌고 배포 디렉터리는 ubuntu 소유다. git 이 소유자 불일치를
+					# dubious ownership 으로 거부하므로 예외를 등록한다(--replace-all 로 중복 누적 방지).
+					git config --global --replace-all safe.directory "$DEPLOY_DIR"
+
 					cd "$DEPLOY_DIR"
 					git fetch --prune origin master
 					git checkout master
