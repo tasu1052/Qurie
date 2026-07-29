@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plus, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import {
   Badge,
@@ -51,6 +52,8 @@ function SessionTable({
   page,
   onPage,
   onEmptyCreate,
+  onEnter,
+  onReport,
 }: {
   classId: number;
   statusFilter: string;
@@ -58,6 +61,8 @@ function SessionTable({
   page: number;
   onPage: (p: number) => void;
   onEmptyCreate: () => void;
+  onEnter: (sessionId: number) => void;
+  onReport: (sessionId: number) => void;
 }) {
   const { data: sessions } = useGetSessions(classId);
 
@@ -136,7 +141,14 @@ function SessionTable({
                 <Badge status={status === '예정' ? 'warning' : 'neutral'}>{status}</Badge>
               )}
               <span style={{ textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                <Button variant="secondary" size="sm" onClick={() => undefined}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    if (status === '종료') onReport(s.id);
+                    else if (status === 'LIVE' || status === '예정') onEnter(s.id);
+                  }}
+                >
                   {status === '종료' ? '리포트' : status === 'LIVE' ? '입장' : '편집'}
                 </Button>
               </span>
@@ -156,6 +168,7 @@ function SessionTable({
 }
 
 export default function SessionListPage() {
+  const navigate = useNavigate();
   const { data: me } = useMe();
   const classId = me.classId;
   const hasValidClassId = typeof classId === 'number' && Number.isFinite(classId) && classId > 0;
@@ -261,6 +274,8 @@ export default function SessionListPage() {
               page={page}
               onPage={setPage}
               onEmptyCreate={() => setCreateOpen(true)}
+              onEnter={(sessionId) => navigate(`/session/${sessionId}`)}
+              onReport={(sessionId) => navigate(`/session/${sessionId}/report`)}
             />
           </QueryAsyncBoundary>
         )}
