@@ -12,6 +12,10 @@ COPY gradlew settings.gradle build.gradle ./
 COPY gradle gradle
 COPY src src
 
+# 윈도우에서 커밋하면 실행 비트가 git 에 기록되지 않아 리눅스에서 clone 하면 Permission denied 가 난다.
+# 인덱스 모드를 755 로 고쳐 두었지만, 팀원이 다시 644 로 올려도 빌드가 깨지지 않게 여기서 한 번 더 세운다.
+RUN chmod +x gradlew
+
 # 테스트는 CI 에서 따로 돌린다. 이미지 빌드에서 재실행하면 DB 없는 환경에서 불필요하게 느려진다.
 RUN --mount=type=cache,target=/root/.gradle \
     ./gradlew --no-daemon clean bootJar -x test
