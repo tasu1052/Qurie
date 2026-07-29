@@ -105,7 +105,8 @@ public class GroupService {
     public GroupDetailResponse getGroupDetail(AuthUser authUser, Long groupId) {
         Group group = findGroup(groupId);
         verifyClassAccessible(authUser, group.getClassId());
-        return GroupDetailResponse.of(group, groupParticipantRepository.findAllWithUserByGroupId(groupId));
+        return GroupDetailResponse.of(
+                group, groupParticipantRepository.findAllWithUserByGroupIdAndRole(groupId, UserRole.STUDENT));
     }
 
     /**
@@ -165,7 +166,8 @@ public class GroupService {
             changeLeader(groupId, request.leaderId());
         }
 
-        return GroupDetailResponse.of(group, groupParticipantRepository.findAllWithUserByGroupId(groupId));
+        return GroupDetailResponse.of(
+                group, groupParticipantRepository.findAllWithUserByGroupIdAndRole(groupId, UserRole.STUDENT));
     }
 
     /**
@@ -191,14 +193,16 @@ public class GroupService {
         Group saved = groupRepository.save(copy);
 
         if (request.shouldIncludeMembers()) {
-            List<GroupParticipant> copies = groupParticipantRepository.findAllWithUserByGroupId(groupId).stream()
+            List<GroupParticipant> copies = groupParticipantRepository
+                    .findAllWithUserByGroupIdAndRole(groupId, UserRole.STUDENT).stream()
                     .map(participant ->
                             new GroupParticipant(saved, participant.getUser(), participant.getRole()))
                     .toList();
             groupParticipantRepository.saveAll(copies);
         }
 
-        return GroupDetailResponse.of(saved, groupParticipantRepository.findAllWithUserByGroupId(saved.getId()));
+        return GroupDetailResponse.of(
+                saved, groupParticipantRepository.findAllWithUserByGroupIdAndRole(saved.getId(), UserRole.STUDENT));
     }
 
     /**
@@ -326,7 +330,8 @@ public class GroupService {
 
     /* 구성원은 그대로 두고 리더만 옮긴다. */
     private void changeLeader(Long groupId, Long leaderId) {
-        List<GroupParticipant> participants = groupParticipantRepository.findAllWithUserByGroupId(groupId);
+        List<GroupParticipant> participants = groupParticipantRepository
+                .findAllWithUserByGroupIdAndRole(groupId, UserRole.STUDENT);
         boolean isMember = participants.stream()
                 .anyMatch(participant -> participant.getUser().getId().equals(leaderId));
         if (!isMember) {
