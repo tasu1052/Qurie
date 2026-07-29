@@ -12,6 +12,7 @@ export interface AuthUserResponse {
     email: string;
     role: UserRole;
     enterpriseId: number;
+    classId: number | null;
 }
 
 export const login = async (body: LoginRequest): Promise<AuthUserResponse> => {

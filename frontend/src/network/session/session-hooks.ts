@@ -1,13 +1,14 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { queryKeys } from '../core/queryKeys';
 import {
-  createSession,
-  deleteSession,
-  getSession,
-  getSessions,
-  updateSession,
-  type SessionCreateRequest,
-  type SessionUpdateRequest,
+    createSession,
+    deleteSession,
+    getSession,
+    getSessionParticipants,
+    getSessions,
+    updateSession,
+    type SessionCreateRequest,
+    type SessionUpdateRequest,
 } from './session-apis';
 
 export const useCreateSession = () => {
@@ -16,8 +17,8 @@ export const useCreateSession = () => {
     return useMutation({
         mutationFn: (body: SessionCreateRequest) => createSession(body),
         onSuccess: (data) => {
-        queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
-        queryClient.invalidateQueries({ queryKey: queryKeys.sessions.list(data.classId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessions.list(data.classId) });
         },
     });
 };
@@ -29,10 +30,17 @@ export const useGetSessions = (classId: number) => {
     });
 };
 
-export const useGetSession = (id: number) => {
+export const useGetSession = (sessionId: number) => {
     return useSuspenseQuery({
-        queryKey: queryKeys.sessions.detail(id),
-        queryFn: () => getSession(id),
+        queryKey: queryKeys.sessions.detail(sessionId),
+        queryFn: () => getSession(sessionId),
+    });
+};
+
+export const useGetSessionParticipants = (sessionId: number) => {
+    return useSuspenseQuery({
+        queryKey: queryKeys.sessions.participants(sessionId),
+        queryFn: () => getSessionParticipants(sessionId),
     });
 };
 
@@ -41,10 +49,10 @@ export const useUpdateSession = () => {
 
     return useMutation({
         mutationFn: ({ id, ...body }: SessionUpdateRequest & { id: number }) =>
-        updateSession(id, body),
+            updateSession(id, body),
         onSuccess: (data) => {
-        queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(data.id) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.sessions.list(data.classId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(data.id) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessions.list(data.classId) });
         },
     });
 };
@@ -55,8 +63,8 @@ export const useDeleteSession = () => {
     return useMutation({
         mutationFn: ({ id }: { id: number; classId: number }) => deleteSession(id),
         onSuccess: (_, { id, classId }) => {
-        queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(id) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.sessions.list(classId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(id) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessions.list(classId) });
         },
     });
 };
