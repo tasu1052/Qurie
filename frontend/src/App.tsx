@@ -21,6 +21,7 @@ import StudentManagementPage from './pages/manager/StudentManagementPage';
 import StudentOverviewPage from './pages/manager/StudentOverviewPage';
 import SessionListPage from './pages/manager/SessionListPage';
 import GroupListPage from './pages/manager/GroupListPage';
+import GroupEditPage from './pages/manager/GroupEditPage';
 import StudentDashboardPage from './pages/student/StudentDashboardPage';
 import ClassLobbyPage from './pages/student/ClassLobbyPage';
 import MyPage from './pages/student/MyPage';
@@ -76,6 +77,7 @@ export default function App() {
           <Route path="/manager/students/:id" element={<StudentOverviewPage />} />
           <Route path="/manager/sessions" element={<SessionListPage />} />
           <Route path="/manager/groups" element={<GroupListPage />} />
+          <Route path="/manager/groups/:id" element={<GroupEditPage />} />
           <Route path="/manager/settings" element={<PlaceholderPage title="설정" />} />
 
           <Route path="/app" element={<StudentDashboardPage />} />

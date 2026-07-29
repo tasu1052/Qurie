@@ -79,7 +79,7 @@ export default function AdminLoginPage() {
             <Input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value as typeof ADMIN_SAMPLE.email)}
               placeholder="admin@qurie.app"
               icon={<Mail size={15} strokeWidth={1.75} />}
               width="100%"

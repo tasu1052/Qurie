@@ -102,13 +102,25 @@ export {
   useCreateGroup,
   useGetGroups,
   useGetGroup,
+  useGetGroupDetail,
+  useGetGroupCandidates,
   useUpdateGroup,
+  useEditGroup,
+  useDuplicateGroup,
+  useShuffleGroups,
   useDeleteGroup,
 } from '../network/group';
 export type {
   GroupCreateRequest,
   GroupUpdateRequest,
   GroupResponse,
+  GroupDetailResponse,
+  GroupMemberResponse,
+  GroupMemberCandidateResponse,
+  GroupEditRequest,
+  GroupDuplicateRequest,
+  GroupShuffleRequest,
+  GroupParticipantRole,
 } from '../network/group';
 
 /** Teammate boundary — UI supplies fallbacks only. */
