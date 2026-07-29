@@ -9,6 +9,9 @@ public interface ClassRepository extends JpaRepository<ClassEntity, Long> {
 
     boolean existsByTrackIdAndClassNumber(Long trackId, int classNumber);
 
+    /* 트랙 삭제 시 하위 클래스가 남아 있으면 막기 위한 검사 */
+    boolean existsByTrackId(Long trackId);
+
     /*
      * 진행 중인 클래스 수. 운영 기간이 정해지지 않은(started_at 이 null 인) 클래스는 아직 시작한 것으로
      * 볼 수 없어 세지 않고, 종료일이 없는 클래스는 계속 진행 중으로 본다.

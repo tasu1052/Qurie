@@ -1,5 +1,6 @@
 package com.roma.qurie.track;
 
+import com.roma.qurie.classes.ClassRepository;
 import com.roma.qurie.common.dto.PageResponse;
 import com.roma.qurie.enterprise.Enterprise;
 import com.roma.qurie.enterprise.EnterpriseRepository;
@@ -7,6 +8,7 @@ import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.track.dto.TrackCreateRequest;
 import com.roma.qurie.track.dto.TrackResponse;
 import com.roma.qurie.track.dto.TrackSummaryResponse;
+import com.roma.qurie.track.dto.TrackUpdateRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,6 +28,7 @@ public class TrackService {
 
     private final TrackRepository trackRepository;
     private final EnterpriseRepository enterpriseRepository;
+    private final ClassRepository classRepository;
 
     /* 트랙을 생성하는 함수 */
     @Transactional
@@ -57,6 +60,56 @@ public class TrackService {
                         authUser.enterpriseId(), blankToNull(tech), blankToNull(keyword), toPageRequest(pageable));
 
         return PageResponse.from(summaries);
+    }
+
+    /* 트랙 단건을 조회하는 함수 */
+    @Transactional(readOnly = true)
+    public TrackResponse getTrack(AuthUser authUser, Long trackId) {
+        requireMasterOrManager(authUser);
+        return TrackResponse.from(findTrackInEnterprise(authUser, trackId));
+    }
+
+    /* 트랙을 수정하는 함수. PUT(전체 교체) 계약이다. */
+    @Transactional
+    public TrackResponse update(AuthUser authUser, Long trackId, TrackUpdateRequest request) {
+        requireMaster(authUser);
+        Track track = findTrackInEnterprise(authUser, trackId);
+
+        if (trackRepository.existsByEnterpriseIdAndNameAndIdNot(authUser.enterpriseId(), request.name(), trackId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "같은 이름의 트랙이 이미 있습니다.");
+        }
+
+        track.update(request.name(), request.description(), request.tech());
+        return TrackResponse.from(track);
+    }
+
+    /**
+     * 트랙을 삭제하는 함수. 하위 클래스가 남아 있으면 세션·명단까지 연쇄로 사라지므로 삭제를 막는다 —
+     * 클래스를 먼저 정리해야 트랙을 지울 수 있다.
+     *
+     * todo: API 설계안의 ?cascade=true 강제 삭제와 deleted_at soft delete 는 팀 결정 후 별도 작업.
+     */
+    @Transactional
+    public void delete(AuthUser authUser, Long trackId) {
+        requireMaster(authUser);
+        Track track = findTrackInEnterprise(authUser, trackId);
+
+        if (classRepository.existsByTrackId(trackId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "하위 클래스가 있어 삭제할 수 없습니다. 클래스를 먼저 정리해 주세요.");
+        }
+
+        trackRepository.delete(track);
+    }
+
+    /* 다른 기업의 트랙은 존재 여부도 숨기기 위해 403이 아니라 404로 응답한다. */
+    private Track findTrackInEnterprise(AuthUser authUser, Long trackId) {
+        Track track = trackRepository
+                .findById(trackId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "트랙을 찾을 수 없습니다."));
+        if (!track.getEnterprise().getId().equals(authUser.enterpriseId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "트랙을 찾을 수 없습니다.");
+        }
+        return track;
     }
 
     /*

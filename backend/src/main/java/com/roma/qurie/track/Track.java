@@ -57,4 +57,11 @@ public class Track extends BaseTimeEntity {
         this.description = description;
         this.tech = tech;
     }
+
+    /* PUT(전체 교체) 계약이라 세 필드를 한 번에 바꾼다. */
+    public void update(String name, String description, String tech) {
+        this.name = name;
+        this.description = description;
+        this.tech = tech;
+    }
 }
