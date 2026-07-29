@@ -53,7 +53,17 @@ export function ManagerShell({ activeKey, breadcrumbs, children }: AppShellProps
         onSelect={(key) => {
           const item = managerNav.find((n) => n.key === key);
           if (!item) return;
-          navigate({ pathname: item.path, search: location.search });
+          const currentClassId = new URLSearchParams(location.search).get('classId');
+          const rememberedClassId = localStorage.getItem('qurie.lastClassId');
+          const nextSearch =
+            key === 'sessions'
+              ? currentClassId
+                ? location.search
+                : rememberedClassId
+                  ? `?classId=${encodeURIComponent(rememberedClassId)}`
+                  : ''
+              : location.search;
+          navigate({ pathname: item.path, search: nextSearch });
         }}
         footer={
           <div
