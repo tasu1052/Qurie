@@ -13,6 +13,7 @@ import {
   RowSection,
   Skeleton,
   Spinner,
+  AlertBanner,
 } from '../../ds';
 import {
   QueryAsyncBoundary,
@@ -262,7 +263,8 @@ function GroupEditForm({
       x: e.clientX,
       y: e.clientY,
     });
-    setDropTarget(hitTestPanels(e.clientX, e.clientY));
+    // dropTarget는 move/up에서만 panel ref hit-test
+    setDropTarget(null);
   };
 
   const onDragMove = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -405,20 +407,7 @@ function GroupEditForm({
             ) : null}
 
             {saveError ? (
-              <div
-                role="alert"
-                style={{
-                  padding: '12px 14px',
-                  borderRadius: 12,
-                  border: '1px solid var(--status-error-border, #fecaca)',
-                  background: 'var(--status-error-soft, #fef2f2)',
-                  color: 'var(--status-error)',
-                  fontSize: 13,
-                  lineHeight: 1.5,
-                }}
-              >
-                {saveError}
-              </div>
+              <AlertBanner tone="error" title="저장 실패" description={saveError} />
             ) : null}
 
             <div
