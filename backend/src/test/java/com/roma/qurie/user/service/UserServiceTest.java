@@ -94,7 +94,7 @@ class UserServiceTest {
 		verify(classUserRepository).save(classUserCaptor.capture());
 		ClassUser membership = classUserCaptor.getValue();
 		assertThat(membership.getClassEntity().getId()).isEqualTo(CLASS_ID);
-		assertThat(membership.getUserId()).isEqualTo(USER_ID);
+		assertThat(membership.getUser().getId()).isEqualTo(USER_ID);
 
 		assertThat(response.email()).isEqualTo(EMAIL);
 		assertThat(response.role()).isEqualTo(UserRole.MANAGER);
