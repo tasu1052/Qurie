@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Plus, Search } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import {
   Badge,
@@ -52,6 +52,8 @@ function SessionTable({
   page,
   onPage,
   onEmptyCreate,
+  onEnter,
+  onReport,
 }: {
   classId: number;
   statusFilter: string;
@@ -59,6 +61,8 @@ function SessionTable({
   page: number;
   onPage: (p: number) => void;
   onEmptyCreate: () => void;
+  onEnter: (sessionId: number) => void;
+  onReport: (sessionId: number) => void;
 }) {
   const { data: sessions } = useGetSessions(classId);
 
@@ -137,7 +141,14 @@ function SessionTable({
                 <Badge status={status === '예정' ? 'warning' : 'neutral'}>{status}</Badge>
               )}
               <span style={{ textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                <Button variant="secondary" size="sm" onClick={() => undefined}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    if (status === '종료') onReport(s.id);
+                    else if (status === 'LIVE' || status === '예정') onEnter(s.id);
+                  }}
+                >
                   {status === '종료' ? '리포트' : status === 'LIVE' ? '입장' : '편집'}
                 </Button>
               </span>
@@ -157,11 +168,10 @@ function SessionTable({
 }
 
 export default function SessionListPage() {
-  const [params] = useSearchParams();
-  const classIdParam = params.get('classId');
-  const classId = classIdParam ? Number(classIdParam) : NaN;
-  const hasValidClassId = Number.isFinite(classId) && classId > 0;
+  const navigate = useNavigate();
   const { data: me } = useMe();
+  const classId = me.classId;
+  const hasValidClassId = typeof classId === 'number' && Number.isFinite(classId) && classId > 0;
   const createSession = useCreateSession();
   const [status, setStatus] = useState('전체');
   const [query, setQuery] = useState('');
@@ -172,17 +182,11 @@ export default function SessionListPage() {
 
   const chips = ['전체', '진행', '예정', '종료'];
 
-  useEffect(() => {
-    if (hasValidClassId) {
-      localStorage.setItem('qurie.lastClassId', String(classId));
-    }
-  }, [classId, hasValidClassId]);
-
   const onCreate = () => {
     if (!hasValidClassId) return;
     if (!title.trim()) return;
     createSession.mutate(
-      { classId, title: title.trim(), createdBy: me.id },
+      { classId, title: title.trim() },
       {
         onSuccess: () => {
           setCreateOpen(false);
@@ -248,8 +252,8 @@ export default function SessionListPage() {
 
         {!hasValidClassId ? (
           <EmptyState
-            message="classId 쿼리스트링이 없습니다"
-            description="예: /manager/sessions?classId=12"
+            message="소속 클래스가 없습니다"
+            description="반 배정 후 다시 로그인하면 세션을 볼 수 있습니다."
           />
         ) : (
           <QueryAsyncBoundary
@@ -270,6 +274,8 @@ export default function SessionListPage() {
               page={page}
               onPage={setPage}
               onEmptyCreate={() => setCreateOpen(true)}
+              onEnter={(sessionId) => navigate(`/session/${sessionId}`)}
+              onReport={(sessionId) => navigate(`/session/${sessionId}/report`)}
             />
           </QueryAsyncBoundary>
         )}

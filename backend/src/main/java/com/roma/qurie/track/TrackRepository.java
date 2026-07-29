@@ -11,6 +11,9 @@ public interface TrackRepository extends JpaRepository<Track, Long> {
 
     boolean existsByEnterpriseIdAndName(Long enterpriseId, String name);
 
+    /* 이름 수정 시 자기 자신은 중복으로 치지 않기 위한 검사 */
+    boolean existsByEnterpriseIdAndNameAndIdNot(Long enterpriseId, String name, Long id);
+
     long countByEnterpriseId(Long enterpriseId);
 
     /*

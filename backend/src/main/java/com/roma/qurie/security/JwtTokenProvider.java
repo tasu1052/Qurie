@@ -39,6 +39,7 @@ public class JwtTokenProvider {
                 .claim("enterpriseId", authUser.enterpriseId())
                 .claim("email", authUser.email())
                 .claim("name", authUser.name())
+                .claim("classId", authUser.classId())
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
@@ -48,13 +49,15 @@ public class JwtTokenProvider {
     public Optional<AuthUser> parse(String token) {
         try {
             Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+            // classId 클레임이 없던 기존 토큰도 파싱되어야 하므로 null 을 허용한다 (마스터·반 미배정 사용자도 null).
             AuthUser authUser =
                     new AuthUser(
                             Long.valueOf(claims.getSubject()),
                             claims.get("role", String.class),
                             claims.get("enterpriseId", Long.class),
                             claims.get("email", String.class),
-                            claims.get("name", String.class));
+                            claims.get("name", String.class),
+                            claims.get("classId", Long.class));
             return Optional.of(authUser);
         } catch (JwtException | IllegalArgumentException e) {
             return Optional.empty();

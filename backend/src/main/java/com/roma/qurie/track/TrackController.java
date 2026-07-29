@@ -5,6 +5,7 @@ import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.track.dto.TrackCreateRequest;
 import com.roma.qurie.track.dto.TrackResponse;
 import com.roma.qurie.track.dto.TrackSummaryResponse;
+import com.roma.qurie.track.dto.TrackUpdateRequest;
 import jakarta.validation.Valid;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
@@ -12,8 +13,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -48,5 +52,26 @@ public class TrackController {
             @RequestParam(name = "tech", required = false) String tech,
             @PageableDefault(size = 20) Pageable pageable) {
         return trackService.getTrackSummaries(authUser, keyword, tech, pageable);
+    }
+
+    /** 트랙 상세 조회 (MASTER, MANAGER) */
+    @GetMapping("/{trackId}")
+    public TrackResponse get(@AuthenticationPrincipal AuthUser authUser, @PathVariable("trackId") Long trackId) {
+        return trackService.getTrack(authUser, trackId);
+    }
+
+    /** 트랙 수정 (MASTER) — PUT 전체 교체 */
+    @PutMapping("/{trackId}")
+    public TrackResponse update(@AuthenticationPrincipal AuthUser authUser, @PathVariable("trackId") Long trackId,
+            @Valid @RequestBody TrackUpdateRequest request) {
+        return trackService.update(authUser, trackId, request);
+    }
+
+    /** 트랙 삭제 (MASTER). 하위 클래스가 있으면 409 */
+    @DeleteMapping("/{trackId}")
+    public ResponseEntity<Void> delete(
+            @AuthenticationPrincipal AuthUser authUser, @PathVariable("trackId") Long trackId) {
+        trackService.delete(authUser, trackId);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -1,9 +1,13 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthGate } from './components/auth/AuthGate';
+import { AdminGate } from './components/auth/AdminGate';
 import LandingPage from './pages/marketing/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
 import ResetPage from './pages/auth/ResetPage';
+import AdminLoginPage from './pages/admin/AdminLoginPage';
+import AdminBootcampListPage from './pages/admin/AdminBootcampListPage';
+import AdminBootcampDetailPage from './pages/admin/AdminBootcampDetailPage';
 import MasterDashboardPage from './pages/master/MasterDashboardPage';
 import TrackListPage from './pages/master/TrackListPage';
 import TrackDetailPage from './pages/master/TrackDetailPage';
@@ -17,9 +21,11 @@ import StudentManagementPage from './pages/manager/StudentManagementPage';
 import StudentOverviewPage from './pages/manager/StudentOverviewPage';
 import SessionListPage from './pages/manager/SessionListPage';
 import GroupListPage from './pages/manager/GroupListPage';
+import GroupEditPage from './pages/manager/GroupEditPage';
 import StudentDashboardPage from './pages/student/StudentDashboardPage';
 import ClassLobbyPage from './pages/student/ClassLobbyPage';
 import MyPage from './pages/student/MyPage';
+import SessionPage from './pages/session/SessionPage';
 import FinalReportPage from './pages/student/FinalReportPage';
 
 function PlaceholderPage({ title }: { title: string }) {
@@ -49,6 +55,12 @@ export default function App() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/reset" element={<ResetPage />} />
 
+        <Route path="/admin/login" element={<AdminLoginPage />} />
+        <Route element={<AdminGate />}>
+          <Route path="/admin" element={<AdminBootcampListPage />} />
+          <Route path="/admin/bootcamps/:id" element={<AdminBootcampDetailPage />} />
+        </Route>
+
         <Route element={<AuthGate />}>
           <Route path="/master" element={<MasterDashboardPage />} />
           <Route path="/master/tracks" element={<TrackListPage />} />
@@ -65,12 +77,16 @@ export default function App() {
           <Route path="/manager/students/:id" element={<StudentOverviewPage />} />
           <Route path="/manager/sessions" element={<SessionListPage />} />
           <Route path="/manager/groups" element={<GroupListPage />} />
+          <Route path="/manager/groups/:id" element={<GroupEditPage />} />
           <Route path="/manager/settings" element={<PlaceholderPage title="설정" />} />
 
           <Route path="/app" element={<StudentDashboardPage />} />
           <Route path="/app/classes/:id" element={<ClassLobbyPage />} />
           <Route path="/app/me" element={<MyPage />} />
           <Route path="/app/report" element={<FinalReportPage />} />
+
+          <Route path="/session/:id" element={<SessionPage />} />
+          <Route path="/session/:id/report" element={<PlaceholderPage title="세션 리포트" />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

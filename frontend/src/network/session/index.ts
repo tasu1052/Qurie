@@ -2,8 +2,9 @@ export * from './session-apis';
 
 export {
     useCreateSession,
-    useGetSessions,
-    useGetSession,
-    useUpdateSession,
     useDeleteSession,
+    useGetSession,
+    useGetSessionParticipants,
+    useGetSessions,
+    useUpdateSession,
 } from './session-hooks';

@@ -175,7 +175,7 @@ class InvitationServiceTest {
 		givenClassExists();
 		given(userRepository.existsByEmail(INVITEE_EMAIL)).willReturn(false);
 		given(tokenProvider.generateToken()).willReturn(RAW_TOKEN);
-		AuthUser student = new AuthUser(300L, UserRole.STUDENT.name(), ENTERPRISE_ID, "s@qurie.com", "학생");
+		AuthUser student = new AuthUser(300L, UserRole.STUDENT.name(), ENTERPRISE_ID, "s@qurie.com", "학생", null);
 
 		assertThatThrownBy(() -> invitationService.create(student, request(UserRole.STUDENT)))
 				.isInstanceOf(ResponseStatusException.class)
@@ -276,11 +276,11 @@ class InvitationServiceTest {
 	}
 
 	private AuthUser master(Long enterpriseId) {
-		return new AuthUser(MASTER_ID, "MASTER", enterpriseId, "master@qurie.com", "마스터");
+		return new AuthUser(MASTER_ID, "MASTER", enterpriseId, "master@qurie.com", "마스터", null);
 	}
 
 	private AuthUser manager() {
 		return new AuthUser(
-				MANAGER_ID, UserRole.MANAGER.name(), ENTERPRISE_ID, "manager@qurie.com", "매니저");
+				MANAGER_ID, UserRole.MANAGER.name(), ENTERPRISE_ID, "manager@qurie.com", "매니저", null);
 	}
 }

@@ -50,9 +50,9 @@ export function ConfirmDeleteOverlay({
         justifyContent: 'center',
         padding: 24,
         fontFamily: 'var(--font-sans)',
-        background: 'color-mix(in srgb, var(--ink) 32%, transparent)',
-        backdropFilter: 'blur(16px) saturate(1.4)',
-        WebkitBackdropFilter: 'blur(16px) saturate(1.4)',
+        background: 'var(--scrim-modal)',
+        backdropFilter: 'blur(10px) saturate(1.15)',
+        WebkitBackdropFilter: 'blur(10px) saturate(1.15)',
       }}
     >
       <div role="presentation" onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 440 }}>

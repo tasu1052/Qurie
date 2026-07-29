@@ -64,7 +64,7 @@ export default function StudentDashboardPage() {
                   </h1>
                   <span style={{ fontSize: 13, opacity: 0.72 }}>react-hooks-deep-dive · 14:00–16:00</span>
                   <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                    <Button variant="accent" onClick={() => undefined}>LIVE 입장</Button>
+                    <Button variant="accent" onClick={() => navigate('/session/1')}>LIVE 입장</Button>
                     <Button
                       variant="secondary"
                       icon={<Plus size={14} strokeWidth={1.75} />}

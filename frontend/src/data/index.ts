@@ -98,6 +98,52 @@ export type {
   SessionResponse,
   SessionUpdateRequest,
 } from '../network/session';
+export {
+  useCreateGroup,
+  useGetGroups,
+  useGetGroup,
+  useGetGroupDetail,
+  useGetGroupCandidates,
+  useUpdateGroup,
+  useEditGroup,
+  useDuplicateGroup,
+  useShuffleGroups,
+  useDeleteGroup,
+} from '../network/group';
+export type {
+  GroupCreateRequest,
+  GroupUpdateRequest,
+  GroupResponse,
+  GroupDetailResponse,
+  GroupMemberResponse,
+  GroupMemberCandidateResponse,
+  GroupEditRequest,
+  GroupDuplicateRequest,
+  GroupShuffleRequest,
+  GroupParticipantRole,
+} from '../network/group';
 
 /** Teammate boundary — UI supplies fallbacks only. */
 export { QueryAsyncBoundary } from '../network/boundaries/QueryAsyncBoundary';
+
+/**
+ * Admin console (Qurie staff) — local mock until admin login / bootcamp APIs land.
+ * Replace with network hooks via this seam only.
+ */
+export {
+  ADMIN_SAMPLE,
+  createBootcamp,
+  getAdminSession,
+  getBootcamp,
+  inviteMaster,
+  listBootcamps,
+  loginAdmin,
+  logoutAdmin,
+  signupInviteUrl,
+} from '../mocks/adminStore';
+export type {
+  AdminBootcamp,
+  AdminSession,
+  MasterInvite,
+  MasterInviteStatus,
+} from '../mocks/adminStore';

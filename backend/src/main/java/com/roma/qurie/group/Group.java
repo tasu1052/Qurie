@@ -66,4 +66,35 @@ public class Group {
         this.startedAt = startedAt;
         this.endedAt = endedAt;
     }
+
+    /* PUT(전체 교체) 계약이라 네 필드를 한 번에 바꾼다. 소속 반(classId)은 바꿀 수 없다. */
+    public void update(String name, String description, LocalDateTime startedAt, LocalDateTime endedAt) {
+        if (endedAt.isBefore(startedAt)) {
+            throw new IllegalArgumentException("종료일이 시작일보다 앞설 수 없습니다.");
+        }
+        this.name = name;
+        this.description = description;
+        this.startedAt = startedAt;
+        this.endedAt = endedAt;
+    }
+
+    public void rename(String name) {
+        this.name = name;
+    }
+
+    public void changeDescription(String description) {
+        this.description = description;
+    }
+
+    /* 시작·종료는 앞뒤가 맞아야 하므로 반드시 함께 바꾼다. */
+    public void changePeriod(LocalDateTime startedAt, LocalDateTime endedAt) {
+        if (startedAt == null || endedAt == null) {
+            throw new IllegalArgumentException("운영 기간은 비워둘 수 없습니다.");
+        }
+        if (endedAt.isBefore(startedAt)) {
+            throw new IllegalArgumentException("종료일이 시작일보다 앞설 수 없습니다.");
+        }
+        this.startedAt = startedAt;
+        this.endedAt = endedAt;
+    }
 }

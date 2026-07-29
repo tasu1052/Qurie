@@ -85,4 +85,29 @@ public class ClassEntity extends BaseTimeEntity {
         this.startedAt = startedAt;
         this.endedAt = endedAt;
     }
+
+    public void changeClassNumber(int classNumber) {
+        this.classNumber = classNumber;
+    }
+
+    public void rename(String name) {
+        this.name = name;
+    }
+
+    public void changeCapacity(Integer capacity) {
+        this.capacity = capacity;
+    }
+
+    public void changeDescription(String description) {
+        this.description = description;
+    }
+
+    /* 시작·종료는 앞뒤가 맞아야 하므로 반드시 함께 바꾼다. */
+    public void changePeriod(LocalDateTime startedAt, LocalDateTime endedAt) {
+        if (startedAt != null && endedAt != null && endedAt.isBefore(startedAt)) {
+            throw new IllegalArgumentException("종료일이 시작일보다 앞설 수 없습니다.");
+        }
+        this.startedAt = startedAt;
+        this.endedAt = endedAt;
+    }
 }

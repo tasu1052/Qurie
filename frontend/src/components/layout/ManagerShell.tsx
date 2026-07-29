@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -8,11 +8,11 @@ import {
   Settings,
   Bell,
   Search,
-  LogOut,
 } from 'lucide-react';
 import { Button, Sidebar, Topbar } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
 import { useLogout, useMe } from '../../data';
+import { SidebarAccountFooter } from './SidebarAccountFooter';
 
 const iconProps = { size: 16, strokeWidth: 1.75 } as const;
 
@@ -32,11 +32,9 @@ const managerNav = [
 
 export function ManagerShell({ activeKey, breadcrumbs, children }: AppShellProps) {
   const navigate = useNavigate();
-  const location = useLocation();
   const { data: user } = useMe();
   const logout = useLogout();
   const items = managerNav.map(({ key, label, icon }) => ({ key, label, icon }));
-  const initial = (user.name || '?').slice(0, 1);
 
   const onLogout = () => {
     logout.mutate(undefined, {
@@ -53,68 +51,9 @@ export function ManagerShell({ activeKey, breadcrumbs, children }: AppShellProps
         onSelect={(key) => {
           const item = managerNav.find((n) => n.key === key);
           if (!item) return;
-          const currentClassId = new URLSearchParams(location.search).get('classId');
-          const rememberedClassId = localStorage.getItem('qurie.lastClassId');
-          const nextSearch =
-            key === 'sessions'
-              ? currentClassId
-                ? location.search
-                : rememberedClassId
-                  ? `?classId=${encodeURIComponent(rememberedClassId)}`
-                  : ''
-              : location.search;
-          navigate({ pathname: item.path, search: nextSearch });
+          navigate(item.path);
         }}
-        footer={
-          <div
-            style={{
-              borderTop: '1px solid var(--divider)',
-              paddingTop: 16,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              paddingLeft: 6,
-            }}
-          >
-            <span
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: 'var(--accent-soft)',
-                color: 'var(--accent)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-            >
-              {initial}
-            </span>
-            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3, minWidth: 0, flex: 1 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{user.name}</span>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {user.email}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={onLogout}
-              title="로그아웃"
-              style={{
-                border: 'none',
-                background: 'transparent',
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                padding: 4,
-              }}
-            >
-              <LogOut size={14} strokeWidth={1.75} />
-            </button>
-          </div>
-        }
+        footer={<SidebarAccountFooter name={user.name} email={user.email} onLogout={onLogout} />}
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Topbar

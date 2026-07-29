@@ -19,9 +19,12 @@ function AuthCardShell({ children, title, subtitle }: { children: React.ReactNod
         padding: 24,
       }}
     >
-      <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'var(--ink)', marginBottom: 28 }}>
-        <img src={logoSrc} alt="Qurie" width={28} height={28} style={{ objectFit: 'contain' }} />
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700 }}>Qurie</span>
+      <Link to="/" style={{ display: 'inline-flex', textDecoration: 'none', marginBottom: 28 }}>
+        <img
+          src={logoSrc}
+          alt="Qurie"
+          style={{ height: 36, width: 'auto', objectFit: 'contain', display: 'block' }}
+        />
       </Link>
       <div
         style={{
@@ -115,6 +118,43 @@ export default function LoginPage() {
           {login.isPending ? '로그인 중…' : '로그인'}
         </Button>
       </form>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>기능 테스트 계정 (비번: test1234)</span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {(
+            [
+              { label: '마스터', email: 'master@ssafy.com' },
+              { label: '매니저', email: 'manager@ssafy.com' },
+              { label: '학생', email: 'student@ssafy.com' },
+            ] as const
+          ).map((account) => (
+            <button
+              key={account.email}
+              type="button"
+              onClick={() => {
+                setEmail(account.email);
+                setPassword('test1234');
+                setFormError(null);
+              }}
+              style={{
+                border: '1px solid var(--border-strong)',
+                background: 'var(--surface-sunken)',
+                color: 'var(--text-secondary)',
+                borderRadius: 999,
+                padding: '6px 12px',
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: 'var(--font-sans)',
+                cursor: 'pointer',
+              }}
+            >
+              {account.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
         Qurie 계정은 기업 관리자(Master)의 초대로 생성됩니다.
         <br />

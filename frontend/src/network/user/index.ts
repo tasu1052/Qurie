@@ -1,3 +1,8 @@
 export * from './user-apis';
 
-export { useGetUserProfile, useSignUp, useUpdateUserProfile } from './user-hooks';
+export {
+    useGetUserProfile,
+    useGetUsers,
+    useSignUp,
+    useUpdateUserProfile,
+} from './user-hooks';
