@@ -185,12 +185,11 @@ export default function StudentManagementPage() {
         ...period,
       },
       {
-        onSuccess: (created) => {
+        onSuccess: () => {
           setGroupOpen(false);
           setGroupName('');
           setGroupDescription('');
           setGroupPanelKey((k) => k + 1);
-          navigate(`/manager/groups/${created.id}`);
         },
       },
     );
