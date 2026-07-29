@@ -1,9 +1,13 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthGate } from './components/auth/AuthGate';
+import { AdminGate } from './components/auth/AdminGate';
 import LandingPage from './pages/marketing/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
 import ResetPage from './pages/auth/ResetPage';
+import AdminLoginPage from './pages/admin/AdminLoginPage';
+import AdminBootcampListPage from './pages/admin/AdminBootcampListPage';
+import AdminBootcampDetailPage from './pages/admin/AdminBootcampDetailPage';
 import MasterDashboardPage from './pages/master/MasterDashboardPage';
 import TrackListPage from './pages/master/TrackListPage';
 import TrackDetailPage from './pages/master/TrackDetailPage';
@@ -48,6 +52,12 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/reset" element={<ResetPage />} />
+
+        <Route path="/admin/login" element={<AdminLoginPage />} />
+        <Route element={<AdminGate />}>
+          <Route path="/admin" element={<AdminBootcampListPage />} />
+          <Route path="/admin/bootcamps/:id" element={<AdminBootcampDetailPage />} />
+        </Route>
 
         <Route element={<AuthGate />}>
           <Route path="/master" element={<MasterDashboardPage />} />
