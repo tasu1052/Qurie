@@ -1,0 +1,28 @@
+# Jenkins 는 애플리케이션과 생애주기가 달라 compose 프로젝트를 분리한다.
+# 앱 쪽에서 docker compose down 을 해도 CI 가 같이 내려가지 않는다.
+#
+#   cd jenkins && docker compose up -d --build
+name: qurie-ci
+
+services:
+  jenkins:
+    build: .
+    container_name: jenkins
+    restart: unless-stopped
+    environment:
+      # nginx 하위 경로(/jenkins)로 서비스하므로 Jenkins 도 같은 prefix 를 알아야 링크가 깨지지 않는다.
+      JENKINS_OPTS: --prefix=/jenkins
+      TZ: Asia/Seoul
+    ports:
+      # 외부 노출은 nginx 가 담당한다. 8081 을 직접 열면 HTTPS 를 우회한다.
+      - "127.0.0.1:8081:8080"
+    volumes:
+      - jenkins-home:/var/jenkins_home
+      # 호스트 docker 데몬 공유. 파이프라인이 호스트에서 이미지를 빌드하고 컨테이너를 띄운다.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # 배포 디렉터리를 호스트와 "같은 경로"로 마운트한다.
+      # docker build 의 컨텍스트 경로는 호스트 데몬이 해석하므로, 경로가 다르면 빌드가 실패한다.
+      - /home/ubuntu/S15P11A604:/home/ubuntu/S15P11A604
+
+volumes:
+  jenkins-home:
