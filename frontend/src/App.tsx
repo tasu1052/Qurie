@@ -24,6 +24,7 @@ import GroupListPage from './pages/manager/GroupListPage';
 import StudentDashboardPage from './pages/student/StudentDashboardPage';
 import ClassLobbyPage from './pages/student/ClassLobbyPage';
 import MyPage from './pages/student/MyPage';
+import SessionPage from './pages/session/SessionPage';
 import FinalReportPage from './pages/student/FinalReportPage';
 
 function PlaceholderPage({ title }: { title: string }) {
@@ -81,6 +82,9 @@ export default function App() {
           <Route path="/app/classes/:id" element={<ClassLobbyPage />} />
           <Route path="/app/me" element={<MyPage />} />
           <Route path="/app/report" element={<FinalReportPage />} />
+
+          <Route path="/session/:id" element={<SessionPage />} />
+          <Route path="/session/:id/report" element={<PlaceholderPage title="세션 리포트" />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

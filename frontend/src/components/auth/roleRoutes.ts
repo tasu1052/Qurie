@@ -15,6 +15,8 @@ export function homePathForRole(role: UserRole): string {
 }
 
 export function roleMatchesPath(role: UserRole, pathname: string): boolean {
+  // Session room is shared by all authenticated roles
+  if (pathname.startsWith('/session')) return true;
   if (role === 'MASTER') return pathname.startsWith('/master');
   if (role === 'MANAGER') return pathname.startsWith('/manager');
   if (role === 'STUDENT') return pathname.startsWith('/app');
