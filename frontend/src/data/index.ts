@@ -98,6 +98,18 @@ export type {
   SessionResponse,
   SessionUpdateRequest,
 } from '../network/session';
+export {
+  useCreateGroup,
+  useGetGroups,
+  useGetGroup,
+  useUpdateGroup,
+  useDeleteGroup,
+} from '../network/group';
+export type {
+  GroupCreateRequest,
+  GroupUpdateRequest,
+  GroupResponse,
+} from '../network/group';
 
 /** Teammate boundary — UI supplies fallbacks only. */
 export { QueryAsyncBoundary } from '../network/boundaries/QueryAsyncBoundary';
