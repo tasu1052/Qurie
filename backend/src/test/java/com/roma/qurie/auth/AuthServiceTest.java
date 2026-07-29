@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import com.roma.qurie.auth.dto.LoginRequest;
+import com.roma.qurie.classes.ClassUserRepository;
 import com.roma.qurie.enterprise.Enterprise;
 import com.roma.qurie.master.Master;
 import com.roma.qurie.master.MasterRepository;
@@ -36,6 +37,9 @@ class AuthServiceTest {
     private UserRepository userRepository;
 
     @Mock
+    private ClassUserRepository classUserRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @Mock
@@ -50,6 +54,7 @@ class AuthServiceTest {
         authService = new AuthService(
                 masterRepository,
                 userRepository,
+                classUserRepository,
                 passwordEncoder,
                 new JwtTokenProvider(SECRET),
                 refreshTokenRepository,
