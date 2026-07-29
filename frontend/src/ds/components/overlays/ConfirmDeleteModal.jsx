@@ -26,12 +26,10 @@ export function ConfirmDeleteModal({
       role="dialog"
       aria-modal="true"
       style={{
-        background: 'var(--surface-card)',
-        border: '1px solid var(--border)',
+        background: 'var(--surface-modal)',
+        border: '1px solid var(--border-strong)',
         borderRadius: 'var(--radius-xl)',
         boxShadow: 'var(--shadow-modal)',
-        backdropFilter: 'var(--surface-blur)',
-        WebkitBackdropFilter: 'var(--surface-blur)',
         padding: 24,
         display: 'flex',
         flexDirection: 'column',
@@ -82,7 +80,7 @@ export function ConfirmDeleteModal({
               <span
                 key={i}
                 style={{
-                  background: 'var(--surface-card)',
+                  background: 'var(--surface-modal)',
                   border: '1px solid var(--border)',
                   borderRadius: 'var(--radius-control)',
                   padding: '3px 10px',
@@ -153,7 +151,7 @@ export function ConfirmDeleteModal({
             fontSize: 13,
             color: 'var(--ink)',
             fontFamily: 'var(--font-sans)',
-            background: 'var(--surface-card)',
+            background: 'var(--surface-sunken)',
             boxSizing: 'border-box',
             width: '100%',
           }}
@@ -168,7 +166,7 @@ export function ConfirmDeleteModal({
             padding: '0 18px',
             borderRadius: 'var(--radius-control)',
             border: '1px solid var(--border-strong)',
-            background: 'var(--surface-card)',
+            background: 'var(--surface-modal)',
             color: 'var(--ink)',
             fontFamily: 'var(--font-sans)',
             fontSize: 13,

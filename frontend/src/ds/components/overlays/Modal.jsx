@@ -27,9 +27,9 @@ export function Modal({
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'color-mix(in srgb, var(--ink) 32%, transparent)',
-        backdropFilter: 'blur(16px) saturate(1.4)',
-        WebkitBackdropFilter: 'blur(16px) saturate(1.4)',
+        background: 'var(--scrim-modal)',
+        backdropFilter: 'blur(10px) saturate(1.15)',
+        WebkitBackdropFilter: 'blur(10px) saturate(1.15)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -41,12 +41,10 @@ export function Modal({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: 'var(--surface-card)',
+          background: 'var(--surface-modal)',
           borderRadius: 'var(--radius-xl)',
           boxShadow: 'var(--shadow-modal)',
-          backdropFilter: 'var(--surface-blur)',
-          WebkitBackdropFilter: 'var(--surface-blur)',
-          border: '1px solid var(--border)',
+          border: '1px solid var(--border-strong)',
           width,
           maxWidth: 'calc(100vw - 48px)',
           padding: 28,
@@ -91,7 +89,7 @@ export function Modal({
                 onClick={onSecondary}
                 style={{
                   ...btn,
-                  background: 'var(--surface-card)',
+                  background: 'var(--surface-modal)',
                   color: 'var(--ink)',
                   border: '1px solid var(--border-strong)',
                 }}

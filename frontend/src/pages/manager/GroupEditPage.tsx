@@ -72,6 +72,7 @@ function GroupEditForm({
   const [selected, setSelected] = useState<number[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [draggingId, setDraggingId] = useState<number | null>(null);
 
   const leaderId = members.find((m) => m.role === 'LEADER')?.userId ?? null;
   const memberIds = members.map((m) => m.userId);
@@ -98,6 +99,8 @@ function GroupEditForm({
         if (existing.has(id)) continue;
         const c = byId.get(id);
         if (!c) continue;
+        // 다른 그룹 소속이면 배정 불가 (백엔드 단일 소속 규칙)
+        if (c.currentGroupId != null && c.currentGroupId !== groupId) continue;
         next.push({
           userId: c.userId,
           name: c.name,
@@ -176,7 +179,8 @@ function GroupEditForm({
               <div>
                 <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{name || detail.name}</h1>
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                  구성원을 추가·제거하고 리더를 지정한 뒤 저장하세요.
+                  구성원을 추가·제거하고 리더를 지정한 뒤 저장하세요. 이미 다른 그룹에 속한
+                  학생은 배정할 수 없습니다.
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -219,6 +223,7 @@ function GroupEditForm({
                 }}
                 onDragOver={(e) => {
                   e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
                   setDragOver(true);
                 }}
                 onDragLeave={() => setDragOver(false)}
@@ -228,6 +233,7 @@ function GroupEditForm({
                   const raw = e.dataTransfer.getData('application/x-qurie-user-id');
                   const id = Number(raw);
                   if (Number.isFinite(id) && id > 0) addMembers([id]);
+                  setDraggingId(null);
                 }}
               >
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -380,6 +386,9 @@ function GroupEditForm({
                     선택 항목 추가{selected.length ? ` (${selected.length})` : ''}
                   </Button>
                 </div>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  미배정 학생만 선택·드래그할 수 있습니다. 다른 그룹 소속은 비활성입니다.
+                </span>
                 <div
                   style={{
                     display: 'flex',
@@ -395,7 +404,8 @@ function GroupEditForm({
                       c.currentGroupId != null && c.currentGroupId !== groupId
                         ? c.currentGroupName
                         : null;
-                    const disabled = inThis;
+                    const disabled = inThis || otherGroup != null;
+                    const isDragging = draggingId === c.userId;
                     return (
                       <div
                         key={c.userId}
@@ -405,19 +415,29 @@ function GroupEditForm({
                             e.preventDefault();
                             return;
                           }
+                          const card = e.currentTarget;
                           e.dataTransfer.setData('application/x-qurie-user-id', String(c.userId));
-                          e.dataTransfer.effectAllowed = 'copy';
+                          e.dataTransfer.effectAllowed = 'move';
+                          e.dataTransfer.setDragImage(card, 28, 22);
+                          setDraggingId(c.userId);
                         }}
+                        onDragEnd={() => setDraggingId(null)}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
                           gap: 10,
                           padding: '10px 12px',
                           borderRadius: 12,
-                          border: '1px solid var(--divider)',
-                          opacity: disabled ? 0.45 : 1,
-                          background: disabled ? 'var(--surface-sunken)' : 'var(--surface-card)',
-                          cursor: disabled ? 'not-allowed' : 'grab',
+                          border: `1px solid ${isDragging ? 'var(--accent)' : 'var(--divider)'}`,
+                          opacity: disabled ? 0.45 : isDragging ? 0.4 : 1,
+                          background: disabled
+                            ? 'var(--surface-sunken)'
+                            : 'var(--surface-card-solid)',
+                          boxShadow: isDragging ? 'var(--shadow-card)' : undefined,
+                          transform: isDragging ? 'scale(0.98)' : undefined,
+                          cursor: disabled ? 'not-allowed' : isDragging ? 'grabbing' : 'grab',
+                          transition: 'opacity 120ms ease-out, transform 120ms ease-out',
+                          userSelect: 'none',
                         }}
                       >
                         <input
@@ -453,8 +473,10 @@ function GroupEditForm({
                         {inThis ? (
                           <Badge status="neutral">이 그룹</Badge>
                         ) : otherGroup ? (
-                          <Badge status="neutral">{otherGroup}</Badge>
-                        ) : null}
+                          <Badge status="warning">{otherGroup}</Badge>
+                        ) : (
+                          <Badge status="success">미배정</Badge>
+                        )}
                       </div>
                     );
                   })}

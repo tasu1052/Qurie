@@ -3,6 +3,7 @@ import { Calendar, Copy, Plus, Search, Shuffle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import {
+  AlertBanner,
   Badge,
   Button,
   EmptyState,
@@ -16,11 +17,14 @@ import {
 import {
   QueryAsyncBoundary,
   useCreateGroup,
+  useDeleteGroup,
   useDuplicateGroup,
+  useEditGroup,
   useGetGroupDetail,
   useGetGroups,
   useMe,
   useShuffleGroups,
+  type GroupDetailResponse,
   type GroupResponse,
 } from '../../data';
 
@@ -55,6 +59,150 @@ function defaultPeriod() {
   const endedAt = new Date(startedAt);
   endedAt.setDate(endedAt.getDate() + 30);
   return { startedAt: toLocalDateTime(startedAt), endedAt: toLocalDateTime(endedAt) };
+}
+
+function groupLetter(index: number): string {
+  if (index < 26) return String.fromCharCode(65 + index);
+  return String(index + 1);
+}
+
+function buildShuffleName(titlePrefix: string, index: number): string {
+  const base = titlePrefix.trim() || '그룹';
+  return `${base} ${groupLetter(index)}`;
+}
+
+function ShuffleModal({
+  open,
+  classId,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  classId: number;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const { data: groups } = useGetGroups(classId);
+  const shuffleGroups = useShuffleGroups();
+  const deleteGroup = useDeleteGroup();
+  const editGroup = useEditGroup();
+  const [shuffleCount, setShuffleCount] = useState('4');
+  const [titlePrefix, setTitlePrefix] = useState('그룹');
+  const [batchDescription, setBatchDescription] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const hasExisting = groups.length > 0;
+  const count = Number(shuffleCount);
+  const previewCount = Number.isFinite(count) && count > 0 ? Math.min(count, 5) : 0;
+  const namePreview =
+    previewCount > 0
+      ? Array.from({ length: previewCount }, (_, i) => buildShuffleName(titlePrefix, i)).join(', ') +
+        (count > 5 ? '…' : '')
+      : '';
+
+  const onShuffle = async () => {
+    if (!Number.isFinite(count) || count < 1) return;
+    const period = defaultPeriod();
+    const existingIds = groups.map((g) => g.id);
+    const description =
+      batchDescription.trim() || '랜덤 배정으로 생성된 그룹';
+
+    setBusy(true);
+    try {
+      const created: GroupDetailResponse[] = await shuffleGroups.mutateAsync({
+        classId,
+        groupCount: count,
+        assignLeader: true,
+        confirmed: hasExisting,
+        ...period,
+      });
+
+      const createdIds = new Set(created.map((g) => g.id));
+      const obsolete = existingIds.filter((id) => !createdIds.has(id));
+      await Promise.all(
+        obsolete.map((groupId) => deleteGroup.mutateAsync({ groupId, classId })),
+      );
+
+      await Promise.all(
+        created.map((g, index) =>
+          editGroup.mutateAsync({
+            groupId: g.id,
+            name: buildShuffleName(titlePrefix, index),
+            description,
+          }),
+        ),
+      );
+
+      onClose();
+      onDone();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      title="그룹 셔플"
+      description="지정한 수만큼 새 그룹을 만들고 학생을 균등 재배정합니다. 기존 그룹은 삭제됩니다."
+      primaryLabel={busy ? '재배정 중…' : '재배정'}
+      secondaryLabel="취소"
+      onPrimary={() => {
+        void onShuffle();
+      }}
+      onSecondary={onClose}
+      onClose={onClose}
+      width={520}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {hasExisting ? (
+          <AlertBanner
+            tone="warning"
+            title="기존 그룹이 삭제됩니다"
+            description={`현재 ${groups.length}개 그룹과 구성원 배정이 모두 지워지고, 새 그룹으로 대체됩니다.`}
+          />
+        ) : null}
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>그룹 수</span>
+          <Input
+            type="number"
+            placeholder="4"
+            value={shuffleCount}
+            onChange={(e) => setShuffleCount(e.target.value)}
+            width="100%"
+          />
+        </label>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>제목 접두어</span>
+          <Input
+            placeholder="그룹"
+            value={titlePrefix}
+            onChange={(e) => setTitlePrefix(e.target.value)}
+            width="100%"
+          />
+          {namePreview ? (
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              생성 예시: {namePreview}
+            </span>
+          ) : null}
+        </label>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+            공통 설명 (모든 그룹에 적용)
+          </span>
+          <Input
+            placeholder="랜덤 배정으로 생성된 그룹"
+            value={batchDescription}
+            onChange={(e) => setBatchDescription(e.target.value)}
+            width="100%"
+          />
+        </label>
+      </div>
+    </Modal>
+  );
 }
 
 function avatarChar(name: string) {
@@ -307,7 +455,6 @@ export default function GroupListPage() {
   const classId = me.classId;
   const hasValidClassId = typeof classId === 'number' && Number.isFinite(classId) && classId > 0;
   const createGroup = useCreateGroup();
-  const shuffleGroups = useShuffleGroups();
   const [status, setStatus] = useState('전체');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -315,7 +462,6 @@ export default function GroupListPage() {
   const [shuffleOpen, setShuffleOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
-  const [shuffleCount, setShuffleCount] = useState('4');
   const [rowKey, setRowKey] = useState(0);
 
   const refresh = () => setRowKey((k) => k + 1);
@@ -354,28 +500,6 @@ export default function GroupListPage() {
       },
       {
         onSuccess: (created) => navigate(`/manager/groups/${created.id}`),
-      },
-    );
-  };
-
-  const onShuffle = () => {
-    if (!hasValidClassId) return;
-    const count = Number(shuffleCount);
-    if (!Number.isFinite(count) || count < 1) return;
-    const period = defaultPeriod();
-    shuffleGroups.mutate(
-      {
-        classId,
-        groupCount: count,
-        assignLeader: true,
-        confirmed: true,
-        ...period,
-      },
-      {
-        onSuccess: () => {
-          setShuffleOpen(false);
-          refresh();
-        },
       },
     );
   };
@@ -508,28 +632,43 @@ export default function GroupListPage() {
           </div>
         </Modal>
 
-        <Modal
-          open={shuffleOpen}
-          title="그룹 셔플"
-          description="현재 그룹 구성이 초기화되고 전체 인원이 균등 재배정됩니다. 기존 그룹은 모두 대체됩니다."
-          primaryLabel={shuffleGroups.isPending ? '재배정 중…' : '재배정'}
-          secondaryLabel="취소"
-          onPrimary={onShuffle}
-          onSecondary={() => setShuffleOpen(false)}
-          onClose={() => setShuffleOpen(false)}
-          width={480}
-        >
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>그룹 수</span>
-            <Input
-              type="number"
-              placeholder="4"
-              value={shuffleCount}
-              onChange={(e) => setShuffleCount(e.target.value)}
-              width="100%"
+        {shuffleOpen && hasValidClassId ? (
+          <QueryAsyncBoundary
+            suspenseFallback={
+              <Modal
+                open
+                title="그룹 셔플"
+                description="불러오는 중…"
+                primaryLabel={null}
+                secondaryLabel="취소"
+                onSecondary={() => setShuffleOpen(false)}
+                onClose={() => setShuffleOpen(false)}
+                width={520}
+              >
+                <Skeleton width="100%" height={120} radius={12} />
+              </Modal>
+            }
+            errorFallback={
+              <Modal
+                open
+                title="그룹 셔플"
+                description="기존 그룹 정보를 불러오지 못했습니다."
+                primaryLabel={null}
+                secondaryLabel="닫기"
+                onSecondary={() => setShuffleOpen(false)}
+                onClose={() => setShuffleOpen(false)}
+                width={520}
+              />
+            }
+          >
+            <ShuffleModal
+              open={shuffleOpen}
+              classId={classId}
+              onClose={() => setShuffleOpen(false)}
+              onDone={refresh}
             />
-          </label>
-        </Modal>
+          </QueryAsyncBoundary>
+        ) : null}
       </PageMain>
     </ManagerShell>
   );
