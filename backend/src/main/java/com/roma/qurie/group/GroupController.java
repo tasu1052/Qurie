@@ -1,7 +1,12 @@
 package com.roma.qurie.group;
 
 import com.roma.qurie.group.dto.GroupCreateRequest;
+import com.roma.qurie.group.dto.GroupDetailResponse;
+import com.roma.qurie.group.dto.GroupDuplicateRequest;
+import com.roma.qurie.group.dto.GroupEditRequest;
+import com.roma.qurie.group.dto.GroupMemberCandidateResponse;
 import com.roma.qurie.group.dto.GroupResponse;
+import com.roma.qurie.group.dto.GroupShuffleRequest;
 import com.roma.qurie.group.dto.GroupUpdateRequest;
 import com.roma.qurie.security.AuthUser;
 import jakarta.validation.Valid;
@@ -12,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -60,5 +66,44 @@ public class GroupController {
             @AuthenticationPrincipal AuthUser authUser, @PathVariable("groupId") Long groupId) {
         groupService.delete(authUser, groupId);
         return ResponseEntity.noContent().build();
+    }
+
+    /** 그룹 상세 + 구성원 조회 (MASTER, 소속 MANAGER·STUDENT). 편집 화면의 초기 데이터 */
+    @GetMapping("/{groupId}/detail")
+    public GroupDetailResponse detail(
+            @AuthenticationPrincipal AuthUser authUser, @PathVariable("groupId") Long groupId) {
+        return groupService.getGroupDetail(authUser, groupId);
+    }
+
+    /** 배정 후보 목록. 반 인원 전체와 각자의 현재 그룹을 함께 돌려준다 */
+    @GetMapping("/candidates")
+    public List<GroupMemberCandidateResponse> candidates(
+            @AuthenticationPrincipal AuthUser authUser, @RequestParam("classId") Long classId) {
+        return groupService.getMemberCandidates(authUser, classId);
+    }
+
+    /** 그룹 편집 — 제목·설명·운영 기간·구성원을 한 번에 저장 (MASTER, 담당 MANAGER) */
+    @PatchMapping("/{groupId}")
+    public GroupDetailResponse edit(@AuthenticationPrincipal AuthUser authUser,
+            @PathVariable("groupId") Long groupId, @Valid @RequestBody GroupEditRequest request) {
+        return groupService.edit(authUser, groupId, request);
+    }
+
+    /** 그룹 복제 — 레이아웃(이름·설명·기간)을 그대로 가진 새 그룹 생성 (MASTER, 담당 MANAGER) */
+    @PostMapping("/{groupId}/duplicate")
+    public ResponseEntity<GroupDetailResponse> duplicate(
+            @AuthenticationPrincipal AuthUser authUser,
+            @PathVariable("groupId") Long groupId,
+            @Valid @RequestBody(required = false) GroupDuplicateRequest request) {
+        GroupDuplicateRequest body = request != null ? request : new GroupDuplicateRequest(null, null);
+        GroupDetailResponse response = groupService.duplicate(authUser, groupId, body);
+        return ResponseEntity.created(URI.create("/api/groups/" + response.id())).body(response);
+    }
+
+    /** 랜덤 배정(셔플) — 반 인원을 대상 그룹들에 무작위로 나눠 담는다 (MASTER, 담당 MANAGER) */
+    @PostMapping("/shuffle")
+    public List<GroupDetailResponse> shuffle(@AuthenticationPrincipal AuthUser authUser,
+            @RequestParam("classId") Long classId, @Valid @RequestBody GroupShuffleRequest request) {
+        return groupService.shuffle(authUser, classId, request);
     }
 }
