@@ -182,7 +182,7 @@ export default function SessionListPage() {
     if (!hasValidClassId) return;
     if (!title.trim()) return;
     createSession.mutate(
-      { classId, title: title.trim(), createdBy: me.id },
+      { classId, title: title.trim()},
       {
         onSuccess: () => {
           setCreateOpen(false);
