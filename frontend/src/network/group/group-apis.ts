@@ -52,8 +52,6 @@ export interface GroupMemberCandidateResponse {
     userId: number;
     name: string;
     email: string;
-    currentGroupId: number | null;
-    currentGroupName: string | null;
 }
 
 export interface GroupEditRequest {
@@ -67,7 +65,6 @@ export interface GroupEditRequest {
 
 export interface GroupDuplicateRequest {
     name?: string;
-    includeMembers?: boolean;
 }
 
 export interface GroupShuffleRequest {

@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { GripVertical, Trash2, X } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -46,6 +47,14 @@ type DragPayload = {
 
 function avatarChar(name: string) {
   return name.trim().slice(0, 1) || '?';
+}
+
+function saveErrorMessage(error: unknown): string {
+  if (isAxiosError(error)) {
+    const message = error.response?.data?.message;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return '저장에 실패했습니다. 잠시 후 다시 시도해 주세요.';
 }
 
 function EditSkeleton() {
@@ -126,30 +135,39 @@ function GroupEditForm({
   );
   const [selected, setSelected] = useState<number[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [drag, setDrag] = useState<DragPayload | null>(null);
   const [dropTarget, setDropTarget] = useState<'members' | 'pool' | null>(null);
 
   const leaderId = members.find((m) => m.role === 'LEADER')?.userId ?? null;
   const memberIdSet = useMemo(() => new Set(members.map((m) => m.userId)), [members]);
 
-  const poolStudents = useMemo(
-    () =>
-      candidates.filter((c) => {
-        if (memberIdSet.has(c.userId)) return false;
-        // 다른 그룹에만 묶인 학생은 풀에서 제외(비활성 목록으로 따로 표시)
-        if (c.currentGroupId != null && c.currentGroupId !== groupId) return false;
-        return true;
-      }),
-    [candidates, memberIdSet, groupId],
-  );
+  const studentById = useMemo(() => {
+    const map = new Map<number, GroupMemberCandidateResponse>();
+    for (const c of candidates) map.set(c.userId, c);
+    for (const m of detail.members) {
+      if (!map.has(m.userId)) {
+        map.set(m.userId, { userId: m.userId, name: m.name, email: m.email });
+      }
+    }
+    return map;
+  }, [candidates, detail.members]);
 
-  const blockedStudents = useMemo(
-    () =>
-      candidates.filter(
-        (c) => c.currentGroupId != null && c.currentGroupId !== groupId && !memberIdSet.has(c.userId),
-      ),
-    [candidates, groupId, memberIdSet],
-  );
+  const poolStudents = useMemo(() => {
+    const seen = new Set<number>();
+    const next: GroupMemberCandidateResponse[] = [];
+    for (const c of candidates) {
+      if (memberIdSet.has(c.userId) || seen.has(c.userId)) continue;
+      seen.add(c.userId);
+      next.push(c);
+    }
+    for (const m of detail.members) {
+      if (memberIdSet.has(m.userId) || seen.has(m.userId)) continue;
+      seen.add(m.userId);
+      next.push({ userId: m.userId, name: m.name, email: m.email });
+    }
+    return next;
+  }, [candidates, detail.members, memberIdSet]);
 
   const dirty = useMemo(() => {
     const origIds = detail.members.map((m) => m.userId).sort((a, b) => a - b);
@@ -165,15 +183,13 @@ function GroupEditForm({
   }, [detail, name, description, memberIdSet, leaderId]);
 
   const addMembers = (ids: number[]) => {
-    const byId = new Map(candidates.map((c) => [c.userId, c]));
     setMembers((prev) => {
       const existing = new Set(prev.map((m) => m.userId));
       const next = [...prev];
       for (const id of ids) {
         if (existing.has(id)) continue;
-        const c = byId.get(id);
+        const c = studentById.get(id);
         if (!c) continue;
-        if (c.currentGroupId != null && c.currentGroupId !== groupId) continue;
         next.push({
           userId: c.userId,
           name: c.name,
@@ -184,6 +200,7 @@ function GroupEditForm({
       return next;
     });
     setSelected((prev) => prev.filter((id) => !ids.includes(id)));
+    setSaveError(null);
   };
 
   const removeMember = (userId: number) => {
@@ -280,13 +297,20 @@ function GroupEditForm({
   };
 
   const onSave = () => {
-    editGroup.mutate({
-      groupId,
-      name: name.trim(),
-      description: description.trim(),
-      memberIds: members.map((m) => m.userId),
-      leaderId: leaderId ?? undefined,
-    });
+    setSaveError(null);
+    editGroup.mutate(
+      {
+        groupId,
+        name: name.trim(),
+        description: description.trim(),
+        memberIds: members.map((m) => m.userId),
+        leaderId: leaderId ?? undefined,
+      },
+      {
+        onSuccess: () => setSaveError(null),
+        onError: (error) => setSaveError(saveErrorMessage(error)),
+      },
+    );
   };
 
   const onDelete = () => {
@@ -377,6 +401,23 @@ function GroupEditForm({
               >
                 <Spinner size="sm" />
                 변경사항을 저장하는 중…
+              </div>
+            ) : null}
+
+            {saveError ? (
+              <div
+                role="alert"
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: 12,
+                  border: '1px solid var(--status-error-border, #fecaca)',
+                  background: 'var(--status-error-soft, #fef2f2)',
+                  color: 'var(--status-error)',
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                }}
+              >
+                {saveError}
               </div>
             ) : null}
 
@@ -616,34 +657,6 @@ function GroupEditForm({
                     })
                   )}
                 </div>
-
-                {blockedStudents.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
-                      다른 그룹 소속 (배정 불가)
-                    </span>
-                    {blockedStudents.map((c) => (
-                      <div
-                        key={c.userId}
-                        style={{
-                          ...cardBase,
-                          opacity: 0.45,
-                          cursor: 'not-allowed',
-                          background: 'var(--surface-sunken)',
-                        }}
-                      >
-                        <StudentCardFace
-                          name={c.name}
-                          email={c.email}
-                          muted
-                          trailing={
-                            <Badge status="warning">{c.currentGroupName ?? '다른 그룹'}</Badge>
-                          }
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
               </div>
             </div>
           </RowSection>
