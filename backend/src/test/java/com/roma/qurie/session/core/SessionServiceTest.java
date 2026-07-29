@@ -24,7 +24,7 @@ class SessionServiceTest {
 
 	private static final Long CLASS_ID = 1L;
 	private static final AuthUser CREATOR =
-			new AuthUser(10L, "MANAGER", 100L, "manager@qurie.com", "매니저");
+			new AuthUser(10L, "MANAGER", 100L, "manager@qurie.com", "매니저", null);
 
 	@Mock
 	private SessionRepository sessionRepository;

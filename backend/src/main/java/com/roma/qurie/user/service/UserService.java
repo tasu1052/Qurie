@@ -71,7 +71,7 @@ public class UserService {
 			// 중복 확인과 저장 사이에 같은 이메일이 먼저 저장되면 unique 제약으로만 걸러진다.
 			throw new ResponseStatusException(HttpStatus.CONFLICT, DUPLICATE_EMAIL_MESSAGE, e);
 		}
-		classUserRepository.save(new ClassUser(invitation.getClassEntity(), saved.getId()));
+		classUserRepository.save(new ClassUser(invitation.getClassEntity(), saved));
 
 		return UserSignUpResponse.from(saved);
 	}

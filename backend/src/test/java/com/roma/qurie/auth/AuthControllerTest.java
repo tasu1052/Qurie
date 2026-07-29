@@ -52,7 +52,7 @@ class AuthControllerTest {
 
     @Test
     void login_성공하면_ACCESS_TOKEN과_REFRESH_TOKEN_쿠키와_사용자정보를_반환한다() throws Exception {
-        LoginResponse user = new LoginResponse(1L, "김대표", "master@test.com", "MASTER", 1L);
+        LoginResponse user = new LoginResponse(1L, "김대표", "master@test.com", "MASTER", 1L, null);
         given(authService.login(any())).willReturn(new AuthResult("access-token-value", "refresh-token-value", user));
 
         MvcResult result =
@@ -100,7 +100,7 @@ class AuthControllerTest {
 
     @Test
     void refresh_성공하면_새_쿠키와_사용자정보를_반환한다() throws Exception {
-        LoginResponse user = new LoginResponse(1L, "김대표", "master@test.com", "MASTER", 1L);
+        LoginResponse user = new LoginResponse(1L, "김대표", "master@test.com", "MASTER", 1L, null);
         given(authService.refresh("old-refresh-token"))
                 .willReturn(new AuthResult("new-access-token", "new-refresh-token", user));
 
@@ -163,7 +163,7 @@ class AuthControllerTest {
 
     @Test
     void me_인증된_상태면_사용자정보를_반환한다() throws Exception {
-        AuthUser authUser = new AuthUser(1L, "MASTER", 1L, "master@test.com", "김대표");
+        AuthUser authUser = new AuthUser(1L, "MASTER", 1L, "master@test.com", "김대표", null);
         given(authService.me(authUser)).willReturn(LoginResponse.from(authUser));
         String accessToken = jwtTokenProvider.generateAccessToken(authUser);
 
