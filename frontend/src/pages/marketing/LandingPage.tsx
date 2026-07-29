@@ -40,11 +40,12 @@ export default function LandingPage() {
           zIndex: 10,
         }}
       >
-        <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit' }}>
-          <img src={logoSrc} alt="Qurie" width={28} height={28} style={{ objectFit: 'contain' }} />
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em' }}>
-            Qurie
-          </span>
+        <Link to="/" style={{ display: 'inline-flex', textDecoration: 'none' }}>
+          <img
+            src={logoSrc}
+            alt="Qurie"
+            style={{ height: 28, width: 'auto', objectFit: 'contain', display: 'block' }}
+          />
         </Link>
         <nav style={{ display: 'flex', gap: 20, fontSize: 13, color: 'var(--text-secondary)' }}>
           <a href="#features" style={{ color: 'inherit', textDecoration: 'none' }}>주요 기능</a>

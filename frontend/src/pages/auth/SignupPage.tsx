@@ -194,9 +194,12 @@ export default function SignupPage() {
         padding: 24,
       }}
     >
-      <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'var(--ink)', marginBottom: 28 }}>
-        <img src={logoSrc} alt="Qurie" width={28} height={28} style={{ objectFit: 'contain' }} />
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700 }}>Qurie</span>
+      <Link to="/" style={{ display: 'inline-flex', textDecoration: 'none', marginBottom: 28 }}>
+        <img
+          src={logoSrc}
+          alt="Qurie"
+          style={{ height: 36, width: 'auto', objectFit: 'contain', display: 'block' }}
+        />
       </Link>
       <div
         style={{
