@@ -1,11 +1,27 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Search, Shuffle } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
-import { Badge, Button, Input, Modal, Select, Skeleton } from '../../ds';
-import { useManagerStudentsRow } from '../../data';
-import type { ClassRole } from '../../data';
+import {
+  Badge,
+  Button,
+  EmptyState,
+  Input,
+  Modal,
+  RowErrorFallback,
+  Select,
+  Skeleton,
+} from '../../ds';
+import {
+  QueryAsyncBoundary,
+  useCreateGroup,
+  useGetGroups,
+  useManagerStudentsRow,
+  useMe,
+  type ClassRole,
+  type GroupResponse,
+} from '../../data';
 
 function TableSkeleton() {
   return (
@@ -16,13 +32,169 @@ function TableSkeleton() {
   );
 }
 
+function GroupsPanelSkeleton() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Skeleton width="100%" height={64} radius={12} />
+      <Skeleton width="100%" height={64} radius={12} delay={0.06} />
+      <Skeleton width="100%" height={64} radius={12} delay={0.12} />
+    </div>
+  );
+}
+
+function pad2(n: number) {
+  return String(n).padStart(2, '0');
+}
+
+function toLocalDateTime(d: Date): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
+function defaultPeriod() {
+  const startedAt = new Date();
+  const endedAt = new Date(startedAt);
+  endedAt.setDate(endedAt.getDate() + 30);
+  return { startedAt: toLocalDateTime(startedAt), endedAt: toLocalDateTime(endedAt) };
+}
+
+function groupStatus(endedAt: string): '활동' | '종료' {
+  return new Date(endedAt).getTime() > Date.now() ? '활동' : '종료';
+}
+
+function GroupsSidePanel({
+  classId,
+  onCreateOpen,
+}: {
+  classId: number;
+  onCreateOpen: () => void;
+}) {
+  const navigate = useNavigate();
+  const { data: groups } = useGetGroups(classId);
+  const preview = groups.slice(0, 3);
+
+  return (
+    <div
+      style={{
+        background: 'var(--surface-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        boxShadow: 'var(--shadow-card)',
+        padding: 24,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          그룹
+        </span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Shuffle size={13} strokeWidth={1.75} />}
+            onClick={() => navigate('/manager/groups')}
+          >
+            랜덤
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<Plus size={13} strokeWidth={1.75} />}
+            onClick={onCreateOpen}
+          >
+            생성
+          </Button>
+        </div>
+      </div>
+
+      {preview.length === 0 ? (
+        <EmptyState
+          message="그룹이 없습니다"
+          description="생성하거나 그룹 관리에서 셔플하세요."
+          actionLabel="그룹 관리"
+          onAction={() => navigate('/manager/groups')}
+        />
+      ) : (
+        preview.map((g: GroupResponse) => {
+          const status = groupStatus(g.endedAt);
+          return (
+            <Link
+              key={g.id}
+              to={`/manager/groups/${g.id}`}
+              style={{
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+                padding: 12,
+                textDecoration: 'none',
+                display: 'block',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{g.name}</span>
+                <Badge status={status === '활동' ? 'success' : 'neutral'}>{status}</Badge>
+              </div>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {g.description || '설명이 없습니다.'}
+              </span>
+            </Link>
+          );
+        })
+      )}
+
+      {groups.length > 3 ? (
+        <Button variant="secondary" size="sm" onClick={() => navigate('/manager/groups')}>
+          전체 {groups.length}개 보기
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 export default function StudentManagementPage() {
   const navigate = useNavigate();
+  const { data: me } = useMe();
+  const classId = me.classId;
+  const hasValidClassId = typeof classId === 'number' && Number.isFinite(classId) && classId > 0;
   const row = useManagerStudentsRow();
+  const createGroup = useCreateGroup();
   const [query, setQuery] = useState('');
   const [roles, setRoles] = useState<Record<string, ClassRole>>({});
   const [groupOpen, setGroupOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
+  const [groupDescription, setGroupDescription] = useState('');
+  const [groupPanelKey, setGroupPanelKey] = useState(0);
+
+  const onCreateGroup = () => {
+    if (!hasValidClassId || !groupName.trim() || !groupDescription.trim()) return;
+    const period = defaultPeriod();
+    createGroup.mutate(
+      {
+        classId,
+        name: groupName.trim(),
+        description: groupDescription.trim(),
+        ...period,
+      },
+      {
+        onSuccess: (created) => {
+          setGroupOpen(false);
+          setGroupName('');
+          setGroupDescription('');
+          setGroupPanelKey((k) => k + 1);
+          navigate(`/manager/groups/${created.id}`);
+        },
+      },
+    );
+  };
 
   return (
     <ManagerShell activeKey="students" breadcrumbs={['서울 1반', '학생 관리']}>
@@ -46,7 +218,10 @@ export default function StudentManagementPage() {
           emptyMessage="학생이 없습니다"
         >
           {row.data && (
-            <div className="qurie-master-split" style={{ gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)' }}>
+            <div
+              className="qurie-master-split"
+              style={{ gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)' }}
+            >
               <div
                 style={{
                   background: 'var(--surface-card)',
@@ -57,7 +232,15 @@ export default function StudentManagementPage() {
                   minWidth: 0,
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 24px', borderBottom: '1px solid var(--divider)' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '16px 24px',
+                    borderBottom: '1px solid var(--divider)',
+                  }}
+                >
                   <Input
                     placeholder="학생 검색…"
                     icon={<Search size={14} strokeWidth={1.75} />}
@@ -117,7 +300,15 @@ export default function StudentManagementPage() {
                       >
                         <span style={{ display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{s.name}</span>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>{s.email}</span>
+                          <span
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: 12,
+                              color: 'var(--text-muted)',
+                            }}
+                          >
+                            {s.email}
+                          </span>
                         </span>
                         <span
                           onClick={(e) => e.stopPropagation()}
@@ -136,12 +327,31 @@ export default function StudentManagementPage() {
                         </span>
                         <span style={{ color: 'var(--text-secondary)' }}>{s.group}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ flex: 1, height: 5, borderRadius: 999, background: 'var(--divider)', overflow: 'hidden', maxWidth: 72 }}>
-                            <div style={{ width: `${s.completion}%`, height: '100%', background: 'var(--accent)' }} />
+                          <div
+                            style={{
+                              flex: 1,
+                              height: 5,
+                              borderRadius: 999,
+                              background: 'var(--divider)',
+                              overflow: 'hidden',
+                              maxWidth: 72,
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: `${s.completion}%`,
+                                height: '100%',
+                                background: 'var(--accent)',
+                              }}
+                            />
                           </div>
                           <span style={{ fontSize: 12, fontWeight: 600 }}>{s.completion}%</span>
                         </div>
-                        <Badge status={s.activity === '활성' ? 'success' : s.activity === '주의' ? 'warning' : 'error'}>
+                        <Badge
+                          status={
+                            s.activity === '활성' ? 'success' : s.activity === '주의' ? 'warning' : 'error'
+                          }
+                        >
                           {s.activity}
                         </Badge>
                       </div>
@@ -150,43 +360,42 @@ export default function StudentManagementPage() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
-                <div
-                  style={{
-                    background: 'var(--surface-card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 16,
-                    boxShadow: 'var(--shadow-card)',
-                    padding: 24,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                      그룹
-                    </span>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <Button variant="secondary" size="sm" icon={<Shuffle size={13} strokeWidth={1.75} />} onClick={() => undefined}>
-                        랜덤
-                      </Button>
-                      <Button variant="primary" size="sm" icon={<Plus size={13} strokeWidth={1.75} />} onClick={() => setGroupOpen(true)}>
-                        생성
-                      </Button>
-                    </div>
-                  </div>
-                  {row.data.groups.slice(0, 3).map((g) => (
-                    <div key={g.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 12 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{g.name}</span>
-                        <Badge status={g.status === '활동' ? 'success' : 'neutral'}>{g.status}</Badge>
+                {!hasValidClassId ? (
+                  <EmptyState
+                    message="소속 클래스가 없습니다"
+                    description="반 배정 후 그룹을 볼 수 있습니다."
+                    actionLabel="대시보드"
+                    onAction={() => navigate('/manager')}
+                  />
+                ) : (
+                  <QueryAsyncBoundary
+                    key={groupPanelKey}
+                    suspenseFallback={
+                      <div
+                        style={{
+                          background: 'var(--surface-card)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 16,
+                          padding: 24,
+                        }}
+                      >
+                        <GroupsPanelSkeleton />
                       </div>
-                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        LEADER {g.leader} · {g.members}명 · 세션 {g.sessions}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                    }
+                    errorFallback={
+                      <RowErrorFallback
+                        onRetry={() => setGroupPanelKey((k) => k + 1)}
+                        title="그룹을 불러오지 못했습니다"
+                        description="이 패널만 실패했습니다."
+                      />
+                    }
+                  >
+                    <GroupsSidePanel
+                      classId={classId}
+                      onCreateOpen={() => setGroupOpen(true)}
+                    />
+                  </QueryAsyncBoundary>
+                )}
                 <div
                   style={{
                     background: 'var(--accent-softer)',
@@ -199,7 +408,8 @@ export default function StudentManagementPage() {
                   }}
                 >
                   클래스 역할은 <span style={{ fontWeight: 600, color: 'var(--ink)' }}>ADMIN</span>과{' '}
-                  <span style={{ fontWeight: 600, color: 'var(--ink)' }}>STUDENT</span>만 사용합니다. TEMP_ADMIN은 지원하지 않습니다.
+                  <span style={{ fontWeight: 600, color: 'var(--ink)' }}>STUDENT</span>만 사용합니다.
+                  TEMP_ADMIN은 지원하지 않습니다.
                 </div>
               </div>
             </div>
@@ -209,10 +419,10 @@ export default function StudentManagementPage() {
         <Modal
           open={groupOpen}
           title="그룹 생성"
-          description="이름과 LEADER를 지정하고 멤버를 배정하세요."
-          primaryLabel="생성하기"
+          description="이름과 설명을 입력하면 빈 멤버로 생성됩니다. 멤버는 그룹 상세에서 배정하세요."
+          primaryLabel={createGroup.isPending ? '생성 중…' : '생성하기'}
           secondaryLabel="취소"
-          onPrimary={() => setGroupOpen(false)}
+          onPrimary={onCreateGroup}
           onSecondary={() => setGroupOpen(false)}
           onClose={() => setGroupOpen(false)}
           width={480}
@@ -220,17 +430,20 @@ export default function StudentManagementPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>그룹 이름</span>
-              <Input placeholder="그룹 E" value={groupName} onChange={(e) => setGroupName(e.target.value)} width="100%" />
+              <Input
+                placeholder="그룹 E"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                width="100%"
+              />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>LEADER</span>
-              <Select
-                options={[
-                  { value: 'sujin', label: '이수진' },
-                  { value: 'minsu', label: '박민수' },
-                ]}
-                value="sujin"
-                onChange={() => undefined}
+              <span style={{ fontSize: 13, fontWeight: 600 }}>설명</span>
+              <Input
+                placeholder="함께 리뷰하는 그룹입니다."
+                value={groupDescription}
+                onChange={(e) => setGroupDescription(e.target.value)}
+                width="100%"
               />
             </label>
           </div>

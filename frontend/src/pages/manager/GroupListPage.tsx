@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { useMemo, useState } from 'react';
 import { Calendar, Copy, Plus, Search, Shuffle, Trash2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -29,6 +30,23 @@ import {
   type GroupResponse,
 } from '../../data';
 
+function apiErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError(error)) {
+    const message = error.response?.data?.message;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return fallback;
+}
+
+function pad2(n: number) {
+  return String(n).padStart(2, '0');
+}
+
+/** Spring LocalDateTime용 로컬 시각 문자열 (UTC ISO 아님) */
+function toLocalDateTime(d: Date): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
 function GridSkeleton() {
   return (
     <div className="qurie-card-grid">
@@ -49,10 +67,6 @@ function formatPeriod(startedAt: string, endedAt: string): string {
   const fmt = (d: Date) =>
     `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
   return `${fmt(start)} – ${fmt(end)}`;
-}
-
-function toLocalDateTime(d: Date): string {
-  return d.toISOString().slice(0, 19);
 }
 
 function defaultPeriod() {
@@ -91,8 +105,10 @@ function ShuffleModal({
   const [titlePrefix, setTitlePrefix] = useState('그룹');
   const [batchDescription, setBatchDescription] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const hasExisting = groups.length > 0;
+  // 백엔드: 기존 배정이 있으면 confirmed=true 필요. 그룹이 있으면 배정이 있을 수 있어 경고 후 확정한다.
   const count = Number(shuffleCount);
   const previewCount = Number.isFinite(count) && count > 0 ? Math.min(count, 5) : 0;
   const namePreview =
@@ -109,6 +125,7 @@ function ShuffleModal({
       batchDescription.trim() || '랜덤 배정으로 생성된 그룹';
 
     setBusy(true);
+    setError(null);
     try {
       const created: GroupDetailResponse[] = await shuffleGroups.mutateAsync({
         classId,
@@ -118,6 +135,7 @@ function ShuffleModal({
         ...period,
       });
 
+      // 백엔드는 기존 배정만 비우고 빈 그룹은 남김 → 화면에서 정리
       const createdIds = new Set(created.map((g) => g.id));
       const obsolete = existingIds.filter((id) => !createdIds.has(id));
       await Promise.all(
@@ -136,6 +154,8 @@ function ShuffleModal({
 
       onClose();
       onDone();
+    } catch (err) {
+      setError(apiErrorMessage(err, '셔플에 실패했습니다. 잠시 후 다시 시도해 주세요.'));
     } finally {
       setBusy(false);
     }
@@ -145,7 +165,7 @@ function ShuffleModal({
     <Modal
       open={open}
       title="그룹 셔플"
-      description="지정한 수만큼 새 그룹을 만들고 학생을 균등 재배정합니다. 기존 그룹은 삭제됩니다."
+      description="지정한 수만큼 새 그룹을 만들고 학생을 균등 재배정합니다. 기존 빈 그룹은 정리됩니다."
       primaryLabel={busy ? '재배정 중…' : '재배정'}
       secondaryLabel="취소"
       onPrimary={() => {
@@ -159,9 +179,13 @@ function ShuffleModal({
         {hasExisting ? (
           <AlertBanner
             tone="warning"
-            title="기존 그룹이 삭제됩니다"
-            description={`현재 ${groups.length}개 그룹과 구성원 배정이 모두 지워지고, 새 그룹으로 대체됩니다.`}
+            title="기존 배정이 덮어써집니다"
+            description={`현재 ${groups.length}개 그룹의 구성원 배정이 해제되고, 새 그룹으로 재배정됩니다. 빈 옛 그룹은 삭제됩니다.`}
           />
+        ) : null}
+
+        {error ? (
+          <AlertBanner tone="error" title="재배정 실패" description={error} />
         ) : null}
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -502,6 +526,7 @@ export default function GroupListPage() {
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
   const [rowKey, setRowKey] = useState(0);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const refresh = () => setRowKey((k) => k + 1);
 
@@ -509,6 +534,7 @@ export default function GroupListPage() {
     if (!hasValidClassId) return;
     if (!groupName.trim() || !description.trim()) return;
     const period = defaultPeriod();
+    setCreateError(null);
     createGroup.mutate(
       {
         classId,
@@ -523,6 +549,9 @@ export default function GroupListPage() {
           setDescription('');
           refresh();
         },
+        onError: (err) => {
+          setCreateError(apiErrorMessage(err, '그룹 생성에 실패했습니다.'));
+        },
       },
     );
   };
@@ -530,6 +559,7 @@ export default function GroupListPage() {
   const onBlankCreate = () => {
     if (!hasValidClassId || createGroup.isPending) return;
     const period = defaultPeriod();
+    setCreateError(null);
     createGroup.mutate(
       {
         classId,
@@ -539,6 +569,9 @@ export default function GroupListPage() {
       },
       {
         onSuccess: (created) => navigate(`/manager/groups/${created.id}`),
+        onError: (err) => {
+          setCreateError(apiErrorMessage(err, '그룹 생성에 실패했습니다.'));
+        },
       },
     );
   };
@@ -645,11 +678,20 @@ export default function GroupListPage() {
           primaryLabel={createGroup.isPending ? '생성 중…' : '생성하기'}
           secondaryLabel="취소"
           onPrimary={onCreate}
-          onSecondary={() => setCreateOpen(false)}
-          onClose={() => setCreateOpen(false)}
+          onSecondary={() => {
+            setCreateOpen(false);
+            setCreateError(null);
+          }}
+          onClose={() => {
+            setCreateOpen(false);
+            setCreateError(null);
+          }}
           width={480}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {createError ? (
+              <AlertBanner tone="error" title="생성 실패" description={createError} />
+            ) : null}
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>그룹 이름</span>
               <Input
