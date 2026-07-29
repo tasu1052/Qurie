@@ -8,6 +8,9 @@ import {
 } from 'react';
 import {
   applyTheme,
+  getSystemTheme,
+  persistTheme,
+  readStoredTheme,
   resolveInitialTheme,
   type ThemeMode,
 } from './theme';
@@ -27,12 +30,28 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     applyTheme(theme);
   }, [theme]);
 
+  // 첫 이용자다 << 그럼 시스템 설정 따라가고 유저가 선택한 적 있으면 그 세팅 따라감.
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => {
+      if (readStoredTheme()) return;
+      setThemeState(getSystemTheme());
+    };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
   const setTheme = useCallback((next: ThemeMode) => {
+    persistTheme(next);
     setThemeState(next);
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setThemeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    setThemeState((prev) => {
+      const next: ThemeMode = prev === 'dark' ? 'light' : 'dark';
+      persistTheme(next);
+      return next;
+    });
   }, []);
 
   return (

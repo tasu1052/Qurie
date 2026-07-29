@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { applyTheme, resolveInitialTheme } from '../../theme/theme';
+import { applyTheme, persistTheme, resolveInitialTheme } from '../../theme/theme';
 import { useThemeOptional } from '../../theme/ThemeProvider';
 
 type ThemeToggleProps = {
@@ -15,7 +15,7 @@ type ThemeToggleProps = {
 
 /**
  * Switch toggle from dark-mode-for-cursor.md.
- * - Uncontrolled: flips `data-theme` on `<html>` (+ localStorage via applyTheme)
+ * - Uncontrolled: flips `data-theme` on `<html>` (+ localStorage via persistTheme)
  * - Controlled: caller owns where `data-theme` is applied
  * - Inside ThemeProvider: syncs with shared theme state when uncontrolled props are used
  */
@@ -55,6 +55,7 @@ export function ThemeToggle({
     }
     setInternal(next);
     applyTheme(next ? 'dark' : 'light');
+    persistTheme(next ? 'dark' : 'light');
   };
 
   const dims = size === 'sm' ? { w: 36, h: 20, t: 16 } : { w: 44, h: 24, t: 20 };
