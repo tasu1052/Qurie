@@ -327,7 +327,6 @@ function GroupCard({
                 groupId: detail.id,
                 classId: detail.classId,
                 name: `${detail.name} 사본`,
-                includeMembers: true,
               },
               {
                 onSuccess: (created) => {

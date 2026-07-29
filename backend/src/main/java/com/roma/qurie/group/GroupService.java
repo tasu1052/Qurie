@@ -18,8 +18,8 @@ import com.roma.qurie.user.entity.UserRole;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -110,29 +110,22 @@ public class GroupService {
     }
 
     /**
-     * 배정 후보 목록을 조회하는 함수. 반 인원 전체를 돌려주며 이미 다른 그룹에 속한 사람은
-     * 현재 그룹을 함께 표시한다("정유진 — 현재 그룹 B").
+     * 배정 후보 목록을 조회하는 함수. 아직 어느 그룹에도 속하지 않은 반의 학생만 돌려준다 —
+     * 한 학생은 반에서 그룹 하나에만 속하므로 이미 배정된 학생은 후보가 될 수 없다.
+     * 편집 중인 그룹의 현재 구성원은 상세 응답의 members 로 따로 내려간다.
      */
     @Transactional(readOnly = true)
     public List<GroupMemberCandidateResponse> getMemberCandidates(AuthUser authUser, Long classId) {
         verifyClassAccessible(authUser, classId);
 
-        Map<Long, Group> groupByUserId = new LinkedHashMap<>();
-        for (GroupParticipant participant : groupParticipantRepository.findAllWithGroupAndUserByClassId(classId)) {
-            groupByUserId.put(participant.getUser().getId(), participant.getGroup());
-        }
+        Set<Long> assignedUserIds = groupParticipantRepository.findAllWithGroupAndUserByClassId(classId).stream()
+                .map(participant -> participant.getUser().getId())
+                .collect(Collectors.toSet());
 
         return classUserRepository.findAllWithUserByClassEntityIdAndRole(classId, UserRole.STUDENT).stream()
                 .map(ClassUser::getUser)
-                .map(user -> {
-                    Group current = groupByUserId.get(user.getId());
-                    return new GroupMemberCandidateResponse(
-                            user.getId(),
-                            user.getName(),
-                            user.getEmail(),
-                            current == null ? null : current.getId(),
-                            current == null ? null : current.getName());
-                })
+                .filter(user -> !assignedUserIds.contains(user.getId()))
+                .map(user -> new GroupMemberCandidateResponse(user.getId(), user.getName(), user.getEmail()))
                 .toList();
     }
 
@@ -171,13 +164,19 @@ public class GroupService {
     }
 
     /**
-     * 그룹을 복제하는 함수. 이름·설명·운영 기간(레이아웃)을 그대로 가진 새 그룹을 만든다.
-     * 구성원 복제는 기본으로 끈다 — 한 사람이 두 그룹에 동시에 들어가는 상태가 만들어지기 때문이다.
+     * 그룹을 복제하는 함수. 이름·설명·운영 기간(레이아웃)만 복제하고 구성원은 복제하지 않는다 —
+     * 한 학생은 반에서 그룹 하나에만 속하므로 구성원을 복사하면 그 규칙이 깨진다.
      */
     @Transactional
     public GroupDetailResponse duplicate(AuthUser authUser, Long groupId, GroupDuplicateRequest request) {
         Group source = findGroup(groupId);
         requireMasterOrOwnClassManager(authUser, source.getClassId());
+
+        // 한 학생은 반에서 그룹 하나에만 속하므로 구성원까지 복제하면 규칙이 깨진다.
+        if (request.shouldIncludeMembers()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT, "구성원은 복제할 수 없습니다. 한 학생은 그룹 하나에만 속할 수 있습니다.");
+        }
 
         String name = request.name() != null && !request.name().isBlank()
                 ? request.name().trim()
@@ -191,15 +190,6 @@ public class GroupService {
                 .endedAt(source.getEndedAt())
                 .build();
         Group saved = groupRepository.save(copy);
-
-        if (request.shouldIncludeMembers()) {
-            List<GroupParticipant> copies = groupParticipantRepository
-                    .findAllWithUserByGroupIdAndRole(groupId, UserRole.STUDENT).stream()
-                    .map(participant ->
-                            new GroupParticipant(saved, participant.getUser(), participant.getRole()))
-                    .toList();
-            groupParticipantRepository.saveAll(copies);
-        }
 
         return GroupDetailResponse.of(
                 saved, groupParticipantRepository.findAllWithUserByGroupIdAndRole(saved.getId(), UserRole.STUDENT));
@@ -310,11 +300,26 @@ public class GroupService {
                 .map(ClassUser::getUser)
                 .collect(Collectors.toMap(User::getId, Function.identity(), (left, right) -> left));
 
+        // 한 학생은 반에서 그룹 하나에만 속한다. 다른 그룹에 이미 배정된 학생은 여기서 걸러 낸다.
+        Map<Long, Group> otherGroupByUserId = new HashMap<>();
+        for (GroupParticipant participant
+                : groupParticipantRepository.findAllWithGroupAndUserByClassId(group.getClassId())) {
+            if (!participant.getGroup().getId().equals(group.getId())) {
+                otherGroupByUserId.put(participant.getUser().getId(), participant.getGroup());
+            }
+        }
+
         List<GroupParticipant> participants = new ArrayList<>();
         for (Long memberId : distinctIds) {
             User user = classMembers.get(memberId);
             if (user == null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "반의 학생만 그룹에 배정할 수 있습니다.");
+            }
+            Group other = otherGroupByUserId.get(memberId);
+            if (other != null) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        user.getName() + " 학생은 이미 " + other.getName() + " 그룹에 배정되어 있습니다.");
             }
             GroupParticipantRole role = memberId.equals(leaderId)
                     ? GroupParticipantRole.LEADER
