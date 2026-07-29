@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { GripVertical, Trash2, X } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
@@ -31,6 +31,19 @@ type DraftMember = {
   role: 'LEADER' | 'PARTICIPANT';
 };
 
+type DragPayload = {
+  userId: number;
+  name: string;
+  email: string;
+  from: 'pool' | 'members';
+  width: number;
+  height: number;
+  offsetX: number;
+  offsetY: number;
+  x: number;
+  y: number;
+};
+
 function avatarChar(name: string) {
   return name.trim().slice(0, 1) || '?';
 }
@@ -41,6 +54,46 @@ function EditSkeleton() {
       <Skeleton width="100%" height={420} radius={16} />
       <Skeleton width="100%" height={420} radius={16} delay={0.08} />
     </div>
+  );
+}
+
+function StudentCardFace({
+  name,
+  email,
+  trailing,
+  muted,
+}: {
+  name: string;
+  email: string;
+  trailing?: ReactNode;
+  muted?: boolean;
+}) {
+  return (
+    <>
+      <GripVertical size={14} strokeWidth={1.75} color="var(--text-muted)" />
+      <span
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: '50%',
+          background: muted ? 'var(--surface-sunken)' : 'var(--accent-soft)',
+          color: muted ? 'var(--text-secondary)' : 'var(--accent)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 11,
+          fontWeight: 700,
+          flex: 'none',
+        }}
+      >
+        {avatarChar(name)}
+      </span>
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{name}</span>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{email}</span>
+      </div>
+      {trailing}
+    </>
   );
 }
 
@@ -58,6 +111,8 @@ function GroupEditForm({
   const navigate = useNavigate();
   const editGroup = useEditGroup();
   const deleteGroup = useDeleteGroup();
+  const membersPanelRef = useRef<HTMLDivElement>(null);
+  const poolPanelRef = useRef<HTMLDivElement>(null);
 
   const [name, setName] = useState(detail.name);
   const [description, setDescription] = useState(detail.description);
@@ -71,15 +126,34 @@ function GroupEditForm({
   );
   const [selected, setSelected] = useState<number[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const [draggingId, setDraggingId] = useState<number | null>(null);
+  const [drag, setDrag] = useState<DragPayload | null>(null);
+  const [dropTarget, setDropTarget] = useState<'members' | 'pool' | null>(null);
 
   const leaderId = members.find((m) => m.role === 'LEADER')?.userId ?? null;
-  const memberIds = members.map((m) => m.userId);
+  const memberIdSet = useMemo(() => new Set(members.map((m) => m.userId)), [members]);
+
+  const poolStudents = useMemo(
+    () =>
+      candidates.filter((c) => {
+        if (memberIdSet.has(c.userId)) return false;
+        // 다른 그룹에만 묶인 학생은 풀에서 제외(비활성 목록으로 따로 표시)
+        if (c.currentGroupId != null && c.currentGroupId !== groupId) return false;
+        return true;
+      }),
+    [candidates, memberIdSet, groupId],
+  );
+
+  const blockedStudents = useMemo(
+    () =>
+      candidates.filter(
+        (c) => c.currentGroupId != null && c.currentGroupId !== groupId && !memberIdSet.has(c.userId),
+      ),
+    [candidates, groupId, memberIdSet],
+  );
 
   const dirty = useMemo(() => {
     const origIds = detail.members.map((m) => m.userId).sort((a, b) => a - b);
-    const nextIds = [...memberIds].sort((a, b) => a - b);
+    const nextIds = [...memberIdSet].sort((a, b) => a - b);
     const origLeader = detail.members.find((m) => m.role === 'LEADER')?.userId ?? null;
     return (
       name !== detail.name ||
@@ -88,7 +162,7 @@ function GroupEditForm({
       origIds.length !== nextIds.length ||
       origIds.some((id, i) => id !== nextIds[i])
     );
-  }, [detail, name, description, memberIds, leaderId]);
+  }, [detail, name, description, memberIdSet, leaderId]);
 
   const addMembers = (ids: number[]) => {
     const byId = new Map(candidates.map((c) => [c.userId, c]));
@@ -99,7 +173,6 @@ function GroupEditForm({
         if (existing.has(id)) continue;
         const c = byId.get(id);
         if (!c) continue;
-        // 다른 그룹 소속이면 배정 불가 (백엔드 단일 소속 규칙)
         if (c.currentGroupId != null && c.currentGroupId !== groupId) continue;
         next.push({
           userId: c.userId,
@@ -110,11 +183,12 @@ function GroupEditForm({
       }
       return next;
     });
-    setSelected([]);
+    setSelected((prev) => prev.filter((id) => !ids.includes(id)));
   };
 
   const removeMember = (userId: number) => {
     setMembers((prev) => prev.filter((m) => m.userId !== userId));
+    setSelected((prev) => prev.filter((id) => id !== userId));
   };
 
   const setLeader = (userId: number) => {
@@ -126,12 +200,91 @@ function GroupEditForm({
     );
   };
 
+  const hitTestPanels = (clientX: number, clientY: number): 'members' | 'pool' | null => {
+    const membersBox = membersPanelRef.current?.getBoundingClientRect();
+    const poolBox = poolPanelRef.current?.getBoundingClientRect();
+    if (
+      membersBox &&
+      clientX >= membersBox.left &&
+      clientX <= membersBox.right &&
+      clientY >= membersBox.top &&
+      clientY <= membersBox.bottom
+    ) {
+      return 'members';
+    }
+    if (
+      poolBox &&
+      clientX >= poolBox.left &&
+      clientX <= poolBox.right &&
+      clientY >= poolBox.top &&
+      clientY <= poolBox.bottom
+    ) {
+      return 'pool';
+    }
+    return null;
+  };
+
+  const beginDrag = (
+    e: ReactPointerEvent<HTMLDivElement>,
+    payload: { userId: number; name: string; email: string; from: 'pool' | 'members' },
+  ) => {
+    // 체크박스/버튼 클릭은 드래그 시작하지 않음
+    const target = e.target as HTMLElement;
+    if (target.closest('input, button, a, label')) return;
+
+    e.preventDefault();
+    const card = e.currentTarget;
+    const rect = card.getBoundingClientRect();
+    card.setPointerCapture(e.pointerId);
+    setDrag({
+      ...payload,
+      width: rect.width,
+      height: rect.height,
+      offsetX: e.clientX - rect.left,
+      offsetY: e.clientY - rect.top,
+      x: e.clientX,
+      y: e.clientY,
+    });
+    setDropTarget(hitTestPanels(e.clientX, e.clientY));
+  };
+
+  const onDragMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!drag) return;
+    setDrag((prev) =>
+      prev
+        ? {
+            ...prev,
+            x: e.clientX,
+            y: e.clientY,
+          }
+        : null,
+    );
+    setDropTarget(hitTestPanels(e.clientX, e.clientY));
+  };
+
+  const endDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!drag) return;
+    const target = hitTestPanels(e.clientX, e.clientY);
+    if (drag.from === 'pool' && target === 'members') {
+      addMembers([drag.userId]);
+    } else if (drag.from === 'members' && target === 'pool') {
+      removeMember(drag.userId);
+    }
+    setDrag(null);
+    setDropTarget(null);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
+  };
+
   const onSave = () => {
     editGroup.mutate({
       groupId,
       name: name.trim(),
       description: description.trim(),
-      memberIds,
+      memberIds: members.map((m) => m.userId),
       leaderId: leaderId ?? undefined,
     });
   };
@@ -163,6 +316,18 @@ function GroupEditForm({
     minHeight: 480,
   };
 
+  const cardBase: CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '10px 12px',
+    borderRadius: 12,
+    border: '1px solid var(--divider)',
+    background: 'var(--surface-card-solid)',
+    userSelect: 'none',
+    touchAction: 'none',
+  };
+
   return (
     <>
       <ManagerShell activeKey="groups" breadcrumbs={['그룹 관리', detail.name]}>
@@ -179,8 +344,7 @@ function GroupEditForm({
               <div>
                 <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{name || detail.name}</h1>
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                  구성원을 추가·제거하고 리더를 지정한 뒤 저장하세요. 이미 다른 그룹에 속한
-                  학생은 배정할 수 없습니다.
+                  카드를 드래그해 멤버로 옮기거나 다시 풀로 빼세요. 저장을 눌러야 서버에 반영됩니다.
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -202,7 +366,15 @@ function GroupEditForm({
             </div>
 
             {editGroup.isPending ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', fontSize: 13 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  color: 'var(--text-secondary)',
+                  fontSize: 13,
+                }}
+              >
                 <Spinner size="sm" />
                 변경사항을 저장하는 중…
               </div>
@@ -216,24 +388,12 @@ function GroupEditForm({
               }}
             >
               <div
+                ref={membersPanelRef}
                 style={{
                   ...panelStyle,
-                  outline: dragOver ? '2px solid var(--accent)' : undefined,
+                  outline: dropTarget === 'members' ? '2px solid var(--accent)' : undefined,
                   outlineOffset: 2,
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = 'move';
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragOver(false);
-                  const raw = e.dataTransfer.getData('application/x-qurie-user-id');
-                  const id = Number(raw);
-                  if (Number.isFinite(id) && id > 0) addMembers([id]);
-                  setDraggingId(null);
+                  transition: 'outline 120ms ease-out',
                 }}
               >
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -273,7 +433,7 @@ function GroupEditForm({
                       fontFamily: 'var(--font-sans)',
                       fontSize: 14,
                       color: 'var(--ink)',
-                      background: 'var(--surface-card)',
+                      background: 'var(--surface-modal)',
                       boxSizing: 'border-box',
                     }}
                   />
@@ -282,90 +442,100 @@ function GroupEditForm({
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
                   멤버 {members.length}
                 </span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  오른쪽으로 드래그하면 멤버에서 빠집니다.
+                </span>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, overflow: 'auto' }}>
                   {members.length === 0 ? (
                     <EmptyState
                       message="멤버가 없습니다"
-                      description="오른쪽에서 학생을 추가하세요."
+                      description="오른쪽 미배정 학생을 여기로 드래그하세요."
                       actionLabel="목록으로"
                       onAction={() => navigate('/manager/groups')}
                     />
                   ) : (
-                    members.map((m) => (
-                      <div
-                        key={m.userId}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          padding: '10px 12px',
-                          border: '1px solid var(--divider)',
-                          borderRadius: 12,
-                          background: 'var(--surface-card)',
-                        }}
-                      >
-                        <span
+                    members.map((m) => {
+                      const isGhost = drag?.userId === m.userId;
+                      return (
+                        <div
+                          key={m.userId}
+                          onPointerDown={(e) =>
+                            beginDrag(e, {
+                              userId: m.userId,
+                              name: m.name,
+                              email: m.email,
+                              from: 'members',
+                            })
+                          }
+                          onPointerMove={onDragMove}
+                          onPointerUp={endDrag}
+                          onPointerCancel={endDrag}
                           style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: '50%',
-                            background: 'var(--accent-soft)',
-                            color: 'var(--accent)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 11,
-                            fontWeight: 700,
+                            ...cardBase,
+                            opacity: isGhost ? 0.25 : 1,
+                            cursor: drag?.userId === m.userId ? 'grabbing' : 'grab',
+                            boxShadow: isGhost ? 'none' : undefined,
                           }}
                         >
-                          {avatarChar(m.name)}
-                        </span>
-                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-                          <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>
-                            {m.name}
-                          </span>
-                          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{m.email}</span>
+                          <StudentCardFace
+                            name={m.name}
+                            email={m.email}
+                            trailing={
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setLeader(m.userId)}
+                                  style={{
+                                    border: `1px solid ${m.role === 'LEADER' ? 'var(--accent)' : 'var(--border-strong)'}`,
+                                    background:
+                                      m.role === 'LEADER' ? 'var(--accent-softer)' : 'transparent',
+                                    color:
+                                      m.role === 'LEADER' ? 'var(--accent)' : 'var(--text-secondary)',
+                                    borderRadius: 999,
+                                    padding: '4px 10px',
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    fontFamily: 'var(--font-sans)',
+                                  }}
+                                >
+                                  LEADER
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label={`${m.name} 제거`}
+                                  onClick={() => removeMember(m.userId)}
+                                  style={{
+                                    border: 'none',
+                                    background: 'transparent',
+                                    color: 'var(--text-muted)',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    padding: 4,
+                                  }}
+                                >
+                                  <X size={14} strokeWidth={1.75} />
+                                </button>
+                              </>
+                            }
+                          />
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setLeader(m.userId)}
-                          style={{
-                            border: `1px solid ${m.role === 'LEADER' ? 'var(--accent)' : 'var(--border-strong)'}`,
-                            background: m.role === 'LEADER' ? 'var(--accent-softer)' : 'transparent',
-                            color: m.role === 'LEADER' ? 'var(--accent)' : 'var(--text-secondary)',
-                            borderRadius: 999,
-                            padding: '4px 10px',
-                            fontSize: 11,
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            fontFamily: 'var(--font-sans)',
-                          }}
-                        >
-                          LEADER
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`${m.name} 제거`}
-                          onClick={() => removeMember(m.userId)}
-                          style={{
-                            border: 'none',
-                            background: 'transparent',
-                            color: 'var(--text-muted)',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            padding: 4,
-                          }}
-                        >
-                          <X size={14} strokeWidth={1.75} />
-                        </button>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
 
-              <div style={panelStyle}>
+              <div
+                ref={poolPanelRef}
+                style={{
+                  ...panelStyle,
+                  outline: dropTarget === 'pool' ? '2px solid var(--accent)' : undefined,
+                  outlineOffset: 2,
+                  transition: 'outline 120ms ease-out',
+                }}
+              >
                 <div
                   style={{
                     display: 'flex',
@@ -375,7 +545,7 @@ function GroupEditForm({
                   }}
                 >
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
-                    클래스 학생
+                    미배정 학생
                   </span>
                   <Button
                     variant="secondary"
@@ -387,105 +557,133 @@ function GroupEditForm({
                   </Button>
                 </div>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  미배정 학생만 선택·드래그할 수 있습니다. 다른 그룹 소속은 비활성입니다.
+                  왼쪽으로 드래그하면 멤버로 들어갑니다. X로 빼면 여기로 바로 돌아옵니다.
                 </span>
+
                 <div
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 6,
                     overflow: 'auto',
-                    maxHeight: 520,
+                    maxHeight: 420,
                   }}
                 >
-                  {candidates.map((c: GroupMemberCandidateResponse) => {
-                    const inThis = memberIds.includes(c.userId);
-                    const otherGroup =
-                      c.currentGroupId != null && c.currentGroupId !== groupId
-                        ? c.currentGroupName
-                        : null;
-                    const disabled = inThis || otherGroup != null;
-                    const isDragging = draggingId === c.userId;
-                    return (
-                      <div
-                        key={c.userId}
-                        draggable={!disabled}
-                        onDragStart={(e) => {
-                          if (disabled) {
-                            e.preventDefault();
-                            return;
+                  {poolStudents.length === 0 ? (
+                    <EmptyState
+                      message="미배정 학생이 없습니다"
+                      description="멤버를 오른쪽으로 드래그하거나 X로 빼면 여기에 나타납니다."
+                      actionLabel="목록으로"
+                      onAction={() => navigate('/manager/groups')}
+                    />
+                  ) : (
+                    poolStudents.map((c) => {
+                      const isGhost = drag?.userId === c.userId;
+                      return (
+                        <div
+                          key={c.userId}
+                          onPointerDown={(e) =>
+                            beginDrag(e, {
+                              userId: c.userId,
+                              name: c.name,
+                              email: c.email,
+                              from: 'pool',
+                            })
                           }
-                          const card = e.currentTarget;
-                          e.dataTransfer.setData('application/x-qurie-user-id', String(c.userId));
-                          e.dataTransfer.effectAllowed = 'move';
-                          e.dataTransfer.setDragImage(card, 28, 22);
-                          setDraggingId(c.userId);
-                        }}
-                        onDragEnd={() => setDraggingId(null)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          padding: '10px 12px',
-                          borderRadius: 12,
-                          border: `1px solid ${isDragging ? 'var(--accent)' : 'var(--divider)'}`,
-                          opacity: disabled ? 0.45 : isDragging ? 0.4 : 1,
-                          background: disabled
-                            ? 'var(--surface-sunken)'
-                            : 'var(--surface-card-solid)',
-                          boxShadow: isDragging ? 'var(--shadow-card)' : undefined,
-                          transform: isDragging ? 'scale(0.98)' : undefined,
-                          cursor: disabled ? 'not-allowed' : isDragging ? 'grabbing' : 'grab',
-                          transition: 'opacity 120ms ease-out, transform 120ms ease-out',
-                          userSelect: 'none',
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          disabled={disabled}
-                          checked={selected.includes(c.userId)}
-                          onChange={() => toggleSelect(c.userId)}
-                          aria-label={`${c.name} 선택`}
-                        />
-                        <GripVertical size={14} strokeWidth={1.75} color="var(--text-muted)" />
-                        <span
+                          onPointerMove={onDragMove}
+                          onPointerUp={endDrag}
+                          onPointerCancel={endDrag}
                           style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: '50%',
-                            background: 'var(--surface-sunken)',
-                            color: 'var(--text-secondary)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 11,
-                            fontWeight: 700,
+                            ...cardBase,
+                            opacity: isGhost ? 0.25 : 1,
+                            cursor: drag?.userId === c.userId ? 'grabbing' : 'grab',
                           }}
                         >
-                          {avatarChar(c.name)}
-                        </span>
-                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-                          <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>
-                            {c.name}
-                          </span>
-                          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{c.email}</span>
+                          <input
+                            type="checkbox"
+                            checked={selected.includes(c.userId)}
+                            onChange={() => toggleSelect(c.userId)}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            aria-label={`${c.name} 선택`}
+                          />
+                          <StudentCardFace
+                            name={c.name}
+                            email={c.email}
+                            trailing={<Badge status="success">미배정</Badge>}
+                          />
                         </div>
-                        {inThis ? (
-                          <Badge status="neutral">이 그룹</Badge>
-                        ) : otherGroup ? (
-                          <Badge status="warning">{otherGroup}</Badge>
-                        ) : (
-                          <Badge status="success">미배정</Badge>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
+
+                {blockedStudents.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
+                      다른 그룹 소속 (배정 불가)
+                    </span>
+                    {blockedStudents.map((c) => (
+                      <div
+                        key={c.userId}
+                        style={{
+                          ...cardBase,
+                          opacity: 0.45,
+                          cursor: 'not-allowed',
+                          background: 'var(--surface-sunken)',
+                        }}
+                      >
+                        <StudentCardFace
+                          name={c.name}
+                          email={c.email}
+                          muted
+                          trailing={
+                            <Badge status="warning">{c.currentGroupName ?? '다른 그룹'}</Badge>
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </div>
           </RowSection>
         </PageMain>
       </ManagerShell>
+
+      {drag ? (
+        <div
+          style={{
+            position: 'fixed',
+            left: drag.x - drag.offsetX,
+            top: drag.y - drag.offsetY,
+            width: drag.width,
+            height: drag.height,
+            zIndex: 200,
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '10px 12px',
+            borderRadius: 12,
+            border: '1px solid var(--accent)',
+            background: 'var(--surface-modal)',
+            boxShadow: 'var(--shadow-modal)',
+            boxSizing: 'border-box',
+            transform: 'scale(1.02)',
+            transition: 'box-shadow 120ms ease-out',
+          }}
+        >
+          <StudentCardFace
+            name={drag.name}
+            email={drag.email}
+            trailing={
+              <Badge status={drag.from === 'pool' ? 'success' : 'accent'}>
+                {drag.from === 'pool' ? '멤버로' : '풀로'}
+              </Badge>
+            }
+          />
+        </div>
+      ) : null}
 
       <ConfirmDeleteOverlay
         open={deleteOpen}

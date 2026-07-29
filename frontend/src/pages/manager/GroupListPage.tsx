@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Calendar, Copy, Plus, Search, Shuffle } from 'lucide-react';
+import { Calendar, Copy, Plus, Search, Shuffle, Trash2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
+import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
 import {
   AlertBanner,
   Badge,
@@ -211,15 +212,16 @@ function avatarChar(name: string) {
 
 function GroupCard({
   group,
-  onDuplicated,
+  onChanged,
 }: {
   group: GroupResponse;
-  onDuplicated: () => void;
+  onChanged: () => void;
 }) {
   const navigate = useNavigate();
   const { data: detail } = useGetGroupDetail(group.id);
   const duplicate = useDuplicateGroup();
-  const status = groupStatus(detail.endedAt);
+  const deleteGroup = useDeleteGroup();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const leader = detail.members.find((m) => m.role === 'LEADER');
   const shown = detail.members.slice(0, 4);
   const extra = Math.max(0, detail.memberCount - shown.length);
@@ -239,9 +241,31 @@ function GroupCard({
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>{detail.name}</h3>
-        <span style={{ marginLeft: 'auto' }}>
-          <Badge status={status === '활동 중' ? 'success' : 'neutral'}>{status}</Badge>
-        </span>
+        <button
+          type="button"
+          title="그룹 삭제"
+          aria-label="그룹 삭제"
+          disabled={deleteGroup.isPending}
+          onClick={() => setDeleteOpen(true)}
+          style={{
+            marginLeft: 'auto',
+            border: '1px solid var(--border-strong)',
+            background: 'var(--surface-card)',
+            color: 'var(--status-error)',
+            borderRadius: 999,
+            padding: '6px 10px',
+            cursor: deleteGroup.isPending ? 'wait' : 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+        >
+          <Trash2 size={13} strokeWidth={1.75} />
+          삭제
+        </button>
       </div>
       <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
         {detail.description || '설명이 없습니다.'}
@@ -330,7 +354,7 @@ function GroupCard({
               },
               {
                 onSuccess: (created) => {
-                  onDuplicated();
+                  onChanged();
                   navigate(`/manager/groups/${created.id}`);
                 },
               },
@@ -348,6 +372,22 @@ function GroupCard({
           <Copy size={15} strokeWidth={1.75} />
         </button>
       </div>
+
+      <ConfirmDeleteOverlay
+        open={deleteOpen}
+        title="그룹 삭제"
+        description="그룹을 삭제하면 구성원 배정이 해제됩니다. 이 작업은 되돌릴 수 없습니다."
+        confirmText={detail.name}
+        childCounts={[`멤버 ${detail.memberCount}명`]}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={() => {
+          deleteGroup.mutate(
+            { groupId: detail.id, classId: detail.classId },
+            { onSuccess: onChanged },
+          );
+        }}
+        confirmLabel="삭제"
+      />
     </div>
   );
 }
@@ -395,7 +435,7 @@ function GroupGrid({
       ) : null}
       <div className="qurie-card-grid">
         {filtered.map((g) => (
-          <GroupCard key={g.id} group={g} onDuplicated={onRefresh} />
+          <GroupCard key={g.id} group={g} onChanged={onRefresh} />
         ))}
         <button
           type="button"
