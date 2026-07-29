@@ -70,7 +70,9 @@ services:
       # SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD}
       # MAIL_FROM: ${MAIL_FROM}
     ports:
-      - "8080:8080"
+      # 앞단의 nginx 가 127.0.0.1:8080 으로 프록시한다. 0.0.0.0 에 열면 nginx(HTTPS)를 우회해
+      # 평문 8080 으로 직접 접속할 수 있고, docker 가 iptables 를 직접 건드려 ufw 로도 막히지 않는다.
+      - "127.0.0.1:8080:8080"
 
 volumes:
   mysql-data:
