@@ -21,4 +21,7 @@ public interface ClassUserRepository extends JpaRepository<ClassUser, Long> {
 	 */
 	@Query("select cu from ClassUser cu join fetch cu.classEntity c join fetch c.track where cu.user.id = :userId")
 	List<ClassUser> findAllWithClassByUserId(@Param("userId") Long userId);
+
+	/** 클래스 삭제 시 명단을 함께 정리한다. 명단은 클래스에 종속된 데이터라 남겨둘 이유가 없다. */
+	void deleteByClassEntityId(Long classId);
 }
