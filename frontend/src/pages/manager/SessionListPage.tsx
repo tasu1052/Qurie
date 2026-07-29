@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Plus, Search } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import {
   Badge,
@@ -157,11 +156,9 @@ function SessionTable({
 }
 
 export default function SessionListPage() {
-  const [params] = useSearchParams();
-  const classIdParam = params.get('classId');
-  const classId = classIdParam ? Number(classIdParam) : NaN;
-  const hasValidClassId = Number.isFinite(classId) && classId > 0;
   const { data: me } = useMe();
+  const classId = me.classId;
+  const hasValidClassId = typeof classId === 'number' && Number.isFinite(classId) && classId > 0;
   const createSession = useCreateSession();
   const [status, setStatus] = useState('전체');
   const [query, setQuery] = useState('');
@@ -172,17 +169,11 @@ export default function SessionListPage() {
 
   const chips = ['전체', '진행', '예정', '종료'];
 
-  useEffect(() => {
-    if (hasValidClassId) {
-      localStorage.setItem('qurie.lastClassId', String(classId));
-    }
-  }, [classId, hasValidClassId]);
-
   const onCreate = () => {
     if (!hasValidClassId) return;
     if (!title.trim()) return;
     createSession.mutate(
-      { classId, title: title.trim()},
+      { classId, title: title.trim() },
       {
         onSuccess: () => {
           setCreateOpen(false);
@@ -248,8 +239,8 @@ export default function SessionListPage() {
 
         {!hasValidClassId ? (
           <EmptyState
-            message="classId 쿼리스트링이 없습니다"
-            description="예: /manager/sessions?classId=12"
+            message="소속 클래스가 없습니다"
+            description="반 배정 후 다시 로그인하면 세션을 볼 수 있습니다."
           />
         ) : (
           <QueryAsyncBoundary

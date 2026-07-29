@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -32,7 +32,6 @@ const managerNav = [
 
 export function ManagerShell({ activeKey, breadcrumbs, children }: AppShellProps) {
   const navigate = useNavigate();
-  const location = useLocation();
   const { data: user } = useMe();
   const logout = useLogout();
   const items = managerNav.map(({ key, label, icon }) => ({ key, label, icon }));
@@ -53,17 +52,7 @@ export function ManagerShell({ activeKey, breadcrumbs, children }: AppShellProps
         onSelect={(key) => {
           const item = managerNav.find((n) => n.key === key);
           if (!item) return;
-          const currentClassId = new URLSearchParams(location.search).get('classId');
-          const rememberedClassId = localStorage.getItem('qurie.lastClassId');
-          const nextSearch =
-            key === 'sessions'
-              ? currentClassId
-                ? location.search
-                : rememberedClassId
-                  ? `?classId=${encodeURIComponent(rememberedClassId)}`
-                  : ''
-              : location.search;
-          navigate({ pathname: item.path, search: nextSearch });
+          navigate(item.path);
         }}
         footer={
           <div
