@@ -1,5 +1,7 @@
 import { axiosInstance } from '../core/axiosInstance';
 
+export type GroupParticipantRole = 'LEADER' | 'PARTICIPANT';
+
 export interface GroupCreateRequest {
     classId: number;
     name: string;
@@ -26,6 +28,53 @@ export interface GroupResponse {
     updatedAt: string;
 }
 
+export interface GroupMemberResponse {
+    userId: number;
+    name: string;
+    email: string;
+    role: GroupParticipantRole;
+}
+
+export interface GroupDetailResponse {
+    id: number;
+    classId: number;
+    name: string;
+    description: string;
+    startedAt: string;
+    endedAt: string;
+    memberCount: number;
+    members: GroupMemberResponse[];
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface GroupMemberCandidateResponse {
+    userId: number;
+    name: string;
+    email: string;
+    currentGroupId: number | null;
+    currentGroupName: string | null;
+}
+
+export interface GroupEditRequest {
+    name?: string;
+    description?: string;
+    startedAt?: string;
+    endedAt?: string;
+    memberIds?: number[];
+    leaderId?: number;
+}
+
+export interface GroupDuplicateRequest {
+    name?: string;
+    includeMembers?: boolean;
+}
+
+export interface GroupShuffleRequest {
+    groupIds: number[];
+    assignLeader?: boolean;
+}
+
 export const createGroup = async (body: GroupCreateRequest): Promise<GroupResponse> => {
     const { data } = await axiosInstance.post<GroupResponse>('/groups', body);
     return data;
@@ -43,11 +92,54 @@ export const getGroup = async (groupId: number): Promise<GroupResponse> => {
     return data;
 };
 
+export const getGroupDetail = async (groupId: number): Promise<GroupDetailResponse> => {
+    const { data } = await axiosInstance.get<GroupDetailResponse>(`/groups/${groupId}/detail`);
+    return data;
+};
+
+export const getGroupCandidates = async (
+    classId: number,
+): Promise<GroupMemberCandidateResponse[]> => {
+    const { data } = await axiosInstance.get<GroupMemberCandidateResponse[]>('/groups/candidates', {
+        params: { classId },
+    });
+    return data;
+};
+
 export const updateGroup = async (
     groupId: number,
     body: GroupUpdateRequest,
 ): Promise<GroupResponse> => {
     const { data } = await axiosInstance.put<GroupResponse>(`/groups/${groupId}`, body);
+    return data;
+};
+
+export const editGroup = async (
+    groupId: number,
+    body: GroupEditRequest,
+): Promise<GroupDetailResponse> => {
+    const { data } = await axiosInstance.patch<GroupDetailResponse>(`/groups/${groupId}`, body);
+    return data;
+};
+
+export const duplicateGroup = async (
+    groupId: number,
+    body?: GroupDuplicateRequest,
+): Promise<GroupDetailResponse> => {
+    const { data } = await axiosInstance.post<GroupDetailResponse>(
+        `/groups/${groupId}/duplicate`,
+        body ?? {},
+    );
+    return data;
+};
+
+export const shuffleGroups = async (
+    classId: number,
+    body: GroupShuffleRequest,
+): Promise<GroupDetailResponse[]> => {
+    const { data } = await axiosInstance.post<GroupDetailResponse[]>('/groups/shuffle', body, {
+        params: { classId },
+    });
     return data;
 };
 
