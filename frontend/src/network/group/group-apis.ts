@@ -71,8 +71,11 @@ export interface GroupDuplicateRequest {
 }
 
 export interface GroupShuffleRequest {
-    groupIds: number[];
+    groupCount: number;
     assignLeader?: boolean;
+    confirmed?: boolean;
+    startedAt?: string;
+    endedAt?: string;
 }
 
 export const createGroup = async (body: GroupCreateRequest): Promise<GroupResponse> => {
