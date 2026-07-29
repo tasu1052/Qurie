@@ -1,6 +1,6 @@
 export type ThemeMode = 'light' | 'dark';
 
-export const THEME_STORAGE_KEY = 'qurie.theme';
+export const THEME_STORAGE_KEY = 'theme';
 
 export function getSystemTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'light';
@@ -9,7 +9,7 @@ export function getSystemTheme(): ThemeMode {
 
 export function readStoredTheme(): ThemeMode | null {
   try {
-    const raw = localStorage.getItem(THEME_STORAGE_KEY);
+    const raw = localStorage.getItem(THEME_STORAGE_KEY) ?? localStorage.getItem('qurie.theme');
     if (raw === 'light' || raw === 'dark') return raw;
   } catch {
     /* ignore */
