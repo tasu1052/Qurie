@@ -4,6 +4,11 @@
 @import './tokens/typography.css';
 @import './tokens/spacing.css';
 
+html, body {
+  background: var(--bg-app);
+  color: var(--ink);
+}
+
 /* State motion — used by Spinner, Skeleton, ProgressBar (feedback group). */
 @keyframes qurie-spin { to { transform: rotate(360deg); } }
 @keyframes qurie-skeleton { 0%, 100% { opacity: 1; } 50% { opacity: .42; } }
