@@ -94,7 +94,7 @@ class UserServiceTest {
 		verify(classUserRepository).save(classUserCaptor.capture());
 		ClassUser membership = classUserCaptor.getValue();
 		assertThat(membership.getClassEntity().getId()).isEqualTo(CLASS_ID);
-		assertThat(membership.getUserId()).isEqualTo(USER_ID);
+		assertThat(membership.getUser().getId()).isEqualTo(USER_ID);
 
 		assertThat(response.email()).isEqualTo(EMAIL);
 		assertThat(response.role()).isEqualTo(UserRole.MANAGER);
@@ -223,7 +223,7 @@ class UserServiceTest {
 	void updateProfileThrowsForbiddenWhenRequesterIsAnotherUser() {
 		User user = existingUser();
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
-		AuthUser other = new AuthUser(99L, UserRole.STUDENT.name(), ENTERPRISE_ID, "other@qurie.com", "다른사람");
+		AuthUser other = new AuthUser(99L, UserRole.STUDENT.name(), ENTERPRISE_ID, "other@qurie.com", "다른사람", null);
 
 		assertThatThrownBy(() -> userService.updateProfile(
 				USER_ID, new UserProfileUpdateRequest("해킹", null, null), other))
@@ -311,10 +311,10 @@ class UserServiceTest {
 	}
 
 	private AuthUser self() {
-		return new AuthUser(USER_ID, UserRole.MANAGER.name(), ENTERPRISE_ID, EMAIL, NAME);
+		return new AuthUser(USER_ID, UserRole.MANAGER.name(), ENTERPRISE_ID, EMAIL, NAME, null);
 	}
 
 	private AuthUser master(Long enterpriseId) {
-		return new AuthUser(1L, "MASTER", enterpriseId, "master@qurie.com", "마스터");
+		return new AuthUser(1L, "MASTER", enterpriseId, "master@qurie.com", "마스터", null);
 	}
 }

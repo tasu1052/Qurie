@@ -2,6 +2,8 @@ package com.roma.qurie.auth;
 
 import com.roma.qurie.auth.dto.LoginRequest;
 import com.roma.qurie.auth.dto.LoginResponse;
+import com.roma.qurie.classes.ClassUser;
+import com.roma.qurie.classes.ClassUserRepository;
 import com.roma.qurie.master.Master;
 import com.roma.qurie.master.MasterRepository;
 import com.roma.qurie.security.AuthUser;
@@ -25,6 +27,7 @@ public class AuthService {
 
     private final MasterRepository masterRepository;
     private final UserRepository userRepository;
+    private final ClassUserRepository classUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -106,14 +109,21 @@ public class AuthService {
         return LocalDateTime.now().plus(refreshTokenProvider.getExpiration());
     }
 
+    /** 마스터는 반 명단(class_users)에 담기지 않으므로 classId 는 항상 null 이다. */
     private AuthUser toAuthUser(Master master) {
         return new AuthUser(
-                master.getId(), MASTER_ROLE, master.getEnterprise().getId(), master.getEmail(), master.getName());
+                master.getId(), MASTER_ROLE, master.getEnterprise().getId(), master.getEmail(), master.getName(),
+                null);
     }
 
     private AuthUser toAuthUser(User user) {
+        Long classId = classUserRepository.findFirstByUserIdOrderByIdDesc(user.getId())
+                .map(ClassUser::getClassEntity)
+                .map(classEntity -> classEntity.getId())
+                .orElse(null);
         return new AuthUser(
-                user.getId(), user.getRole().name(), user.getEnterpriseId(), user.getEmail(), user.getName());
+                user.getId(), user.getRole().name(), user.getEnterpriseId(), user.getEmail(), user.getName(),
+                classId);
     }
 
     private AuthException invalidCredentials() {

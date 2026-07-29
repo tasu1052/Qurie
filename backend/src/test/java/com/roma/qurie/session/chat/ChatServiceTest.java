@@ -25,7 +25,7 @@ class ChatServiceTest {
 
 	private static final Long SESSION_ID = 1L;
 	private static final AuthUser SENDER =
-			new AuthUser(10L, "STUDENT", 100L, "student@qurie.com", "학생");
+			new AuthUser(10L, "STUDENT", 100L, "student@qurie.com", "학생", null);
 
 	@Mock
 	private ChatMessageRepository chatMessageRepository;
