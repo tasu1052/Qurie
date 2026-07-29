@@ -1,3 +1,10 @@
 export * from './class-apis';
 
-export { useCreateClass, useGetMyClasses } from './class-hooks';
+export {
+    useCreateClass,
+    useDeleteClass,
+    useGetClass,
+    useGetClasses,
+    useGetMyClasses,
+    useUpdateClass,
+} from './class-hooks';
