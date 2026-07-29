@@ -101,3 +101,25 @@ export type {
 
 /** Teammate boundary — UI supplies fallbacks only. */
 export { QueryAsyncBoundary } from '../network/boundaries/QueryAsyncBoundary';
+
+/**
+ * Admin console (Qurie staff) — local mock until admin login / bootcamp APIs land.
+ * Replace with network hooks via this seam only.
+ */
+export {
+  ADMIN_SAMPLE,
+  createBootcamp,
+  getAdminSession,
+  getBootcamp,
+  inviteMaster,
+  listBootcamps,
+  loginAdmin,
+  logoutAdmin,
+  signupInviteUrl,
+} from '../mocks/adminStore';
+export type {
+  AdminBootcamp,
+  AdminSession,
+  MasterInvite,
+  MasterInviteStatus,
+} from '../mocks/adminStore';
