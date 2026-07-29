@@ -30,83 +30,12 @@ import {
 } from 'lucide-react';
 import { Button, LiveBadge } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
+import { CollabMonacoEditor } from '../../collab/CollabMonacoEditor';
+import { useCollabSession } from '../../collab/useCollabSession';
 
 type LeftTab = 'explorer' | 'materials';
 type RightTab = 'community' | 'quiz';
 type BottomTab = 'terminal' | 'debug' | 'output';
-
-const CODE_LINES: { html: ReactNode; highlight?: string }[] = [
-  { html: <span style={{ color: '#697098' }}>{'/**'}</span> },
-  { html: <span style={{ color: '#697098' }}>&nbsp;* @description: Qurie 세션 — React Hooks 심화 실습</span> },
-  { html: <span style={{ color: '#697098' }}>&nbsp;* @session: java-seoul-1/react-hooks-deep-dive</span> },
-  { html: <span style={{ color: '#697098' }}>&nbsp;*/</span> },
-  { html: <span>&nbsp;</span> },
-  {
-    html: (
-      <>
-        <span style={{ color: '#c792ea' }}>import</span>
-        {' { useState, useEffect } '}
-        <span style={{ color: '#c792ea' }}>from</span>{' '}
-        <span style={{ color: '#c3e88d' }}>'react'</span>;
-      </>
-    ),
-  },
-  { html: <span>&nbsp;</span> },
-  {
-    html: (
-      <>
-        <span style={{ color: '#c792ea' }}>export function</span>{' '}
-        <span style={{ color: '#82aaff' }}>useDebounce</span>
-        (value, delay = <span style={{ color: '#f78c6c' }}>300</span>) {'{'}
-      </>
-    ),
-  },
-  { html: <span style={{ color: '#697098' }}>&nbsp;&nbsp;// 배열/객체 참조 변경에 주의하세요.</span> },
-  {
-    html: (
-      <>
-        &nbsp;&nbsp;<span style={{ color: '#c792ea' }}>const</span> [debounced, setDebounced] ={' '}
-        <span style={{ color: '#82aaff' }}>useState</span>(value);
-      </>
-    ),
-  },
-  {
-    html: (
-      <>
-        &nbsp;&nbsp;<span style={{ color: '#c792ea' }}>const</span> timer ={' '}
-        <span style={{ color: '#82aaff' }}>setTimeout</span>(() =&gt; setDebounced(value), delay);
-      </>
-    ),
-    highlight: '#f5a97f',
-  },
-  { html: <span>&nbsp;</span> },
-  {
-    html: (
-      <>
-        &nbsp;&nbsp;<span style={{ color: '#c792ea' }}>useEffect</span>(() =&gt; {'{'}
-      </>
-    ),
-  },
-  {
-    html: (
-      <>
-        &nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: '#c792ea' }}>return</span> () =&gt;{' '}
-        <span style={{ color: '#82aaff' }}>clearTimeout</span>(timer);
-      </>
-    ),
-  },
-  { html: <span>&nbsp;&nbsp;{'}, [value, delay]);'}</span> },
-  { html: <span>&nbsp;</span> },
-  {
-    html: (
-      <>
-        &nbsp;&nbsp;<span style={{ color: '#c792ea' }}>return</span> debounced;
-      </>
-    ),
-  },
-  { html: <span>{'}'}</span>, highlight: '#82aaff' },
-  { html: <span>&nbsp;</span> },
-];
 
 const FILES = [
   { id: 'solution.js', icon: <FileCode size={13} />, active: true },
@@ -133,6 +62,10 @@ export default function SessionPage() {
 
   const sessionTitle = useMemo(() => 'React Hooks 심화 실습', []);
   const sessionSlug = useMemo(() => `java-seoul-1/${id ?? 'react-hooks-deep-dive'}`, [id]);
+
+  // TODO: useMe()의 실제 사용자 이름으로 교체 (AuthGate 연동 후)
+  const collabUser = useMemo(() => ({ name: `참가자-${Math.floor(Math.random() * 1000)}` }), []);
+  const { ytext, provider, status: collabStatus } = useCollabSession(id ?? 'demo', collabUser);
 
   const tabBtn = (active: boolean): CSSProperties => ({
     flex: 1,
@@ -438,85 +371,34 @@ export default function SessionPage() {
             </span>
           </div>
 
-          {/* Static mock editor — Monaco later */}
+          {/* Collab editor — Yjs(Y.Text) ↔ Monaco 바인딩, 원격 커서는 awareness 기반 */}
           <div
             style={{
               flex: 1,
-              background: 'var(--secondary-700)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 13,
-              lineHeight: 1.85,
-              overflow: 'auto',
               display: 'flex',
-              padding: '16px 0',
+              flexDirection: 'column',
               minHeight: 0,
+              background: 'var(--secondary-700)',
             }}
           >
-            <div
-              style={{
-                width: 48,
-                textAlign: 'right',
-                paddingRight: 14,
-                color: 'rgba(255,255,255,0.25)',
-                userSelect: 'none',
-                flexShrink: 0,
-              }}
-            >
-              {CODE_LINES.map((_, i) => (
-                <div key={i}>{i + 1}</div>
-              ))}
-            </div>
-            <div style={{ flex: 1, color: '#d6d6dd', paddingRight: 20, minWidth: 0 }}>
-              {CODE_LINES.map((line, i) => (
-                <div
-                  key={i}
-                  style={{
-                    background: line.highlight ? `${line.highlight}1a` : undefined,
-                    position: 'relative',
-                    whiteSpace: 'pre-wrap',
-                  }}
-                >
-                  {line.html}
-                  {line.highlight ? (
-                    <>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          width: 2,
-                          height: 15,
-                          background: line.highlight,
-                          verticalAlign: 'middle',
-                          marginLeft: 1,
-                          animation: 'qurie-pulse 1.1s infinite',
-                        }}
-                      />
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          verticalAlign: 'middle',
-                          marginLeft: 5,
-                          width: 16,
-                          height: 16,
-                          borderRadius: '50%',
-                          background: line.highlight,
-                          color: '#111',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontFamily: 'var(--font-sans)',
-                          fontSize: 8,
-                          fontWeight: 800,
-                        }}
-                      >
-                        {line.highlight === '#f5a97f' ? '민' : '지'}
-                      </span>
-                    </>
-                  ) : null}
-                </div>
-              ))}
-              <p style={{ margin: '16px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-sans)' }}>
-                Monaco / Yjs 연동 전 정적 목업입니다.
-              </p>
-            </div>
+            {collabStatus !== 'connected' ? (
+              <div
+                style={{
+                  padding: '6px 16px',
+                  fontSize: 11,
+                  fontFamily: 'var(--font-sans)',
+                  color: 'var(--text-inverse)',
+                  background: collabStatus === 'connecting' ? 'var(--status-amber)' : 'var(--status-red)',
+                }}
+              >
+                {collabStatus === 'connecting' ? '동기화 서버에 연결 중…' : '연결 끊김 — 변경 사항은 로컬에 보관되며 재연결 시 동기화됩니다.'}
+              </div>
+            ) : null}
+            {provider ? (
+              <CollabMonacoEditor ytext={ytext} provider={provider} />
+            ) : (
+              <div style={{ flex: 1 }} />
+            )}
           </div>
 
           <div
