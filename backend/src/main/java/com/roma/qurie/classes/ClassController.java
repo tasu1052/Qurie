@@ -1,10 +1,12 @@
 package com.roma.qurie.classes;
 
 import com.roma.qurie.classes.dto.ClassCreateRequest;
+import com.roma.qurie.classes.dto.ClassMemberResponse;
 import com.roma.qurie.classes.dto.ClassResponse;
 import com.roma.qurie.classes.dto.ClassUpdateRequest;
 import com.roma.qurie.common.dto.PageResponse;
 import com.roma.qurie.security.AuthUser;
+import com.roma.qurie.user.entity.UserRole;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
@@ -62,6 +64,20 @@ public class ClassController {
     @GetMapping("/{classId}")
     public ClassResponse get(@AuthenticationPrincipal AuthUser authUser, @PathVariable("classId") Long classId) {
         return classService.getClass(authUser, classId);
+    }
+
+    /**
+     * 반 명단 조회 (MASTER, 담당 MANAGER). 매니저 학생 관리 화면은 role=STUDENT 로 학생만 조회한다.
+     * 전체 회원 조회(GET /api/users)와 달리 반 소속(class_users)으로 범위가 잘린다.
+     */
+    @GetMapping("/{classId}/users")
+    public PageResponse<ClassMemberResponse> members(
+            @AuthenticationPrincipal AuthUser authUser,
+            @PathVariable("classId") Long classId,
+            @RequestParam(name = "role", required = false) UserRole role,
+            @RequestParam(name = "q", required = false) String keyword,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return classService.getMembers(authUser, classId, role, keyword, pageable);
     }
 
     /** 클래스 수정 (MASTER, 담당 MANAGER) — PATCH 부분 수정 */
