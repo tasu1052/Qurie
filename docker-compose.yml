@@ -1,4 +1,4 @@
-# 배포 구성: 백엔드(Spring Boot) + MySQL + 동시편집(collab) 세 컨테이너.
+# 배포 구성: 백엔드(Spring Boot) + MySQL + 동시편집(collab) + 퀴즈 생성 AI(ai) 네 컨테이너.
 # 프론트는 S3 로 따로 올리므로 여기에 없다.
 #
 # 값은 같은 디렉터리의 .env 에서 읽는다. 필요한 키는 .env.example 참고.
@@ -61,6 +61,12 @@ services:
       WEBSOCKET_ALLOWED_ORIGIN_PATTERNS: ${WEBSOCKET_ALLOWED_ORIGIN_PATTERNS:?.env 에 프론트 배포 주소가 필요하다}
       # 초대 메일 링크의 베이스 주소. 프론트 배포 주소와 같아야 한다.
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:?.env 에 프론트 배포 주소가 필요하다}
+      # 퀴즈 생성 AI 서버. 같은 compose 네트워크라 서비스명으로 서로 붙는다(collab이 backend를 찾는 것과 동일 패턴).
+      AI_BASE_URL: http://ai:8000
+      # AI 가 생성 완료 콜백을 보낼 백엔드 자신의 주소. 컨테이너 기준이라 backend(서비스명)다.
+      AI_CALLBACK_BASE_URL: http://backend:8080
+      # 비어있으면 콜백 인증을 건너뛴다 — 채우려면 ai 서비스 쪽과 같은 값으로 맞춘다.
+      AI_CALLBACK_SECRET: ${AI_CALLBACK_SECRET:-}
       TZ: Asia/Seoul
       # SMTP 는 설정하지 않으면 메일만 건너뛰고 초대는 정상 생성된다(응답의 signUpUrl 을 수동 전달).
       # 빈 문자열을 넣으면 JavaMailSender 빈이 잘못된 host 로 만들어지므로, 쓸 때 함께 주석을 푼다.
@@ -96,6 +102,31 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  ai:
+    build:
+      context: ./ai_service
+    image: qurie-ai:latest
+    container_name: qurie-ai
+    restart: unless-stopped
+    environment:
+      # 비어있으면 AI_MOCK=1 로만 돌릴 수 있고, 실제 LLM 호출은 이 키가 있어야 한다.
+      GMS_API_KEY: ${GMS_API_KEY:-}
+      AI_MOCK: ${AI_MOCK:-0}
+      # 콜백 요청에 실어 보낼 값. backend 의 AI_CALLBACK_SECRET 과 같은 값이어야 검증을 통과한다.
+      AI_CALLBACK_SECRET: ${AI_CALLBACK_SECRET:-}
+      TZ: Asia/Seoul
+    ports:
+      # 로컬에서 직접 찔러볼 때만 쓴다. 백엔드는 이 포트가 아니라 컨테이너 네트워크로 ai:8000 에 붙는다.
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      # slim 이미지에는 curl/wget 이 없어 파이썬으로 확인한다.
+      test: ["CMD", "python", "-c",
+        "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health').status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   mysql-data:
