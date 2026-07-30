@@ -4,6 +4,7 @@ export {
     useCreateClass,
     useDeleteClass,
     useGetClass,
+    useGetClassMembers,
     useGetClasses,
     useGetMyClasses,
     useUpdateClass,

@@ -113,6 +113,7 @@ export {
   useGetMyClasses,
   useGetClasses,
   useGetClass,
+  useGetClassMembers,
   useCreateClass,
   useUpdateClass,
   useDeleteClass,
@@ -121,8 +122,9 @@ export type {
   ClassCreateRequest,
   ClassUpdateRequest,
   ClassResponse,
+  ClassMemberResponse,
 } from '../network/class';
-export type { ClassListFilters } from '../network/core/queryKeys/class.keys';
+export type { ClassListFilters, ClassMemberListFilters } from '../network/core/queryKeys/class.keys';
 export {
   useGetTracks,
   useGetTrack,
