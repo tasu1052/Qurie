@@ -1,4 +1,4 @@
-/** Top app bar: chevron breadcrumbs, ⌘K search, actions slot, account chip. */
+/** Top app bar: chevron breadcrumbs, optional search, actions slot, account chip. */
 export interface TopbarProps {
   breadcrumbs?: React.ReactNode[];
   searchPlaceholder?: string;
@@ -7,6 +7,10 @@ export interface TopbarProps {
   userName?: string;
   userRole?: string | null;
   searchIcon?: React.ReactNode;
+  /** When true, hides the ⌘K search input. */
+  hideSearch?: boolean;
+  /** Account chip click — typically navigate to my page. */
+  onUserClick?: () => void;
   style?: React.CSSProperties;
 }
 export declare function Topbar(props: TopbarProps): JSX.Element;

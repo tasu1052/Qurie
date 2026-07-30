@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, KeyboardEvent } from 'react';
 import { LogOut } from 'lucide-react';
 import { ThemeToggle } from '../theme/ThemeToggle';
 
@@ -6,6 +6,8 @@ type SidebarAccountFooterProps = {
   name: string;
   email: string;
   onLogout: () => void;
+  /** Navigate to my page when the account chip is clicked. */
+  onProfileClick?: () => void;
   /** Optional avatar background override (student shell uses tertiary). */
   avatarStyle?: CSSProperties;
 };
@@ -15,9 +17,18 @@ export function SidebarAccountFooter({
   name,
   email,
   onLogout,
+  onProfileClick,
   avatarStyle,
 }: SidebarAccountFooterProps) {
   const initial = (name || '?').slice(0, 1);
+
+  const onChipKeyDown = (e: KeyboardEvent) => {
+    if (!onProfileClick) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onProfileClick();
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -34,29 +45,45 @@ export function SidebarAccountFooter({
           paddingLeft: 6,
         }}
       >
-        <span
+        <div
+          role={onProfileClick ? 'button' : undefined}
+          tabIndex={onProfileClick ? 0 : undefined}
+          onClick={onProfileClick}
+          onKeyDown={onChipKeyDown}
+          title={onProfileClick ? '마이페이지' : undefined}
           style={{
-            width: 32,
-            height: 32,
-            borderRadius: '50%',
-            background: 'var(--accent-soft)',
-            color: 'var(--accent)',
-            display: 'inline-flex',
+            display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 12,
-            fontWeight: 700,
-            flexShrink: 0,
-            ...avatarStyle,
+            gap: 10,
+            minWidth: 0,
+            flex: 1,
+            cursor: onProfileClick ? 'pointer' : 'default',
           }}
         >
-          {initial}
-        </span>
-        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3, minWidth: 0, flex: 1 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{name}</span>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {email}
+          <span
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              background: 'var(--accent-soft)',
+              color: 'var(--accent)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 12,
+              fontWeight: 700,
+              flexShrink: 0,
+              ...avatarStyle,
+            }}
+          >
+            {initial}
           </span>
+          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3, minWidth: 0, flex: 1 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{name}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {email}
+            </span>
+          </div>
         </div>
         <button
           type="button"

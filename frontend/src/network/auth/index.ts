@@ -1,3 +1,3 @@
 export * from './auth-apis';
 
-export { useLogin, useLogout, useMe } from './auth-hooks';
+export { useLogin, useLogout, useMe, useRefresh } from './auth-hooks';

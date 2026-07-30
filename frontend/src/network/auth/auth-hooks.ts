@@ -4,6 +4,7 @@ import {
     getMe,
     login,
     logout,
+    refresh,
     type LoginRequest,
 } from './auth-apis';
 
@@ -32,6 +33,17 @@ export const useLogout = () => {
         mutationFn: logout,
         onSuccess: () => {
         queryClient.removeQueries({ queryKey: queryKeys.auth.all });
+        },
+    });
+};
+
+export const useRefresh = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: refresh,
+        onSuccess: (data) => {
+            queryClient.setQueryData(queryKeys.auth.me(), data);
         },
     });
 };

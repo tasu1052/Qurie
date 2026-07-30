@@ -241,7 +241,6 @@ function GroupCard({
   group: GroupResponse;
   onChanged: () => void;
 }) {
-  const navigate = useNavigate();
   const { data: detail } = useGetGroupDetail(group.id);
   const duplicate = useDuplicateGroup();
   const deleteGroup = useDeleteGroup();
@@ -287,8 +286,8 @@ function GroupCard({
             fontWeight: 600,
           }}
         >
-          <Trash2 size={13} strokeWidth={1.75} />
-          삭제
+          {deleteOpen ? <Trash2 size={13} strokeWidth={1.75} /> : null}
+          그룹 삭제
         </button>
       </div>
       <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
@@ -377,9 +376,8 @@ function GroupCard({
                 name: `${detail.name} 사본`,
               },
               {
-                onSuccess: (created) => {
+                onSuccess: () => {
                   onChanged();
-                  navigate(`/manager/groups/${created.id}`);
                 },
               },
             )
