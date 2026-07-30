@@ -7,22 +7,22 @@
 /**
  * 매터모스트 알림. Incoming Webhook URL 은 Jenkins 자격증명(Secret text, ID: mattermost-webhook)에 둔다.
  * 플러그인을 쓰지 않는 이유는 메시지 형식을 직접 잡을 수 있고 의존이 줄기 때문이다.
+ *
+ * 마크다운 헤딩(##)을 쓰지 않는다. 매터모스트에서 글자가 과하게 커져 채널을 잡아먹는다.
+ * 머지마다 백엔드/프론트 알림이 각각 오므로 한 건은 두 줄 안쪽으로 유지한다.
  */
 def notifyMattermost(boolean success) {
-	String title = success
-			? '## :white_check_mark: Qurie 백엔드 배포 성공'
-			: '## :x: Qurie 백엔드 배포 실패'
+	String head = success
+			? ':white_check_mark: **백엔드 배포 성공**'
+			: ':x: **백엔드 배포 실패**'
 	String commit = sh(script: "git -C '${env.DEPLOY_DIR}' log -1 --pretty='%h %s'", returnStdout: true).trim()
 
 	List<String> lines = [
-			title,
-			'',
-			"**브랜치**: `master`",
-			"**커밋**: ${commit}",
-			"**빌드**: [#${env.BUILD_NUMBER}](${env.BUILD_URL})",
+			"${head} · `master` · [#${env.BUILD_NUMBER}](${env.BUILD_URL})",
+			"`${commit}`",
 	]
 	if (!success) {
-		lines << '**확인**: 위 빌드 링크의 Console Output 을 볼 것'
+		lines << '위 빌드 링크의 Console Output 을 볼 것'
 	}
 
 	// 한글과 개행이 섞이므로 셸 인용을 피해 파일로 만들어 보낸다.
