@@ -3,6 +3,8 @@
 interface ImportMetaEnv {
   readonly VITE_API_BASE_URL: string;
   readonly VITE_YJS_WS_URL?: string;
+  readonly VITE_YJS_PROXY_TARGET?: string;
+  readonly VITE_DEV_API_TARGET?: string;
 }
 
 interface ImportMeta {
