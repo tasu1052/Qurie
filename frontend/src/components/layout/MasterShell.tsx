@@ -9,7 +9,6 @@ import {
   BarChart3,
   Settings,
   Bell,
-  Search,
 } from 'lucide-react';
 import { Button, Footer, Sidebar, Topbar } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
@@ -26,8 +25,8 @@ type AppShellProps = {
 
 const masterNav = [
   { key: 'dashboard', label: '대시보드', path: '/master', icon: <LayoutDashboard {...iconProps} /> },
-  { key: 'tracks', label: '트랙 관리', path: '/master/tracks', icon: <Layers {...iconProps} />, badge: '4' },
-  { key: 'classes', label: '클래스 관리', path: '/master/classes', icon: <BookOpen {...iconProps} />, badge: '6' },
+  { key: 'tracks', label: '트랙 관리', path: '/master/tracks', icon: <Layers {...iconProps} /> },
+  { key: 'classes', label: '클래스 관리', path: '/master/classes', icon: <BookOpen {...iconProps} /> },
   { key: 'members', label: '회원 관리', path: '/master/members', icon: <Users {...iconProps} /> },
   { key: 'announcements', label: '공지사항', path: '/master/announcements', icon: <Megaphone {...iconProps} /> },
   { key: 'analytics', label: '분석 리포트', path: '/master/analytics', icon: <BarChart3 {...iconProps} /> },
@@ -39,7 +38,9 @@ export function MasterShell({ activeKey, breadcrumbs, children }: AppShellProps)
   const location = useLocation();
   const { data: user } = useMe();
   const logout = useLogout();
-  const items = masterNav.map(({ key, label, icon, badge }) => ({ key, label, icon, badge }));
+  const items = masterNav.map(({ key, label, icon }) => ({ key, label, icon }));
+
+  const goMe = () => navigate('/master/me');
 
   const onLogout = () => {
     logout.mutate(undefined, {
@@ -58,14 +59,22 @@ export function MasterShell({ activeKey, breadcrumbs, children }: AppShellProps)
           if (!item) return;
           navigate({ pathname: item.path, search: location.search });
         }}
-        footer={<SidebarAccountFooter name={user.name} email={user.email} onLogout={onLogout} />}
+        footer={
+          <SidebarAccountFooter
+            name={user.name}
+            email={user.email}
+            onLogout={onLogout}
+            onProfileClick={goMe}
+          />
+        }
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Topbar
           breadcrumbs={breadcrumbs}
           userName={user.name}
           userRole={user.role}
-          searchIcon={<Search size={14} strokeWidth={1.75} />}
+          hideSearch
+          onUserClick={goMe}
           actions={
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <span style={{ color: 'var(--text-secondary)', display: 'flex', cursor: 'pointer' }}>

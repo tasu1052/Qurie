@@ -97,6 +97,7 @@ export function AdminShell({ activeKey, breadcrumbs, children }: AdminShellProps
           breadcrumbs={breadcrumbs}
           userName={name}
           userRole="ADMIN"
+          hideSearch
           actions={
             <Button variant="ghost" size="sm" onClick={onLogout}>
               로그아웃

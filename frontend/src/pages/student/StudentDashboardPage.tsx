@@ -1,10 +1,26 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { StudentShell, PageMain } from '../../components/layout/StudentShell';
-import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
-import { Badge, LiveBadge, Button, CardScrollRow, DonutChart, Modal, Select, Skeleton, StatCard, StatCardRow } from '../../ds';
-import { useStudentDashboardRow } from '../../data';
+import {
+  Badge,
+  Button,
+  CardScrollRow,
+  EmptyState,
+  LiveBadge,
+  Modal,
+  RowErrorFallback,
+  Skeleton,
+  StatCard,
+  StatCardRow,
+} from '../../ds';
+import {
+  QueryAsyncBoundary,
+  useCreateSession,
+  useGetMyClasses,
+  useGetSessions,
+  useMe,
+} from '../../data';
 
 function DashSkeleton() {
   return (
@@ -12,7 +28,15 @@ function DashSkeleton() {
       <Skeleton width="100%" height={140} radius={16} />
       <StatCardRow>
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} style={{ background: 'var(--surface-card-solid)', border: '1px solid var(--border)', borderRadius: 'var(--card-radius)', padding: 'var(--stat-card-padding)' }}>
+          <div
+            key={i}
+            style={{
+              background: 'var(--surface-card-solid)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--card-radius)',
+              padding: 'var(--stat-card-padding)',
+            }}
+          >
             <Skeleton width="50%" height={14} delay={i * 0.08} />
           </div>
         ))}
@@ -21,257 +45,243 @@ function DashSkeleton() {
   );
 }
 
-export default function StudentDashboardPage() {
+function StudentDashBody() {
+  const { data: me } = useMe();
+  const { data: myClasses } = useGetMyClasses();
+  const classId = me.classId ?? myClasses[0]?.id ?? null;
+
+  if (classId == null) {
+    return (
+      <EmptyState
+        message="소속 클래스가 없습니다"
+        description="클래스에 배정되면 세션과 대시보드가 표시됩니다."
+      />
+    );
+  }
+
+  return <StudentDashWithClass classId={classId} />;
+}
+
+function StudentDashWithClass({ classId }: { classId: number }) {
   const navigate = useNavigate();
-  const row = useStudentDashboardRow();
+  const { data: me } = useMe();
+  const { data: myClasses } = useGetMyClasses();
+  const { data: sessions } = useGetSessions(classId);
+  const createSession = useCreateSession();
   const [createOpen, setCreateOpen] = useState(false);
   const [title, setTitle] = useState('');
 
+  const activeSessions = useMemo(() => sessions.filter((s) => s.active), [sessions]);
+  const live = activeSessions[0] ?? null;
+  const className = myClasses.find((c) => c.id === classId)?.name ?? '내 클래스';
+
+  const onCreate = () => {
+    if (!title.trim()) return;
+    createSession.mutate(
+      { classId, title: title.trim() },
+      {
+        onSuccess: (s) => {
+          setCreateOpen(false);
+          setTitle('');
+          navigate(`/session/${s.id}`);
+        },
+      },
+    );
+  }
+
   return (
-    <StudentShell activeKey="dashboard" breadcrumbs={['서울 1반', '대시보드']}>
-      <PageMain>
-        <MockRowBoundary
-          status={row.status}
-          skeleton={<DashSkeleton />}
-          onRetry={row.refetch}
-          emptyMessage="세션이 없습니다"
+    <>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)',
+          gap: 24,
+        }}
+      >
+        <div
+          style={{
+            background: 'var(--ink)',
+            color: 'var(--text-inverse)',
+            borderRadius: 16,
+            padding: 28,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 14,
+            minWidth: 0,
+          }}
         >
-          {row.data && (
-            <>
-              <div
+          <span style={{ fontSize: 13, opacity: 0.72 }}>안녕하세요, {me.name}님</span>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'var(--text-inverse)' }}>
+            {live ? 'LIVE 세션이 진행 중입니다' : '진행 중인 LIVE 세션이 없습니다'}
+          </h1>
+          <span style={{ fontSize: 13, opacity: 0.72 }}>
+            {live ? live.title : `${className} · 세션을 만들거나 대기하세요`}
+          </span>
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            {live ? (
+              <Button variant="accent" onClick={() => navigate(`/session/${live.id}`)}>
+                LIVE 입장
+              </Button>
+            ) : null}
+            <Button
+              variant="secondary"
+              icon={<Plus size={14} strokeWidth={1.75} />}
+              onClick={() => setCreateOpen(true)}
+              style={{
+                background: 'transparent',
+                color: 'var(--text-inverse)',
+                borderColor: 'var(--border-strong)',
+              }}
+            >
+              세션 생성
+            </Button>
+          </div>
+        </div>
+        <div
+          style={{
+            background: 'var(--surface-card)',
+            border: '1px solid var(--border)',
+            borderRadius: 16,
+            boxShadow: 'var(--shadow-card)',
+            padding: 24,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+            minWidth: 0,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            클래스
+          </span>
+          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>{className}</h2>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            열린 세션 {activeSessions.length} · 전체 {sessions.length}
+          </span>
+          <Button variant="secondary" size="sm" onClick={() => navigate(`/app/classes/${classId}`)}>
+            클래스 로비
+          </Button>
+        </div>
+      </div>
+
+      <StatCardRow>
+        <StatCard label="열린 세션" value={String(activeSessions.length)} caption="active" accent />
+        <StatCard label="전체 세션" value={String(sessions.length)} caption="이 클래스" />
+        <StatCard label="내 클래스" value={String(myClasses.length)} caption="classes/me" />
+        <StatCard label="역할" value={me.role} caption="system" />
+      </StatCardRow>
+
+      <div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 14,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            나의 세션
+          </span>
+        </div>
+        {sessions.length === 0 ? (
+          <EmptyState message="세션이 없습니다" description="새 세션을 만들어 실습을 시작하세요." />
+        ) : (
+          <CardScrollRow>
+            {sessions.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => navigate(`/session/${s.id}`)}
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)',
-                  gap: 24,
+                  minWidth: 220,
+                  textAlign: 'left',
+                  background: 'var(--surface-card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 16,
+                  padding: 18,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
                 }}
               >
-                <div
-                  style={{
-                    background: 'var(--ink)',
-                    color: 'var(--text-inverse)',
-                    borderRadius: 16,
-                    padding: 28,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 14,
-                    minWidth: 0,
-                    animation: 'qurie-live-card-glow 2.6s ease-in-out infinite',
-                  }}
-                >
-                  <span style={{ fontSize: 13, opacity: 0.72 }}>안녕하세요, 박민수님</span>
-                  <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'var(--text-inverse)' }}>
-                    오늘 LIVE 세션이 진행 중입니다
-                  </h1>
-                  <span style={{ fontSize: 13, opacity: 0.72 }}>react-hooks-deep-dive · 14:00–16:00</span>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                    <Button variant="accent" onClick={() => navigate('/session/1')}>LIVE 입장</Button>
-                    <Button
-                      variant="secondary"
-                      icon={<Plus size={14} strokeWidth={1.75} />}
-                      onClick={() => setCreateOpen(true)}
-                      style={{ background: 'transparent', color: 'var(--text-inverse)', borderColor: 'var(--border-strong)' }}
-                    >
-                      세션 생성
-                    </Button>
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {s.active ? <LiveBadge /> : <Badge status="neutral">종료</Badge>}
                 </div>
-                <div
-                  style={{
-                    background: 'var(--surface-card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 16,
-                    boxShadow: 'var(--shadow-card)',
-                    padding: 24,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 12,
-                    minWidth: 0,
-                  }}
-                >
-                  <span style={{ alignSelf: 'flex-start', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                    주간 목표
-                  </span>
-                  <DonutChart
-                    segments={[
-                      { label: '완료', value: 4, accent: true },
-                      { label: '남음', value: 1 },
-                    ]}
-                    size={140}
-                    centerValue="4/5"
-                    centerLabel="세션"
-                  />
-                </div>
-              </div>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{s.title}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  {new Date(s.createdAt).toLocaleString('ko-KR')}
+                </span>
+              </button>
+            ))}
+          </CardScrollRow>
+        )}
+      </div>
 
-              <StatCardRow>
-                {row.data.kpis.map((item, i) => (
-                  <StatCard key={i} {...item} />
-                ))}
-              </StatCardRow>
+      <Modal
+        open={createOpen}
+        title="세션 생성"
+        description="클래스에 새 실습 세션을 만듭니다."
+        primaryLabel={createSession.isPending ? '생성 중…' : '생성'}
+        secondaryLabel="취소"
+        onPrimary={onCreate}
+        onSecondary={() => setCreateOpen(false)}
+        onClose={() => setCreateOpen(false)}
+      >
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="세션 제목"
+          style={{
+            width: '100%',
+            border: '1px solid var(--border-strong)',
+            borderRadius: 8,
+            padding: '10px 12px',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 14,
+            boxSizing: 'border-box',
+          }}
+        />
+      </Modal>
+    </>
+  );
+}
 
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                    나의 세션
-                  </span>
-                </div>
-                <CardScrollRow>
-                  {row.data.sessions.map((s) => (
-                    <div
-                      key={s.id}
-                      style={{
-                        minWidth: 260,
-                        background: 'var(--surface-card-solid)',
-                        border: '1px solid var(--border)',
-                        borderRadius: 16,
-                        boxShadow: 'var(--shadow-card)',
-                        padding: 20,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 10,
-                        ...(s.status === 'LIVE'
-                          ? { animation: 'qurie-live-card-glow 2.6s ease-in-out infinite' }
-                          : {}),
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {s.status === 'LIVE' ? (
-                          <LiveBadge />
-                        ) : (
-                          <Badge status={s.status === '예정' ? 'warning' : 'neutral'}>{s.status}</Badge>
-                        )}
-                      </div>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
-                        {s.title}
-                      </span>
-                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{s.time}</span>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => (s.action === '리포트' ? navigate('/app/report') : undefined)}
-                      >
-                        {s.action}
-                      </Button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setCreateOpen(true)}
-                    style={{
-                      minWidth: 180,
-                      border: '1.5px dashed var(--grey-100)',
-                      borderRadius: 16,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      cursor: 'pointer',
-                      background: 'transparent',
-                      fontFamily: 'var(--font-sans)',
-                      color: 'var(--text-muted)',
-                    }}
-                  >
-                    <Plus size={18} strokeWidth={1.75} />
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>세션 생성</span>
-                  </button>
-                </CardScrollRow>
-              </div>
+export default function StudentDashboardPage() {
+  const [rowKey, setRowKey] = useState(0);
 
-              <div className="qurie-master-split">
-                <div
-                  style={{
-                    background: 'var(--surface-card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 16,
-                    boxShadow: 'var(--shadow-card)',
-                    padding: 24,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 12,
-                    minWidth: 0,
-                  }}
-                >
-                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                    최근 성적
-                  </span>
-                  {row.data.grades.map((g) => (
-                    <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ flex: 1, fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)' }}>{g.session}</span>
-                      <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{g.score}</span>
-                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{g.date}</span>
-                    </div>
-                  ))}
-                </div>
-                <div
-                  style={{
-                    background: 'var(--surface-card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 16,
-                    boxShadow: 'var(--shadow-card)',
-                    padding: 24,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 12,
-                    minWidth: 0,
-                  }}
-                >
-                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                    복습 추천
-                  </span>
-                  {row.data.reviews.map((r) => (
-                    <div key={r.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 12 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{r.title}</span>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{r.reason}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </MockRowBoundary>
-
-        <Modal
-          open={createOpen}
-          title="세션 생성"
-          description="제목과 공개 범위를 설정하세요."
-          primaryLabel="생성하기"
-          secondaryLabel="취소"
-          onPrimary={() => setCreateOpen(false)}
-          onSecondary={() => setCreateOpen(false)}
-          onClose={() => setCreateOpen(false)}
-          width={480}
+  return (
+    <StudentShell activeKey="dashboard" breadcrumbs={['대시보드']}>
+      <PageMain>
+        <QueryAsyncBoundary
+          key={rowKey}
+          suspenseFallback={<DashSkeleton />}
+          errorFallback={
+            <RowErrorFallback
+              onRetry={() => setRowKey((k) => k + 1)}
+              title="대시보드를 불러오지 못했습니다"
+            />
+          }
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>제목</span>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="session-slug"
-                style={{
-                  border: '1px solid var(--border-strong)',
-                  borderRadius: 999,
-                  padding: '10px 16px',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 14,
-                }}
-              />
-            </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>공개 범위</span>
-              <Select
-                options={[
-                  { value: 'public', label: '공개' },
-                  { value: 'private', label: '비공개' },
-                ]}
-                value="public"
-                onChange={() => undefined}
-              />
-            </label>
-          </div>
-        </Modal>
+          <StudentDashBody />
+        </QueryAsyncBoundary>
       </PageMain>
     </StudentShell>
   );
