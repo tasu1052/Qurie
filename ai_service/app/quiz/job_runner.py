@@ -15,7 +15,7 @@ class QuizJobRunner:
         self._repo = repo
 
     def run(self, quiz_set_id: int, project: str, body: CreateQuizSetRequest) -> None:
-        files = body.files or dict(config.DEFAULT_FILES)
+        files = body.files  # 비어 있으면 요청 검증에서 이미 422로 걸러진다
         self._repo.patch(quiz_set_id, status="GENERATING")
         try:
             final = run_engine(build_pipeline_state(quiz_set_id, project, body, files))
