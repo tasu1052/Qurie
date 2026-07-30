@@ -1,6 +1,6 @@
 import { axiosInstance } from '../core/axiosInstance';
-import type { ClassListFilters } from '../core/queryKeys/class.keys';
-import type { PageResponse } from '../core/types';
+import type { ClassListFilters, ClassMemberListFilters } from '../core/queryKeys/class.keys';
+import type { PageResponse, UserRole } from '../core/types';
 
 export interface ClassCreateRequest {
     trackId: number;
@@ -34,6 +34,15 @@ export interface ClassResponse {
     updatedAt: string;
 }
 
+export interface ClassMemberResponse {
+    userId: number;
+    name: string;
+    email: string;
+    role: UserRole;
+    groupId: number | null;
+    groupName: string | null;
+}
+
 export const getMyClasses = async (): Promise<ClassResponse[]> => {
     const { data } = await axiosInstance.get<ClassResponse[]>('/classes/me');
     return data;
@@ -48,6 +57,17 @@ export const getClasses = async (
 
 export const getClass = async (classId: number): Promise<ClassResponse> => {
     const { data } = await axiosInstance.get<ClassResponse>(`/classes/${classId}`);
+    return data;
+};
+
+export const getClassMembers = async (
+    classId: number,
+    params?: ClassMemberListFilters,
+): Promise<PageResponse<ClassMemberResponse>> => {
+    const { data } = await axiosInstance.get<PageResponse<ClassMemberResponse>>(
+        `/classes/${classId}/users`,
+        { params },
+    );
     return data;
 };
 

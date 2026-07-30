@@ -1,10 +1,11 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { queryKeys } from '../core/queryKeys';
-import type { ClassListFilters } from '../core/queryKeys/class.keys';
+import type { ClassListFilters, ClassMemberListFilters } from '../core/queryKeys/class.keys';
 import {
     createClass,
     deleteClass,
     getClass,
+    getClassMembers,
     getClasses,
     getMyClasses,
     updateClass,
@@ -30,6 +31,13 @@ export const useGetClass = (classId: number) => {
     return useSuspenseQuery({
         queryKey: queryKeys.classes.detail(classId),
         queryFn: () => getClass(classId),
+    });
+};
+
+export const useGetClassMembers = (classId: number, filters: ClassMemberListFilters = {}) => {
+    return useSuspenseQuery({
+        queryKey: queryKeys.classes.members(classId, filters),
+        queryFn: () => getClassMembers(classId, filters),
     });
 };
 
