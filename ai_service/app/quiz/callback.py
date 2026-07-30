@@ -20,9 +20,10 @@ def notify(url: str, payload: dict[str, Any]) -> bool:
     통보 실패가 퀴즈 생성 자체를 실패로 만들면 안 된다. 크레딧을 써서 만든 결과가
     수신 측 장애 하나로 버려지는 상황을 막는다.
     """
+    # 헤더 이름은 백엔드 QuizController가 검사하는 값과 일치해야 한다.
     headers = {}
-    if config.CALLBACK_TOKEN:
-        headers["X-Callback-Token"] = config.CALLBACK_TOKEN
+    if config.CALLBACK_SECRET:
+        headers["X-Ai-Callback-Secret"] = config.CALLBACK_SECRET
 
     for attempt in range(1, config.CALLBACK_RETRIES + 1):
         try:
