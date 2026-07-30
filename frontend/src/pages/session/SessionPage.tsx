@@ -32,10 +32,12 @@ import { Button, LiveBadge } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
 import { CollabMonacoEditor } from '../../collab/CollabMonacoEditor';
 import { useCollabSession } from '../../collab/useCollabSession';
+import { useMeOptional } from '../../data';
 
 type LeftTab = 'explorer' | 'materials';
 type RightTab = 'community' | 'quiz';
 type BottomTab = 'terminal' | 'debug' | 'output';
+type EditorLanguage = 'java' | 'javascript' | 'typescript' | 'python' | 'html' | 'cpp';
 
 const FILES = [
   { id: 'solution.js', icon: <FileCode size={13} />, active: true },
@@ -56,12 +58,18 @@ export default function SessionPage() {
   const [leftTab, setLeftTab] = useState<LeftTab>('explorer');
   const [rightTab, setRightTab] = useState<RightTab>(initialRight);
   const [bottomTab, setBottomTab] = useState<BottomTab>('terminal');
+  const [editorLanguage, setEditorLanguage] = useState<EditorLanguage>('typescript');
   const [gitOpen, setGitOpen] = useState(false);
   const [activeFile, setActiveFile] = useState('solution.js');
   const [draft, setDraft] = useState('');
-  const [collabUser] = useState(() => ({
-    name: `참가자-${Math.floor(Math.random() * 1000)}`,
-  }));
+  const meQuery = useMeOptional();
+  const collabUserName = meQuery.isSuccess && meQuery.data?.name ? meQuery.data.name : '익명 참가자';
+  const collabUser = useMemo(
+    () => ({
+      name: collabUserName,
+    }),
+    [collabUserName],
+  );
 
   const sessionTitle = useMemo(() => 'React Hooks 심화 실습', []);
   const sessionSlug = useMemo(() => `java-seoul-1/${id ?? 'react-hooks-deep-dive'}`, [id]);
@@ -366,8 +374,34 @@ export default function SessionPage() {
             <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>workspace</span>
             <span style={{ color: 'var(--accent)', fontWeight: 800, fontSize: 10 }}>&gt;</span>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>{activeFile}</span>
-            <span style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}>
-              <Maximize2 size={13} />
+            <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <select
+                value={editorLanguage}
+                onChange={(e) => setEditorLanguage(e.target.value as EditorLanguage)}
+                aria-label="코드 언어 선택"
+                style={{
+                  height: 26,
+                  borderRadius: 7,
+                  border: '1px solid var(--border-strong)',
+                  background: 'var(--surface-card)',
+                  color: 'var(--ink)',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  padding: '0 8px',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="java">Java</option>
+                <option value="javascript">JavaScript</option>
+                <option value="typescript">TypeScript</option>
+                <option value="python">Python</option>
+                <option value="html">HTML/CSS</option>
+                <option value="cpp">C++</option>
+              </select>
+              <span style={{ color: 'var(--text-muted)', display: 'inline-flex' }}>
+                <Maximize2 size={13} />
+              </span>
             </span>
           </div>
 
@@ -395,7 +429,7 @@ export default function SessionPage() {
               </div>
             ) : null}
             {provider ? (
-              <CollabMonacoEditor ytext={ytext} provider={provider} />
+              <CollabMonacoEditor ytext={ytext} provider={provider} language={editorLanguage} />
             ) : (
               <div style={{ flex: 1 }} />
             )}

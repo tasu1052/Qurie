@@ -60,9 +60,9 @@ export function CollabMonacoEditor({ ytext, provider, language = 'typescript' }:
         const user = state.user as CollabUser | undefined;
         if (!user || clientId === provider.awareness.clientID) return;
         rules.push(
-          `.yRemoteSelection-${clientId} { background-color: ${user.color}; opacity: .35; }`,
-          `.yRemoteSelectionHead-${clientId} { border-left: 2px solid ${user.color}; }`,
-          `.yRemoteSelectionHead-${clientId}::after { content: '${user.name.replace(/['\\]/g, '')}'; position: absolute; top: -1.2em; left: -2px; padding: 0 4px; font-size: 10px; font-family: var(--font-sans); color: var(--text-inverse); background-color: ${user.color}; border-radius: 3px; white-space: nowrap; }`,
+          `.yRemoteSelection-${clientId} { background-color: ${user.color}; opacity: .16; }`,
+          `.yRemoteSelectionHead-${clientId} { position: relative; border-left: 2px solid ${user.color}; margin-left: -1px; }`,
+          `.yRemoteSelectionHead-${clientId}::after { content: '${user.name.replace(/['\\]/g, '')}'; position: absolute; top: -1.45em; left: -2px; transform: translateX(-2px); padding: 0 4px; font-size: 10px; line-height: 1.45; font-family: var(--font-sans); color: var(--text-inverse); background-color: ${user.color}; border-radius: 3px; white-space: nowrap; z-index: 12; pointer-events: none; }`,
         );
       });
       styleEl.textContent = rules.join('\n');
