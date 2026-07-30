@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import { StudentShell, PageMain } from '../../components/layout/StudentShell';
 import {
+  AlertBanner,
   Badge,
   Button,
   EmptyState,
   LiveBadge,
+  Modal,
   RowErrorFallback,
   Skeleton,
 } from '../../ds';
 import {
   QueryAsyncBoundary,
+  useCreateSession,
   useGetClass,
   useGetGroups,
-  useGetNotices,
   useGetSessions,
 } from '../../data';
 
@@ -34,12 +37,50 @@ function ClassLobbyBody({ classId }: { classId: number }) {
   const { data: cls } = useGetClass(classId);
   const { data: sessions } = useGetSessions(classId);
   const { data: groups } = useGetGroups(classId);
-  const { data: noticesPage } = useGetNotices({ classId, size: 5 });
+  const createSession = useCreateSession();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [popupBlockedSessionId, setPopupBlockedSessionId] = useState<number | null>(null);
   const active = sessions.filter((s) => s.active);
   const live = active[0];
 
+  const openSessionInNewTab = (sessionId: number) => {
+    const url = `/session/${sessionId}`;
+    const win = window.open(url, '_blank');
+    if (!win) {
+      setPopupBlockedSessionId(sessionId);
+      return;
+    }
+    win.opener = null;
+    setPopupBlockedSessionId(null);
+  };
+
+  const onCreateSession = () => {
+    if (!title.trim()) return;
+    createSession.mutate(
+      { classId, title: title.trim() },
+      {
+        onSuccess: (created) => {
+          setCreateOpen(false);
+          setTitle('');
+          openSessionInNewTab(created.id);
+        },
+      },
+    );
+  };
+
   return (
     <>
+      {popupBlockedSessionId != null ? (
+        <AlertBanner
+          tone="warning"
+          title="브라우저가 새 창 열기를 차단했습니다."
+          description="브라우저의 팝업 차단을 해제한 뒤 다시 시도해 주세요."
+          actionLabel="확인"
+          onAction={() => setPopupBlockedSessionId(null)}
+        />
+      ) : null}
+
       <div
         style={{
           background: 'var(--ink)',
@@ -74,10 +115,22 @@ function ClassLobbyBody({ classId }: { classId: number }) {
           </p>
         </div>
         {live ? (
-          <Button variant="accent" onClick={() => navigate(`/session/${live.id}`)}>
+          <Button variant="accent" onClick={() => openSessionInNewTab(live.id)}>
             LIVE 입장
           </Button>
         ) : null}
+        <Button
+          variant="secondary"
+          icon={<Plus size={14} strokeWidth={1.75} />}
+          onClick={() => setCreateOpen(true)}
+          style={{
+            background: 'transparent',
+            color: 'var(--text-inverse)',
+            borderColor: 'var(--border-strong)',
+          }}
+        >
+          세션 생성
+        </Button>
       </div>
 
       <div className="qurie-master-split">
@@ -108,15 +161,15 @@ function ClassLobbyBody({ classId }: { classId: number }) {
           {sessions.length === 0 ? (
             <EmptyState
               message="세션이 없습니다"
-              actionLabel="대시보드"
-              onAction={() => navigate('/app')}
+              actionLabel="세션 생성"
+              onAction={() => setCreateOpen(true)}
             />
           ) : (
             sessions.map((s) => (
               <button
                 key={s.id}
                 type="button"
-                onClick={() => navigate(`/session/${s.id}`)}
+                onClick={() => openSessionInNewTab(s.id)}
                 style={{
                   textAlign: 'left',
                   border: '1px solid var(--border)',
@@ -193,23 +246,47 @@ function ClassLobbyBody({ classId }: { classId: number }) {
                 color: 'var(--text-secondary)',
               }}
             >
-              공지
+              학습자료
             </span>
-            {noticesPage.data.length === 0 ? (
-              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>공지가 없습니다.</span>
-            ) : (
-              noticesPage.data.map((n) => (
-                <div key={n.id}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{n.title}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    {new Date(n.createdAt).toLocaleDateString('ko-KR')}
-                  </div>
-                </div>
-              ))
-            )}
+            <Badge status="warning">API 미구현</Badge>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              API 미구현: 강사가 업로드한 교육/학습자료 목록 연동 전입니다.
+            </span>
+            <EmptyState
+              message="API 미구현"
+              description="자료 조회 API가 구현되면 업로드된 교육/학습자료 카드가 표시됩니다."
+              actionLabel="새로고침"
+              onAction={() => navigate(0)}
+            />
           </div>
         </div>
       </div>
+
+      <Modal
+        open={createOpen}
+        title="세션 생성"
+        description="이 클래스에 새 실습 세션을 만듭니다."
+        primaryLabel={createSession.isPending ? '생성 중…' : '생성'}
+        secondaryLabel="취소"
+        onPrimary={onCreateSession}
+        onSecondary={() => setCreateOpen(false)}
+        onClose={() => setCreateOpen(false)}
+      >
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="세션 제목"
+          style={{
+            width: '100%',
+            border: '1px solid var(--border-strong)',
+            borderRadius: 8,
+            padding: '10px 12px',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 14,
+            boxSizing: 'border-box',
+          }}
+        />
+      </Modal>
     </>
   );
 }
