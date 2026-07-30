@@ -127,7 +127,7 @@ function AnalyticsMock({ userId }: { userId: number }) {
               marginTop: -8,
             }}
           >
-            아래 지표는 mock입니다. 분석 API 연동 전까지 참고용으로만 표시합니다.
+            API 미구현: 아래 지표는 mock 데이터이며 분석 API 연동 전까지 참고용으로만 표시합니다.
           </div>
           <StatCardRow>
             {row.data.kpis.map((item, i) => (

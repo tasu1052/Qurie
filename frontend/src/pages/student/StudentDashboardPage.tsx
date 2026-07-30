@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
 import { StudentShell, PageMain } from '../../components/layout/StudentShell';
 import {
   AlertBanner,
@@ -9,7 +8,6 @@ import {
   CardScrollRow,
   EmptyState,
   LiveBadge,
-  Modal,
   RowErrorFallback,
   Skeleton,
   StatCard,
@@ -17,7 +15,6 @@ import {
 } from '../../ds';
 import {
   QueryAsyncBoundary,
-  useCreateSession,
   useGetMyClasses,
   useGetSessions,
   useMe,
@@ -72,13 +69,15 @@ function StudentDashWithClass({ classId }: { classId: number }) {
   const { data: me } = useMe();
   const { data: myClasses } = useGetMyClasses();
   const { data: sessions } = useGetSessions(classId);
-  const createSession = useCreateSession();
-  const [createOpen, setCreateOpen] = useState(false);
-  const [title, setTitle] = useState('');
   const [popupBlockedSessionId, setPopupBlockedSessionId] = useState<number | null>(null);
 
+  const isClassPublicSession = (session: (typeof sessions)[number]) =>
+    session.classPublic === true || session.class_public === true;
   const activeSessions = useMemo(() => sessions.filter((s) => s.active), [sessions]);
-  const live = activeSessions[0] ?? null;
+  const livePublicSession = useMemo(
+    () => activeSessions.find(isClassPublicSession) ?? null,
+    [activeSessions],
+  );
   const className = myClasses.find((c) => c.id === classId)?.name ?? '내 클래스';
 
   const openSessionInNewTab = (sessionId: number) => {
@@ -91,20 +90,6 @@ function StudentDashWithClass({ classId }: { classId: number }) {
     win.opener = null;
     setPopupBlockedSessionId(null);
   };
-
-  const onCreate = () => {
-    if (!title.trim()) return;
-    createSession.mutate(
-      { classId, title: title.trim() },
-      {
-        onSuccess: (s) => {
-          setCreateOpen(false);
-          setTitle('');
-          openSessionInNewTab(s.id);
-        },
-      },
-    );
-  }
 
   return (
     <>
@@ -129,29 +114,17 @@ function StudentDashWithClass({ classId }: { classId: number }) {
         >
           <span style={{ fontSize: 13, opacity: 0.72 }}>안녕하세요, {me.name}님</span>
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'var(--text-inverse)' }}>
-            {live ? 'LIVE 세션이 진행 중입니다' : '진행 중인 LIVE 세션이 없습니다'}
+            {livePublicSession ? 'LIVE 세션이 진행 중입니다' : '진행 중인 클래스 공개 LIVE 세션이 없습니다'}
           </h1>
           <span style={{ fontSize: 13, opacity: 0.72 }}>
-            {live ? live.title : `${className} · 세션을 만들거나 대기하세요`}
+            {livePublicSession ? livePublicSession.title : `${className} · 강사가 공개 LIVE를 열면 여기 표시됩니다`}
           </span>
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-            {live ? (
-              <Button variant="accent" onClick={() => openSessionInNewTab(live.id)}>
+            {livePublicSession ? (
+              <Button variant="accent" onClick={() => openSessionInNewTab(livePublicSession.id)}>
                 LIVE 입장
               </Button>
             ) : null}
-            <Button
-              variant="secondary"
-              icon={<Plus size={14} strokeWidth={1.75} />}
-              onClick={() => setCreateOpen(true)}
-              style={{
-                background: 'transparent',
-                color: 'var(--text-inverse)',
-                borderColor: 'var(--border-strong)',
-              }}
-            >
-              세션 생성
-            </Button>
           </div>
         </div>
         <div
@@ -231,9 +204,9 @@ function StudentDashWithClass({ classId }: { classId: number }) {
         {sessions.length === 0 ? (
           <EmptyState
             message="세션이 없습니다"
-            description="새 세션을 만들어 실습을 시작하세요."
-            actionLabel="세션 생성"
-            onAction={() => setCreateOpen(true)}
+            description="클래스 탭에서 세션을 만들거나, 공개 LIVE가 열리면 참여할 수 있습니다."
+            actionLabel="클래스"
+            onAction={() => navigate(`/app/classes/${classId}`)}
           />
         ) : (
           <CardScrollRow>
@@ -269,31 +242,6 @@ function StudentDashWithClass({ classId }: { classId: number }) {
         )}
       </div>
 
-      <Modal
-        open={createOpen}
-        title="세션 생성"
-        description="클래스에 새 실습 세션을 만듭니다."
-        primaryLabel={createSession.isPending ? '생성 중…' : '생성'}
-        secondaryLabel="취소"
-        onPrimary={onCreate}
-        onSecondary={() => setCreateOpen(false)}
-        onClose={() => setCreateOpen(false)}
-      >
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="세션 제목"
-          style={{
-            width: '100%',
-            border: '1px solid var(--border-strong)',
-            borderRadius: 8,
-            padding: '10px 12px',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            boxSizing: 'border-box',
-          }}
-        />
-      </Modal>
     </>
   );
 }

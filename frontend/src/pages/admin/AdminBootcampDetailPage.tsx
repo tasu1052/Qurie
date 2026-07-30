@@ -110,7 +110,7 @@ export default function AdminBootcampDetailPage() {
           <div>
             <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>마스터 초대</h2>
             <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
-              현재 어드민 초대는 로컬 목업입니다. 메일은 발송되지 않으며, 아래 링크를 복사해 전달하세요.
+              API 미구현: 현재 어드민 초대는 로컬 목업입니다. 메일은 발송되지 않으며, 아래 링크를 복사해 전달하세요.
               실초대 메일은 마스터/매니저 회원 관리(POST /invitations)를 사용합니다.
             </p>
           </div>
@@ -174,7 +174,7 @@ export default function AdminBootcampDetailPage() {
                   </Button>
                 </div>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  토큰: {invite.token} · 백엔드 연동 전 UI 전용 링크입니다.
+                  토큰: {invite.token} · API 미구현(UI 전용 링크) 상태입니다.
                 </span>
               </div>
             </div>
