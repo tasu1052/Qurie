@@ -44,6 +44,8 @@ class CreateQuizSetRequest(BaseModel):
     user_prompt: str | None = Field(default=None, max_length=500)
     version_hash: str = Field(min_length=1, max_length=64)
     target_files: list[str] = Field(default_factory=list, max_length=20)
+    # 생성이 끝나면 이 주소로 결과를 POST한다. 없으면 폴링(GET /status)만 쓴다.
+    callback_url: str | None = Field(default=None, max_length=500)
     # 필수. 기본값을 두면 필드를 생략했을 때 validator가 돌지 않아 그대로 통과한다.
     files: dict[str, str]
 
@@ -59,6 +61,18 @@ class CreateQuizSetRequest(BaseModel):
     @classmethod
     def normalize_paths(cls, v: list[str]) -> list[str]:
         return [p.strip().replace("\\", "/") for p in v if p.strip()]
+
+    @field_validator("callback_url")
+    @classmethod
+    def check_callback_url(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            return None
+        if not v.startswith(("http://", "https://")):
+            raise ValueError("callback_url은 http:// 또는 https:// 로 시작해야 합니다")
+        return v
 
     @field_validator("files")
     @classmethod
