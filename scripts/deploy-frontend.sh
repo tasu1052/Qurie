@@ -33,8 +33,15 @@ cd "$FRONT_DIR"
 
 # CI 에는 frontend/.env 가 없다(gitignore). 빌드 입력이 환경변수로만 결정되게 두어
 # "로컬에선 되는데 배포하면 다르다" 를 만들지 않는다.
-echo "[front] 의존성 설치 (npm ci)"
-npm ci --no-audit --no-fund
+#
+# SKIP_NPM_CI 는 파이프라인이 앞선 스테이지에서 이미 설치했을 때 쓴다. 수동 실행에서는
+# 값이 없으므로 항상 설치한다 — 스크립트 하나만 돌려도 배포가 되게 유지하려는 것이다.
+if [ "${SKIP_NPM_CI:-0}" = "1" ] && [ -d node_modules ]; then
+	echo "[front] 의존성 설치 생략 (SKIP_NPM_CI=1)"
+else
+	echo "[front] 의존성 설치 (npm ci)"
+	npm ci --no-audit --no-fund
+fi
 
 echo "[front] 빌드 (VITE_API_BASE_URL=$VITE_API_BASE_URL)"
 npm run build
