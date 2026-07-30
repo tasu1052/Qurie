@@ -1,5 +1,8 @@
 import { axiosInstance } from '../core/axiosInstance';
+import type { ChatMessageListParams } from '../core/queryKeys/session.keys';
 import type { UserRole } from '../core/types';
+
+export type { ChatMessageListParams };
 
 export interface SessionCreateRequest {
     classId: number;
@@ -28,6 +31,40 @@ export interface SessionParticipantResponse {
     userId: number;
     name: string;
     role: UserRole;
+}
+
+export interface ChatMessageResponse {
+    id: number;
+    sessionId: number;
+    senderId: number;
+    senderName: string;
+    content: string;
+    createdAt: string;
+}
+
+export interface SessionReportCreateRequest {
+    quizSetId?: number;
+    ordinaryUserId?: number;
+    quizTotalCount: number;
+    quizAttemptedCount: number;
+    quizCorrectCount: number;
+    quizSkippedCount: number;
+    completionRate: number;
+    accuracy: number;
+    avgElapsedMs?: number;
+    difficultyRatio?: Record<string, unknown>;
+    conceptStats?: Record<string, unknown>;
+    quizRating?: number;
+    aiComment?: string;
+    aiStrengths?: string[];
+    aiImprovements?: string[];
+}
+
+export interface SessionReportCreateResponse {
+    sessionReportId: number;
+    sessionId: number;
+    ordinaryUserId: number;
+    issuedAt: string;
 }
 
 export const createSession = async (body: SessionCreateRequest): Promise<SessionResponse> => {
@@ -69,4 +106,26 @@ export const updateSession = async (
 
 export const deleteSession = async (sessionId: number): Promise<void> => {
     await axiosInstance.delete(`/sessions/${sessionId}`);
+};
+
+export const getSessionMessages = async (
+    sessionId: number,
+    params?: ChatMessageListParams,
+): Promise<ChatMessageResponse[]> => {
+    const { data } = await axiosInstance.get<ChatMessageResponse[]>(
+        `/sessions/${sessionId}/messages`,
+        { params },
+    );
+    return data;
+};
+
+export const createSessionReport = async (
+    sessionId: number,
+    body: SessionReportCreateRequest,
+): Promise<SessionReportCreateResponse> => {
+    const { data } = await axiosInstance.post<SessionReportCreateResponse>(
+        `/sessions/${sessionId}/reports`,
+        body,
+    );
+    return data;
 };
