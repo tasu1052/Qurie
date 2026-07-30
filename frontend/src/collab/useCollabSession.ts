@@ -20,8 +20,10 @@ function resolveCursorColor(clientId: number): string {
 
 /**
  * 세션 방(roomId) 하나에 대한 Yjs 공유 문서 + WebSocket provider.
- * 전송 계층은 VITE_YJS_WS_URL(개발용 y-websocket 서버)로 추상화 —
- * 백엔드 WS가 준비되면 env만 교체하면 된다.
+ * 전송 계층은 VITE_YJS_WS_URL 로 추상화한다.
+ *  - 개발: npm run collab:server (인증 없음) 또는 collab-server/ (AUTH_DISABLED=true)
+ *  - 배포: collab-server 컨테이너. 인증은 httpOnly ACCESS_TOKEN 쿠키로 하므로
+ *    이 URL 은 백엔드와 same-site 여야 브라우저가 핸드셰이크에 쿠키를 실어 보낸다.
  */
 export function useCollabSession(roomId: string, user: { name: string }) {
   const [status, setStatus] = useState<CollabStatus>('connecting');

@@ -1,0 +1,16 @@
+{
+  "name": "qurie-collab-server",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Qurie 세션 동시편집(Yjs) 동기화 서버. y-websocket 프로토콜 호환.",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node -e \"process.env.AUTH_DISABLED='true'; require('./server.js')\""
+  },
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2",
+    "ws": "^8.18.0",
+    "y-websocket": "^1.5.4",
+    "yjs": "^13.6.31"
+  }
+}
