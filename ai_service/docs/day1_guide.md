@@ -100,7 +100,7 @@ Day 1은 body를 **아직 안 받아도 됨**. 다만 `request.py` 스키마는 
 
 - `QuizMode`: ASSESSMENT / PRACTICE
 - `DifficultyRatio`: 상대 가중치 (합 100 불필요, 전부 0만 금지) + `to_counts()`
-- `CreateQuizSetRequest`: mode, requested_count∈{5,10,15,20}, ratio, user_prompt, version_hash, target_files
+- `CreateQuizSetRequest`: mode, requested_count 1~20, ratio, user_prompt, version_hash, target_files
 
 **어디에 쓰이나**: Day 4에 `quizzes.py`가 `body: CreateQuizSetRequest`로 import.  
 지금은 클래스가 “정의만” 되어 있어도 OK (직접 실행되는 코드 아님).
