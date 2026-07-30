@@ -41,3 +41,11 @@ def max_tokens_for(stage: str, item_count: int) -> int:
 
 # --- 개발 모드 ---
 MOCK = os.environ.get("AI_MOCK", "0") == "1"
+
+# --- 완료 통보(콜백) ---
+# 요청에 callback_url이 있으면 파이프라인 종료 후 그 주소로 결과를 POST한다.
+# 토큰은 수신 측이 "정말 AI 서비스가 보낸 것"인지 검증하는 용도. 양쪽 .env에 같은 값.
+CALLBACK_TOKEN = os.environ.get("CALLBACK_TOKEN", "")
+CALLBACK_TIMEOUT_SEC = 10
+CALLBACK_RETRIES = 3
+CALLBACK_BACKOFF_SEC = 2
