@@ -70,13 +70,14 @@ export type {
 } from '../network/core/types';
 
 /**
- * Auth / user / session hooks — re-exported from teammate's `network/`.
+ * Auth / user / session / class / track / group / … hooks — re-exported from `network/`.
  * Pages and shells import from here only (never deep-import network query modules).
  */
-export { useLogin, useLogout, useMe } from '../network/auth';
+export { useLogin, useLogout, useMe, useRefresh } from '../network/auth';
 export type { AuthUserResponse, LoginRequest } from '../network/auth';
 export {
   useSignUp,
+  useGetUsers,
   useGetUserProfile,
   useUpdateUserProfile,
 } from '../network/user';
@@ -85,11 +86,16 @@ export type {
   UserSignUpResponse,
   UserProfileResponse,
   UserProfileUpdateRequest,
+  UserSummaryResponse,
+  UserListParams,
 } from '../network/user';
 export {
   useCreateSession,
+  useCreateSessionReport,
   useGetSessions,
   useGetSession,
+  useGetSessionParticipants,
+  useGetSessionMessages,
   useUpdateSession,
   useDeleteSession,
 } from '../network/session';
@@ -97,7 +103,40 @@ export type {
   SessionCreateRequest,
   SessionResponse,
   SessionUpdateRequest,
+  SessionParticipantResponse,
+  ChatMessageResponse,
+  ChatMessageListParams,
+  SessionReportCreateRequest,
+  SessionReportCreateResponse,
 } from '../network/session';
+export {
+  useGetMyClasses,
+  useGetClasses,
+  useGetClass,
+  useCreateClass,
+  useUpdateClass,
+  useDeleteClass,
+} from '../network/class';
+export type {
+  ClassCreateRequest,
+  ClassUpdateRequest,
+  ClassResponse,
+} from '../network/class';
+export type { ClassListFilters } from '../network/core/queryKeys/class.keys';
+export {
+  useGetTracks,
+  useGetTrack,
+  useCreateTrack,
+  useUpdateTrack,
+  useDeleteTrack,
+} from '../network/track';
+export type {
+  TrackCreateRequest,
+  TrackUpdateRequest,
+  TrackResponse,
+  TrackSummaryResponse,
+} from '../network/track';
+export type { TrackListFilters } from '../network/core/queryKeys/track.keys';
 export {
   useCreateGroup,
   useGetGroups,
@@ -122,6 +161,28 @@ export type {
   GroupShuffleRequest,
   GroupParticipantRole,
 } from '../network/group';
+export { useCreateInvitation, useGetInvitationPreview } from '../network/invitation';
+export type {
+  InvitationCreateRequest,
+  InvitationCreateResponse,
+  InvitationPreviewResponse,
+} from '../network/invitation';
+export { useGetNotices } from '../network/notice';
+export type { NoticeResponse, NoticeScope, NoticeListFilters } from '../network/notice';
+export { useGetAnalyticsOverview } from '../network/analytics';
+export type { AnalyticsOverviewResponse } from '../network/analytics';
+export { useCreateProject } from '../network/project';
+export type { ProjectCreateRequest, ProjectResponse } from '../network/project';
+export { useGenerateQuiz } from '../network/quiz';
+export type {
+  QuizGenerateRequest,
+  QuizGenerateResponse,
+  QuizGenerationMode,
+  QuizType,
+  QuizSetStatus,
+} from '../network/quiz';
+export { useCreateUserReport } from '../network/report';
+export type { UserReportCreateRequest, UserReportCreateResponse } from '../network/report';
 
 /** Teammate boundary — UI supplies fallbacks only. */
 export { QueryAsyncBoundary } from '../network/boundaries/QueryAsyncBoundary';
