@@ -1,17 +1,24 @@
 package com.roma.qurie.classes;
 
 import com.roma.qurie.classes.dto.ClassCreateRequest;
+import com.roma.qurie.classes.dto.ClassMemberResponse;
 import com.roma.qurie.classes.dto.ClassResponse;
 import com.roma.qurie.classes.dto.ClassUpdateRequest;
 import com.roma.qurie.common.dto.PageResponse;
+import com.roma.qurie.group.GroupParticipant;
+import com.roma.qurie.group.GroupParticipantRepository;
 import com.roma.qurie.group.GroupRepository;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.session.core.SessionRepository;
 import com.roma.qurie.track.Track;
 import com.roma.qurie.track.TrackRepository;
+import com.roma.qurie.user.entity.UserRole;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -33,6 +40,7 @@ public class ClassService {
     private final ClassUserRepository classUserRepository;
     private final SessionRepository sessionRepository;
     private final GroupRepository groupRepository;
+    private final GroupParticipantRepository groupParticipantRepository;
 
     /* 클래스를 생성하는 함수 */
     @Transactional
@@ -105,6 +113,34 @@ public class ClassService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "소속된 반이 아닙니다.");
         }
         return ClassResponse.from(classEntity);
+    }
+
+    /**
+     * 반 명단을 조회하는 함수. 매니저 학생 관리 화면이 학생의 현재 그룹을 함께 보여주므로
+     * 명단 페이지를 뽑은 뒤 반의 그룹 배정을 한 번에 읽어 합친다 — 명단 한 페이지는 최대 100명이라
+     * 사람별로 그룹을 조회하면 N+1 이 된다.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<ClassMemberResponse> getMembers(AuthUser authUser, Long classId,
+            UserRole role, String keyword, Pageable pageable) {
+        requireMasterOrOwnClassManager(authUser, classId);
+        findClassInEnterprise(authUser, classId);
+
+        Page<ClassUser> memberPage = classUserRepository.findMemberPage(
+                classId, role, blankToNull(keyword), toPageRequest(pageable));
+
+        // 한 학생은 반에서 그룹 하나에만 속한다는 전제. 데이터가 어긋나 여러 행이 있어도 최신 배정 하나로 결정한다.
+        Map<Long, GroupParticipant> assignmentByUserId = groupParticipantRepository
+                .findAllWithGroupAndUserByClassId(classId).stream()
+                .collect(Collectors.toMap(
+                        participant -> participant.getUser().getId(),
+                        participant -> participant,
+                        (first, second) -> second.getId() > first.getId() ? second : first));
+
+        return PageResponse.from(memberPage.map(classUser -> {
+            GroupParticipant assignment = assignmentByUserId.get(classUser.getUser().getId());
+            return ClassMemberResponse.of(classUser.getUser(), assignment != null ? assignment.getGroup() : null);
+        }));
     }
 
     /* 클래스를 수정하는 함수. PATCH(부분 수정) 계약으로 보낸 항목만 반영한다. */
@@ -183,7 +219,7 @@ public class ClassService {
         }
     }
 
-    /* 매니저는 자기가 담당하는 반(JWT 의 classId)만 고칠 수 있다. */
+    /* 매니저는 자기가 담당하는 반(JWT 의 classId)만 수정·명단 조회할 수 있다. */
     private void requireMasterOrOwnClassManager(AuthUser authUser, Long classId) {
         requireLogin(authUser);
         if (MASTER_ROLE.equals(authUser.role())) {
@@ -192,7 +228,7 @@ public class ClassService {
         if (MANAGER_ROLE.equals(authUser.role()) && classId.equals(authUser.classId())) {
             return;
         }
-        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "클래스를 수정할 권한이 없습니다.");
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "해당 클래스에 접근할 권한이 없습니다.");
     }
 
     private void requireMasterOrManager(AuthUser authUser) {

@@ -3,6 +3,8 @@ package com.roma.qurie.classes;
 import com.roma.qurie.user.entity.UserRole;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -33,4 +35,31 @@ public interface ClassUserRepository extends JpaRepository<ClassUser, Long> {
 	@Query("select cu from ClassUser cu join fetch cu.user u where cu.classEntity.id = :classId and u.role = :role")
 	List<ClassUser> findAllWithUserByClassEntityIdAndRole(
 			@Param("classId") Long classId, @Param("role") UserRole role);
+
+	/**
+	 * 반 명단 페이지 조회. 회원 목록(UserRepository.findSummaries)과 같은 필터 계약(role·이름/이메일 검색)을 따른다.
+	 * 정렬이 쿼리에 박혀 있으므로 호출부는 Pageable 의 Sort 를 버려야 한다 (UserService.toPageRequest 와 같은 이유).
+	 */
+	@Query(value = """
+			select cu from ClassUser cu join fetch cu.user u
+			where cu.classEntity.id = :classId
+				and (:role is null or u.role = :role)
+				and (:keyword is null
+					or lower(u.name) like lower(concat('%', :keyword, '%'))
+					or lower(u.email) like lower(concat('%', :keyword, '%')))
+			order by u.name asc, u.id asc
+			""",
+			countQuery = """
+			select count(cu.id) from ClassUser cu join cu.user u
+			where cu.classEntity.id = :classId
+				and (:role is null or u.role = :role)
+				and (:keyword is null
+					or lower(u.name) like lower(concat('%', :keyword, '%'))
+					or lower(u.email) like lower(concat('%', :keyword, '%')))
+			""")
+	Page<ClassUser> findMemberPage(
+			@Param("classId") Long classId,
+			@Param("role") UserRole role,
+			@Param("keyword") String keyword,
+			Pageable pageable);
 }
