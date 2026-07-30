@@ -110,7 +110,8 @@ export default function AdminBootcampDetailPage() {
           <div>
             <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>마스터 초대</h2>
             <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
-              초대 토큰에 이 부트캠프의 엔터프라이즈 ID가 고정됩니다. 마스터는 이름·이메일·비밀번호만 입력합니다.
+              현재 어드민 초대는 로컬 목업입니다. 메일은 발송되지 않으며, 아래 링크를 복사해 전달하세요.
+              실초대 메일은 마스터/매니저 회원 관리(POST /invitations)를 사용합니다.
             </p>
           </div>
 
@@ -127,7 +128,7 @@ export default function AdminBootcampDetailPage() {
               />
             </label>
             <Button variant="primary" onClick={onInvite}>
-              {invite ? '재초대' : '초대 메일 발송'}
+              {invite ? '재발급' : '초대 링크 생성'}
             </Button>
           </div>
           {error ? <p style={{ margin: 0, fontSize: 13, color: 'var(--status-error)' }}>{error}</p> : null}

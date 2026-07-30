@@ -7,6 +7,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   // 로컬 백엔드로 붙일 때는 .env 에 VITE_DEV_API_TARGET=http://localhost:8080 을 넣으면 된다.
   const apiTarget = env.VITE_DEV_API_TARGET || 'https://i15a604.p.ssafy.io';
+  // collab-server (npm run collab:server). 브라우저는 /yjs 로만 접속한다.
+  const yjsTarget = env.VITE_YJS_PROXY_TARGET || 'http://127.0.0.1:1234';
 
   return {
     plugins: [react()],
@@ -35,6 +37,13 @@ export default defineConfig(({ mode }) => {
           target: apiTarget,
           changeOrigin: true,
           ws: true,
+        },
+        // Yjs 동시편집 — 클라이언트는 ws://<dev-host>/yjs/<room> (배포 nginx 경로와 동일)
+        '/yjs': {
+          target: yjsTarget,
+          changeOrigin: true,
+          ws: true,
+          rewrite: (path) => path.replace(/^\/yjs/, '') || '/',
         },
       },
     },

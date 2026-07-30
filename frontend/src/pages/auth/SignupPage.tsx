@@ -1,9 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Badge, Button, Input } from '../../ds';
+import { Badge, Button, EmptyState, Input, RowErrorFallback, Skeleton } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
-import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
-import { useInvitationPreviewRow, useSignUp } from '../../data';
+import { QueryAsyncBoundary, useGetInvitationPreview, useSignUp } from '../../data';
 
 function strengthLabel(pw: string) {
   if (pw.length >= 12 && /[A-Z]/.test(pw) && /[0-9]/.test(pw)) return { label: '강함', color: 'var(--accent)' };
@@ -12,22 +11,22 @@ function strengthLabel(pw: string) {
   return { label: '', color: 'transparent' };
 }
 
-function SignupFields({
-  token,
-  initialEmail,
-  initialClassName,
-  role,
-}: {
-  token: string;
-  initialEmail: string;
-  initialClassName: string;
-  role: string;
-}) {
+function FormSkeleton() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Skeleton width="100%" height={64} radius={12} />
+      <Skeleton width="100%" height={44} radius={12} />
+      <Skeleton width="100%" height={44} radius={12} delay={0.06} />
+      <Skeleton width="100%" height={44} radius={12} delay={0.12} />
+    </div>
+  );
+}
+
+function SignupFields({ token }: { token: string }) {
   const navigate = useNavigate();
+  const { data: preview } = useGetInvitationPreview(token);
   const signUp = useSignUp();
   const [name, setName] = useState('');
-  const [email, setEmail] = useState(initialEmail);
-  const [className, setClassName] = useState(initialClassName);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [terms, setTerms] = useState(false);
@@ -50,19 +49,14 @@ function SignupFields({
       return;
     }
 
-    if (!email.trim() || !className.trim()) {
-      setFormError('이메일과 반 정보를 입력해 주세요.');
-      return;
-    }
-
+    // 임시 UI 토큰(어드민 목업 링크) — 실초대 API가 아닌 경우
     if (token.startsWith('dev-')) {
-      // 임시 테스트 토큰은 서버에서 검증되지 않으므로 프론트에서 성공 플로우만 통과시킨다.
       navigate('/login', { replace: true });
       return;
     }
 
     signUp.mutate(
-      { token, password, name } as never,
+      { token, password, name },
       {
         onSuccess: () => navigate('/login', { replace: true }),
         onError: () => setFormError('회원가입에 실패했습니다. 초대 토큰과 입력을 확인해 주세요.'),
@@ -84,19 +78,22 @@ function SignupFields({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Badge status="accent">{role}</Badge>
+          <Badge status="accent">{preview.role}</Badge>
           <Badge status="neutral">PENDING</Badge>
         </div>
         <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>이메일 · </span>
             <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--ink)' }}>
-              {initialEmail}
+              {preview.email}
             </span>
           </div>
           <div style={{ marginTop: 4 }}>
             <span style={{ color: 'var(--text-muted)' }}>클래스 · </span>
-            {initialClassName}
+            {preview.className}
+          </div>
+          <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text-muted)' }}>
+            만료 · {new Date(preview.expiresAt).toLocaleString('ko-KR')}
           </div>
         </div>
       </div>
@@ -104,25 +101,6 @@ function SignupFields({
       <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>이름</span>
         <Input placeholder="홍길동" value={name} onChange={(e) => setName(e.target.value)} width="100%" />
-      </label>
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 13, fontWeight: 600 }}>이메일</span>
-        <Input
-          type="email"
-          placeholder="name@company.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          width="100%"
-        />
-      </label>
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 13, fontWeight: 600 }}>반</span>
-        <Input
-          placeholder="서울 1반"
-          value={className}
-          onChange={(e) => setClassName(e.target.value)}
-          width="100%"
-        />
       </label>
       <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>비밀번호</span>
@@ -133,9 +111,9 @@ function SignupFields({
           onChange={(e) => setPassword(e.target.value)}
           width="100%"
         />
-        {strength.label && (
+        {strength.label ? (
           <span style={{ fontSize: 11, fontWeight: 600, color: strength.color }}>강도 · {strength.label}</span>
-        )}
+        ) : null}
       </label>
       <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>비밀번호 확인</span>
@@ -165,7 +143,7 @@ function SignupFields({
         />
         이용약관 및 개인정보 처리방침에 동의합니다.
       </label>
-      {formError && (
+      {formError ? (
         <div
           style={{
             fontSize: 13,
@@ -177,10 +155,10 @@ function SignupFields({
         >
           {formError}
         </div>
-      )}
+      ) : null}
       <Button
         variant="primary"
-        disabled={signUp.isPending || !name || !email || !className || !password || !confirm}
+        disabled={signUp.isPending || !name || !password || !confirm}
         style={{ width: '100%', justifyContent: 'center' }}
       >
         {signUp.isPending ? '가입 중…' : '초대 수락하고 시작하기'}
@@ -190,35 +168,40 @@ function SignupFields({
 }
 
 function SignupForm({ token }: { token: string }) {
-  const preview = useInvitationPreviewRow(token);
+  const navigate = useNavigate();
+  const [rowKey, setRowKey] = useState(0);
+
+  // 어드민 목업 토큰은 백엔드에 없으므로 미리보기 API를 치지 않는다.
+  if (token.startsWith('dev-')) {
+    return (
+      <EmptyState
+        message="테스트용 초대 링크입니다"
+        description="어드민 목업 초대는 실메일을 보내지 않습니다. 마스터/매니저 회원 관리에서 초대한 링크로 가입해 주세요."
+        actionLabel="로그인"
+        onAction={() => navigate('/login')}
+      />
+    );
+  }
 
   return (
-    <MockRowBoundary
-      status={preview.status}
-      onRetry={preview.refetch}
-      emptyMessage="유효한 초대 정보가 없습니다"
-      skeleton={
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ height: 64, borderRadius: 12, background: 'var(--surface-sunken)' }} />
-          <div style={{ height: 44, borderRadius: 12, background: 'var(--surface-sunken)' }} />
-          <div style={{ height: 44, borderRadius: 12, background: 'var(--surface-sunken)' }} />
-        </div>
+    <QueryAsyncBoundary
+      key={rowKey}
+      suspenseFallback={<FormSkeleton />}
+      errorFallback={
+        <RowErrorFallback
+          onRetry={() => setRowKey((k) => k + 1)}
+          title="초대를 불러오지 못했습니다"
+          description="링크가 만료됐거나 유효하지 않습니다. 초대 메일의 링크로 다시 접속해 주세요."
+        />
       }
     >
-      {preview.data && (
-        <SignupFields
-          key={`${preview.data.email}-${preview.data.className}`}
-          token={token}
-          initialEmail={preview.data.email}
-          initialClassName={preview.data.className}
-          role={preview.data.role}
-        />
-      )}
-    </MockRowBoundary>
+      <SignupFields token={token} />
+    </QueryAsyncBoundary>
   );
 }
 
 export default function SignupPage() {
+  const navigate = useNavigate();
   const [params] = useSearchParams();
   const token = params.get('token');
 
@@ -259,24 +242,17 @@ export default function SignupPage() {
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>초대 수락</h1>
           <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            초대 링크로 들어온 뒤 이름과 비밀번호를 설정합니다.
+            초대에 고정된 이메일·역할·클래스로 가입합니다. 이름과 비밀번호만 입력하세요.
           </p>
         </div>
 
         {!token ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              초대 토큰이 없습니다. 메일로 받은 링크(` /signup?token=… `)로 다시 접속해 주세요.
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Link to="/" style={{ textDecoration: 'none' }}>
-                <Button variant="secondary">랜딩으로</Button>
-              </Link>
-              <Link to="/login" style={{ textDecoration: 'none' }}>
-                <Button variant="primary">로그인</Button>
-              </Link>
-            </div>
-          </div>
+          <EmptyState
+            message="초대 토큰이 없습니다"
+            description="메일로 받은 링크(/signup?token=…)로 다시 접속해 주세요."
+            actionLabel="로그인"
+            onAction={() => navigate('/login')}
+          />
         ) : (
           <SignupForm token={token} />
         )}

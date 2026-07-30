@@ -19,11 +19,24 @@ function resolveCursorColor(clientId: number): string {
 }
 
 /**
+ * Yjs WS URL.
+ * - `VITE_YJS_WS_URL` 이 있으면 그대로 사용
+ * - 없으면 현재 origin 의 `/yjs` (Vite·nginx → collab-server)
+ *   배포에서는 ACCESS_TOKEN 쿠키가 핸드셰이크에 실리도록 백엔드와 same-site 여야 한다.
+ */
+export function resolveYjsWsUrl(): string {
+  const fromEnv = import.meta.env.VITE_YJS_WS_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/+$/, '');
+  if (typeof window === 'undefined') return 'ws://127.0.0.1:1234';
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}/yjs`;
+}
+
+/**
  * 세션 방(roomId) 하나에 대한 Yjs 공유 문서 + WebSocket provider.
- * 전송 계층은 VITE_YJS_WS_URL 로 추상화한다.
- *  - 개발: npm run collab:server (인증 없음) 또는 collab-server/ (AUTH_DISABLED=true)
- *  - 배포: collab-server 컨테이너. 인증은 httpOnly ACCESS_TOKEN 쿠키로 하므로
- *    이 URL 은 백엔드와 same-site 여야 브라우저가 핸드셰이크에 쿠키를 실어 보낸다.
+ * 전송 계층은 resolveYjsWsUrl() 로 추상화한다.
+ *  - 개발: npm run collab:server (AUTH_DISABLED) + Vite `/yjs` 프록시
+ *  - 배포: collab-server 컨테이너. nginx `/yjs` → 1234, JWT 쿠키 인증
  */
 export function useCollabSession(roomId: string, user: { name: string }) {
   const [status, setStatus] = useState<CollabStatus>('connecting');
@@ -36,7 +49,7 @@ export function useCollabSession(roomId: string, user: { name: string }) {
   const [provider, setProvider] = useState<WebsocketProvider | null>(null);
 
   useEffect(() => {
-    const wsUrl = import.meta.env.VITE_YJS_WS_URL ?? 'ws://localhost:1234';
+    const wsUrl = resolveYjsWsUrl();
     const p = new WebsocketProvider(wsUrl, `qurie-session-${roomId}`, ydoc);
     providerRef.current = p;
 
