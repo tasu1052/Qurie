@@ -135,6 +135,7 @@ API 가 EC2 도메인이면 cross-site 가 되어 브라우저가 XHR 에 쿠키
 |---|---|---|---|
 | `/api/*` | `i15a604.p.ssafy.io` (HTTPS 443) | `CachingDisabled` | `AllViewerExceptHostHeader` |
 | `/ws` | `i15a604.p.ssafy.io` (HTTPS 443) | `CachingDisabled` | `AllViewerExceptHostHeader` |
+| `/yjs/*` | `i15a604.p.ssafy.io` (HTTPS 443) | `CachingDisabled` | `AllViewerExceptHostHeader` |
 | `Default (*)` | S3 버킷 (OAC) | `CachingOptimized` | — |
 
 - 오리진 요청 정책이 `AllViewer*` 가 아니면 쿠키가 오리진까지 전달되지 않는다.
@@ -144,6 +145,66 @@ API 가 EC2 도메인이면 cross-site 가 되어 브라우저가 XHR 에 쿠키
   viewer 도메인은 `*.cloudfront.net` 이나 별도 서브도메인을 쓴다.
 - CloudFront 도메인이 바뀌면 EC2 `.env` 의 `CORS_ALLOWED_ORIGIN_PATTERNS`,
   `WEBSOCKET_ALLOWED_ORIGIN_PATTERNS`, `FRONTEND_BASE_URL` 세 개를 맞추고 `docker compose up -d` 로 재기동한다(재빌드 불필요).
+
+---
+
+## Yjs 동시편집 경로 (`/yjs`)
+
+동작 확인 완료(2026-07-30). 브라우저는 항상 현재 origin 의 `/yjs/<방이름>` 으로 붙는다
+(`frontend/src/collab/useCollabSession.ts` 의 `resolveYjsWsUrl`). `ACCESS_TOKEN` 쿠키가 WS
+핸드셰이크에 실려야 하므로 반드시 CloudFront same-origin 을 거쳐야 한다.
+
+```
+브라우저 → CloudFront /yjs/* → nginx /yjs/ → 127.0.0.1:1234 (collab 컨테이너)
+```
+
+**nginx 설정은 EC2 에만 있고 git 에 없다.** 서버를 다시 만들 때 필요하므로 여기에 사본을 남긴다.
+`listen 443 ssl` server 블록(`server_name i15a604.p.ssafy.io`) 안, `location /ws` 옆에 둔다.
+
+```nginx
+    location /yjs/ {
+        proxy_pass http://127.0.0.1:1234/;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+```
+
+- **`proxy_pass` 끝의 슬래시가 필수다.** `collab-server` 는 경로 전체를 방 이름으로 읽고
+  `^qurie-session-\d+$` 만 허용한다. 접두어를 떼지 않으면 방 이름이 `yjs/qurie-session-1` 이
+  되어 404 로 거부된다.
+- CloudFront behavior 의 오리진 요청 정책이 `AllViewerExceptHostHeader` 가 아니면
+  `Upgrade`/`Connection` 헤더와 쿠키가 오리진까지 가지 않는다. 그러면 nginx 가 평범한 GET 으로
+  넘겨서 collab-server 의 healthcheck 핸들러가 `200 ok` 를 응답한다 — 401 이 아니라 200 이 나오면
+  이걸 먼저 본다.
+
+경로 점검(브라우저 없이). **`--http1.1` 이 필수다** — HTTP/2 는 `Connection`/`Upgrade` 헤더를
+금지하므로(RFC 9113 §8.2.2) h2 로 붙으면 업그레이드가 인식되지 않고 항상 `200 ok` 가 나온다.
+
+```bash
+curl -sS -i --http1.1 -H 'Connection: Upgrade' -H 'Upgrade: websocket' \
+  -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' \
+  "https://d3alq9m5x08xk2.cloudfront.net/yjs/qurie-session-1?cb=1" | head -1
+```
+
+**401 이 정상이다** — 쿠키 없이 불렀으니 collab-server 가 거절한 것이고, 경로가 끝까지 닿았다는 뜻이다.
+404 는 접두어 미제거, 502 는 컨테이너 미기동, `200 ok` 는 업그레이드 헤더 미전달이다.
+
+### 남은 구멍 두 개
+
+- **세션 참여 자격 검증이 없다** (`collab-server/server.js` 의 `todo`). 지금은 "로그인한 서비스
+  사용자" 까지만 거르므로 **다른 반 학생도 세션 id 만 알면 편집에 참여할 수 있다.** 백엔드의
+  `SessionWebSocketAuthorizationInterceptor` 가 하는 판단(반 소속·세션 활성)을 API 로 위임해야 막힌다.
+- **문서가 메모리에만 있다.** compose 의 collab 서비스에 `YPERSISTENCE` 가 없어서 컨테이너가
+  재시작되면 진행 중이던 편집 내용이 사라진다.
 
 ---
 
@@ -171,9 +232,11 @@ bash scripts/deploy.sh            # 백엔드
   설치를 여기서 한 번만 하려고 `Build & Deploy` 는 `SKIP_NPM_CI=1` 로 스크립트의 `npm ci` 를 건너뛴다.
   수동 실행(`bash scripts/deploy-frontend.sh`)에서는 그 변수가 없으므로 스크립트가 알아서 설치한다.
 - **프론트에는 테스트 스테이지가 없다.** 테스트가 아직 없기 때문이고, 생기면 `Lint` 다음에 넣는다.
-- **`VITE_YJS_WS_URL` 은 배포 빌드에서 설정되지 않는다.** 코드가 `ws://localhost:1234` 로 폴백하므로
-  배포 환경에서 Yjs 실시간 협업은 동작하지 않는다. y-websocket 서버를 배포한 뒤
-  `Jenkinsfile.frontend` 의 environment 에 한 줄 추가하면 된다.
+- **`VITE_YJS_WS_URL` 은 배포 빌드에서 설정하지 않는다. 설정하면 안 된다.**
+  `resolveYjsWsUrl()` 이 값이 없을 때 현재 origin 의 `/yjs` 로 붙기 때문에, 비워 두는 것이
+  CloudFront same-origin 접속(= `ACCESS_TOKEN` 쿠키가 핸드셰이크에 실림)을 보장한다.
+  절대 URL 을 넣으면 cross-site 가 되어 쿠키가 빠지고 collab-server 가 401 로 거절한다.
+  대신 인프라 쪽에 CloudFront `/yjs/*` behavior 와 nginx `/yjs/` location 이 있어야 한다.
 - **두 잡은 무엇이 바뀌었는지와 무관하게 master 푸시마다 둘 다 돈다.** 웹훅은 푸시 이벤트만 보고
   경로를 보지 않는다. 그래서 프론트만 고친 머지에도 백엔드 잡이 돌고 매터모스트 알림이 두 건 온다.
   경로로 걸러 건너뛸 수도 있지만(`gitlabBefore..gitlabAfter` 범위의 변경 경로 확인), 앞선 빌드가
