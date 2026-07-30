@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -40,7 +39,7 @@ class CreateQuizSetRequest(BaseModel):
     """POST /api/quiz?project=... body"""
 
     mode: QuizMode
-    requested_count: Literal[5, 10, 15, 20]
+    requested_count: int = Field(ge=1, le=20)
     ratio: DifficultyRatio = DifficultyRatio()
     user_prompt: str | None = Field(default=None, max_length=500)
     version_hash: str = Field(min_length=1, max_length=64)
