@@ -199,11 +199,12 @@ export default function SessionListPage() {
 
   const openSessionInNewTab = (sessionId: number) => {
     const url = `/session/${sessionId}`;
-    const win = window.open(url, '_blank', 'noopener,noreferrer');
+    const win = window.open(url, '_blank');
     if (!win) {
       setPopupBlockedSessionId(sessionId);
       return;
     }
+    win.opener = null;
     setPopupBlockedSessionId(null);
   };
 
@@ -246,9 +247,9 @@ export default function SessionListPage() {
           <AlertBanner
             tone="warning"
             title="브라우저가 새 창 열기를 차단했습니다."
-            description="주소창의 팝업 차단을 해제한 뒤 다시 시도해 주세요. 급하면 현재 탭에서 바로 열 수 있습니다."
-            actionLabel="현재 탭에서 열기"
-            onAction={() => navigate(`/session/${popupBlockedSessionId}`)}
+            description="브라우저의 팝업 차단을 해제한 뒤 다시 시도해 주세요."
+            actionLabel="확인"
+            onAction={() => setPopupBlockedSessionId(null)}
           />
         ) : null}
 
@@ -312,7 +313,7 @@ export default function SessionListPage() {
               page={page}
               onPage={setPage}
               onEmptyCreate={() => setCreateOpen(true)}
-              onEnter={(sessionId) => navigate(`/session/${sessionId}`)}
+              onEnter={openSessionInNewTab}
               onReport={(sessionId) => navigate(`/session/${sessionId}/report`)}
               onDelete={setDeleteTarget}
             />
