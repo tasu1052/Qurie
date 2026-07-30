@@ -73,6 +73,10 @@ public class QuizSet extends BaseTimeEntity {
 	@Column(name = "error_message", columnDefinition = "text")
 	private String errorMessage;
 
+	/** AI 서버가 발급한 quiz_set_id. 상태 조회(GET /api/quiz/{id}/status)에 이 값을 쓴다. */
+	@Column(name = "ai_quiz_set_id")
+	private Long aiQuizSetId;
+
 	@Column(name = "created_by", nullable = false)
 	private Long createdBy;
 
@@ -103,5 +107,21 @@ public class QuizSet extends BaseTimeEntity {
 	public void addQuiz(Quiz quiz) {
 		quizzes.add(quiz);
 		quiz.assignQuizSet(this);
+	}
+
+	/** AI 서버가 생성 요청을 접수하면 발급받은 id 를 기록하고 생성 중 상태로 넘어간다. */
+	public void markGenerating(Long aiQuizSetId) {
+		this.aiQuizSetId = aiQuizSetId;
+		this.status = QuizSetStatus.GENERATING;
+	}
+
+	public void complete(int generatedCount) {
+		this.generatedCount = generatedCount;
+		this.status = QuizSetStatus.COMPLETED;
+	}
+
+	public void fail(String errorMessage) {
+		this.errorMessage = errorMessage;
+		this.status = QuizSetStatus.FAILED;
 	}
 }
