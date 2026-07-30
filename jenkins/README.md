@@ -5,7 +5,7 @@ EC2(`i15a604.p.ssafy.io`)의 Jenkins 컨트롤러 설정 메모. 잡은 두 개�
 | 잡 | 스크립트 | 트리거 | 하는 일 |
 |---|---|---|---|
 | `qurie-backend` | `Jenkinsfile` | GitLab master 푸시 | 테스트 → 이미지 빌드 → compose 재기동 → 헬스체크 |
-| `qurie-frontend` | `Jenkinsfile.frontend` | GitLab master 푸시 | 빌드 → S3 업로드 → CloudFront 무효화 → 확인 |
+| `qurie-frontend` | `Jenkinsfile.frontend` | GitLab master 푸시 | 설치 → lint → 빌드 → S3 업로드 → CloudFront 무효화 → 확인 |
 
 잡을 나눈 이유는 백엔드 테스트가 깨졌을 때 프론트 배포까지 같이 막히지 않게 하려는 것이다.
 
@@ -165,6 +165,11 @@ bash scripts/deploy.sh            # 백엔드
 - **Lint 는 배포를 막지 않는다.** 현재 `qurie/*` 디자인시스템 룰에서 에러 25개가 남아 있어
   게이트로 걸면 모든 배포가 멈춘다. 지금은 실패해도 빌드를 UNSTABLE 로만 표시하고 배포는 진행한다.
   룰 위반을 정리한 뒤 `Jenkinsfile.frontend` 의 `catchError` 를 지우면 게이트가 된다.
+  에러가 남아 있는 동안은 **빌드가 매번 노란색(UNSTABLE)** 이 되는 것이 정상이다.
+- **`Install` 스테이지를 지우지 말 것.** Lint 가 `node_modules` 를 필요로 한다.
+  없으면 Lint 가 `eslint: not found`(exit 127)로 죽어서, 룰 위반 여부와 무관하게 항상 실패한다.
+  설치를 여기서 한 번만 하려고 `Build & Deploy` 는 `SKIP_NPM_CI=1` 로 스크립트의 `npm ci` 를 건너뛴다.
+  수동 실행(`bash scripts/deploy-frontend.sh`)에서는 그 변수가 없으므로 스크립트가 알아서 설치한다.
 - **프론트에는 테스트 스테이지가 없다.** 테스트가 아직 없기 때문이고, 생기면 `Lint` 다음에 넣는다.
 - **`VITE_YJS_WS_URL` 은 배포 빌드에서 설정되지 않는다.** 코드가 `ws://localhost:1234` 로 폴백하므로
   배포 환경에서 Yjs 실시간 협업은 동작하지 않는다. y-websocket 서버를 배포한 뒤
