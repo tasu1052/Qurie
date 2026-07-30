@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Badge, Button, Input } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
@@ -12,24 +12,27 @@ function strengthLabel(pw: string) {
   return { label: '', color: 'transparent' };
 }
 
-function SignupForm({ token }: { token: string }) {
+function SignupFields({
+  token,
+  initialEmail,
+  initialClassName,
+  role,
+}: {
+  token: string;
+  initialEmail: string;
+  initialClassName: string;
+  role: string;
+}) {
   const navigate = useNavigate();
-  const preview = useInvitationPreviewRow(token);
   const signUp = useSignUp();
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [className, setClassName] = useState('');
+  const [email, setEmail] = useState(initialEmail);
+  const [className, setClassName] = useState(initialClassName);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [terms, setTerms] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const strength = strengthLabel(password);
-
-  useEffect(() => {
-    if (!preview.data) return;
-    setEmail(preview.data.email);
-    setClassName(preview.data.className);
-  }, [preview.data]);
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -68,6 +71,128 @@ function SignupForm({ token }: { token: string }) {
   };
 
   return (
+    <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div
+        style={{
+          borderRadius: 12,
+          border: '1px solid var(--border)',
+          background: 'var(--surface-sunken)',
+          padding: 14,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Badge status="accent">{role}</Badge>
+          <Badge status="neutral">PENDING</Badge>
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>이메일 · </span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--ink)' }}>
+              {initialEmail}
+            </span>
+          </div>
+          <div style={{ marginTop: 4 }}>
+            <span style={{ color: 'var(--text-muted)' }}>클래스 · </span>
+            {initialClassName}
+          </div>
+        </div>
+      </div>
+
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>이름</span>
+        <Input placeholder="홍길동" value={name} onChange={(e) => setName(e.target.value)} width="100%" />
+      </label>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>이메일</span>
+        <Input
+          type="email"
+          placeholder="name@company.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          width="100%"
+        />
+      </label>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>반</span>
+        <Input
+          placeholder="서울 1반"
+          value={className}
+          onChange={(e) => setClassName(e.target.value)}
+          width="100%"
+        />
+      </label>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>비밀번호</span>
+        <Input
+          type="password"
+          placeholder="8자 이상"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          width="100%"
+        />
+        {strength.label && (
+          <span style={{ fontSize: 11, fontWeight: 600, color: strength.color }}>강도 · {strength.label}</span>
+        )}
+      </label>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>비밀번호 확인</span>
+        <Input
+          type="password"
+          placeholder="다시 입력"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          width="100%"
+        />
+      </label>
+      <label
+        style={{
+          display: 'inline-flex',
+          alignItems: 'flex-start',
+          gap: 8,
+          fontSize: 12.5,
+          color: 'var(--text-secondary)',
+          cursor: 'pointer',
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={terms}
+          onChange={(e) => setTerms(e.target.checked)}
+          style={{ marginTop: 2 }}
+        />
+        이용약관 및 개인정보 처리방침에 동의합니다.
+      </label>
+      {formError && (
+        <div
+          style={{
+            fontSize: 13,
+            color: 'var(--status-error)',
+            background: 'var(--status-error-bg)',
+            borderRadius: 10,
+            padding: '10px 12px',
+          }}
+        >
+          {formError}
+        </div>
+      )}
+      <Button
+        variant="primary"
+        disabled={signUp.isPending || !name || !email || !className || !password || !confirm}
+        style={{ width: '100%', justifyContent: 'center' }}
+      >
+        {signUp.isPending ? '가입 중…' : '초대 수락하고 시작하기'}
+      </Button>
+    </form>
+  );
+}
+
+function SignupForm({ token }: { token: string }) {
+  const preview = useInvitationPreviewRow(token);
+
+  return (
     <MockRowBoundary
       status={preview.status}
       onRetry={preview.refetch}
@@ -81,97 +206,13 @@ function SignupForm({ token }: { token: string }) {
       }
     >
       {preview.data && (
-        <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div
-            style={{
-              borderRadius: 12,
-              border: '1px solid var(--border)',
-              background: 'var(--surface-sunken)',
-              padding: 14,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Badge status="accent">{preview.data.role}</Badge>
-              <Badge status="neutral">PENDING</Badge>
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-              <div>
-                <span style={{ color: 'var(--text-muted)' }}>이메일 · </span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--ink)' }}>{preview.data.email}</span>
-              </div>
-              <div style={{ marginTop: 4 }}>
-                <span style={{ color: 'var(--text-muted)' }}>클래스 · </span>
-                {preview.data.className}
-              </div>
-            </div>
-          </div>
-
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>이름</span>
-            <Input placeholder="홍길동" value={name} onChange={(e) => setName(e.target.value)} width="100%" />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>이메일</span>
-            <Input
-              type="email"
-              placeholder="name@company.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              width="100%"
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>반</span>
-            <Input
-              placeholder="서울 1반"
-              value={className}
-              onChange={(e) => setClassName(e.target.value)}
-              width="100%"
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>비밀번호</span>
-            <Input
-              type="password"
-              placeholder="8자 이상"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              width="100%"
-            />
-            {strength.label && (
-              <span style={{ fontSize: 11, fontWeight: 600, color: strength.color }}>강도 · {strength.label}</span>
-            )}
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>비밀번호 확인</span>
-            <Input
-              type="password"
-              placeholder="다시 입력"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              width="100%"
-            />
-          </label>
-          <label style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-            <input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} style={{ marginTop: 2 }} />
-            이용약관 및 개인정보 처리방침에 동의합니다.
-          </label>
-          {formError && (
-            <div style={{ fontSize: 13, color: 'var(--status-error)', background: 'var(--status-error-bg)', borderRadius: 10, padding: '10px 12px' }}>
-              {formError}
-            </div>
-          )}
-          <Button
-            variant="primary"
-            disabled={signUp.isPending || !name || !email || !className || !password || !confirm}
-            style={{ width: '100%', justifyContent: 'center' }}
-          >
-            {signUp.isPending ? '가입 중…' : '초대 수락하고 시작하기'}
-          </Button>
-        </form>
+        <SignupFields
+          key={`${preview.data.email}-${preview.data.className}`}
+          token={token}
+          initialEmail={preview.data.email}
+          initialClassName={preview.data.className}
+          role={preview.data.role}
+        />
       )}
     </MockRowBoundary>
   );

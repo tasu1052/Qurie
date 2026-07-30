@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { isAxiosError } from 'axios';
+import { useNavigate } from 'react-router-dom';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import { AlertBanner, Button, EmptyState, RowErrorFallback, Skeleton } from '../../ds';
 import {
@@ -7,6 +8,7 @@ import {
   useGetClass,
   useMe,
   useUpdateClass,
+  type ClassResponse,
 } from '../../data';
 
 function apiErrorMessage(error: unknown, fallback: string): string {
@@ -38,20 +40,13 @@ function SettingsSkeleton() {
   );
 }
 
-function ClassSettingsForm({ classId }: { classId: number }) {
-  const { data: cls } = useGetClass(classId);
+function ClassSettingsFormFields({ cls }: { cls: ClassResponse }) {
   const updateClass = useUpdateClass();
   const [name, setName] = useState(cls.name);
   const [description, setDescription] = useState(cls.description ?? '');
   const [capacity, setCapacity] = useState(cls.capacity != null ? String(cls.capacity) : '');
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    setName(cls.name);
-    setDescription(cls.description ?? '');
-    setCapacity(cls.capacity != null ? String(cls.capacity) : '');
-  }, [cls]);
 
   const dirty =
     name.trim() !== cls.name ||
@@ -72,7 +67,7 @@ function ClassSettingsForm({ classId }: { classId: number }) {
     }
     updateClass.mutate(
       {
-        classId,
+        classId: cls.id,
         name: name.trim(),
         description: description.trim() || undefined,
         capacity: cap,
@@ -178,7 +173,13 @@ function ClassSettingsForm({ classId }: { classId: number }) {
   );
 }
 
+function ClassSettingsForm({ classId }: { classId: number }) {
+  const { data: cls } = useGetClass(classId);
+  return <ClassSettingsFormFields key={`${cls.id}-${cls.updatedAt}`} cls={cls} />;
+}
+
 function ManagerSettingsBody() {
+  const navigate = useNavigate();
   const { data: me } = useMe();
 
   if (me.classId == null) {
@@ -186,6 +187,8 @@ function ManagerSettingsBody() {
       <EmptyState
         message="담당 클래스가 없습니다"
         description="계정에 classId가 없어 클래스 설정을 열 수 없습니다. 마스터에게 클래스 배정을 요청하세요."
+        actionLabel="대시보드"
+        onAction={() => navigate('/manager')}
       />
     );
   }

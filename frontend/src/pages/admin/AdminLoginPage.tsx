@@ -66,7 +66,7 @@ export default function AdminLoginPage() {
           boxSizing: 'border-box',
         }}
       >
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>어드민 로그인</h1>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
             큐리 직원 계정으로 부트캠프를 생성·관리합니다.

@@ -59,22 +59,24 @@ export default function SessionPage() {
   const [gitOpen, setGitOpen] = useState(false);
   const [activeFile, setActiveFile] = useState('solution.js');
   const [draft, setDraft] = useState('');
+  const [collabUser] = useState(() => ({
+    name: `참가자-${Math.floor(Math.random() * 1000)}`,
+  }));
 
   const sessionTitle = useMemo(() => 'React Hooks 심화 실습', []);
   const sessionSlug = useMemo(() => `java-seoul-1/${id ?? 'react-hooks-deep-dive'}`, [id]);
 
-  // TODO: useMe()의 실제 사용자 이름으로 교체 (AuthGate 연동 후)
-  const collabUser = useMemo(() => ({ name: `참가자-${Math.floor(Math.random() * 1000)}` }), []);
   const { ytext, provider, status: collabStatus } = useCollabSession(id ?? 'demo', collabUser);
 
   const tabBtn = (active: boolean): CSSProperties => ({
     flex: 1,
-    textAlign: 'center',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: '11px 0',
     fontSize: 12.5,
     fontWeight: active ? 600 : 400,
     color: active ? 'var(--ink)' : 'var(--text-muted)',
-    borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
     background: 'transparent',
     border: 'none',
     borderBottomWidth: 2,
@@ -118,7 +120,7 @@ export default function SessionPage() {
             <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{sessionTitle}</span>
             <LiveBadge />
           </div>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--text-muted)' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
             {sessionSlug} · 01:24:05 경과
           </span>
         </div>
@@ -153,12 +155,10 @@ export default function SessionPage() {
                   right: 0,
                   top: 42,
                   width: 230,
-                  background: 'linear-gradient(155deg,rgba(255,255,255,0.82),rgba(255,255,255,0.7))',
-                  backdropFilter: 'blur(22px) saturate(1.45)',
-                  WebkitBackdropFilter: 'blur(22px) saturate(1.45)',
-                  border: '1px solid rgba(255,255,255,0.65)',
+                  background: 'var(--surface-modal)',
+                  border: '1px solid var(--border-strong)',
                   borderRadius: 12,
-                  boxShadow: 'var(--shadow-modal), inset 0 1px 0 rgba(255,255,255,0.75)',
+                  boxShadow: 'var(--shadow-modal)',
                   padding: 6,
                   display: 'flex',
                   flexDirection: 'column',
@@ -218,7 +218,7 @@ export default function SessionPage() {
             {leftTab === 'explorer' ? (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 6px 8px' }}>
-                  <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
                     Workspace
                   </span>
                   <span style={{ display: 'flex', gap: 6, color: 'var(--text-muted)' }}>
@@ -315,7 +315,7 @@ export default function SessionPage() {
                 padding: '7px 8px 7px 14px',
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, color: 'var(--ink)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>
                 <span
                   style={{
                     width: 6,
@@ -328,7 +328,7 @@ export default function SessionPage() {
                 음성 채팅 · 4명
               </span>
               <span style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-                <RoundIcon bg="var(--accent)" color="#fff" title="마이크">
+                <RoundIcon bg="var(--accent)" color="var(--text-inverse)" title="마이크">
                   <Mic size={12} />
                 </RoundIcon>
                 <RoundIcon title="헤드셋">
@@ -339,12 +339,12 @@ export default function SessionPage() {
                 </RoundIcon>
               </span>
             </div>
-            <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
               접속 중 · 18명
             </span>
-            <PresenceRow color="#f5a97f" name="박민수 (나)" line="L11" />
-            <PresenceRow color="#82aaff" name="김지원" badge="ADMIN" line="L18" mic />
-            <PresenceRow color="#7ee2a8" name="이서연" line="L7" />
+            <PresenceRow color="var(--status-warning)" name="박민수 (나)" line="L11" />
+            <PresenceRow color="var(--accent)" name="김지원" badge="ADMIN" line="L18" mic />
+            <PresenceRow color="var(--status-success)" name="이서연" line="L7" />
           </div>
         </aside>
 
@@ -388,7 +388,7 @@ export default function SessionPage() {
                   fontSize: 11,
                   fontFamily: 'var(--font-sans)',
                   color: 'var(--text-inverse)',
-                  background: collabStatus === 'connecting' ? 'var(--status-amber)' : 'var(--status-red)',
+                  background: collabStatus === 'connecting' ? 'var(--status-warning)' : 'var(--status-error)',
                 }}
               >
                 {collabStatus === 'connecting' ? '동기화 서버에 연결 중…' : '연결 끊김 — 변경 사항은 로컬에 보관되며 재연결 시 동기화됩니다.'}
@@ -463,11 +463,11 @@ export default function SessionPage() {
               </div>
               <div>
                 <span style={{ color: 'var(--text-muted)' }}>[14:18:31]</span>{' '}
-                <span style={{ color: 'var(--status-success)' }}>✓ 300ms 지연 후 값 반영 — 통과</span>
+                <span style={{ color: 'var(--status-success)' }}>통과 · 300ms 지연 후 값 반영</span>
               </div>
               <div>
                 <span style={{ color: 'var(--text-muted)' }}>[14:18:31]</span>{' '}
-                <span style={{ color: 'var(--status-error)' }}>✗ cleanup 미호출 시 타이머 누수 — 실패 (timer가 effect 밖에 있음)</span>
+                <span style={{ color: 'var(--status-error)' }}>실패 · cleanup 미호출 시 타이머 누수 (timer가 effect 밖에 있음)</span>
               </div>
               <div>
                 qrie@java-seoul-1:~/workspace${' '}
@@ -508,7 +508,7 @@ export default function SessionPage() {
           {rightTab === 'community' ? (
             <>
               <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 14, overflow: 'auto', minHeight: 0 }}>
-                <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 2, paddingBottom: 6, borderBottom: '1px solid var(--divider)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, paddingBottom: 6, borderBottom: '1px solid var(--divider)' }}>
                   <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)' }}>실시간 클래스 채팅</span>
                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>현재 18명의 학생이 접속 중</span>
                 </div>
@@ -520,7 +520,7 @@ export default function SessionPage() {
                   text={
                     <>
                       cleanup은{' '}
-                      <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 4, padding: '0 4px' }}>
+                      <code style={{ fontFamily: 'var(--font-mono)', fontSize: 12, background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 4, padding: '0 4px' }}>
                         useEffect
                       </code>{' '}
                       안에서 반환해야 합니다. 11번 줄을 다시 보세요.
@@ -572,7 +572,7 @@ export default function SessionPage() {
                       height: 28,
                       borderRadius: 6,
                       background: 'var(--accent)',
-                      color: '#fff',
+                      color: 'var(--text-inverse)',
                       display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -622,7 +622,7 @@ export default function SessionPage() {
           <GitBranch size={11} />
           CRDT sync 대기 (Yjs 미연동)
         </span>
-        <span style={{ marginLeft: 'auto', display: 'flex', gap: 16, fontFamily: 'var(--font-mono)', fontSize: 10.5 }}>
+        <span style={{ marginLeft: 'auto', display: 'flex', gap: 16, fontFamily: 'var(--font-mono)', fontSize: 11 }}>
           <span>Ln 11, Col 58</span>
           <span>Spaces: 2</span>
           <span>UTF-8</span>

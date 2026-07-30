@@ -254,6 +254,8 @@ export default function SessionListPage() {
           <EmptyState
             message="소속 클래스가 없습니다"
             description="반 배정 후 다시 로그인하면 세션을 볼 수 있습니다."
+            actionLabel="대시보드"
+            onAction={() => navigate('/manager')}
           />
         ) : (
           <QueryAsyncBoundary

@@ -19,6 +19,7 @@ import {
   useGetSessions,
   useMe,
 } from '../../data';
+import { DashboardNoticesSection } from '../../components/notices/DashboardNoticesSection';
 
 function DashSkeleton() {
   return (
@@ -195,17 +196,22 @@ function ManagerDashBody({ classId }: { classId: number }) {
           )}
         </div>
       </div>
+
+      <DashboardNoticesSection role="MANAGER" classId={classId} size={5} />
     </>
   );
 }
 
 function ManagerDashGate() {
+  const navigate = useNavigate();
   const { data: me } = useMe();
   if (me.classId == null) {
     return (
       <EmptyState
         message="담당 클래스가 없습니다"
         description="계정에 classId가 없어 대시보드를 표시할 수 없습니다."
+        actionLabel="세션으로"
+        onAction={() => navigate('/manager/sessions')}
       />
     );
   }

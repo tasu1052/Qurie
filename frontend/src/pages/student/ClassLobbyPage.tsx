@@ -106,7 +106,11 @@ function ClassLobbyBody({ classId }: { classId: number }) {
             세션
           </span>
           {sessions.length === 0 ? (
-            <EmptyState message="세션이 없습니다" />
+            <EmptyState
+              message="세션이 없습니다"
+              actionLabel="대시보드"
+              onAction={() => navigate('/app')}
+            />
           ) : (
             sessions.map((s) => (
               <button
@@ -212,6 +216,7 @@ function ClassLobbyBody({ classId }: { classId: number }) {
 
 export default function ClassLobbyPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const classId = Number(id);
   const [rowKey, setRowKey] = useState(0);
 
@@ -219,7 +224,12 @@ export default function ClassLobbyPage() {
     return (
       <StudentShell activeKey="class" breadcrumbs={['클래스']}>
         <PageMain>
-          <EmptyState message="잘못된 클래스 경로입니다" description="대시보드에서 다시 진입해 주세요." />
+          <EmptyState
+            message="잘못된 클래스 경로입니다"
+            description="대시보드에서 다시 진입해 주세요."
+            actionLabel="대시보드"
+            onAction={() => navigate('/app')}
+          />
         </PageMain>
       </StudentShell>
     );

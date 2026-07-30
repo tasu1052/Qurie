@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Search, Shuffle } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
-import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
 import {
   Badge,
   Button,
@@ -16,11 +15,13 @@ import {
 import {
   QueryAsyncBoundary,
   useCreateGroup,
+  useGetClass,
+  useGetClassMembers,
   useGetGroups,
-  useManagerStudentsRow,
   useMe,
-  type ClassRole,
+  type ClassMemberResponse,
   type GroupResponse,
+  type UserRole,
 } from '../../data';
 
 function TableSkeleton() {
@@ -59,6 +60,12 @@ function defaultPeriod() {
 
 function groupStatus(endedAt: string): '활동' | '종료' {
   return new Date(endedAt).getTime() > Date.now() ? '활동' : '종료';
+}
+
+function roleBadgeStatus(role: UserRole): 'accent' | 'neutral' | 'success' {
+  if (role === 'MANAGER') return 'accent';
+  if (role === 'STUDENT') return 'neutral';
+  return 'success';
 }
 
 function GroupsSidePanel({
@@ -160,22 +167,151 @@ function GroupsSidePanel({
   );
 }
 
-export default function StudentManagementPage() {
+function MembersTable({
+  members,
+  query,
+  onQueryChange,
+  roleFilter,
+  onRoleFilterChange,
+}: {
+  members: ClassMemberResponse[];
+  query: string;
+  onQueryChange: (v: string) => void;
+  roleFilter: 'all' | UserRole;
+  onRoleFilterChange: (v: 'all' | UserRole) => void;
+}) {
   const navigate = useNavigate();
-  const { data: me } = useMe();
-  const classId = me.classId;
-  const hasValidClassId = typeof classId === 'number' && Number.isFinite(classId) && classId > 0;
-  const row = useManagerStudentsRow();
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return members.filter((m) => {
+      if (roleFilter !== 'all' && m.role !== roleFilter) return false;
+      if (!q) return true;
+      return m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q);
+    });
+  }, [members, query, roleFilter]);
+
+  return (
+    <div
+      style={{
+        background: 'var(--surface-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        boxShadow: 'var(--shadow-card)',
+        overflow: 'hidden',
+        minWidth: 0,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '16px 24px',
+          borderBottom: '1px solid var(--divider)',
+        }}
+      >
+        <Input
+          placeholder="학생 검색…"
+          icon={<Search size={14} strokeWidth={1.75} />}
+          value={query}
+          onChange={(e) => onQueryChange(e.target.value)}
+          width={220}
+        />
+        <Select
+          options={[
+            { value: 'all', label: '전체 역할' },
+            { value: 'STUDENT', label: 'STUDENT' },
+            { value: 'MANAGER', label: 'MANAGER' },
+          ]}
+          value={roleFilter}
+          onChange={(v) => onRoleFilterChange(v as 'all' | UserRole)}
+        />
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1.8fr 1fr 1.2fr',
+          padding: '10px 24px',
+          borderBottom: '1px solid var(--divider)',
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+        }}
+      >
+        <span>멤버</span>
+        <span>역할</span>
+        <span>그룹</span>
+      </div>
+      {filtered.length === 0 ? (
+        <div style={{ padding: 32 }}>
+        <EmptyState
+          message={members.length === 0 ? '반 명단이 비어 있습니다' : '검색 결과가 없습니다'}
+          description={
+            members.length === 0
+              ? '클래스에 배정된 사용자가 없습니다.'
+              : '이름·이메일·역할 필터를 바꿔 보세요.'
+          }
+          actionLabel="그룹 관리"
+          onAction={() => navigate('/manager/groups')}
+        />
+        </div>
+      ) : (
+        filtered.map((m) => (
+          <div
+            key={m.userId}
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate(`/manager/students/${m.userId}`)}
+            onKeyDown={(e) => e.key === 'Enter' && navigate(`/manager/students/${m.userId}`)}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1.8fr 1fr 1.2fr',
+              padding: '13px 24px',
+              borderBottom: '1px solid var(--divider)',
+              fontSize: 13,
+              alignItems: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <span style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 12,
+                  color: 'var(--text-muted)',
+                }}
+              >
+                {m.email}
+              </span>
+            </span>
+            <Badge status={roleBadgeStatus(m.role)}>{m.role}</Badge>
+            <span style={{ color: 'var(--text-secondary)' }}>{m.groupName ?? '—'}</span>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+function StudentManagementBody({ classId }: { classId: number }) {
+  const navigate = useNavigate();
+  const { data: cls } = useGetClass(classId);
+  const { data: membersPage } = useGetClassMembers(classId, { size: 100 });
   const createGroup = useCreateGroup();
   const [query, setQuery] = useState('');
-  const [roles, setRoles] = useState<Record<string, ClassRole>>({});
+  const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('STUDENT');
   const [groupOpen, setGroupOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [groupDescription, setGroupDescription] = useState('');
   const [groupPanelKey, setGroupPanelKey] = useState(0);
 
+  const members = membersPage.data;
+
   const onCreateGroup = () => {
-    if (!hasValidClassId || !groupName.trim() || !groupDescription.trim()) return;
+    if (!groupName.trim() || !groupDescription.trim()) return;
     const period = defaultPeriod();
     createGroup.mutate(
       {
@@ -196,257 +332,148 @@ export default function StudentManagementPage() {
   };
 
   return (
-    <ManagerShell activeKey="students" breadcrumbs={['서울 1반', '학생 관리']}>
-      <PageMain>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>학생 관리</h1>
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-              클래스 역할은 ADMIN / STUDENT만 지원합니다. 참여자를 배정하고 그룹을 구성하세요.
-            </span>
-          </div>
-          <Button variant="primary" icon={<Plus size={14} strokeWidth={1.75} />} onClick={() => undefined}>
-            참여자 배정
-          </Button>
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>학생 관리</h1>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            {cls.name} · 반 소속 {membersPage.meta.total}명
+          </span>
         </div>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/manager/groups')}>
+          그룹 관리
+        </Button>
+      </div>
 
-        <MockRowBoundary
-          status={row.status}
-          skeleton={<TableSkeleton />}
-          onRetry={row.refetch}
-          emptyMessage="학생이 없습니다"
-        >
-          {row.data && (
-            <div
-              className="qurie-master-split"
-              style={{ gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)' }}
-            >
+      <div
+        className="qurie-master-split"
+        style={{ gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)' }}
+      >
+        <MembersTable
+          members={members}
+          query={query}
+          onQueryChange={setQuery}
+          roleFilter={roleFilter}
+          onRoleFilterChange={setRoleFilter}
+        />
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
+          <QueryAsyncBoundary
+            key={groupPanelKey}
+            suspenseFallback={
               <div
                 style={{
                   background: 'var(--surface-card)',
                   border: '1px solid var(--border)',
                   borderRadius: 16,
-                  boxShadow: 'var(--shadow-card)',
-                  overflow: 'hidden',
-                  minWidth: 0,
+                  padding: 24,
                 }}
               >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '16px 24px',
-                    borderBottom: '1px solid var(--divider)',
-                  }}
-                >
-                  <Input
-                    placeholder="학생 검색…"
-                    icon={<Search size={14} strokeWidth={1.75} />}
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    width={220}
-                  />
-                  <Select
-                    options={[
-                      { value: 'all', label: '전체 역할' },
-                      { value: 'ADMIN', label: 'ADMIN' },
-                      { value: 'STUDENT', label: 'STUDENT' },
-                    ]}
-                    value="all"
-                    onChange={() => undefined}
-                  />
-                </div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1.6fr 1fr 1fr 1fr 0.9fr',
-                    padding: '10px 24px',
-                    borderBottom: '1px solid var(--divider)',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  <span>학생</span>
-                  <span>클래스 역할</span>
-                  <span>그룹</span>
-                  <span>완료율</span>
-                  <span>액티비티</span>
-                </div>
-                {row.data.students
-                  .filter((s) => !query || s.name.includes(query) || s.email.includes(query))
-                  .map((s) => {
-                    const role = roles[s.id] ?? s.role;
-                    return (
-                      <div
-                        key={s.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => navigate(`/manager/students/${s.id}`)}
-                        onKeyDown={(e) => e.key === 'Enter' && navigate(`/manager/students/${s.id}`)}
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: '1.6fr 1fr 1fr 1fr 0.9fr',
-                          padding: '13px 24px',
-                          borderBottom: '1px solid var(--divider)',
-                          fontSize: 13,
-                          alignItems: 'center',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <span style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{s.name}</span>
-                          <span
-                            style={{
-                              fontFamily: 'var(--font-mono)',
-                              fontSize: 12,
-                              color: 'var(--text-muted)',
-                            }}
-                          >
-                            {s.email}
-                          </span>
-                        </span>
-                        <span
-                          onClick={(e) => e.stopPropagation()}
-                          onKeyDown={(e) => e.stopPropagation()}
-                          role="presentation"
-                        >
-                          <Select
-                            size="sm"
-                            options={[
-                              { value: 'ADMIN', label: 'ADMIN' },
-                              { value: 'STUDENT', label: 'STUDENT' },
-                            ]}
-                            value={role}
-                            onChange={(v) => setRoles((prev) => ({ ...prev, [s.id]: v as ClassRole }))}
-                          />
-                        </span>
-                        <span style={{ color: 'var(--text-secondary)' }}>{s.group}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div
-                            style={{
-                              flex: 1,
-                              height: 5,
-                              borderRadius: 999,
-                              background: 'var(--divider)',
-                              overflow: 'hidden',
-                              maxWidth: 72,
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: `${s.completion}%`,
-                                height: '100%',
-                                background: 'var(--accent)',
-                              }}
-                            />
-                          </div>
-                          <span style={{ fontSize: 12, fontWeight: 600 }}>{s.completion}%</span>
-                        </div>
-                        <Badge
-                          status={
-                            s.activity === '활성' ? 'success' : s.activity === '주의' ? 'warning' : 'error'
-                          }
-                        >
-                          {s.activity}
-                        </Badge>
-                      </div>
-                    );
-                  })}
+                <GroupsPanelSkeleton />
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
-                {!hasValidClassId ? (
-                  <EmptyState
-                    message="소속 클래스가 없습니다"
-                    description="반 배정 후 그룹을 볼 수 있습니다."
-                    actionLabel="대시보드"
-                    onAction={() => navigate('/manager')}
-                  />
-                ) : (
-                  <QueryAsyncBoundary
-                    key={groupPanelKey}
-                    suspenseFallback={
-                      <div
-                        style={{
-                          background: 'var(--surface-card)',
-                          border: '1px solid var(--border)',
-                          borderRadius: 16,
-                          padding: 24,
-                        }}
-                      >
-                        <GroupsPanelSkeleton />
-                      </div>
-                    }
-                    errorFallback={
-                      <RowErrorFallback
-                        onRetry={() => setGroupPanelKey((k) => k + 1)}
-                        title="그룹을 불러오지 못했습니다"
-                        description="이 패널만 실패했습니다."
-                      />
-                    }
-                  >
-                    <GroupsSidePanel
-                      classId={classId}
-                      onCreateOpen={() => setGroupOpen(true)}
-                    />
-                  </QueryAsyncBoundary>
-                )}
-                <div
-                  style={{
-                    background: 'var(--accent-softer)',
-                    border: '1px solid var(--accent-soft)',
-                    borderRadius: 12,
-                    padding: 14,
-                    fontSize: 12.5,
-                    lineHeight: 1.6,
-                    color: 'var(--text-body)',
-                  }}
-                >
-                  클래스 역할은 <span style={{ fontWeight: 600, color: 'var(--ink)' }}>ADMIN</span>과{' '}
-                  <span style={{ fontWeight: 600, color: 'var(--ink)' }}>STUDENT</span>만 사용합니다.
-                  TEMP_ADMIN은 지원하지 않습니다.
-                </div>
-              </div>
-            </div>
-          )}
-        </MockRowBoundary>
-
-        <Modal
-          open={groupOpen}
-          title="그룹 생성"
-          description="이름과 설명을 입력하면 빈 멤버로 생성됩니다. 멤버는 그룹 상세에서 배정하세요."
-          primaryLabel={createGroup.isPending ? '생성 중…' : '생성하기'}
-          secondaryLabel="취소"
-          onPrimary={onCreateGroup}
-          onSecondary={() => setGroupOpen(false)}
-          onClose={() => setGroupOpen(false)}
-          width={480}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>그룹 이름</span>
-              <Input
-                placeholder="그룹 E"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                width="100%"
+            }
+            errorFallback={
+              <RowErrorFallback
+                onRetry={() => setGroupPanelKey((k) => k + 1)}
+                title="그룹을 불러오지 못했습니다"
+                description="이 패널만 실패했습니다."
               />
-            </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>설명</span>
-              <Input
-                placeholder="함께 리뷰하는 그룹입니다."
-                value={groupDescription}
-                onChange={(e) => setGroupDescription(e.target.value)}
-                width="100%"
-              />
-            </label>
+            }
+          >
+            <GroupsSidePanel classId={classId} onCreateOpen={() => setGroupOpen(true)} />
+          </QueryAsyncBoundary>
+          <div
+            style={{
+              background: 'var(--accent-softer)',
+              border: '1px solid var(--accent-soft)',
+              borderRadius: 12,
+              padding: 14,
+              fontSize: 12.5,
+              lineHeight: 1.6,
+              color: 'var(--text-body)',
+            }}
+          >
+            완료율·액티비티는 분석 API가 준비되면 붙입니다. 지금은 반 명단의 이름·역할·그룹만
+            표시합니다.
           </div>
-        </Modal>
+        </div>
+      </div>
+
+      <Modal
+        open={groupOpen}
+        title="그룹 생성"
+        description="이름과 설명을 입력하면 빈 멤버로 생성됩니다. 멤버는 그룹 상세에서 배정하세요."
+        primaryLabel={createGroup.isPending ? '생성 중…' : '생성하기'}
+        secondaryLabel="취소"
+        onPrimary={onCreateGroup}
+        onSecondary={() => setGroupOpen(false)}
+        onClose={() => setGroupOpen(false)}
+        width={480}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>그룹 이름</span>
+            <Input
+              placeholder="그룹 E"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              width="100%"
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>설명</span>
+            <Input
+              placeholder="함께 리뷰하는 그룹입니다."
+              value={groupDescription}
+              onChange={(e) => setGroupDescription(e.target.value)}
+              width="100%"
+            />
+          </label>
+        </div>
+      </Modal>
+    </>
+  );
+}
+
+function StudentManagementGate() {
+  const navigate = useNavigate();
+  const { data: me } = useMe();
+  const classId = me.classId;
+
+  if (classId == null || !Number.isFinite(classId) || classId <= 0) {
+    return (
+      <EmptyState
+        message="담당 클래스가 없습니다"
+        description="계정에 classId가 없어 반 명단을 불러올 수 없습니다."
+        actionLabel="대시보드"
+        onAction={() => navigate('/manager')}
+      />
+    );
+  }
+
+  return <StudentManagementBody classId={classId} />;
+}
+
+export default function StudentManagementPage() {
+  const { data: me } = useMe();
+  const [rowKey, setRowKey] = useState(0);
+  const classLabel = me.classId != null ? `클래스 #${me.classId}` : '학생 관리';
+
+  return (
+    <ManagerShell activeKey="students" breadcrumbs={[classLabel, '학생 관리']}>
+      <PageMain>
+        <QueryAsyncBoundary
+          key={rowKey}
+          suspenseFallback={<TableSkeleton />}
+          errorFallback={
+            <RowErrorFallback
+              onRetry={() => setRowKey((k) => k + 1)}
+              title="학생 관리를 불러오지 못했습니다"
+            />
+          }
+        >
+          <StudentManagementGate />
+        </QueryAsyncBoundary>
       </PageMain>
     </ManagerShell>
   );

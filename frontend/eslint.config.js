@@ -13,9 +13,8 @@ export default defineConfig([
   globalIgnores([
     'dist',
     'frontend_tools_tmp/**',
-    // Legacy marketing landing animation is intentionally kept as-is.
-    'src/pages/marketing/LandingPage.tsx',
-    'src/pages/marketing/hero/**',
+    // Marketing landing is intentionally kept as-is (animation / brand surface).
+    'src/pages/marketing/**',
   ]),
   {
     files: ['**/*.{ts,tsx}'],
@@ -89,6 +88,13 @@ export default defineConfig([
       'qurie/font-family-token': 'off',
       'qurie/font-size-scale': 'off',
       'qurie/font-weight-scale': 'off',
+    },
+  },
+  {
+    // Barrel re-exports badges from ds/components — pattern would otherwise self-block.
+    files: ['src/ds/index.ts', 'src/ds/index.js'],
+    rules: {
+      'no-restricted-imports': 'off',
     },
   },
 ])

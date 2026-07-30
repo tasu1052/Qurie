@@ -28,7 +28,10 @@ function inviteBadge(bootcamp: AdminBootcamp) {
 export default function AdminBootcampListPage() {
   const navigate = useNavigate();
   const [tick, setTick] = useState(0);
-  const bootcamps = useMemo(() => listBootcamps(), [tick]);
+  const bootcamps = useMemo(() => {
+    void tick;
+    return listBootcamps();
+  }, [tick]);
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
