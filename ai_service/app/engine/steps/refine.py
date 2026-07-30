@@ -81,6 +81,11 @@ def node_refine(state: PipelineState) -> PipelineState:
         state.get("ratio_target") or state["ratio_counts"],
         _tally(pool, "difficulty", DIFFICULTY_KEY), shortfall)
 
+    # 탈락분도 라운드 넘어 보존한다. 왜 재시도가 붙었는지의 근거라 버리면 안 된다.
+    state["rejected_pool"] = list(state.get("rejected_pool", [])) + [
+        q for q in state.get("quizzes", []) if q.get("status") != "APPROVED"
+    ]
+
     critiques = [
         q.get("reject_reason") or ""
         for q in state.get("quizzes", [])
@@ -94,7 +99,12 @@ def node_refine(state: PipelineState) -> PipelineState:
 
 
 def node_collect(state: PipelineState) -> PipelineState:
-    """보존해 둔 승인분과 마지막 라운드 결과를 합쳐 최종 목록을 만든다."""
-    state["quizzes"] = list(state.get("approved_pool", [])) + state.get("quizzes", [])
+    """보존해 둔 승인분·탈락분과 마지막 라운드 결과를 합쳐 최종 목록을 만든다."""
+    state["quizzes"] = (
+        list(state.get("approved_pool", []))
+        + list(state.get("rejected_pool", []))
+        + state.get("quizzes", [])
+    )
     state["approved_pool"] = []
+    state["rejected_pool"] = []
     return state

@@ -16,6 +16,24 @@ class Quiz(BaseModel):
     line_end: int | None = None
 
 
+class RejectedQuiz(Quiz):
+    """검증에서 걸러진 문항. 왜 떨어졌는지 확인·프롬프트 개선용."""
+
+    judge_score: int | None = None
+    reject_reason: str | None = None
+
+
+class LlmCall(BaseModel):
+    """LLM 호출 1건. quiz_llm_log 한 행에 대응."""
+
+    stage: Literal["GENERATE", "SOLVE", "JUDGE"]
+    model: str
+    input_tokens: int = 0
+    output_tokens: int = 0
+    latency_ms: int = 0
+    succeeded: bool = True
+
+
 class QuizSetAccepted(BaseModel):
     quiz_set_id: int
     project: str
@@ -27,4 +45,6 @@ class QuizResponse(BaseModel):
     quiz_set_id: int | None = None
     status: Literal["READY", "PENDING", "GENERATING", "FAILED"] = "READY"
     quizzes: list[Quiz] = []
+    rejected: list[RejectedQuiz] = []
+    meter: list[LlmCall] = []
     error_message: str | None = None

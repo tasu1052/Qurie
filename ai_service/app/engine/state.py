@@ -16,6 +16,7 @@ class PipelineState(TypedDict, total=False):
     purpose_target: dict[str, int]
     gen_count: int
     approved_pool: list[dict[str, Any]]
+    rejected_pool: list[dict[str, Any]]
     last_approved: int
     user_prompt: str | None
     version_hash: str
