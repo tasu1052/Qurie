@@ -83,6 +83,8 @@ services:
     environment:
       # 백엔드가 발급한 ACCESS_TOKEN 쿠키를 같은 시크릿으로 검증한다.
       JWT_SECRET: ${JWT_SECRET}
+      # 세션 입장 자격(반 명단·활성 여부)은 백엔드에 위임 확인한다. 호스트명은 compose 서비스명.
+      BACKEND_BASE_URL: http://backend:8080
       TZ: Asia/Seoul
     ports:
       # backend 와 같은 이유로 127.0.0.1 에만 연다. nginx 에 /yjs → 127.0.0.1:1234

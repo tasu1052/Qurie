@@ -15,8 +15,9 @@
  * 것에 의존한다 — 즉 이 서버는 백엔드와 same-site 로 서빙되어야 한다(nginx 프록시).
  * ?token= 쿼리 파라미터는 로컬 테스트·비브라우저 클라이언트용 보조 경로다.
  *
- * todo: 세션 참여 자격(반 소속·세션 활성 여부) 검증은 백엔드 API 호출이 필요해서
- *       아직 없다. 지금은 "로그인한 같은 서비스 사용자"까지만 거른다.
+ * 세션 참여 자격(반 명단 소속·세션 활성)은 규칙을 여기 복제하지 않고 백엔드의
+ * GET /api/sessions/{id}/access 로 위임한다. 백엔드가 죽어 있으면 입장을 거부한다
+ * (fail-closed) — 자격을 모르는 채 문서를 열어주는 것보다 안전하다.
  */
 const http = require('http')
 const { WebSocketServer } = require('ws')
@@ -26,6 +27,8 @@ const { setupWSConnection } = require('y-websocket/bin/utils')
 const host = process.env.HOST || '0.0.0.0'
 const port = Number.parseInt(process.env.PORT || '1234', 10)
 const jwtSecret = process.env.JWT_SECRET
+// 세션 자격 확인을 위임할 백엔드. compose 에서는 서비스명(http://backend:8080)이다.
+const backendBaseUrl = (process.env.BACKEND_BASE_URL || 'http://localhost:8080').replace(/\/+$/, '')
 // 로컬에서 백엔드 없이 에디터만 볼 때 인증을 끄는 명시적 스위치. 배포에서는 켜면 안 된다.
 const authDisabled = process.env.AUTH_DISABLED === 'true'
 
@@ -56,21 +59,43 @@ const roomNameOf = (request) => {
   return decodeURIComponent(path)
 }
 
-/**
- * 핸드셰이크 요청에서 토큰을 찾아 검증한다. 실패하면 null.
- * 백엔드 jjwt 는 JWT_SECRET 길이에 따라 HS256/384/512 를 고르므로 셋 다 허용한다.
- */
-const authenticate = (request) => {
+const tokenOf = (request) => {
   const cookies = parseCookies(request.headers.cookie)
   const url = new URL(request.url || '/', `http://${request.headers.host || 'localhost'}`)
-  const token = cookies.ACCESS_TOKEN || url.searchParams.get('token')
-  if (!token) {
-    return null
-  }
+  return cookies.ACCESS_TOKEN || url.searchParams.get('token')
+}
+
+/**
+ * 토큰 서명을 로컬에서 검증한다. 실패하면 false.
+ * 백엔드 jjwt 는 JWT_SECRET 길이에 따라 HS256/384/512 를 고르므로 셋 다 허용한다.
+ * 백엔드 호출도 토큰을 다시 검증하지만, 쓰레기 토큰을 백엔드까지 보내지 않는 선별용이다.
+ */
+const verifyToken = (token) => {
   try {
-    return jwt.verify(token, jwtSecret, { algorithms: ['HS256', 'HS384', 'HS512'] })
+    jwt.verify(token, jwtSecret, { algorithms: ['HS256', 'HS384', 'HS512'] })
+    return true
   } catch {
-    return null
+    return false
+  }
+}
+
+/**
+ * 방 입장 자격을 백엔드에 위임 확인한다. 통과하면 null, 아니면 거부 사유 문자열.
+ * 규칙(반 명단 소속·세션 활성·세션 존재)은 백엔드 SessionParticipantService 가 판정한다.
+ */
+const verifySessionAccess = async (roomName, token) => {
+  const sessionId = roomName.slice('qurie-session-'.length)
+  try {
+    const response = await fetch(`${backendBaseUrl}/api/sessions/${sessionId}/access`, {
+      headers: { cookie: `ACCESS_TOKEN=${encodeURIComponent(token)}` },
+      signal: AbortSignal.timeout(3000),
+    })
+    if (response.status === 204) {
+      return null
+    }
+    return `백엔드 자격 확인 거부 (status=${response.status})`
+  } catch {
+    return '백엔드 자격 확인 불가 (연결 실패/타임아웃)'
   }
 }
 
@@ -90,17 +115,41 @@ const server = http.createServer((_request, response) => {
 })
 
 server.on('upgrade', (request, socket, head) => {
+  // 자격 확인(비동기) 중에 소켓이 끊겨도 프로세스가 죽지 않게 한다.
+  socket.on('error', () => {})
+
   const roomName = roomNameOf(request)
   if (!ROOM_PATTERN.test(roomName)) {
     rejectUpgrade(socket, '404 Not Found', `허용되지 않은 방 이름 (${roomName})`)
     return
   }
-  if (!authDisabled && authenticate(request) === null) {
+
+  const accept = () => {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request)
+    })
+  }
+
+  if (authDisabled) {
+    accept()
+    return
+  }
+
+  const token = tokenOf(request)
+  if (!token || !verifyToken(token)) {
     rejectUpgrade(socket, '401 Unauthorized', `토큰 없음/무효 (room=${roomName})`)
     return
   }
-  wss.handleUpgrade(request, socket, head, (ws) => {
-    wss.emit('connection', ws, request)
+
+  verifySessionAccess(roomName, token).then((failure) => {
+    if (socket.destroyed) {
+      return
+    }
+    if (failure !== null) {
+      rejectUpgrade(socket, '403 Forbidden', `${failure} (room=${roomName})`)
+      return
+    }
+    accept()
   })
 })
 

@@ -57,6 +57,19 @@ public class SessionController {
         return sessionParticipantService.getParticipants(id, requester);
     }
 
+    /**
+     * 방 입장 자격 확인. collab(Yjs) 서버가 WebSocket 핸드셰이크에서 위임 호출한다 —
+     * 자격 규칙(반 명단·세션 활성)을 collab 쪽에 복제하지 않기 위한 전용 경로.
+     * 통과하면 204, 아니면 verifyCanEnter 의 401/403/404/409 가 그대로 나간다.
+     */
+    @GetMapping("/{id}/access")
+    public ResponseEntity<Void> verifyAccess(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthUser requester) {
+        sessionParticipantService.verifyCanEnter(id, requester);
+        return ResponseEntity.noContent().build();
+    }
+
     /** 방 수정 (제목 변경 / active=false 로 닫기). 닫힌 세션은 수정 불가, 재오픈 불가. */
     @PatchMapping("/{id}")
     public SessionResponse update(
