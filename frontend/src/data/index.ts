@@ -73,7 +73,7 @@ export type {
  * Auth / user / session / class / track / group / … hooks — re-exported from `network/`.
  * Pages and shells import from here only (never deep-import network query modules).
  */
-export { useLogin, useLogout, useMe, useRefresh } from '../network/auth';
+export { useLogin, useLogout, useMe, useMeOptional, useRefresh } from '../network/auth';
 export type { AuthUserResponse, LoginRequest } from '../network/auth';
 export {
   useSignUp,

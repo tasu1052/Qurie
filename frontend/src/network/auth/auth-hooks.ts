@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { queryKeys } from '../core/queryKeys';
 import {
     getMe,
@@ -12,6 +12,16 @@ export const useMe = () => {
     return useSuspenseQuery({
         queryKey: queryKeys.auth.me(),
         queryFn: getMe,
+    });
+};
+
+/** Non-suspense auth probe for public pages (e.g. landing). */
+export const useMeOptional = () => {
+    return useQuery({
+        queryKey: queryKeys.auth.me(),
+        queryFn: getMe,
+        retry: false,
+        staleTime: 60_000,
     });
 };
 

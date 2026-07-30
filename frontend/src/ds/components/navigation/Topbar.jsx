@@ -14,7 +14,7 @@ export function Topbar({
   onUserClick,
   style={},
 }){
-return <header style={{height:'var(--topbar-height)',background:'var(--surface-card)',backdropFilter:'var(--surface-blur)',WebkitBackdropFilter:'var(--surface-blur)',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:16,padding:'0 20px',boxSizing:'border-box',fontFamily:'var(--font-sans)',...style}}>
+return <header style={{height:'var(--topbar-height)',background:'var(--surface-card)',backdropFilter:'var(--surface-blur)',WebkitBackdropFilter:'var(--surface-blur)',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:16,padding:'0 20px',boxSizing:'border-box',fontFamily:'var(--font-sans)',position:'relative',zIndex:60,...style}}>
 <div style={{display:'flex',alignItems:'center',gap:8,fontSize:14,minWidth:0}}>
 {breadcrumbs.map((b,i)=><React.Fragment key={i}>
 {i>0&&<Chevron size={11} color="var(--text-muted)"/>}
