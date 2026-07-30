@@ -298,7 +298,7 @@ export default function SessionPage() {
               </>
             ) : (
               <p style={{ margin: '8px 6px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                강의자료 패널은 추후 연결됩니다.
+                API 미구현: 강의자료 패널 연동 전입니다.
               </p>
             )}
           </div>
@@ -627,7 +627,7 @@ export default function SessionPage() {
             <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>AI 퀴즈</span>
               <span style={{ fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.55 }}>
-                퀴즈 모드(1p) UI는 다음 작업에서 연결합니다. 지금은 협업 모드(1o) 셸만 구현되어 있습니다.
+                API 미구현: 퀴즈 모드 데이터/액션 연동 전입니다.
               </span>
             </div>
           )}
@@ -654,7 +654,7 @@ export default function SessionPage() {
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <GitBranch size={11} />
-          CRDT sync 대기 (Yjs 미연동)
+          API 미구현: 세션 상태 요약
         </span>
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 16, fontFamily: 'var(--font-mono)', fontSize: 11 }}>
           <span>Ln 11, Col 58</span>
