@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 
 import com.roma.qurie.quiz.dto.QuizGenerateRequest;
 import com.roma.qurie.quiz.entity.QuizGenerationMode;
-import com.roma.qurie.quiz.entity.QuizType;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -25,18 +24,17 @@ class AiQuizJsonMappingTest {
 	@Test
 	void createRequestSerializesToSnakeCaseContract() {
 		QuizGenerateRequest request = new QuizGenerateRequest(
-				QuizGenerationMode.REVIEW,
-				null,
+				QuizGenerationMode.PRACTICE,
 				3,
-				List.of(QuizType.MULTIPLE_CHOICE),
 				30, 50, 20,
 				"동시성 위주로",
 				"hash-1",
 				List.of("src/Main.java"),
-				Map.of("src/Main.java", "public class Main {}"),
-				2L);
+				Map.of("src/Main.java", "public class Main {}"));
 
-		JsonNode json = objectMapper.readTree(objectMapper.writeValueAsString(AiQuizCreateRequest.from(request)));
+		AiQuizCreateRequest aiRequest =
+				AiQuizCreateRequest.from(request, "http://backend.internal/api/quiz/10/callback");
+		JsonNode json = objectMapper.readTree(objectMapper.writeValueAsString(aiRequest));
 
 		assertThat(json.get("mode").asText()).isEqualTo("PRACTICE");
 		assertThat(json.get("requested_count").asInt()).isEqualTo(3);
@@ -45,6 +43,7 @@ class AiQuizJsonMappingTest {
 		assertThat(json.get("version_hash").asText()).isEqualTo("hash-1");
 		assertThat(json.get("target_files").get(0).asText()).isEqualTo("src/Main.java");
 		assertThat(json.get("files").get("src/Main.java").asText()).isEqualTo("public class Main {}");
+		assertThat(json.get("callback_url").asText()).isEqualTo("http://backend.internal/api/quiz/10/callback");
 	}
 
 	@Test
