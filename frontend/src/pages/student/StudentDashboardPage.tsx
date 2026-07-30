@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { StudentShell, PageMain } from '../../components/layout/StudentShell';
 import {
+  AlertBanner,
   Badge,
   Button,
   CardScrollRow,
@@ -74,10 +75,21 @@ function StudentDashWithClass({ classId }: { classId: number }) {
   const createSession = useCreateSession();
   const [createOpen, setCreateOpen] = useState(false);
   const [title, setTitle] = useState('');
+  const [popupBlockedSessionId, setPopupBlockedSessionId] = useState<number | null>(null);
 
   const activeSessions = useMemo(() => sessions.filter((s) => s.active), [sessions]);
   const live = activeSessions[0] ?? null;
   const className = myClasses.find((c) => c.id === classId)?.name ?? '내 클래스';
+
+  const openSessionInNewTab = (sessionId: number) => {
+    const url = `/session/${sessionId}`;
+    const win = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!win) {
+      setPopupBlockedSessionId(sessionId);
+      return;
+    }
+    setPopupBlockedSessionId(null);
+  };
 
   const onCreate = () => {
     if (!title.trim()) return;
@@ -87,7 +99,7 @@ function StudentDashWithClass({ classId }: { classId: number }) {
         onSuccess: (s) => {
           setCreateOpen(false);
           setTitle('');
-          navigate(`/session/${s.id}`);
+          openSessionInNewTab(s.id);
         },
       },
     );
@@ -181,6 +193,16 @@ function StudentDashWithClass({ classId }: { classId: number }) {
         <StatCard label="내 클래스" value={String(myClasses.length)} caption="classes/me" />
         <StatCard label="역할" value={me.role} caption="system" />
       </StatCardRow>
+
+      {popupBlockedSessionId != null ? (
+        <AlertBanner
+          tone="warning"
+          title="브라우저가 새 창 열기를 차단했습니다."
+          description="팝업 차단을 해제하면 다음부터 새 창으로 바로 입장합니다. 지금은 현재 탭에서 열 수 있습니다."
+          actionLabel="현재 탭에서 열기"
+          onAction={() => navigate(`/session/${popupBlockedSessionId}`)}
+        />
+      ) : null}
 
       <DashboardNoticesSection role="STUDENT" classId={classId} size={5} />
 

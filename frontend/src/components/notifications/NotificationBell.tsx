@@ -68,7 +68,7 @@ function BellPanel({
         border: '1px solid var(--border)',
         borderRadius: 12,
         boxShadow: 'var(--shadow-modal)',
-        zIndex: 40,
+        zIndex: 800,
         display: 'flex',
         flexDirection: 'column',
       }}
@@ -223,7 +223,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
   }, [open]);
 
   return (
-    <div ref={rootRef} style={{ position: 'relative', display: 'inline-flex' }}>
+    <div ref={rootRef} style={{ position: 'relative', display: 'inline-flex', zIndex: 810 }}>
       <button
         type="button"
         aria-label="알림"
@@ -266,7 +266,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
                   border: '1px solid var(--border)',
                   borderRadius: 12,
                   boxShadow: 'var(--shadow-modal)',
-                  zIndex: 40,
+                  zIndex: 800,
                 }}
               >
                 <Skeleton width="100%" height={80} radius={8} />
@@ -284,7 +284,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
                   border: '1px solid var(--border)',
                   borderRadius: 12,
                   boxShadow: 'var(--shadow-modal)',
-                  zIndex: 40,
+                  zIndex: 800,
                   fontSize: 13,
                   color: 'var(--text-muted)',
                 }}

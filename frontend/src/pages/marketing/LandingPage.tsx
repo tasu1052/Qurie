@@ -1,8 +1,10 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { BarChart3, Brain, Check, Users } from 'lucide-react';
 import { Button, DonutChart } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
 import { QurieHeroAnimation } from './hero/HeroAnimation';
+import { useMeOptional } from '../../data';
+import { homePathForRole } from '../../components/auth/roleRoutes';
 
 const mailDemo = 'mailto:contact@qurie.app?subject=Qurie%20데모%20요청';
 const mailConsult = 'mailto:contact@qurie.app?subject=Qurie%20도입%20문의';
@@ -15,6 +17,10 @@ const kpis = [
 ];
 
 export default function LandingPage() {
+  const navigate = useNavigate();
+  const meQuery = useMeOptional();
+  const user = meQuery.isSuccess ? meQuery.data : null;
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--surface-card)', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
       {/* Topbar — mockup 1a */}
@@ -47,9 +53,18 @@ export default function LandingPage() {
           <a href="#cta" style={{ color: 'inherit', textDecoration: 'none' }}>요금제</a>
         </nav>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Link to="/login" style={{ textDecoration: 'none' }}>
-            <Button variant="ghost">로그인</Button>
-          </Link>
+          {user ? (
+            <Button
+              variant="ghost"
+              onClick={() => navigate(homePathForRole(user.role))}
+            >
+              내 대시보드
+            </Button>
+          ) : (
+            <Link to="/login" style={{ textDecoration: 'none' }}>
+              <Button variant="ghost">로그인</Button>
+            </Link>
+          )}
           <a href={mailConsult} style={{ textDecoration: 'none' }}>
             <Button variant="primary">도입 문의</Button>
           </a>

@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import {
+  AlertBanner,
   Badge,
   LiveBadge,
   Button,
@@ -17,6 +19,7 @@ import {
 import {
   QueryAsyncBoundary,
   useCreateSession,
+  useDeleteSession,
   useGetSessions,
   useMe,
   type SessionResponse,
@@ -54,6 +57,7 @@ function SessionTable({
   onEmptyCreate,
   onEnter,
   onReport,
+  onDelete,
 }: {
   classId: number;
   statusFilter: string;
@@ -63,6 +67,7 @@ function SessionTable({
   onEmptyCreate: () => void;
   onEnter: (sessionId: number) => void;
   onReport: (sessionId: number) => void;
+  onDelete: (session: SessionResponse) => void;
 }) {
   const { data: sessions } = useGetSessions(classId);
 
@@ -151,6 +156,13 @@ function SessionTable({
                 >
                   {status === '종료' ? '리포트' : status === 'LIVE' ? '입장' : '편집'}
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onDelete(s)}
+                >
+                  삭제
+                </Button>
               </span>
             </div>
           );
@@ -173,14 +185,27 @@ export default function SessionListPage() {
   const classId = me.classId;
   const hasValidClassId = typeof classId === 'number' && Number.isFinite(classId) && classId > 0;
   const createSession = useCreateSession();
+  const deleteSession = useDeleteSession();
   const [status, setStatus] = useState('전체');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [rowKey, setRowKey] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState<SessionResponse | null>(null);
+  const [popupBlockedSessionId, setPopupBlockedSessionId] = useState<number | null>(null);
 
   const chips = ['전체', '진행', '예정', '종료'];
+
+  const openSessionInNewTab = (sessionId: number) => {
+    const url = `/session/${sessionId}`;
+    const win = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!win) {
+      setPopupBlockedSessionId(sessionId);
+      return;
+    }
+    setPopupBlockedSessionId(null);
+  };
 
   const onCreate = () => {
     if (!hasValidClassId) return;
@@ -188,10 +213,11 @@ export default function SessionListPage() {
     createSession.mutate(
       { classId, title: title.trim() },
       {
-        onSuccess: () => {
+        onSuccess: (created) => {
           setCreateOpen(false);
           setTitle('');
           setRowKey((k) => k + 1);
+          openSessionInNewTab(created.id);
         },
       },
     );
@@ -215,6 +241,16 @@ export default function SessionListPage() {
             세션 만들기
           </Button>
         </div>
+
+        {popupBlockedSessionId != null ? (
+          <AlertBanner
+            tone="warning"
+            title="브라우저가 새 창 열기를 차단했습니다."
+            description="주소창의 팝업 차단을 해제한 뒤 다시 시도해 주세요. 급하면 현재 탭에서 바로 열 수 있습니다."
+            actionLabel="현재 탭에서 열기"
+            onAction={() => navigate(`/session/${popupBlockedSessionId}`)}
+          />
+        ) : null}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {chips.map((c) => {
@@ -278,6 +314,7 @@ export default function SessionListPage() {
               onEmptyCreate={() => setCreateOpen(true)}
               onEnter={(sessionId) => navigate(`/session/${sessionId}`)}
               onReport={(sessionId) => navigate(`/session/${sessionId}/report`)}
+              onDelete={setDeleteTarget}
             />
           </QueryAsyncBoundary>
         )}
@@ -303,6 +340,33 @@ export default function SessionListPage() {
             />
           </label>
         </Modal>
+
+        <ConfirmDeleteOverlay
+          open={deleteTarget != null}
+          title="세션 삭제"
+          description={
+            <>
+              이 작업은 되돌릴 수 없습니다.
+              <br />
+              세션 `<code>{deleteTarget?.title}</code>` 을(를) 삭제합니다.
+            </>
+          }
+          confirmText={deleteTarget?.title ?? ''}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={() => {
+            if (!deleteTarget) return;
+            deleteSession.mutate(
+              { id: deleteTarget.id, classId: deleteTarget.classId },
+              {
+                onSuccess: () => {
+                  setRowKey((k) => k + 1);
+                  setDeleteTarget(null);
+                },
+              },
+            );
+          }}
+          confirmLabel={deleteSession.isPending ? '삭제 중…' : '삭제'}
+        />
       </PageMain>
     </ManagerShell>
   );
