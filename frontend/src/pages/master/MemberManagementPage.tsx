@@ -1,20 +1,35 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { isAxiosError } from 'axios';
 import { Filter, Mail, Search, UserPlus } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
-import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
 import {
+  AlertBanner,
   Badge,
   Button,
   Input,
-  InvitationRow,
   Modal,
+  RowErrorFallback,
   Select,
   Skeleton,
   StatCard,
   StatCardRow,
 } from '../../ds';
-import { useMemberKpiRow, useMemberListRow } from '../../data';
-import type { MemberRow } from '../../data';
+import {
+  QueryAsyncBoundary,
+  useCreateInvitation,
+  useGetClasses,
+  useGetUsers,
+  type UserRole,
+  type UserSummaryResponse,
+} from '../../data';
+
+function apiErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError(error)) {
+    const message = error.response?.data?.message;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return fallback;
+}
 
 function KpiSkeleton() {
   return (
@@ -54,338 +69,281 @@ function TableSkeleton() {
   );
 }
 
-function roleBadge(role: MemberRow['systemRole']) {
+function roleBadge(role: UserRole) {
   if (role === 'MASTER') return <Badge status="ink">MASTER</Badge>;
-  return (
-    <Select
-      size="sm"
-      options={[
-        { value: 'MANAGER', label: 'MANAGER' },
-        { value: 'STUDENT', label: 'STUDENT' },
-      ]}
-      value={role}
-      onChange={() => undefined}
-    />
+  if (role === 'MANAGER') return <Badge status="accent">MANAGER</Badge>;
+  return <Badge status="neutral">STUDENT</Badge>;
+}
+
+function MembersBody() {
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<UserRole>('MANAGER');
+  const [classId, setClassId] = useState('');
+  const [query, setQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteOk, setInviteOk] = useState<string | null>(null);
+
+  const filters = useMemo(
+    () => ({
+      size: 50,
+      q: query.trim() || undefined,
+      role: roleFilter === 'all' ? undefined : roleFilter,
+    }),
+    [query, roleFilter],
   );
-}
 
-function inviteBadge(status: MemberRow['inviteStatus']) {
-  if (!status) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
-  const map = { ACCEPTED: 'success', PENDING: 'warning', EXPIRED: 'error' } as const;
-  return <Badge status={map[status]}>{status}</Badge>;
-}
+  const { data: usersPage } = useGetUsers(filters);
+  const { data: classesPage } = useGetClasses({ size: 100 });
+  const createInvitation = useCreateInvitation();
 
-function accountBadge(status: MemberRow['accountStatus']) {
-  if (!status) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+  const users = usersPage.data;
+  const classes = classesPage.data;
+
+  const counts = useMemo(() => {
+    const all = users;
+    return {
+      total: usersPage.meta.total,
+      managers: all.filter((u) => u.role === 'MANAGER').length,
+      students: all.filter((u) => u.role === 'STUDENT').length,
+      masters: all.filter((u) => u.role === 'MASTER').length,
+    };
+  }, [users, usersPage.meta.total]);
+
+  const onInvite = () => {
+    setInviteError(null);
+    setInviteOk(null);
+    const emails = email
+      .split(',')
+      .map((e) => e.trim())
+      .filter(Boolean);
+    if (emails.length === 0) {
+      setInviteError('이메일을 입력하세요.');
+      return;
+    }
+    const cid = Number(classId || classes[0]?.id);
+    if (!Number.isFinite(cid)) {
+      setInviteError('초대할 클래스를 선택하세요.');
+      return;
+    }
+    // 한 명씩 순차 초대
+    const first = emails[0];
+    createInvitation.mutate(
+      { email: first, classId: cid, role },
+      {
+        onSuccess: (res) => {
+          setInviteOk(`${res.email} 초대 완료 · 만료 ${new Date(res.expiresAt).toLocaleString('ko-KR')}`);
+          setEmail(emails.slice(1).join(', '));
+          if (emails.length === 1) setInviteOpen(false);
+        },
+        onError: (err) => setInviteError(apiErrorMessage(err, '초대에 실패했습니다.')),
+      },
+    );
+  };
+
   return (
-    <Badge status={status === 'active' ? 'success' : 'error'}>
-      {status === 'active' ? '활성' : '비활성'}
-    </Badge>
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>회원 관리</h1>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            소속 멤버를 조회하고 초대를 발송합니다.
+          </span>
+        </div>
+        <Button
+          variant="primary"
+          icon={<UserPlus size={15} strokeWidth={1.75} />}
+          onClick={() => {
+            setClassId(String(classes[0]?.id ?? ''));
+            setInviteOpen(true);
+          }}
+        >
+          멤버 초대
+        </Button>
+      </div>
+
+      <StatCardRow>
+        <StatCard label="전체" value={String(counts.total)} caption="users" />
+        <StatCard label="마스터" value={String(counts.masters)} caption="MASTER" />
+        <StatCard label="매니저" value={String(counts.managers)} caption="MANAGER" accent />
+        <StatCard label="학생" value={String(counts.students)} caption="STUDENT" />
+      </StatCardRow>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Input
+          placeholder="이름 · 이메일 검색…"
+          icon={<Search size={14} strokeWidth={1.75} />}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          width={260}
+        />
+        <Select
+          options={[
+            { value: 'all', label: '전체 역할' },
+            { value: 'MASTER', label: 'MASTER' },
+            { value: 'MANAGER', label: 'MANAGER' },
+            { value: 'STUDENT', label: 'STUDENT' },
+          ]}
+          value={roleFilter}
+          onChange={(v) => setRoleFilter(v as typeof roleFilter)}
+        />
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
+          <Filter size={12} style={{ marginRight: 4 }} />
+          초대 목록/재발송 API는 아직 없습니다
+        </span>
+      </div>
+
+      <div
+        style={{
+          background: 'var(--surface-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          boxShadow: 'var(--shadow-card)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '2fr 1.1fr 1.2fr 1fr',
+            padding: '12px 24px',
+            borderBottom: '1px solid var(--divider)',
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
+          }}
+        >
+          <span>멤버</span>
+          <span>역할</span>
+          <span>주간 세션</span>
+          <span style={{ textAlign: 'right' }}>최근 세션</span>
+        </div>
+        {users.length === 0 ? (
+          <div style={{ padding: 24, fontSize: 13, color: 'var(--text-muted)' }}>회원이 없습니다.</div>
+        ) : (
+          users.map((m: UserSummaryResponse) => (
+            <div
+              key={m.id}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '2fr 1.1fr 1.2fr 1fr',
+                padding: '13px 24px',
+                borderBottom: '1px solid var(--divider)',
+                fontSize: 13,
+                alignItems: 'center',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    background: m.role === 'MASTER' ? 'var(--secondary-100)' : 'var(--accent-soft)',
+                    color: m.role === 'MASTER' ? 'var(--ink)' : 'var(--accent)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  {(m.name || '?').slice(0, 1)}
+                </span>
+                <span style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                    {m.email}
+                  </span>
+                </span>
+              </span>
+              <span>{roleBadge(m.role)}</span>
+              <span>{m.weeklySessionCount}</span>
+              <span style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
+                {m.lastSessionCreatedAt
+                  ? new Date(m.lastSessionCreatedAt).toLocaleDateString('ko-KR')
+                  : '—'}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+
+      <Modal
+        open={inviteOpen}
+        title="새 멤버 초대"
+        description="이메일로 멤버를 초대합니다. 클래스가 필요합니다."
+        primaryLabel={createInvitation.isPending ? '발송 중…' : '초대장 발송하기'}
+        secondaryLabel="취소"
+        onPrimary={onInvite}
+        onSecondary={() => setInviteOpen(false)}
+        onClose={() => setInviteOpen(false)}
+        width={520}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {inviteError ? <AlertBanner tone="error" title="초대 실패" description={inviteError} /> : null}
+          {inviteOk ? <AlertBanner tone="success" title="초대 완료" description={inviteOk} /> : null}
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>이메일 주소</span>
+            <Input
+              placeholder="name@ssafy.com"
+              icon={<Mail size={15} strokeWidth={1.75} />}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              width="100%"
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>시스템 역할</span>
+            <Select
+              options={[
+                { value: 'MANAGER', label: '매니저 (MANAGER)' },
+                { value: 'STUDENT', label: '학생 (STUDENT)' },
+              ]}
+              value={role}
+              onChange={(v) => setRole(v as UserRole)}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>클래스</span>
+            <Select
+              options={classes.map((c) => ({ value: String(c.id), label: c.name }))}
+              value={classId || String(classes[0]?.id ?? '')}
+              onChange={setClassId}
+            />
+          </label>
+        </div>
+      </Modal>
+    </>
   );
 }
 
 export default function MemberManagementPage() {
-  const kpi = useMemberKpiRow();
-  const list = useMemberListRow();
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState('MANAGER');
-  const [query, setQuery] = useState('');
+  const [rowKey, setRowKey] = useState(0);
 
   return (
     <MasterShell activeKey="members" breadcrumbs={['SSAFY 서울캠퍼스', '회원 관리']}>
       <PageMain>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>회원 관리</h1>
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-              매니저 계정을 초대하고 상태를 관리하세요. 초대 링크는 48시간 동안 유효합니다.
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button
-              variant="secondary"
-              icon={<Filter size={14} strokeWidth={1.75} />}
-              onClick={() => undefined}
-            >
-              필터
-            </Button>
-            <Button
-              variant="primary"
-              icon={<UserPlus size={14} strokeWidth={1.75} />}
-              onClick={() => setInviteOpen(true)}
-            >
-              멤버 초대하기
-            </Button>
-          </div>
-        </div>
-
-        <MockRowBoundary
-          status={kpi.status}
-          skeleton={<KpiSkeleton />}
-          onRetry={kpi.refetch}
-          emptyMessage="KPI 데이터가 없습니다"
-        >
-          <StatCardRow>
-            {(kpi.data ?? []).map((item, i) => (
-              <StatCard key={i} {...item} />
-            ))}
-          </StatCardRow>
-        </MockRowBoundary>
-
-        <MockRowBoundary
-          status={list.status}
-          skeleton={<TableSkeleton />}
-          onRetry={list.refetch}
-          emptyMessage="멤버가 없습니다"
-          emptyActionLabel="멤버 초대하기"
-          onEmptyAction={() => setInviteOpen(true)}
-        >
-          {list.data && (
-            <>
-              <div
-                style={{
-                  background: 'var(--surface-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 16,
-                  boxShadow: 'var(--shadow-card)',
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '16px 24px',
-                    borderBottom: '1px solid var(--divider)',
-                  }}
-                >
-                  <Input
-                    placeholder="이름 또는 이메일 검색…"
-                    icon={<Search size={14} strokeWidth={1.75} />}
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    width={260}
-                  />
-                  <Select
-                    options={[{ value: 'all', label: '전체 상태' }]}
-                    value="all"
-                    onChange={() => undefined}
-                  />
-                  <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
-                    정렬: <span style={{ color: 'var(--ink)', fontWeight: 600 }}>최신순 ↕</span>
-                  </span>
-                </div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '2fr 1.1fr 1.1fr 1.1fr 1fr 48px',
-                    padding: '10px 24px',
-                    borderBottom: '1px solid var(--divider)',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  <span>멤버 정보</span>
-                  <span>시스템 역할</span>
-                  <span>초대 상태</span>
-                  <span>계정 상태</span>
-                  <span style={{ textAlign: 'right' }}>최근 접속</span>
-                  <span />
-                </div>
-                {list.data.members
-                  .filter((m) => !query || m.name.includes(query) || m.email.includes(query))
-                  .map((m) => (
-                    <div
-                      key={m.id}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '2fr 1.1fr 1.1fr 1.1fr 1fr 48px',
-                        padding: '13px 24px',
-                        borderBottom: '1px solid var(--divider)',
-                        fontSize: 13,
-                        alignItems: 'center',
-                        background: m.dimmed ? 'var(--surface-sunken)' : undefined,
-                        opacity: m.dimmed ? 0.85 : 1,
-                      }}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span
-                          style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            background:
-                              m.systemRole === 'MASTER'
-                                ? 'var(--secondary-100)'
-                                : 'var(--accent-soft)',
-                            color: m.systemRole === 'MASTER' ? 'var(--ink)' : 'var(--accent)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 12,
-                            fontWeight: 700,
-                          }}
-                        >
-                          {m.initial}
-                        </span>
-                        <span style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
-                          <span
-                            style={{
-                              fontFamily: 'var(--font-mono)',
-                              fontSize: 12,
-                              color: 'var(--text-muted)',
-                            }}
-                          >
-                            {m.email}
-                          </span>
-                        </span>
-                      </span>
-                      <span>{roleBadge(m.systemRole)}</span>
-                      <span>{inviteBadge(m.inviteStatus)}</span>
-                      <span>{accountBadge(m.accountStatus)}</span>
-                      <span style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
-                        {m.lastSeen}
-                      </span>
-                      <span
-                        style={{
-                          textAlign: 'right',
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer',
-                          fontWeight: 700,
-                          letterSpacing: 1,
-                        }}
-                      >
-                        ⋯
-                      </span>
-                    </div>
-                  ))}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '14px 24px',
-                  }}
-                >
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    총 48명 중 1–6 표시
-                  </span>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <Button variant="secondary" size="sm" onClick={() => undefined}>
-                      이전
-                    </Button>
-                    <Button variant="secondary" size="sm" onClick={() => undefined}>
-                      다음
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {list.data.invites.length > 0 && (
-                <div
-                  style={{
-                    background: 'var(--surface-card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 16,
-                    boxShadow: 'var(--shadow-card)',
-                    padding: 24,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 12,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
-                      color: 'var(--text-secondary)',
-                    }}
-                  >
-                    대기 중 초대
-                  </span>
-                  {list.data.invites.map((inv) => (
-                    <InvitationRow
-                      key={inv.id}
-                      email={inv.email}
-                      meta={inv.meta}
-                      status={inv.status}
-                      cooldownSec={inv.cooldownSec}
-                      onResend={() => undefined}
-                      onCancel={() => undefined}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </MockRowBoundary>
-
-        <Modal
-          open={inviteOpen}
-          title="새 멤버 초대"
-          description="이메일로 매니저를 초대하세요. 고유 토큰이 발급됩니다."
-          primaryLabel="초대장 발송하기"
-          secondaryLabel="취소"
-          onPrimary={() => setInviteOpen(false)}
-          onSecondary={() => setInviteOpen(false)}
-          onClose={() => setInviteOpen(false)}
-          width={520}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
-                이메일 주소
-              </span>
-              <Input
-                placeholder="name@ssafy.com, name2@ssafy.com"
-                icon={<Mail size={15} strokeWidth={1.75} />}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                width="100%"
-              />
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                쉼표(,)로 구분하여 여러 명을 한꺼번에 초대할 수 있습니다.
-              </span>
-            </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
-                시스템 역할
-              </span>
-              <Select
-                options={[
-                  { value: 'MANAGER', label: '매니저 (MANAGER)' },
-                  { value: 'STUDENT', label: '학생 (STUDENT)' },
-                ]}
-                value={role}
-                onChange={setRole}
-              />
-            </label>
-            <div
-              style={{
-                background: 'var(--accent-softer)',
-                border: '1px solid var(--accent-soft)',
-                borderRadius: 8,
-                padding: '13px 14px',
-                fontSize: 12.5,
-                lineHeight: 1.6,
-                color: 'var(--text-body)',
-              }}
-            >
-              <span style={{ fontWeight: 600, color: 'var(--ink)' }}>보안 안내</span>
-              <br />
-              초대받은 사용자는 이메일로 전송된 링크를 통해 비밀번호를 설정합니다. 초대
-              링크(token)는 48시간 후 EXPIRED 처리됩니다.
+        <QueryAsyncBoundary
+          key={rowKey}
+          suspenseFallback={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              <KpiSkeleton />
+              <TableSkeleton />
             </div>
-          </div>
-        </Modal>
+          }
+          errorFallback={
+            <RowErrorFallback
+              onRetry={() => setRowKey((k) => k + 1)}
+              title="회원 목록을 불러오지 못했습니다"
+            />
+          }
+        >
+          <MembersBody />
+        </QueryAsyncBoundary>
       </PageMain>
     </MasterShell>
   );

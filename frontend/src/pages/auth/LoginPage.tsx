@@ -77,6 +77,7 @@ export default function LoginPage() {
     );
   };
 
+
   return (
     <AuthCardShell title="로그인" subtitle="기업 계정으로 Qurie 콘솔에 접속합니다.">
       <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -173,7 +174,7 @@ export default function LoginPage() {
             color: 'var(--accent)',
             fontWeight: 600,
             fontSize: 'inherit',
-            fontFamily: 'inherit',
+            fontFamily: 'var(--font-sans)',
             cursor: 'pointer',
             textDecoration: 'none',
           }}

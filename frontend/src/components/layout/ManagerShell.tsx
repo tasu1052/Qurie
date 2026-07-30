@@ -7,7 +7,6 @@ import {
   Grid2x2,
   Settings,
   Bell,
-  Search,
 } from 'lucide-react';
 import { Button, Sidebar, Topbar } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
@@ -36,6 +35,8 @@ export function ManagerShell({ activeKey, breadcrumbs, children }: AppShellProps
   const logout = useLogout();
   const items = managerNav.map(({ key, label, icon }) => ({ key, label, icon }));
 
+  const goMe = () => navigate('/manager/me');
+
   const onLogout = () => {
     logout.mutate(undefined, {
       onSettled: () => navigate('/login', { replace: true }),
@@ -53,14 +54,22 @@ export function ManagerShell({ activeKey, breadcrumbs, children }: AppShellProps
           if (!item) return;
           navigate(item.path);
         }}
-        footer={<SidebarAccountFooter name={user.name} email={user.email} onLogout={onLogout} />}
+        footer={
+          <SidebarAccountFooter
+            name={user.name}
+            email={user.email}
+            onLogout={onLogout}
+            onProfileClick={goMe}
+          />
+        }
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Topbar
           breadcrumbs={breadcrumbs}
           userName={user.name}
           userRole={user.role}
-          searchIcon={<Search size={14} strokeWidth={1.75} />}
+          hideSearch
+          onUserClick={goMe}
           actions={
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <span style={{ color: 'var(--text-secondary)', display: 'flex', cursor: 'pointer' }}>

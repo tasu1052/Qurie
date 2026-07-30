@@ -6,11 +6,10 @@ import {
   FileText,
   User,
   Bell,
-  Search,
 } from 'lucide-react';
 import { Button, Sidebar, Topbar } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
-import { useLogout, useMe } from '../../data';
+import { useGetMyClasses, useLogout, useMe } from '../../data';
 import { SidebarAccountFooter } from './SidebarAccountFooter';
 
 const iconProps = { size: 16, strokeWidth: 1.75 } as const;
@@ -21,19 +20,24 @@ type AppShellProps = {
   children: ReactNode;
 };
 
-const studentNav = [
-  { key: 'dashboard', label: '대시보드', path: '/app', icon: <LayoutDashboard {...iconProps} /> },
-  { key: 'class', label: '클래스', path: '/app/classes/seoul-1', icon: <BookOpen {...iconProps} /> },
-  { key: 'report', label: '종합 리포트', path: '/app/report', icon: <FileText {...iconProps} /> },
-  { key: 'me', label: '마이페이지', path: '/app/me', icon: <User {...iconProps} /> },
-];
-
 export function StudentShell({ activeKey, breadcrumbs, children }: AppShellProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { data: user } = useMe();
+  const { data: myClasses } = useGetMyClasses();
   const logout = useLogout();
+  const classPath =
+    myClasses[0] != null ? `/app/classes/${myClasses[0].id}` : '/app';
+
+  const studentNav = [
+    { key: 'dashboard', label: '대시보드', path: '/app', icon: <LayoutDashboard {...iconProps} /> },
+    { key: 'class', label: '클래스', path: classPath, icon: <BookOpen {...iconProps} /> },
+    { key: 'report', label: '종합 리포트', path: '/app/report', icon: <FileText {...iconProps} /> },
+    { key: 'me', label: '마이페이지', path: '/app/me', icon: <User {...iconProps} /> },
+  ];
+
   const items = studentNav.map(({ key, label, icon }) => ({ key, label, icon }));
+  const goMe = () => navigate('/app/me');
 
   const onLogout = () => {
     logout.mutate(undefined, {
@@ -57,6 +61,7 @@ export function StudentShell({ activeKey, breadcrumbs, children }: AppShellProps
             name={user.name}
             email={user.email}
             onLogout={onLogout}
+            onProfileClick={goMe}
             avatarStyle={{
               background: 'var(--tertiary-100)',
               color: 'var(--quaternary-400)',
@@ -69,7 +74,8 @@ export function StudentShell({ activeKey, breadcrumbs, children }: AppShellProps
           breadcrumbs={breadcrumbs}
           userName={user.name}
           userRole={user.role}
-          searchIcon={<Search size={14} strokeWidth={1.75} />}
+          hideSearch
+          onUserClick={goMe}
           actions={
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <span style={{ color: 'var(--text-secondary)', display: 'flex', cursor: 'pointer' }}>

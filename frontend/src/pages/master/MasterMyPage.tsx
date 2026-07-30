@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StudentShell, PageMain } from '../../components/layout/StudentShell';
+import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { ProfilePageContent } from '../../components/profile/ProfilePageContent';
 import { RowErrorFallback, Skeleton, StatCardRow } from '../../ds';
 import { QueryAsyncBoundary } from '../../data';
@@ -27,11 +27,11 @@ function ProfileSkeleton() {
   );
 }
 
-export default function MyPage() {
+export default function MasterMyPage() {
   const [rowKey, setRowKey] = useState(0);
 
   return (
-    <StudentShell activeKey="me" breadcrumbs={['마이페이지']}>
+    <MasterShell activeKey="me" breadcrumbs={['마이페이지']}>
       <PageMain>
         <QueryAsyncBoundary
           key={rowKey}
@@ -47,6 +47,6 @@ export default function MyPage() {
           <ProfilePageContent />
         </QueryAsyncBoundary>
       </PageMain>
-    </StudentShell>
+    </MasterShell>
   );
 }
