@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.engine.llm import UsageMeter
+from app.engine.purpose import purpose_counts
 from app.engine.state import PipelineState
 from app.quiz.dto.request import CreateQuizSetRequest
 
@@ -26,6 +27,10 @@ def build_pipeline_state(
         "mode": body.mode.value,
         "requested_count": body.requested_count,
         "ratio_counts": body.ratio.to_counts(body.requested_count),
+        "purpose_counts": purpose_counts(body.mode.value, body.requested_count),
+        # 부족분 재생성 시 기준으로 삼을 원래 목표. 라운드마다 바뀌지 않는다.
+        "ratio_target": body.ratio.to_counts(body.requested_count),
+        "purpose_target": purpose_counts(body.mode.value, body.requested_count),
         "user_prompt": body.user_prompt,
         "version_hash": body.version_hash,
         "files": files,

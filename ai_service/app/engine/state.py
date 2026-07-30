@@ -11,6 +11,12 @@ class PipelineState(TypedDict, total=False):
     mode: str
     requested_count: int
     ratio_counts: dict[str, int]
+    purpose_counts: dict[str, int]
+    ratio_target: dict[str, int]
+    purpose_target: dict[str, int]
+    gen_count: int
+    approved_pool: list[dict[str, Any]]
+    last_approved: int
     user_prompt: str | None
     version_hash: str
     files: dict[str, str]

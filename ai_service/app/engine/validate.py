@@ -15,6 +15,8 @@ def validate_quiz_item(q: dict, files: dict[str, str]) -> str | None:
         return "BAD_ANSWER_INDEX"
 
     purpose = q.get("purpose", "MICRO")
+    if purpose not in ("CONCEPTUAL", "MICRO"):
+        return "BAD_PURPOSE"
     concept = q.get("tested_concept") or ""
     if not concept or len(concept) > 60:
         return "SCHEMA"

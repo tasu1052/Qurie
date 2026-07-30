@@ -56,7 +56,7 @@
 | project_id | USER_INPUT → SYSTEM | API의 project 식별자 → FK 해석 |
 | snapshot_id | SYSTEM | **문제 있음** — §6. 지금은 “대표 파일 1행”으로 임시 매핑 |
 | mode | USER_INPUT | `ASSESSMENT` / `PRACTICE` |
-| requested_count | USER_INPUT | `{5,10,15,20}` |
+| requested_count | USER_INPUT | `1`~`20` (정수) |
 | ratio_easy | USER_INPUT | 상대 가중치 (합 100 불필요) |
 | ratio_normal | USER_INPUT | |
 | ratio_hard | USER_INPUT | |
@@ -228,7 +228,7 @@ class CreateQuizSetRequest(BaseModel):
     """POST /api/quiz?project=... body"""
 
     mode: QuizMode
-    requested_count: Literal[5, 10, 15, 20]
+    requested_count: int = Field(ge=1, le=20)
     ratio: DifficultyRatio = DifficultyRatio()
     user_prompt: str | None = Field(default=None, max_length=500)
     version_hash: str = Field(min_length=1, max_length=64)
@@ -275,7 +275,7 @@ Day1은 `body` 없이 `project`만 받아도 된다. 정식 연결 시 위처럼
 | 조건 | HTTP | body (예) |
 |---|---|---|
 | `project` 쿼리 누락 | 422 | FastAPI validation |
-| `requested_count` ∉ {5,10,15,20} | 422 | `requested_count: Input should be 5, 10, 15 or 20` |
+| `requested_count` ∉ [1, 20] | 422 | `requested_count: Input should be greater than or equal to 1` 등 |
 | ratio 전부 0 | 422 | `easy/normal/hard 중 하나 이상은 0보다 커야 합니다` |
 | `user_prompt` > 500자 | 422 | max_length |
 | `version_hash`에 해당하는 스냅샷 없음 | 404 | `SNAPSHOT_NOT_FOUND` |
@@ -398,6 +398,15 @@ FILE: workspace/solution.py
 구현: `DifficultyRatio.to_counts()` (`app/schemas/request.py`)
 
 **근거**: LLM은 %보다 “N개”를 더 잘 지킨다. 가중치 합을 100으로 강요하지 않아 UI가 `3:5:2`처럼 넣어도 된다.
+
+### 3.4.1 mode별 purpose(CONCEPTUAL/MICRO) 개수
+
+| mode | CONCEPTUAL : MICRO | 구현 |
+|---|---|---|
+| `PRACTICE` | 7 : 3 | `purpose_counts("PRACTICE", n)` |
+| `ASSESSMENT` | 3 : 7 | `purpose_counts("ASSESSMENT", n)` |
+
+프롬프트에는 `CONCEPTUAL=N, MICRO=M` 형태로 **개수**를 명시한다 (`app/engine/purpose.py`).
 
 생성 결과가 쿼터와 어긋나면 §5 검증에서 처리 (세트를 즉시 실패시키지 않고 재생성/절삭).
 
@@ -718,4 +727,4 @@ ERD의 `code_snapshot`과 중복이어도 “AI 무상태”를 지키는 대가
 | MAX_REGEN_PER_ITEM | 1 |
 | MAX_USER_PROMPT_LEN | 500 |
 | DEFAULT_RATIO | 30/50/20 |
-| REQUESTED_COUNT_SET | 5,10,15,20 |
+| REQUESTED_COUNT_RANGE | 1~20 (정수) |
