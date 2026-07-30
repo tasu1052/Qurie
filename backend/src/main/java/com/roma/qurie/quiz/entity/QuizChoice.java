@@ -44,6 +44,10 @@ public class QuizChoice {
 		this.isAnswer = isAnswer;
 	}
 
+	public static QuizChoice of(int idx, String content, boolean isAnswer) {
+		return new QuizChoice(idx, content, isAnswer);
+	}
+
 	void assignQuiz(Quiz quiz) {
 		this.quiz = quiz;
 	}
