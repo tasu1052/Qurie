@@ -1,20 +1,18 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, Shuffle } from 'lucide-react';
+import { ChevronRight, Search } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import {
   Badge,
   Button,
   EmptyState,
   Input,
-  Modal,
   RowErrorFallback,
   Select,
   Skeleton,
 } from '../../ds';
 import {
   QueryAsyncBoundary,
-  useCreateGroup,
   useGetClass,
   useGetClassMembers,
   useGetGroups,
@@ -43,21 +41,6 @@ function GroupsPanelSkeleton() {
   );
 }
 
-function pad2(n: number) {
-  return String(n).padStart(2, '0');
-}
-
-function toLocalDateTime(d: Date): string {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
-}
-
-function defaultPeriod() {
-  const startedAt = new Date();
-  const endedAt = new Date(startedAt);
-  endedAt.setDate(endedAt.getDate() + 30);
-  return { startedAt: toLocalDateTime(startedAt), endedAt: toLocalDateTime(endedAt) };
-}
-
 function groupStatus(endedAt: string): '활동' | '종료' {
   return new Date(endedAt).getTime() > Date.now() ? '활동' : '종료';
 }
@@ -70,10 +53,8 @@ function roleBadgeStatus(role: UserRole): 'accent' | 'neutral' | 'success' {
 
 function GroupsSidePanel({
   classId,
-  onCreateOpen,
 }: {
   classId: number;
-  onCreateOpen: () => void;
 }) {
   const navigate = useNavigate();
   const { data: groups } = useGetGroups(classId);
@@ -104,24 +85,14 @@ function GroupsSidePanel({
         >
           그룹
         </span>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={<Shuffle size={13} strokeWidth={1.75} />}
-            onClick={() => navigate('/manager/groups')}
-          >
-            랜덤
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            icon={<Plus size={13} strokeWidth={1.75} />}
-            onClick={onCreateOpen}
-          >
-            생성
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={<ChevronRight size={14} strokeWidth={1.75} />}
+          onClick={() => navigate('/manager/groups')}
+        >
+          이동
+        </Button>
       </div>
 
       {preview.length === 0 ? (
@@ -218,6 +189,7 @@ function MembersTable({
           width={220}
         />
         <Select
+          size="sm"
           options={[
             { value: 'all', label: '전체 역할' },
             { value: 'STUDENT', label: 'STUDENT' },
@@ -225,6 +197,7 @@ function MembersTable({
           ]}
           value={roleFilter}
           onChange={(v) => onRoleFilterChange(v as 'all' | UserRole)}
+          style={{ width: 148 }}
         />
       </div>
       <div
@@ -300,36 +273,11 @@ function StudentManagementBody({ classId }: { classId: number }) {
   const navigate = useNavigate();
   const { data: cls } = useGetClass(classId);
   const { data: membersPage } = useGetClassMembers(classId, { size: 100 });
-  const createGroup = useCreateGroup();
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('STUDENT');
-  const [groupOpen, setGroupOpen] = useState(false);
-  const [groupName, setGroupName] = useState('');
-  const [groupDescription, setGroupDescription] = useState('');
   const [groupPanelKey, setGroupPanelKey] = useState(0);
 
   const members = membersPage.data;
-
-  const onCreateGroup = () => {
-    if (!groupName.trim() || !groupDescription.trim()) return;
-    const period = defaultPeriod();
-    createGroup.mutate(
-      {
-        classId,
-        name: groupName.trim(),
-        description: groupDescription.trim(),
-        ...period,
-      },
-      {
-        onSuccess: () => {
-          setGroupOpen(false);
-          setGroupName('');
-          setGroupDescription('');
-          setGroupPanelKey((k) => k + 1);
-        },
-      },
-    );
-  };
 
   return (
     <>
@@ -380,7 +328,7 @@ function StudentManagementBody({ classId }: { classId: number }) {
               />
             }
           >
-            <GroupsSidePanel classId={classId} onCreateOpen={() => setGroupOpen(true)} />
+            <GroupsSidePanel classId={classId} />
           </QueryAsyncBoundary>
           <div
             style={{
@@ -398,39 +346,6 @@ function StudentManagementBody({ classId }: { classId: number }) {
           </div>
         </div>
       </div>
-
-      <Modal
-        open={groupOpen}
-        title="그룹 생성"
-        description="이름과 설명을 입력하면 빈 멤버로 생성됩니다. 멤버는 그룹 상세에서 배정하세요."
-        primaryLabel={createGroup.isPending ? '생성 중…' : '생성하기'}
-        secondaryLabel="취소"
-        onPrimary={onCreateGroup}
-        onSecondary={() => setGroupOpen(false)}
-        onClose={() => setGroupOpen(false)}
-        width={480}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>그룹 이름</span>
-            <Input
-              placeholder="그룹 E"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              width="100%"
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>설명</span>
-            <Input
-              placeholder="함께 리뷰하는 그룹입니다."
-              value={groupDescription}
-              onChange={(e) => setGroupDescription(e.target.value)}
-              width="100%"
-            />
-          </label>
-        </div>
-      </Modal>
     </>
   );
 }

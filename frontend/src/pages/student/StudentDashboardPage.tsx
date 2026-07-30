@@ -83,11 +83,12 @@ function StudentDashWithClass({ classId }: { classId: number }) {
 
   const openSessionInNewTab = (sessionId: number) => {
     const url = `/session/${sessionId}`;
-    const win = window.open(url, '_blank', 'noopener,noreferrer');
+    const win = window.open(url, '_blank');
     if (!win) {
       setPopupBlockedSessionId(sessionId);
       return;
     }
+    win.opener = null;
     setPopupBlockedSessionId(null);
   };
 
@@ -135,7 +136,7 @@ function StudentDashWithClass({ classId }: { classId: number }) {
           </span>
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
             {live ? (
-              <Button variant="accent" onClick={() => navigate(`/session/${live.id}`)}>
+              <Button variant="accent" onClick={() => openSessionInNewTab(live.id)}>
                 LIVE 입장
               </Button>
             ) : null}
@@ -198,9 +199,9 @@ function StudentDashWithClass({ classId }: { classId: number }) {
         <AlertBanner
           tone="warning"
           title="브라우저가 새 창 열기를 차단했습니다."
-          description="팝업 차단을 해제하면 다음부터 새 창으로 바로 입장합니다. 지금은 현재 탭에서 열 수 있습니다."
-          actionLabel="현재 탭에서 열기"
-          onAction={() => navigate(`/session/${popupBlockedSessionId}`)}
+          description="브라우저의 팝업 차단을 해제한 뒤 다시 시도해 주세요."
+          actionLabel="확인"
+          onAction={() => setPopupBlockedSessionId(null)}
         />
       ) : null}
 
@@ -240,7 +241,7 @@ function StudentDashWithClass({ classId }: { classId: number }) {
               <button
                 key={s.id}
                 type="button"
-                onClick={() => navigate(`/session/${s.id}`)}
+                onClick={() => openSessionInNewTab(s.id)}
                 style={{
                   minWidth: 220,
                   textAlign: 'left',

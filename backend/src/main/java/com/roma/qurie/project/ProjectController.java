@@ -1,14 +1,25 @@
 package com.roma.qurie.project;
 
 import com.roma.qurie.project.dto.ProjectCreateRequest;
+import com.roma.qurie.project.dto.ProjectFileContentResponse;
+import com.roma.qurie.project.dto.ProjectFileSummaryResponse;
+import com.roma.qurie.project.dto.ProjectImportGitRequest;
+import com.roma.qurie.project.dto.ProjectImportLocalRequest;
+import com.roma.qurie.project.dto.ProjectImportResponse;
 import com.roma.qurie.project.dto.ProjectResponse;
+import com.roma.qurie.security.AuthUser;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -23,5 +34,39 @@ public class ProjectController {
     public ResponseEntity<ProjectResponse> create(@Valid @RequestBody ProjectCreateRequest request) {
         ProjectResponse response = projectService.create(request);
         return ResponseEntity.created(URI.create("/api/projects/" + response.id())).body(response);
+    }
+
+    /** 로컬 폴더 임포트. 프론트가 읽은 {경로: 내용} 파일 묶음을 받아 저장한다 (세션 구성원) */
+    @PostMapping("/import/local")
+    public ResponseEntity<ProjectImportResponse> importLocal(
+            @AuthenticationPrincipal AuthUser requester,
+            @Valid @RequestBody ProjectImportLocalRequest request) {
+        ProjectImportResponse response = projectService.importLocal(requester, request);
+        return ResponseEntity.created(URI.create("/api/projects/" + response.projectId())).body(response);
+    }
+
+    /** Git 저장소 임포트. 공개 https 저장소만 지원한다 (세션 구성원) */
+    @PostMapping("/import/git")
+    public ResponseEntity<ProjectImportResponse> importGit(
+            @AuthenticationPrincipal AuthUser requester,
+            @Valid @RequestBody ProjectImportGitRequest request) {
+        ProjectImportResponse response = projectService.importGit(requester, request);
+        return ResponseEntity.created(URI.create("/api/projects/" + response.projectId())).body(response);
+    }
+
+    /** 파일 목록(경로·크기). 세션 편집기의 파일 트리가 이 경로 문자열로 트리를 구성한다 */
+    @GetMapping("/{projectId}/files")
+    public List<ProjectFileSummaryResponse> files(
+            @AuthenticationPrincipal AuthUser requester, @PathVariable("projectId") Long projectId) {
+        return projectService.getFiles(requester, projectId);
+    }
+
+    /** 파일 내용. 경로에 / 가 들어가므로 path variable 이 아니라 쿼리 파라미터로 받는다 */
+    @GetMapping("/{projectId}/files/content")
+    public ProjectFileContentResponse fileContent(
+            @AuthenticationPrincipal AuthUser requester,
+            @PathVariable("projectId") Long projectId,
+            @RequestParam("path") String path) {
+        return projectService.getFileContent(requester, projectId, path);
     }
 }
