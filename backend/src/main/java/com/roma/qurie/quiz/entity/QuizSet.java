@@ -14,9 +14,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-
 import com.roma.qurie.common.entity.BaseTimeEntity;
 
 import lombok.AccessLevel;
@@ -37,8 +34,9 @@ public class QuizSet extends BaseTimeEntity {
 	@Column(name = "project_id", nullable = false)
 	private Long projectId;
 
-	@Column(name = "snapshot_id")
-	private Long snapshotId;
+	/** 출제 대상 코드의 버전 식별자. AI 는 이 값을 조회에 쓰지 않고 보관만 한다(§quiz_generation_contract 6.1). */
+	@Column(name = "version_hash", nullable = false, length = 64)
+	private String versionHash;
 
 	@Enumerated(EnumType.STRING)
 	@Column(name = "mode", nullable = false, length = 12)
@@ -46,10 +44,6 @@ public class QuizSet extends BaseTimeEntity {
 
 	@Column(name = "requested_count", nullable = false)
 	private int requestedCount;
-
-	@JdbcTypeCode(SqlTypes.JSON)
-	@Column(name = "requested_types", nullable = false)
-	private List<QuizType> requestedTypes = new ArrayList<>();
 
 	@Column(name = "ratio_easy", nullable = false)
 	private int ratioEasy;
@@ -87,14 +81,13 @@ public class QuizSet extends BaseTimeEntity {
 	private List<Quiz> quizzes = new ArrayList<>();
 
 	@Builder
-	private QuizSet(Long projectId, Long snapshotId, QuizGenerationMode mode, int requestedCount,
-			List<QuizType> requestedTypes, int ratioEasy, int ratioNormal, int ratioHard, String userPrompt,
+	private QuizSet(Long projectId, String versionHash, QuizGenerationMode mode, int requestedCount,
+			int ratioEasy, int ratioNormal, int ratioHard, String userPrompt,
 			Long createdBy) {
 		this.projectId = projectId;
-		this.snapshotId = snapshotId;
+		this.versionHash = versionHash;
 		this.mode = mode;
 		this.requestedCount = requestedCount;
-		this.requestedTypes = requestedTypes == null ? new ArrayList<>() : new ArrayList<>(requestedTypes);
 		this.ratioEasy = ratioEasy;
 		this.ratioNormal = ratioNormal;
 		this.ratioHard = ratioHard;
