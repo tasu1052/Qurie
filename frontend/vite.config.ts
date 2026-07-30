@@ -1,12 +1,12 @@
-import { defineConfig, loadEnv } from 'vite'
-import react from '@vitejs/plugin-react'
-import { fileURLToPath, URL } from 'node:url'
+import { defineConfig, loadEnv } from 'vite';
+import react from '@vitejs/plugin-react';
+import { fileURLToPath, URL } from 'node:url';
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
+  const env = loadEnv(mode, process.cwd(), '');
   // 로컬 백엔드로 붙일 때는 .env 에 VITE_DEV_API_TARGET=http://localhost:8080 을 넣으면 된다.
-  const apiTarget = env.VITE_DEV_API_TARGET || 'https://i15a604.p.ssafy.io'
+  const apiTarget = env.VITE_DEV_API_TARGET || 'https://i15a604.p.ssafy.io';
 
   return {
     plugins: [react()],
@@ -38,5 +38,5 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-  }
-})
+  };
+});
