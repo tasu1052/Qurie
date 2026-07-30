@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { applyTheme, persistTheme, resolveInitialTheme } from '../../theme/theme';
-import { useThemeOptional } from '../../theme/ThemeProvider';
+import { useThemeOptional } from '../../theme/useTheme';
 
 type ThemeToggleProps = {
   /** Controlled: dark when true. */
@@ -90,8 +90,8 @@ export function ThemeToggle({
             width: dims.t,
             height: dims.t,
             borderRadius: '50%',
-            background: '#fff',
-            boxShadow: '0 1px 2px rgba(17,17,17,0.25)',
+            background: 'var(--text-inverse)',
+            boxShadow: 'var(--shadow-card)',
             transition: 'left 180ms cubic-bezier(.22,1,.36,1)',
           }}
         />

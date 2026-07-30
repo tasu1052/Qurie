@@ -162,6 +162,8 @@ function AnnouncementsBody() {
         <EmptyState
           message="공지가 없습니다"
           description="공지 작성 API가 아직 없어 조회만 가능합니다."
+          actionLabel="전체 보기"
+          onAction={() => setScope('전체')}
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

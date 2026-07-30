@@ -29,7 +29,10 @@ export default function AdminBootcampDetailPage() {
   const { id } = useParams();
   const bootcampId = Number(id);
   const [tick, setTick] = useState(0);
-  const bootcamp = useMemo(() => getBootcamp(bootcampId), [bootcampId, tick]);
+  const bootcamp = useMemo(() => {
+    void tick;
+    return getBootcamp(bootcampId);
+  }, [bootcampId, tick]);
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -105,7 +108,7 @@ export default function AdminBootcampDetailPage() {
           }}
         >
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>마스터 초대</h2>
+            <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>마스터 초대</h2>
             <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
               초대 토큰에 이 부트캠프의 엔터프라이즈 ID가 고정됩니다. 마스터는 이름·이메일·비밀번호만 입력합니다.
             </p>

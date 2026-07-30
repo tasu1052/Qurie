@@ -5,11 +5,11 @@ import {
   BookOpen,
   FileText,
   User,
-  Bell,
 } from 'lucide-react';
 import { Button, Sidebar, Topbar } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
-import { useGetMyClasses, useLogout, useMe } from '../../data';
+import { useLogout, useMe } from '../../data';
+import { NotificationBell } from '../notifications/NotificationBell';
 import { SidebarAccountFooter } from './SidebarAccountFooter';
 
 const iconProps = { size: 16, strokeWidth: 1.75 } as const;
@@ -20,22 +20,18 @@ type AppShellProps = {
   children: ReactNode;
 };
 
+const studentNav = [
+  { key: 'dashboard', label: '대시보드', path: '/app', icon: <LayoutDashboard {...iconProps} /> },
+  { key: 'class', label: '클래스', path: '/app/classes', icon: <BookOpen {...iconProps} /> },
+  { key: 'report', label: '종합 리포트', path: '/app/report', icon: <FileText {...iconProps} /> },
+  { key: 'me', label: '마이페이지', path: '/app/me', icon: <User {...iconProps} /> },
+];
+
 export function StudentShell({ activeKey, breadcrumbs, children }: AppShellProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { data: user } = useMe();
-  const { data: myClasses } = useGetMyClasses();
   const logout = useLogout();
-  const classPath =
-    myClasses[0] != null ? `/app/classes/${myClasses[0].id}` : '/app';
-
-  const studentNav = [
-    { key: 'dashboard', label: '대시보드', path: '/app', icon: <LayoutDashboard {...iconProps} /> },
-    { key: 'class', label: '클래스', path: classPath, icon: <BookOpen {...iconProps} /> },
-    { key: 'report', label: '종합 리포트', path: '/app/report', icon: <FileText {...iconProps} /> },
-    { key: 'me', label: '마이페이지', path: '/app/me', icon: <User {...iconProps} /> },
-  ];
-
   const items = studentNav.map(({ key, label, icon }) => ({ key, label, icon }));
   const goMe = () => navigate('/app/me');
 
@@ -78,9 +74,7 @@ export function StudentShell({ activeKey, breadcrumbs, children }: AppShellProps
           onUserClick={goMe}
           actions={
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ color: 'var(--text-secondary)', display: 'flex', cursor: 'pointer' }}>
-                <Bell size={17} strokeWidth={1.75} />
-              </span>
+              <NotificationBell role={user.role} />
               <Button variant="ghost" size="sm" onClick={onLogout} disabled={logout.isPending}>
                 로그아웃
               </Button>

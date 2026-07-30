@@ -8,11 +8,11 @@ import {
   Megaphone,
   BarChart3,
   Settings,
-  Bell,
 } from 'lucide-react';
 import { Button, Footer, Sidebar, Topbar } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
 import { useLogout, useMe } from '../../data';
+import { NotificationBell } from '../notifications/NotificationBell';
 import { SidebarAccountFooter } from './SidebarAccountFooter';
 
 const iconProps = { size: 16, strokeWidth: 1.75 } as const;
@@ -77,9 +77,7 @@ export function MasterShell({ activeKey, breadcrumbs, children }: AppShellProps)
           onUserClick={goMe}
           actions={
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ color: 'var(--text-secondary)', display: 'flex', cursor: 'pointer' }}>
-                <Bell size={17} strokeWidth={1.75} />
-              </span>
+              <NotificationBell role={user.role} />
               <Button variant="ghost" size="sm" onClick={onLogout} disabled={logout.isPending}>
                 로그아웃
               </Button>

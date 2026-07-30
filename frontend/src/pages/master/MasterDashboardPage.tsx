@@ -2,16 +2,15 @@ import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { Download } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
-import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
+import { DashboardNoticesSection } from '../../components/notices/DashboardNoticesSection';
 import { Badge, Button, Chevron, RowErrorFallback, Skeleton, StatCard, StatCardRow } from '../../ds';
 import {
   QueryAsyncBoundary,
   useGetAnalyticsOverview,
   useGetTracks,
   useGetUsers,
-  useMasterReportsRow,
 } from '../../data';
-import type { ReportRow, TrackCard } from '../../data';
+import type { TrackCard } from '../../data';
 import javaTech from '../../ds/assets/tech/java_50.png';
 import pythonTech from '../../ds/assets/tech/python_50.png';
 import dbTech from '../../ds/assets/tech/database_50.png';
@@ -118,28 +117,6 @@ function TracksSkeleton() {
   );
 }
 
-function ReportsSkeleton() {
-  return (
-    <div
-      style={{
-        background: 'var(--surface-card)',
-        border: '1px solid var(--border)',
-        borderRadius: 16,
-        overflow: 'hidden',
-      }}
-    >
-      <div style={{ padding: '20px 24px 14px' }}>
-        <Skeleton width={120} height={12} />
-      </div>
-      {[0, 1, 2].map((i) => (
-        <div key={i} style={{ padding: '13px 24px', borderTop: '1px solid var(--divider)' }}>
-          <Skeleton width="100%" height={14} delay={i * 0.08} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function TrackCardItem({ track, onClick }: { track: TrackCard; onClick: () => void }) {
   const active = track.status === 'active';
   return (
@@ -197,36 +174,6 @@ function TrackCardItem({ track, onClick }: { track: TrackCard; onClick: () => vo
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{track.metricLabel}</span>
       </div>
       <Chevron size={12} color="var(--accent)" />
-    </div>
-  );
-}
-
-function ReportTableRow({ r }: { r: ReportRow }) {
-  const quizColor =
-    r.quizTone === 'accent'
-      ? 'var(--accent)'
-      : r.quizTone === 'error'
-        ? 'var(--status-error)'
-        : 'var(--ink)';
-  return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '2fr 1.4fr 1.2fr 0.8fr 0.8fr 1fr',
-        padding: '13px 24px',
-        borderBottom: '1px solid var(--divider)',
-        fontSize: 13,
-        alignItems: 'center',
-      }}
-    >
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)' }}>
-        {r.session}
-      </span>
-      <span style={{ color: 'var(--text-secondary)' }}>{r.className}</span>
-      <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{r.manager}</span>
-      <span style={{ color: quizColor, fontWeight: 700 }}>{r.quizRate}</span>
-      <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{r.rating}</span>
-      <span style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{r.issuedAt}</span>
     </div>
   );
 }
@@ -354,7 +301,6 @@ function TracksAndManagers({ onOpenTrack }: { onOpenTrack: (id: string) => void 
 
 export default function MasterDashboardPage() {
   const navigate = useNavigate();
-  const reports = useMasterReportsRow();
   const [kpiKey, setKpiKey] = useState(0);
   const [tracksKey, setTracksKey] = useState(0);
 
@@ -403,69 +349,7 @@ export default function MasterDashboardPage() {
           <TracksAndManagers onOpenTrack={(id) => navigate(`/master/tracks/${id}`)} />
         </QueryAsyncBoundary>
 
-        <MockRowBoundary
-          status={reports.status}
-          skeleton={<ReportsSkeleton />}
-          onRetry={reports.refetch}
-          emptyMessage="발급된 리포트가 없습니다"
-        >
-          {reports.data && (
-            <div
-              style={{
-                background: 'var(--surface-card)',
-                border: '1px solid var(--border)',
-                borderRadius: 16,
-                boxShadow: 'var(--shadow-card)',
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '20px 24px 14px',
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  최근 발급 리포트
-                </span>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>mock — 리포트 조회 API 대기</span>
-              </div>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '2fr 1.4fr 1.2fr 0.8fr 0.8fr 1fr',
-                  padding: '10px 24px',
-                  borderBottom: '1px solid var(--divider)',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  color: 'var(--text-muted)',
-                }}
-              >
-                <span>세션</span>
-                <span>클래스</span>
-                <span>대상 매니저</span>
-                <span>퀴즈 참여도</span>
-                <span>평점</span>
-                <span style={{ textAlign: 'right' }}>발급일</span>
-              </div>
-              {reports.data.map((r) => (
-                <ReportTableRow key={r.id} r={r} />
-              ))}
-            </div>
-          )}
-        </MockRowBoundary>
+        <DashboardNoticesSection role="MASTER" size={5} />
       </PageMain>
     </MasterShell>
   );

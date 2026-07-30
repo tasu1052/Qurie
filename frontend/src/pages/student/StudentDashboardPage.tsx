@@ -21,6 +21,7 @@ import {
   useGetSessions,
   useMe,
 } from '../../data';
+import { DashboardNoticesSection } from '../../components/notices/DashboardNoticesSection';
 
 function DashSkeleton() {
   return (
@@ -46,6 +47,7 @@ function DashSkeleton() {
 }
 
 function StudentDashBody() {
+  const navigate = useNavigate();
   const { data: me } = useMe();
   const { data: myClasses } = useGetMyClasses();
   const classId = me.classId ?? myClasses[0]?.id ?? null;
@@ -55,6 +57,8 @@ function StudentDashBody() {
       <EmptyState
         message="소속 클래스가 없습니다"
         description="클래스에 배정되면 세션과 대시보드가 표시됩니다."
+        actionLabel="클래스"
+        onAction={() => navigate('/app/classes')}
       />
     );
   }
@@ -178,6 +182,8 @@ function StudentDashWithClass({ classId }: { classId: number }) {
         <StatCard label="역할" value={me.role} caption="system" />
       </StatCardRow>
 
+      <DashboardNoticesSection role="STUDENT" classId={classId} size={5} />
+
       <div>
         <div
           style={{
@@ -200,7 +206,12 @@ function StudentDashWithClass({ classId }: { classId: number }) {
           </span>
         </div>
         {sessions.length === 0 ? (
-          <EmptyState message="세션이 없습니다" description="새 세션을 만들어 실습을 시작하세요." />
+          <EmptyState
+            message="세션이 없습니다"
+            description="새 세션을 만들어 실습을 시작하세요."
+            actionLabel="세션 생성"
+            onAction={() => setCreateOpen(true)}
+          />
         ) : (
           <CardScrollRow>
             {sessions.map((s) => (
