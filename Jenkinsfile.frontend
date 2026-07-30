@@ -1,0 +1,120 @@
+// 프론트엔드 CI/CD. GitLab master 머지 → 빌드 → S3 업로드 → CloudFront 무효화 → 확인.
+//
+// 백엔드 Jenkinsfile 과 달리 DEPLOY_DIR 이 아니라 Jenkins 워크스페이스에서 빌드한다.
+// DEPLOY_DIR 에서 빌드해야 했던 이유는 docker build 의 컨텍스트 경로를 호스트 데몬이 해석하기
+// 때문인데, 프론트 빌드는 docker 를 쓰지 않고(컨테이너 안의 node 로 직접 빌드) 산출물도
+// 네트워크로 S3 에 올라가므로 호스트 경로와 맞출 필요가 없다.
+//
+// 잡을 백엔드와 분리한 이유: 백엔드 테스트가 깨졌을 때 프론트 배포까지 같이 막히면 안 된다.
+/**
+ * 매터모스트 알림. 백엔드 파이프라인과 같은 자격증명(Secret text, ID: mattermost-webhook)을 쓴다.
+ */
+def notifyMattermost(String result) {
+	String title
+	switch (result) {
+		case 'SUCCESS':  title = '## :white_check_mark: Qurie 프론트 배포 성공'; break
+		case 'UNSTABLE': title = '## :warning: Qurie 프론트 배포 성공 (lint 경고)'; break
+		default:         title = '## :x: Qurie 프론트 배포 실패'
+	}
+	String commit = sh(script: "git log -1 --pretty='%h %s'", returnStdout: true).trim()
+
+	List<String> lines = [
+			title,
+			'',
+			"**브랜치**: `master`",
+			"**커밋**: ${commit}",
+			"**빌드**: [#${env.BUILD_NUMBER}](${env.BUILD_URL})",
+			"**주소**: ${env.FRONT_URL}",
+	]
+	if (result == 'FAILURE') {
+		lines << '**확인**: 위 빌드 링크의 Console Output 을 볼 것'
+	}
+
+	// 한글과 개행이 섞이므로 셸 인용을 피해 파일로 만들어 보낸다.
+	writeFile file: 'mm-payload.json', text: groovy.json.JsonOutput.toJson([
+			text: lines.join('\n'),
+			username: 'Jenkins',
+	])
+
+	// 작은따옴표 문자열이라 $MM_WEBHOOK 은 Groovy 가 아니라 셸이 치환한다.
+	// 큰따옴표로 바꾸면 웹훅 URL 이 콘솔 로그에 그대로 노출된다.
+	withCredentials([string(credentialsId: 'mattermost-webhook', variable: 'MM_WEBHOOK')]) {
+		sh(script: '''
+			curl -sS -f -X POST -H 'Content-Type: application/json' \
+				--data-binary @mm-payload.json "$MM_WEBHOOK" || true
+		''')
+	}
+}
+
+pipeline {
+	agent any
+
+	environment {
+		// 배포 대상. 비밀이 아니라서 코드에 둔다 — 설정이 git 에 남고 리뷰가 가능하다.
+		// 버킷이나 배포를 새로 만들면 이 세 줄만 고치면 된다.
+		S3_BUCKET = 'qurie-app-476140239188-ap-northeast-2-an'
+		CF_DISTRIBUTION_ID = 'E28OF28IVIMFW3'
+		// 배포 후 확인용 주소. 매터모스트 메시지에도 링크로 붙는다.
+		FRONT_URL = 'https://d3alq9m5x08xk2.cloudfront.net/'
+
+		AWS_DEFAULT_REGION = 'ap-northeast-2'
+		// CloudFront 단일 배포라 프론트와 API 가 same-origin 이다. 상대 경로로 빌드해야
+		// 백엔드의 SameSite=Lax 쿠키가 XHR 에 실린다. 자세한 이유는 scripts/deploy-frontend.sh 주석.
+		VITE_API_BASE_URL = '/api'
+		// 볼륨(jenkins-home) 안에 두어 빌드마다 npm 패키지를 다시 받지 않게 한다.
+		// 백엔드의 GRADLE_USER_HOME 과 같은 이유다.
+		npm_config_cache = '/var/jenkins_home/.npm'
+	}
+
+	options {
+		timeout(time: 20, unit: 'MINUTES')
+		// 같은 버킷에 sync --delete 를 하므로 동시 실행을 막는다.
+		disableConcurrentBuilds()
+		buildDiscarder(logRotator(numToKeepStr: '20'))
+	}
+
+	stages {
+		stage('Checkout') {
+			// 잡이 "Pipeline script from SCM" 이면 Jenkins 가 이미 체크아웃해 둔다.
+			// 여기서는 어떤 커밋을 배포하는지 로그에 남기는 것이 목적이다.
+			steps {
+				sh 'git log -1 --oneline'
+			}
+		}
+
+		stage('Lint') {
+			// 배포를 막지 않는다. 현재 qurie/* 디자인시스템 룰에서 에러가 남아 있어
+			// 게이트로 걸면 모든 배포가 멈춘다. 룰 위반을 정리한 뒤 catchError 를 지우면
+			// 그때부터 lint 실패가 배포를 막는 게이트가 된다.
+			steps {
+				catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE', message: 'lint 위반이 남아 있다') {
+					sh 'cd frontend && npm run lint'
+				}
+			}
+		}
+
+		stage('Build & Deploy') {
+			// 빌드/업로드/무효화는 스크립트 한 곳에 모아 두었다. 수동 배포와 CI 가 갈리지 않게 하려는 것이다.
+			steps {
+				withCredentials([
+						string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
+						string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY'),
+				]) {
+					sh 'bash scripts/deploy-frontend.sh'
+				}
+			}
+		}
+	}
+
+	post {
+		success {
+			notifyMattermost('SUCCESS')
+		}
+		unstable {
+			notifyMattermost('UNSTABLE')
+		}
+		failure {
+			notifyMattermost('FAILURE')
+		}
+	}
+}
