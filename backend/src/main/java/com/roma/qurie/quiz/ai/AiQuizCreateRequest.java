@@ -31,7 +31,8 @@ public record AiQuizCreateRequest(
 				new AiDifficultyRatio(request.ratioEasy(), request.ratioNormal(), request.ratioHard()),
 				request.userPrompt(),
 				request.versionHash(),
-				request.targetFiles(),
+				// AI 쪽 target_files 는 Optional 이 아니라 기본값 있는 list 다 — 생략은 되지만 null 은 422 다.
+				request.targetFiles() == null ? List.of() : request.targetFiles(),
 				request.files(),
 				callbackUrl);
 	}
