@@ -707,5 +707,73 @@ module.exports = {
         };
       },
     },
+
+    /* ── Buttons stay single-line ─────────────────────────────────────── */
+    'button-nowrap': {
+      meta: {
+        type: 'problem',
+        docs: {
+          description:
+            'Button labels must stay on one line (whiteSpace: nowrap). Do not wrap CTA text; shorten the label or widen the control instead.',
+        },
+        messages: {
+          wrapStyle:
+            'Button text must not wrap — set whiteSpace: "nowrap" (or remove a wrapping whiteSpace override).',
+          multiline:
+            'Button label contains a line break — keep button copy on a single line.',
+        },
+      },
+      create(ctx) {
+        const WRAP_VALUES = new Set(['normal', 'pre-wrap', 'pre-line', 'break', 'break-reverse']);
+
+        function isButtonLike(open) {
+          const name = jsxTagName(open);
+          return name === 'button' || name === 'Button';
+        }
+
+        function whiteSpaceValue(styleExpr) {
+          if (!styleExpr || styleExpr.type !== 'ObjectExpression') return undefined;
+          for (const prop of styleExpr.properties || []) {
+            if (prop.type !== 'Property' || prop.computed) continue;
+            const k = prop.key.name || prop.key.value;
+            if (k !== 'whiteSpace') continue;
+            if (prop.value.type === 'Literal') return prop.value.value;
+          }
+          return undefined;
+        }
+
+        return {
+          JSXElement(node) {
+            const open = node.openingElement;
+            if (!isButtonLike(open)) return;
+
+            // 실제 라벨이 두 줄 이상이면 금지 (포맷용 줄바꿈은 무시).
+            for (const child of node.children || []) {
+              if (child.type !== 'JSXText') continue;
+              const nonEmptyLines = String(child.value || '')
+                .split('\n')
+                .map((line) => line.trim())
+                .filter(Boolean);
+              if (nonEmptyLines.length > 1) {
+                ctx.report({ node: child, messageId: 'multiline' });
+              }
+            }
+
+            // whiteSpace를 wrapping 값으로 오버라이드하는 경우만 금지.
+            // DS <Button> 기본값·링크형 text button·style={helper()} 는 허용.
+            const styleAttr = getAttr(open, 'style');
+            if (styleAttr && styleAttr.value && styleAttr.value.type === 'JSXExpressionContainer') {
+              const expr = styleAttr.value.expression;
+              if (expr.type === 'ObjectExpression') {
+                const ws = whiteSpaceValue(expr);
+                if (typeof ws === 'string' && WRAP_VALUES.has(ws)) {
+                  ctx.report({ node: styleAttr, messageId: 'wrapStyle' });
+                }
+              }
+            }
+          },
+        };
+      },
+    },
   },
 };
