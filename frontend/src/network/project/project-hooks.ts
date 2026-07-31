@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../core/queryKeys';
 import {
     createProject,
@@ -22,15 +23,21 @@ export const useCreateProject = () => {
     });
 };
 
+const invalidateAfterProjectImport = (
+    queryClient: QueryClient,
+    data: { projectId: number; sessionId: number },
+) => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(data.projectId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.projects.files(data.projectId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(data.sessionId) });
+};
+
 export const useImportProjectLocal = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: (body: ProjectImportLocalRequest) => importProjectLocal(body),
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(data.projectId) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(data.sessionId) });
-        },
+        onSuccess: (data) => invalidateAfterProjectImport(queryClient, data),
     });
 };
 
@@ -39,10 +46,7 @@ export const useImportProjectGit = () => {
 
     return useMutation({
         mutationFn: (body: ProjectImportGitRequest) => importProjectGit(body),
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(data.projectId) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(data.sessionId) });
-        },
+        onSuccess: (data) => invalidateAfterProjectImport(queryClient, data),
     });
 };
 

@@ -95,6 +95,7 @@ export {
   useGetSessions,
   useGetSession,
   useGetSessionParticipants,
+  useGetSessionChatHistory,
   useGetSessionMessages,
   useUpdateSession,
   useDeleteSession,
@@ -175,10 +176,12 @@ export { useGetAnalyticsOverview } from '../network/analytics';
 export type { AnalyticsOverviewResponse } from '../network/analytics';
 export {
   useCreateProject,
-  useGetProjectFileContent,
-  useGetProjectFiles,
-  useImportProjectGit,
   useImportProjectLocal,
+  useImportProjectGit,
+  useGetProjectFiles,
+  useGetProjectFileContent,
+  getProjectFiles,
+  getProjectFileContent,
 } from '../network/project';
 export type {
   ProjectCreateRequest,
@@ -186,11 +189,11 @@ export type {
   ProjectImportLocalRequest,
   ProjectImportGitRequest,
   ProjectImportResponse,
+  ProjectSkippedFileResponse,
   ProjectFileSummaryResponse,
   ProjectFileContentResponse,
-  ProjectSkippedFileResponse,
 } from '../network/project';
-export { useGenerateQuiz, useGetQuizSet } from '../network/quiz';
+export { useGenerateQuiz, useGetQuizSet, usePollQuizSet } from '../network/quiz';
 export type {
   QuizGenerateRequest,
   QuizGenerateResponse,
@@ -203,6 +206,14 @@ export type {
   QuizDifficulty,
   QuizSetStatus,
 } from '../network/quiz';
+/** 세션 실시간(STOMP) — 채팅 · 참여자 명단 · 퀴즈 생성 알림을 한 연결에서 받는다. */
+export { useSessionSocket } from '../realtime/useSessionSocket';
+export type {
+  QuizGenerationNotification,
+  SessionParticipantEvent,
+  SessionSocketStatus,
+} from '../realtime/useSessionSocket';
+
 export { useCreateUserReport } from '../network/report';
 export type { UserReportCreateRequest, UserReportCreateResponse } from '../network/report';
 
