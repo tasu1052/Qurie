@@ -144,11 +144,9 @@ export function SessionChatPanel({ chat, hasSessionId }: SessionChatPanelProps) 
             onAction={chat.dismissError}
           />
         ) : null}
-        {chat.isHistoryLoading && chat.messages.length === 0 ? (
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', alignSelf: 'center' }}>메시지를 불러오는 중…</span>
-        ) : chat.messages.length === 0 ? (
+        {chat.messages.length === 0 ? (
           <span style={{ fontSize: 12, color: 'var(--text-muted)', alignSelf: 'center', lineHeight: 1.6 }}>
-            아직 메시지가 없습니다.
+            입장한 뒤 주고받은 메시지만 표시됩니다.
           </span>
         ) : (
           chat.messages.map((message) => {

@@ -14,4 +14,6 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
 			Long sessionId,
 			Long id,
 			Pageable pageable);
+
+	long deleteBySessionId(Long sessionId);
 }

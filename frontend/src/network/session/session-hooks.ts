@@ -59,23 +59,6 @@ export const useGetSessionMessages = (
 };
 
 /**
- * 채팅 이력 로더(non-suspense). 실시간 채팅 패널은 세션 화면 일부일 뿐이라
- * 이력 조회가 실패하거나 늦어도 화면 전체가 suspend/에러로 넘어가지 않아야 한다.
- * 응답은 최신순(DESC)이며, 실시간 수신분과의 정렬·병합은 소켓 훅이 담당한다.
- */
-export const useGetSessionChatHistory = (
-    sessionId: number | null,
-    params: ChatMessageListParams = {},
-) => {
-    return useQuery({
-        queryKey: queryKeys.sessions.messages(sessionId ?? -1, params),
-        queryFn: () => getSessionMessages(sessionId as number, params),
-        enabled: sessionId != null,
-        staleTime: 30_000,
-    });
-};
-
-/**
  * 접속자 명단 로더(non-suspense). 소켓의 첫 participants 이벤트가 오기 전 화면을 채우는 용도다 —
  * 같은 사용자의 두 번째 연결은 ENTER 이벤트가 방송되지 않으므로(firstConnection=false)
  * 이 초기 조회가 없으면 탭을 두 개 열었을 때 명단이 비어 보인다.
