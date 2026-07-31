@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Settings } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import {
+  AlertBanner,
   Badge,
   Button,
   EmptyState,
@@ -53,9 +54,32 @@ function ManagerDashBody({ classId }: { classId: number }) {
   const { data: groups } = useGetGroups(classId);
   const active = sessions.filter((s) => s.active);
   const live = active[0];
+  const [popupBlockedSessionId, setPopupBlockedSessionId] = useState<number | null>(null);
+
+  const openSessionInNewTab = (sessionId: number, title?: string) => {
+    if (title) saveSessionTitle(sessionId, title);
+    const qs = title ? `?title=${encodeURIComponent(title)}` : '';
+    const url = `/session/${sessionId}${qs}`;
+    const win = window.open(url, '_blank');
+    if (!win) {
+      setPopupBlockedSessionId(sessionId);
+      return;
+    }
+    win.opener = null;
+    setPopupBlockedSessionId(null);
+  };
 
   return (
     <>
+      {popupBlockedSessionId != null ? (
+        <AlertBanner
+          tone="warning"
+          title="브라우저가 새 창 열기를 차단했습니다."
+          description="브라우저의 팝업 차단을 해제한 뒤 다시 시도해 주세요."
+          actionLabel="확인"
+          onAction={() => setPopupBlockedSessionId(null)}
+        />
+      ) : null}
       <div
         style={{
           background: 'var(--surface-card)',
@@ -127,10 +151,7 @@ function ManagerDashBody({ classId }: { classId: number }) {
               <button
                 key={s.id}
                 type="button"
-                onClick={() => {
-                  saveSessionTitle(s.id, s.title);
-                  navigate(`/session/${s.id}?title=${encodeURIComponent(s.title)}`);
-                }}
+                onClick={() => openSessionInNewTab(s.id, s.title)}
                 style={{
                   textAlign: 'left',
                   border: '1px solid var(--border)',

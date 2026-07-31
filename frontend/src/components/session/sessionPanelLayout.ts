@@ -82,7 +82,7 @@ export function useSessionPanelSizes() {
 type DragAxis = 'x' | 'y';
 
 /** Pointer-drag helper for panel edges. `sign` flips direction (e.g. right panel grows leftward). */
-export function usePanelDrag(
+export function usePointerDrag(
   axis: DragAxis,
   value: number,
   setValue: (n: number) => void,

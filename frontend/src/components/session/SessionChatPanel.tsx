@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Code, Paperclip, Send, Smile } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { AlertBanner } from '../../ds';
 import { useMeOptional, useSessionSocket, type SessionParticipantResponse } from '../../data';
 
@@ -222,11 +222,6 @@ export function SessionChatPanel({ chat, hasSessionId }: SessionChatPanelProps) 
           >
             <Send size={13} />
           </button>
-        </div>
-        <div style={{ display: 'flex', gap: 14, color: 'var(--text-muted)', opacity: 0.55 }}>
-          <Paperclip size={14} />
-          <Code size={14} />
-          <Smile size={14} />
         </div>
       </div>
     </>
