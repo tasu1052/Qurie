@@ -97,9 +97,9 @@ class ProjectServiceTest {
 	}
 
 	@Test
-	void importLocalIsAllowedOnlyForSessionCreator() {
-		given(participantService.verifySessionCreator(eq(SESSION_ID), any(AuthUser.class)))
-				.willThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "세션 생성자만 할 수 있는 작업입니다."));
+	void importLocalRequiresGroupLeader() {
+		given(participantService.verifyCanImportProject(eq(SESSION_ID), any(AuthUser.class)))
+				.willThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "프로젝트 임포트는 그룹 리더만 할 수 있습니다."));
 
 		assertThatThrownBy(() -> projectService.importLocal(student(),
 				new ProjectImportLocalRequest(SESSION_ID, Map.of("a.txt", "x"))))

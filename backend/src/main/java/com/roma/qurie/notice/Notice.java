@@ -96,6 +96,18 @@ public class Notice extends BaseTimeEntity {
         this.createdByType = createdByType;
     }
 
+    public void changeTitle(String title) {
+        this.title = title;
+    }
+
+    public void changeBody(String body) {
+        this.body = body;
+    }
+
+    public void changePinned(boolean pinned) {
+        this.pinned = pinned;
+    }
+
     /* scope 와 대상 id 가 어긋난 공지는 어느 화면에도 노출되지 않으므로 생성 시점에 막는다. */
     private void verifyTarget(NoticeScope scope, Long trackId, Long classId) {
         boolean valid = switch (scope) {
