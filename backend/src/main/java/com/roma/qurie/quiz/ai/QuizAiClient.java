@@ -30,8 +30,16 @@ public class QuizAiClient {
 
 	public QuizAiClient(@Value("${app.ai.base-url:http://localhost:8000}") String baseUrl) {
 		// 타임아웃 없는 기본 팩토리를 쓰면 AI 서버가 멈췄을 때 요청 스레드가 같이 묶인다.
+		//
+		// HTTP/1.1 고정이 필수다. JDK HttpClient 는 기본값이 HTTP/2 라서 평문(http://) 연결에
+		// h2c 업그레이드 헤더(Connection: Upgrade, Upgrade: h2c)를 실어 보내는데, uvicorn 이 쓰는 h11 은
+		// Upgrade 요청을 받으면 프로토콜 전환 여부가 결정되기 전까지 본문 이벤트를 앱에 넘기지 않는다.
+		// 그 결과 FastAPI 가 빈 본문을 보고 422 (loc: ["body"], "Field required") 로 거절한다.
 		JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(
-				HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build());
+				HttpClient.newBuilder()
+						.version(HttpClient.Version.HTTP_1_1)
+						.connectTimeout(CONNECT_TIMEOUT)
+						.build());
 		requestFactory.setReadTimeout(READ_TIMEOUT);
 		this.restClient = RestClient.builder()
 				.baseUrl(baseUrl)
