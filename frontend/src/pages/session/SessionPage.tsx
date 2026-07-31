@@ -232,11 +232,7 @@ export default function SessionPage() {
 
   const onImported = (result: ProjectImportResponse) => {
     setPendingImport(result);
-    setImportNotice(
-      result.skippedFiles.length > 0
-        ? `${result.fileCount}개 파일 미리보기 · 스킵 ${result.skippedFiles.length}개`
-        : `${result.fileCount}개 파일 미리보기 — 적용할지 선택하세요.`,
-    );
+    setImportNotice(null);
   };
 
   const confirmPendingImport = async () => {
@@ -601,16 +597,8 @@ export default function SessionPage() {
                     ) : pendingImport != null ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0 }}>
                         <p style={{ margin: '0 6px', fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                          이 프로젝트를 세션에 적용할까요?
+                          미리보기 — 적용 여부는 확인 창에서 선택하세요.
                         </p>
-                        <div style={{ display: 'flex', gap: 8, padding: '0 6px', flexWrap: 'wrap' }}>
-                          <Button variant="accent" size="sm" onClick={() => void confirmPendingImport()}>
-                            예
-                          </Button>
-                          <Button variant="secondary" size="sm" onClick={rejectPendingImport}>
-                            아니오
-                          </Button>
-                        </div>
                         <SessionFileExplorer
                           projectId={pendingImport.projectId}
                           activePath={null}
@@ -1053,6 +1041,43 @@ export default function SessionPage() {
         onClose={() => setEndConfirmOpen(false)}
         width={420}
       />
+
+      <Modal
+        open={pendingImport != null}
+        title="프로젝트 적용"
+        description={
+          pendingImport
+            ? pendingImport.skippedFiles.length > 0
+              ? `${pendingImport.fileCount}개 파일을 이 세션에 적용할까요? (스킵 ${pendingImport.skippedFiles.length}개)`
+              : `${pendingImport.fileCount}개 파일을 이 세션에 적용할까요?`
+            : undefined
+        }
+        primaryLabel="적용"
+        secondaryLabel="취소"
+        onPrimary={() => void confirmPendingImport()}
+        onSecondary={rejectPendingImport}
+        onClose={rejectPendingImport}
+        width={520}
+      >
+        {pendingImport ? (
+          <div
+            style={{
+              maxHeight: 280,
+              overflow: 'auto',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--surface-sunken)',
+              minHeight: 120,
+            }}
+          >
+            <SessionFileExplorer
+              projectId={pendingImport.projectId}
+              activePath={null}
+              onSelect={() => undefined}
+            />
+          </div>
+        ) : null}
+      </Modal>
 
       {hasSessionId ? (
         <SessionDeleteGate
