@@ -18,13 +18,10 @@ function apiErrorMessage(error: unknown, fallback: string): string {
     const status = error.response?.status;
     const message = error.response?.data?.message;
     if (typeof message === 'string' && message.trim()) {
-      if (status === 403) {
-        return `${message} (반 명단에 없는 계정으로는 프로젝트 임포트가 거부됩니다.)`;
-      }
       return message;
     }
     if (status === 403) {
-      return '이 반에 소속된 사용자만 입장할 수 있습니다. (403)';
+      return '프로젝트 임포트는 그룹 리더만 할 수 있습니다.';
     }
     if (status === 401) {
       return '로그인이 필요합니다. 다시 로그인해 주세요.';

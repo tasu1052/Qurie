@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Plus, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
@@ -24,6 +25,8 @@ import {
   useMe,
   type SessionResponse,
 } from '../../data';
+import { queryKeys } from '../../network/core/queryKeys';
+import { getGroups } from '../../network/group/group-apis';
 import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
 
 function TableSkeleton() {
@@ -135,9 +138,12 @@ function SessionTable({
                 alignItems: 'center',
               }}
             >
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)', display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {s.title}
                 {s.classPublic ? <Badge status="accent">수업</Badge> : null}
+                {!s.classPublic && s.groupId != null ? (
+                  <Badge status="neutral">그룹 #{s.groupId}</Badge>
+                ) : null}
               </span>
               <span style={{ color: 'var(--text-secondary)' }}>#{s.createdBy}</span>
               <span style={{ color: 'var(--text-secondary)' }}>
@@ -196,9 +202,17 @@ export default function SessionListPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [classPublic, setClassPublic] = useState(false);
+  const [groupId, setGroupId] = useState<number | ''>('');
+  const [createError, setCreateError] = useState<string | null>(null);
   const [rowKey, setRowKey] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState<SessionResponse | null>(null);
   const [popupBlockedSessionId, setPopupBlockedSessionId] = useState<number | null>(null);
+
+  const groupsQuery = useQuery({
+    queryKey: hasValidClassId ? queryKeys.groups.list(classId) : ['groups', 'idle'],
+    queryFn: () => getGroups(classId as number),
+    enabled: createOpen && hasValidClassId,
+  });
 
   const chips = ['전체', '진행', '예정', '종료'];
 
@@ -215,18 +229,36 @@ export default function SessionListPage() {
     setPopupBlockedSessionId(null);
   };
 
+  const resetCreateForm = () => {
+    setTitle('');
+    setClassPublic(false);
+    setGroupId('');
+    setCreateError(null);
+  };
+
   const onCreate = () => {
     if (!hasValidClassId) return;
     if (!title.trim()) return;
+    if (!classPublic && (groupId === '' || !Number.isFinite(groupId))) {
+      setCreateError('일반 세션은 그룹을 지정해야 만들 수 있습니다.');
+      return;
+    }
+    setCreateError(null);
     createSession.mutate(
-      { classId, title: title.trim(), classPublic: classPublic || undefined },
+      {
+        classId,
+        title: title.trim(),
+        ...(classPublic ? { classPublic: true } : { groupId: groupId as number }),
+      },
       {
         onSuccess: (created) => {
           setCreateOpen(false);
-          setTitle('');
-          setClassPublic(false);
+          resetCreateForm();
           setRowKey((k) => k + 1);
           openSessionInNewTab(created.id, created.title);
+        },
+        onError: (err) => {
+          setCreateError(err instanceof Error ? err.message : '세션 생성에 실패했습니다.');
         },
       },
     );
@@ -335,15 +367,21 @@ export default function SessionListPage() {
           primaryLabel={createSession.isPending ? '생성 중…' : '생성하기'}
           secondaryLabel="취소"
           onPrimary={onCreate}
-          onSecondary={() => setCreateOpen(false)}
-          onClose={() => setCreateOpen(false)}
+          onSecondary={() => {
+            setCreateOpen(false);
+            resetCreateForm();
+          }}
+          onClose={() => {
+            setCreateOpen(false);
+            resetCreateForm();
+          }}
           width={480}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>세션 제목</span>
               <Input
-                placeholder="react-hooks-deep-dive"
+                placeholder="예: React Hooks 심화"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 width="100%"
@@ -362,16 +400,66 @@ export default function SessionListPage() {
               <input
                 type="checkbox"
                 checked={classPublic}
-                onChange={(e) => setClassPublic(e.target.checked)}
+                onChange={(e) => {
+                  setClassPublic(e.target.checked);
+                  setCreateError(null);
+                }}
                 style={{ marginTop: 2 }}
               />
               <span>
-                <span style={{ fontWeight: 600 }}>수업 공개 세션 (classPublic)</span>
+                <span style={{ fontWeight: 600 }}>수업 공개 세션</span>
                 <span style={{ display: 'block', marginTop: 4, fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                  강사만 생성 가능. 학생 대시보드 LIVE에 표시됩니다.
+                  강사만 생성할 수 있어요. 학생 대시보드 LIVE에 표시돼요.
                 </span>
               </span>
             </label>
+            {!classPublic ? (
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>그룹</span>
+                <select
+                  value={groupId === '' ? '' : String(groupId)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setGroupId(v === '' ? '' : Number(v));
+                    setCreateError(null);
+                  }}
+                  style={{
+                    width: '100%',
+                    height: 40,
+                    borderRadius: 10,
+                    border: '1px solid var(--border-strong)',
+                    background: 'var(--surface-card)',
+                    color: 'var(--ink)',
+                    padding: '0 12px',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 13,
+                  }}
+                >
+                  <option value="">그룹을 선택하세요</option>
+                  {(groupsQuery.data ?? []).map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+                <span style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  일반 세션은 그룹을 지정해야 만들 수 있어요. 해당 그룹 구성원만 입장할 수 있어요.
+                </span>
+              </label>
+            ) : null}
+            {createError ? (
+              <div
+                style={{
+                  fontSize: 13,
+                  color: 'var(--status-error)',
+                  background: 'var(--status-error-bg)',
+                  borderRadius: 10,
+                  padding: '10px 12px',
+                }}
+              >
+                {createError}
+              </div>
+            ) : null}
           </div>
         </Modal>
 

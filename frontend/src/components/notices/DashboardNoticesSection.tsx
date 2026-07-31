@@ -10,6 +10,7 @@ function scopeLabel(scope: NoticeResponse['scope']): string {
 
 function morePath(role: UserRole): string | null {
   if (role === 'MASTER') return '/master/announcements';
+  if (role === 'MANAGER') return '/manager/announcements';
   return null;
 }
 
@@ -71,7 +72,7 @@ function NoticesBody({
               padding: 0,
             }}
           >
-            전체 보기
+            더보기
           </button>
         ) : null}
       </div>

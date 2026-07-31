@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Settings } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import {
   AlertBanner,
@@ -103,9 +103,6 @@ function ManagerDashBody({ classId }: { classId: number }) {
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button variant="secondary" icon={<Settings size={14} />} onClick={() => navigate('/manager/settings')}>
-            설정
-          </Button>
           <Button variant="primary" icon={<Plus size={14} />} onClick={() => navigate('/manager/sessions')}>
             세션
           </Button>
@@ -133,17 +130,35 @@ function ManagerDashBody({ classId }: { classId: number }) {
             minWidth: 0,
           }}
         >
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            최근 세션
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              최근 세션
+            </span>
+            <button
+              type="button"
+              onClick={() => navigate('/manager/sessions')}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                color: 'var(--accent)',
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                padding: 0,
+              }}
+            >
+              더보기
+            </button>
+          </div>
           {sessions.length === 0 ? (
             <EmptyState message="세션이 없습니다" actionLabel="세션으로" onAction={() => navigate('/manager/sessions')} />
           ) : (
@@ -184,17 +199,35 @@ function ManagerDashBody({ classId }: { classId: number }) {
             minWidth: 0,
           }}
         >
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            그룹 미리보기
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              그룹 미리보기
+            </span>
+            <button
+              type="button"
+              onClick={() => navigate('/manager/groups')}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                color: 'var(--accent)',
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                padding: 0,
+              }}
+            >
+              더보기
+            </button>
+          </div>
           {groups.length === 0 ? (
             <EmptyState message="그룹이 없습니다" actionLabel="그룹으로" onAction={() => navigate('/manager/groups')} />
           ) : (

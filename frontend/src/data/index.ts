@@ -178,6 +178,7 @@ export {
   useCreateProject,
   useImportProjectLocal,
   useImportProjectGit,
+  useGetSessionProject,
   useGetProjectFiles,
   useGetProjectFileContent,
   getProjectFiles,

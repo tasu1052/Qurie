@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -30,6 +30,7 @@ import {
   QueryAsyncBoundary,
   useDeleteSession,
   useGetSession,
+  useGetSessionProject,
   useMeOptional,
   useSessionSocket,
   useUpdateSession,
@@ -45,8 +46,10 @@ import { SessionQuizPanel } from '../../components/session/SessionQuizPanel';
 import { languageFromPath } from '../../components/session/readLocalProjectFiles';
 import {
   clearSessionProject,
+  loadSessionActiveFile,
   loadSessionProject,
   loadSessionTitle,
+  saveSessionActiveFile,
   saveSessionProject,
   saveSessionTitle,
   type SessionProjectRef,
@@ -148,16 +151,20 @@ export default function SessionPage() {
   const sessionId = Number(id);
   const hasSessionId = Number.isFinite(sessionId) && sessionId > 0;
 
+  const initialActiveFile = hasSessionId ? loadSessionActiveFile(sessionId) : null;
   const [leftTab, setLeftTab] = useState<LeftTab>('explorer');
   const [rightTab, setRightTab] = useState<RightTab>(initialRight);
   const [bottomTab, setBottomTab] = useState<BottomTab>('terminal');
-  const [editorLanguage, setEditorLanguage] = useState<string>('typescript');
+  const [editorLanguage, setEditorLanguage] = useState<string>(() =>
+    initialActiveFile ? languageFromPath(initialActiveFile) : 'typescript',
+  );
   const [gitOpen, setGitOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [activeFile, setActiveFile] = useState<string | null>(null);
+  const [activeFile, setActiveFile] = useState<string | null>(initialActiveFile);
   const [projectRef, setProjectRef] = useState<SessionProjectRef | null>(() =>
     hasSessionId ? loadSessionProject(sessionId) : null,
   );
+  const hydratedActiveFileRef = useRef(false);
   const [pendingImport, setPendingImport] = useState<ProjectImportResponse | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [endConfirmOpen, setEndConfirmOpen] = useState(false);
@@ -186,11 +193,28 @@ export default function SessionPage() {
   );
   const updateSession = useUpdateSession();
   const deleteSession = useDeleteSession();
+  const sessionProjectQuery = useGetSessionProject(hasSessionId ? sessionId : null);
 
   const { ytext, provider, status: collabStatus } = useCollabSession(
     hasSessionId ? String(sessionId) : 'demo',
     collabUser,
   );
+
+  /** 서버에 묶인 세션 프로젝트를 폴링해 다른 참가자 임포트도 좌측 트리에 반영한다. */
+  useEffect(() => {
+    if (!hasSessionId) return;
+    const remote = sessionProjectQuery.data;
+    if (remote == null) return;
+    const next: SessionProjectRef = {
+      projectId: remote.id,
+      versionHash: remote.versionHash ?? '',
+    };
+    setProjectRef((prev) => {
+      if (prev?.projectId === next.projectId && prev.versionHash === next.versionHash) return prev;
+      return next;
+    });
+    saveSessionProject(sessionId, next);
+  }, [hasSessionId, sessionId, sessionProjectQuery.data]);
 
   /** 채팅 · 참여자 · 퀴즈 알림 STOMP. 세션 id 없으면 연결하지 않는다. */
   const chat = useSessionSocket(hasSessionId ? sessionId : null);
@@ -234,6 +258,7 @@ export default function SessionPage() {
   const openFile = async (projectId: number, path: string) => {
     setActiveFile(path);
     applyLanguageFromPath(path);
+    if (hasSessionId) saveSessionActiveFile(sessionId, path);
     try {
       const file = await getProjectFileContent(projectId, path);
       applyContentToYText(ytext, file.content);
@@ -241,6 +266,17 @@ export default function SessionPage() {
       setImportNotice(`파일을 열지 못했습니다: ${path}`);
     }
   };
+
+  /** 새로고침 후 활성 파일·확장자 언어를 복구하고, CRDT에 남은 문서는 경로 기준으로 언어를 맞춘다. */
+  useEffect(() => {
+    if (!hasSessionId || !projectRef || hydratedActiveFileRef.current) return;
+    hydratedActiveFileRef.current = true;
+    const path = activeFile ?? loadSessionActiveFile(sessionId);
+    if (!path) return;
+    applyLanguageFromPath(path);
+    void openFile(projectRef.projectId, path);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 최초 프로젝트 바인딩 시에만 복구
+  }, [hasSessionId, sessionId, projectRef?.projectId]);
 
   const onImported = (result: ProjectImportResponse) => {
     setPendingImport(result);
@@ -272,6 +308,7 @@ export default function SessionPage() {
     setPendingImport(null);
     setProjectRef(null);
     setActiveFile(null);
+    hydratedActiveFileRef.current = false;
     if (hasSessionId) clearSessionProject(sessionId);
     setImportNotice(null);
     setLeftTab('explorer');

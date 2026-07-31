@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BarChart3, Brain, Check, Users } from 'lucide-react';
 import { Button, DonutChart } from '../../ds';
@@ -5,6 +6,7 @@ import logoSrc from '../../ds/assets/logo.png';
 import { QurieHeroAnimation } from './hero/HeroAnimation';
 import { useMeOptional } from '../../data';
 import { homePathForRole } from '../../components/auth/roleRoutes';
+import { applyTheme, resolveInitialTheme } from '../../theme/theme';
 
 const mailDemo = 'mailto:contact@qurie.app?subject=Qurie%20데모%20요청';
 const mailConsult = 'mailto:contact@qurie.app?subject=Qurie%20도입%20문의';
@@ -20,6 +22,19 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const meQuery = useMeOptional();
   const user = meQuery.isSuccess ? meQuery.data : null;
+
+  /** 엔터프라이즈 랜딩은 항상 라이트 모드로 보여 줘요. */
+  useEffect(() => {
+    const previous = document.documentElement.getAttribute('data-theme');
+    applyTheme('light');
+    return () => {
+      if (previous === 'light' || previous === 'dark') {
+        applyTheme(previous);
+      } else {
+        applyTheme(resolveInitialTheme());
+      }
+    };
+  }, []);
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--surface-card)', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
@@ -105,8 +120,8 @@ export default function LandingPage() {
             color: 'var(--text-secondary)',
           }}
         >
-          Qurie는 기업·기관을 위한 실시간 협업 코드 학습 플랫폼입니다. 클래스와 세션 단위로 학습을 운영하고,
-          AI가 생성한 퀴즈와 세션 리포트로 구성원의 성장을 정량적으로 관리하세요.
+          Qurie는 기업·기관을 위한 실시간 협업 코드 학습 플랫폼이에요. 클래스와 세션 단위로 학습을 운영하고,
+          AI가 만든 퀴즈와 세션 리포트로 구성원의 성장을 숫자로 살펴볼 수 있어요.
         </p>
         <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
           <a href={mailDemo} style={{ textDecoration: 'none' }}>
@@ -206,13 +221,13 @@ export default function LandingPage() {
             </span>
             <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>실시간 협업 세션</h3>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-              클래스 안에서 slug로 식별되는 세션을 열고, 프로젝트 코드를 불러와 여러 명이 동시에 편집합니다.
-              CRDT 기반 동기화로 충돌 없이 협업하세요.
+              클래스 안에서 세션을 열고, 프로젝트 코드를 불러와 여러 명이 동시에 편집해요.
+              변경 내용이 바로바로 맞춰져서 충돌 없이 함께 작업할 수 있어요.
             </p>
             {[
               '동시 편집 · 원격 커서 · 접속자 표시',
-              '세션 내 실시간 채팅과 터미널 공유',
-              '그룹(LEADER / PARTICIPANT) 단위 학습 운영',
+              '세션 안 실시간 채팅과 터미널 공유',
+              '그룹 리더와 참가자 단위로 학습을 운영',
             ].map((item) => (
               <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-body)' }}>
                 <Check size={14} style={{ color: 'var(--status-success)' }} />
@@ -429,13 +444,13 @@ export default function LandingPage() {
             </span>
             <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>AI 퀴즈 자동 생성</h3>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-              세션에 연결된 프로젝트 코드를 기반으로 AI가 퀴즈를 생성합니다. 난이도를 먼저 산정하고, 생성된 문제를
-              재검증해 EASY / NORMAL / HARD로 최종 조정하는 2단계 프로세스를 따릅니다.
+              세션에 연결된 프로젝트 코드를 바탕으로 AI가 퀴즈를 만들어요. 난이도를 먼저 살펴보고, 만든 문제를
+              다시 점검해 쉬움 · 보통 · 어려움으로 맞춰 줘요.
             </p>
             {[
-              '개념형(CONCEPTUAL) · 코드형(MICRO) 목적 지정',
-              '문제별 제한 시간으로 부정행위 방지',
-              '정답 해설(explanation)까지 AI가 함께 생성',
+              '개념형 · 코드형 목적에 맞춰 문제 구성',
+              '문제별 제한 시간으로 부정행위를 줄여 줘요',
+              '정답 해설까지 AI가 함께 작성해 줘요',
             ].map((item) => (
               <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-body)' }}>
                 <Check size={14} style={{ color: 'var(--status-success)' }} />
@@ -464,8 +479,8 @@ export default function LandingPage() {
             </span>
             <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>세션 리포트 & 인사 데이터 연계</h3>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-              세션이 끝나면 구성원별 퀴즈 완료율·정답률·난이도 비율·평점이 리포트로 발급됩니다. Master는 이 데이터를
-              근거로 매니저 평가와 인사 관리를 수행합니다.
+              세션이 끝나면 구성원별 퀴즈 완료율·정답률·난이도 비율·평점이 리포트로 나와요. Master는 이 데이터를
+              바탕으로 매니저 평가와 인사 관리에 활용할 수 있어요.
             </p>
             {[
               '세션 단위 자동 집계 · 발급 이력 관리',
@@ -538,10 +553,10 @@ export default function LandingPage() {
           gap: 18,
         }}
       >
-        <h2 style={{ fontSize: 32, fontWeight: 700, color: '#fff', margin: 0 }}>지금 Qurie로 팀의 학습을 시작하세요</h2>
+        <h2 style={{ fontSize: 32, fontWeight: 700, color: '#fff', margin: 0 }}>지금 Qurie로 팀의 학습을 시작해 보세요</h2>
         <p style={{ margin: 0, fontSize: 14, color: 'var(--grey-300)', maxWidth: 480 }}>
-          기업 등록부터 매니저 초대, 첫 세션 개설까지 하루면 충분합니다. 도입 상담을 통해 조직에 맞는 운영 방식을
-          제안해 드립니다.
+          기업 등록부터 매니저 초대, 첫 세션 개설까지 하루면 충분해요. 도입 상담을 통해 조직에 맞는 운영 방식을
+          함께 찾아 드려요.
         </p>
         <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
           <a href={mailDemo} style={{ textDecoration: 'none' }}>

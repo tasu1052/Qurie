@@ -45,13 +45,25 @@ public class ProjectController {
         return ResponseEntity.created(URI.create("/api/projects/" + response.projectId())).body(response);
     }
 
-    /** Git 저장소 임포트. 공개 https 저장소만 지원한다 (세션 구성원) */
+    /** Git 저장소 임포트. 공개 https 저장소만 지원한다 (그룹 리더 / 반 공개는 강사) */
     @PostMapping("/import/git")
     public ResponseEntity<ProjectImportResponse> importGit(
             @AuthenticationPrincipal AuthUser requester,
             @Valid @RequestBody ProjectImportGitRequest request) {
         ProjectImportResponse response = projectService.importGit(requester, request);
         return ResponseEntity.created(URI.create("/api/projects/" + response.projectId())).body(response);
+    }
+
+    /** 세션에 연결된 최신 프로젝트. 없으면 204 */
+    @GetMapping
+    public ResponseEntity<ProjectResponse> latestBySession(
+            @AuthenticationPrincipal AuthUser requester,
+            @RequestParam("sessionId") Long sessionId) {
+        ProjectResponse response = projectService.getLatestBySession(requester, sessionId);
+        if (response == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(response);
     }
 
     /** 파일 목록(경로·크기). 세션 편집기의 파일 트리가 이 경로 문자열로 트리를 구성한다 */
