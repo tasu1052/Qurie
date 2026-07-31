@@ -46,6 +46,28 @@ class AiQuizJsonMappingTest {
 		assertThat(json.get("callback_url").asText()).isEqualTo("http://backend.internal/api/quiz/10/callback");
 	}
 
+	/**
+	 * 프론트가 targetFiles 를 보내지 않으면 이 필드가 null 로 들어온다.
+	 * AI 쪽 target_files 는 기본값 있는 list 라 null 을 받으면 접수에서 422 로 떨어지므로 빈 배열로 나가야 한다.
+	 */
+	@Test
+	void createRequestSendsEmptyArrayWhenTargetFilesMissing() {
+		QuizGenerateRequest request = new QuizGenerateRequest(
+				QuizGenerationMode.PRACTICE,
+				5,
+				1, 1, 1,
+				null,
+				"hash-2",
+				null,
+				Map.of("src/Main.java", "public class Main {}"));
+
+		AiQuizCreateRequest aiRequest = AiQuizCreateRequest.from(request, "http://backend:8080/api/quiz/1/callback");
+		JsonNode json = objectMapper.readTree(objectMapper.writeValueAsString(aiRequest));
+
+		assertThat(json.get("target_files").isArray()).isTrue();
+		assertThat(json.get("target_files")).isEmpty();
+	}
+
 	@Test
 	void statusResponseDeserializesFromAiPayload() {
 		String payload = """

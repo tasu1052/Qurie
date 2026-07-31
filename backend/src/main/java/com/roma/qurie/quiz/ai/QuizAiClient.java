@@ -23,6 +23,8 @@ public class QuizAiClient {
 	/** 생성 요청은 접수만 하고 돌아오지만, LLM 큐가 밀려 있으면 접수 자체가 느릴 수 있어 여유를 둔다. */
 	private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(3);
 	private static final Duration READ_TIMEOUT = Duration.ofSeconds(15);
+	/** 에러 메시지는 quiz_set.error_message 에 저장되고 화면에도 노출되므로 본문을 이 길이까지만 담는다. */
+	private static final int MAX_ERROR_BODY_LENGTH = 300;
 
 	private final RestClient restClient;
 
@@ -61,11 +63,24 @@ public class QuizAiClient {
 		}
 	}
 
-	/* 4xx/5xx 는 상태 코드가 원인 파악에 제일 중요하므로 메시지에 남긴다. */
+	/**
+	 * 4xx/5xx 는 상태 코드가 원인 파악에 제일 중요하므로 메시지에 남긴다.
+	 * 상태 코드만으로는 pydantic 422 에서 어느 필드가 어긋났는지 알 수 없어 응답 본문도 함께 남긴다 —
+	 * 본문에 요청 값이 그대로 담겨 오는 경우가 있어 길이를 제한한다.
+	 */
 	private String describe(RestClientException e) {
 		if (e instanceof RestClientResponseException response) {
-			return "HTTP " + response.getStatusCode().value();
+			String status = "HTTP " + response.getStatusCode().value();
+			String body = response.getResponseBodyAsString();
+			return body.isBlank() ? status : status + " " + truncate(body);
 		}
 		return e.getMessage();
+	}
+
+	private String truncate(String body) {
+		String flattened = body.replaceAll("\\s+", " ").trim();
+		return flattened.length() <= MAX_ERROR_BODY_LENGTH
+				? flattened
+				: flattened.substring(0, MAX_ERROR_BODY_LENGTH) + "…";
 	}
 }
