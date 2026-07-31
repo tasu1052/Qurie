@@ -1,14 +1,17 @@
 package com.roma.qurie.invitation;
 
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import java.time.format.DateTimeFormatter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.HtmlUtils;
 
 /**
  * 초대 메일 발송.
@@ -38,15 +41,16 @@ public class InvitationMailSender {
 			return;
 		}
 
-		SimpleMailMessage message = new SimpleMailMessage();
-		message.setFrom(from);
-		message.setTo(invitation.getEmail());
-		message.setSubject(subject(invitation));
-		message.setText(body(invitation, signUpUrl));
-
 		try {
-			mailSender.send(message);
-		} catch (MailException e) {
+			MimeMessage mimeMessage = mailSender.createMimeMessage();
+			// true: 본문을 plain text/HTML alternative 로 함께 담는다 — HTML 을 못 그리는 클라이언트의 대비책.
+			MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+			helper.setFrom(from);
+			helper.setTo(invitation.getEmail());
+			helper.setSubject(subject(invitation));
+			helper.setText(plainTextBody(invitation, signUpUrl), htmlBody(invitation, signUpUrl));
+			mailSender.send(mimeMessage);
+		} catch (MessagingException | MailException e) {
 			/*
 			 * 메일 실패로 초대까지 되돌리면 다시 발급하는 것 외에 방법이 없다.
 			 * 링크는 이미 응답에 담겨 나가므로 초대는 살려두고 실패만 남긴다.
@@ -59,7 +63,7 @@ public class InvitationMailSender {
 		return "[Qurie] " + invitation.getClassEntity().getName() + " 참여 초대";
 	}
 
-	private String body(Invitation invitation, String signUpUrl) {
+	private String plainTextBody(Invitation invitation, String signUpUrl) {
 		return """
 				%s 에 %s(으)로 초대되었습니다.
 
@@ -73,6 +77,74 @@ public class InvitationMailSender {
 				roleLabel(invitation),
 				signUpUrl,
 				invitation.getExpiresAt().format(EXPIRES_AT_FORMAT));
+	}
+
+	/** 클래스 이름은 매니저가 정하는 값이라 HTML 삽입 전에 이스케이프한다. */
+	private String htmlBody(Invitation invitation, String signUpUrl) {
+		String className = HtmlUtils.htmlEscape(invitation.getClassEntity().getName());
+		return """
+				<!doctype html>
+				<html>
+				<body style="margin:0;padding:0;background-color:#f4f5f7;
+						font-family:'Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;">
+					<table role="presentation" width="100%%" cellpadding="0" cellspacing="0"
+							style="background-color:#f4f5f7;padding:32px 0;">
+						<tr>
+							<td align="center">
+								<table role="presentation" width="480" cellpadding="0" cellspacing="0"
+										style="background-color:#ffffff;border-radius:12px;overflow:hidden;
+										box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+									<tr>
+										<td style="background-color:#4f46e5;padding:24px 32px;">
+											<span style="color:#ffffff;font-size:20px;font-weight:700;">Qurie</span>
+										</td>
+									</tr>
+									<tr>
+										<td style="padding:32px;">
+											<p style="margin:0 0 8px;color:#111827;font-size:16px;">
+												<strong>%s</strong>에 <strong>%s</strong>(으)로 초대되었습니다.
+											</p>
+											<p style="margin:0 0 24px;color:#6b7280;font-size:14px;line-height:1.6;">
+												아래 버튼을 눌러 회원가입을 완료해 주세요.
+											</p>
+											<table role="presentation" cellpadding="0" cellspacing="0">
+												<tr>
+													<td style="border-radius:8px;background-color:#4f46e5;">
+														<a href="%s" style="display:inline-block;padding:12px 24px;
+																color:#ffffff;font-size:14px;font-weight:600;
+																text-decoration:none;">
+															회원가입 완료하기
+														</a>
+													</td>
+												</tr>
+											</table>
+											<p style="margin:24px 0 0;color:#9ca3af;font-size:12px;line-height:1.6;">
+												이 링크는 %s 까지 유효합니다.<br>
+												버튼이 동작하지 않으면 다음 주소를 브라우저에 붙여넣으세요:<br>
+												<a href="%s" style="color:#4f46e5;word-break:break-all;">%s</a>
+											</p>
+										</td>
+									</tr>
+									<tr>
+										<td style="padding:16px 32px;background-color:#f9fafb;">
+											<p style="margin:0;color:#9ca3af;font-size:12px;">
+												본인이 요청한 초대가 아니라면 이 메일을 무시하세요.
+											</p>
+										</td>
+									</tr>
+								</table>
+							</td>
+						</tr>
+					</table>
+				</body>
+				</html>
+				""".formatted(
+				className,
+				roleLabel(invitation),
+				signUpUrl,
+				invitation.getExpiresAt().format(EXPIRES_AT_FORMAT),
+				signUpUrl,
+				signUpUrl);
 	}
 
 	private String roleLabel(Invitation invitation) {
