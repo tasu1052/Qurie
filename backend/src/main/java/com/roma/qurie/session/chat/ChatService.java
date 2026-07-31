@@ -33,6 +33,17 @@ public class ChatService {
 		return ChatMessageResponse.from(chatMessageRepository.save(message));
 	}
 
+	/**
+	 * 세션의 채팅을 모두 지운다. 채팅은 방과 함께 소멸하는 데이터라 방이 닫히거나 삭제될 때 남기지 않는다.
+	 * 방이 사라진 뒤에는 조회 경로 자체가 없어 남겨둘 이유가 없고, 고아 행으로만 쌓인다.
+	 *
+	 * @return 삭제한 메시지 수
+	 */
+	@Transactional
+	public long deleteBySession(Long sessionId) {
+		return chatMessageRepository.deleteBySessionId(sessionId);
+	}
+
 	@Transactional(readOnly = true)
 	public List<ChatMessageResponse> getMessages(
 			Long sessionId,

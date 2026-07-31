@@ -1,6 +1,7 @@
 package com.roma.qurie.session.core;
 
 import com.roma.qurie.security.AuthUser;
+import com.roma.qurie.session.chat.ChatService;
 import com.roma.qurie.session.core.dto.SessionCreateRequest;
 import com.roma.qurie.session.core.dto.SessionResponse;
 import com.roma.qurie.session.core.dto.SessionUpdateRequest;
@@ -18,6 +19,7 @@ public class SessionService {
     private static final String MANAGER_ROLE = "MANAGER";
 
     private final SessionRepository sessionRepository;
+    private final ChatService chatService;
 
     /*
      * 방을 생성하는 함수. 생성자는 요청 본문이 아니라 인증된 사용자로 고정한다.
@@ -90,6 +92,8 @@ public class SessionService {
         }
         if (Boolean.FALSE.equals(request.active())) {
             session.close();
+            // 방이 소멸하면 채팅도 함께 사라진다. 닫은 방은 다시 열 수 없으므로 복구 대상이 아니다.
+            chatService.deleteBySession(id);
         }
         return SessionResponse.from(session);
     }
@@ -99,6 +103,8 @@ public class SessionService {
         if (!sessionRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found: " + id);
         }
+        // session_chat_messages 는 sessions 를 FK 로 걸지 않아 세션만 지우면 고아 행으로 남는다.
+        chatService.deleteBySession(id);
         sessionRepository.deleteById(id);
     }
 

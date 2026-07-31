@@ -8,8 +8,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.roma.qurie.security.AuthUser;
+import com.roma.qurie.session.chat.ChatService;
 import com.roma.qurie.session.core.dto.SessionCreateRequest;
 import com.roma.qurie.session.core.dto.SessionResponse;
+import com.roma.qurie.session.core.dto.SessionUpdateRequest;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -28,6 +31,9 @@ class SessionServiceTest {
 
 	@Mock
 	private SessionRepository sessionRepository;
+
+	@Mock
+	private ChatService chatService;
 
 	@InjectMocks
 	private SessionService sessionService;
@@ -91,6 +97,49 @@ class SessionServiceTest {
 				.extracting(exception -> ((ResponseStatusException)exception).getStatusCode())
 				.isEqualTo(HttpStatus.CONFLICT);
 		verify(sessionRepository, never()).save(any(Session.class));
+	}
+
+	@Test
+	void closingSessionDeletesItsChatMessages() {
+		Session session = new Session(CLASS_ID, "1교시 방", CREATOR.id());
+		given(sessionRepository.findById(1L)).willReturn(Optional.of(session));
+
+		sessionService.update(1L, new SessionUpdateRequest(null, false));
+
+		assertThat(session.isActive()).isFalse();
+		verify(chatService).deleteBySession(1L);
+	}
+
+	@Test
+	void renamingSessionKeepsChatMessages() {
+		Session session = new Session(CLASS_ID, "1교시 방", CREATOR.id());
+		given(sessionRepository.findById(1L)).willReturn(Optional.of(session));
+
+		sessionService.update(1L, new SessionUpdateRequest("2교시 방", null));
+
+		assertThat(session.isActive()).isTrue();
+		verify(chatService, never()).deleteBySession(any());
+	}
+
+	@Test
+	void deletingSessionDeletesItsChatMessages() {
+		given(sessionRepository.existsById(1L)).willReturn(true);
+
+		sessionService.delete(1L);
+
+		verify(chatService).deleteBySession(1L);
+		verify(sessionRepository).deleteById(1L);
+	}
+
+	@Test
+	void deletingMissingSessionKeepsChatMessages() {
+		given(sessionRepository.existsById(1L)).willReturn(false);
+
+		assertThatThrownBy(() -> sessionService.delete(1L))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(exception -> ((ResponseStatusException)exception).getStatusCode())
+				.isEqualTo(HttpStatus.NOT_FOUND);
+		verify(chatService, never()).deleteBySession(any());
 	}
 
 	@Test

@@ -5,7 +5,6 @@ export {
     useCreateSessionReport,
     useDeleteSession,
     useGetSession,
-    useGetSessionChatHistory,
     useGetSessionMessages,
     useGetSessionParticipants,
     useGetSessionPresence,

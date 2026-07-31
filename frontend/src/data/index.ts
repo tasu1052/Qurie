@@ -95,7 +95,6 @@ export {
   useGetSessions,
   useGetSession,
   useGetSessionParticipants,
-  useGetSessionChatHistory,
   useGetSessionMessages,
   useUpdateSession,
   useDeleteSession,

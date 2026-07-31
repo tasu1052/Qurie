@@ -67,6 +67,14 @@ class ChatServiceTest {
 	}
 
 	@Test
+	void deleteBySessionRemovesEveryMessageOfSession() {
+		given(chatMessageRepository.deleteBySessionId(SESSION_ID)).willReturn(3L);
+
+		assertThat(chatService.deleteBySession(SESSION_ID)).isEqualTo(3L);
+		verify(chatMessageRepository).deleteBySessionId(SESSION_ID);
+	}
+
+	@Test
 	void getMessagesRejectsSizeOverMaximum() {
 		assertThatThrownBy(() -> chatService.getMessages(SESSION_ID, null, 101))
 				.isInstanceOf(ResponseStatusException.class)

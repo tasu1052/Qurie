@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Client, IMessage } from '@stomp/stompjs';
 import { queryKeys } from '../network/core/queryKeys';
-import { useGetSessionChatHistory, useGetSessionPresence } from '../network/session';
+import { useGetSessionPresence } from '../network/session';
 import type { ChatMessageResponse, SessionParticipantResponse } from '../network/session';
 import type { QuizSetStatus } from '../network/quiz';
 import { createStompClient, sessionDestinations } from './stompClient';
@@ -72,7 +72,6 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
     onQuizRef.current = onQuizNotification;
   }, [onQuizNotification]);
 
-  const history = useGetSessionChatHistory(sessionId);
   const presence = useGetSessionPresence(sessionId);
 
   useEffect(() => {
@@ -150,17 +149,18 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
     };
   }, [sessionId, queryClient]);
 
-  /** 이력(최신순 DESC)과 소켓 수신분을 id 오름차순으로 합친다. 내가 보낸 것도 토픽으로 되돌아오므로 id 로 중복을 제거한다. */
+  /**
+   * 이 연결에서 받은 메시지만 보여준다 — 방을 나가면 화면에서 지워지는 것이 정책이라
+   * 과거 이력(`GET /sessions/{id}/messages`)은 의도적으로 조회하지 않는다. 다시 붙이지 말 것.
+   * 내가 보낸 것도 토픽으로 되돌아오므로 id 로 중복을 제거하고 오름차순으로 정렬한다.
+   */
   const messages = useMemo(() => {
     const byId = new Map<number, ChatMessageResponse>();
-    for (const message of history.data ?? []) {
-      byId.set(message.id, message);
-    }
     for (const message of liveMessages) {
       byId.set(message.id, message);
     }
     return [...byId.values()].sort((a, b) => a.id - b.id);
-  }, [history.data, liveMessages]);
+  }, [liveMessages]);
 
   const sendMessage = useCallback(
     (content: string) => {
@@ -196,6 +196,5 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
     dismissError,
     sendMessage,
     lastQuizNotification,
-    isHistoryLoading: history.isLoading,
   };
 }
