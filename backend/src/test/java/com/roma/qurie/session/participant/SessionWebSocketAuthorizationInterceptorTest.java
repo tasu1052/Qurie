@@ -49,6 +49,25 @@ class SessionWebSocketAuthorizationInterceptorTest {
 	}
 
 	@Test
+	void subscribingQuizTopicVerifiesEntryPermission() {
+		interceptor.preSend(
+				message(StompCommand.SUBSCRIBE, "/topic/sessions/15/quiz"),
+				messageChannel);
+
+		verify(participantService).verifyCanEnter(15L, principal);
+	}
+
+	@Test
+	void sendingToQuizDestinationIsRejected() {
+		assertThatThrownBy(() -> interceptor.preSend(
+				message(StompCommand.SEND, "/app/sessions/15/quiz"),
+				messageChannel))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(exception -> ((ResponseStatusException)exception).getStatusCode())
+				.isEqualTo(HttpStatus.FORBIDDEN);
+	}
+
+	@Test
 	void sendingDirectlyToBrokerTopicIsRejected() {
 		assertThatThrownBy(() -> interceptor.preSend(
 				message(StompCommand.SEND, "/topic/sessions/15/messages"),

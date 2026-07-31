@@ -18,7 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class SessionWebSocketAuthorizationInterceptor implements ChannelInterceptor {
 
 	private static final Pattern SESSION_TOPIC_PATTERN =
-			Pattern.compile("^/topic/sessions/(\\d+)/(messages|participants)$");
+			Pattern.compile("^/topic/sessions/(\\d+)/(messages|participants|quiz)$");
 	private static final Pattern SESSION_APPLICATION_PATTERN =
 			Pattern.compile("^/app/sessions/(\\d+)/(messages|enter|leave)$");
 	private static final String ERROR_DESTINATION = "/user/queue/errors";
