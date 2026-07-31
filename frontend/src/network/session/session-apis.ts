@@ -7,8 +7,8 @@ export type { ChatMessageListParams };
 export interface SessionCreateRequest {
     classId: number;
     title: string;
-    /** @deprecated 서버는 JWT에서 생성자를 결정한다. 전송하지 않는다. */
-    createdBy?: number;
+    /** 반 공개(수업) 세션. true 는 MANAGER 만 가능(403). 생략/false 는 일반 세션. */
+    classPublic?: boolean;
 }
 
 export interface SessionUpdateRequest {
@@ -22,6 +22,8 @@ export interface SessionResponse {
     title: string;
     createdBy: number;
     active: boolean;
+    /** 반 공개(수업) 세션 여부. 반당 active public 세션은 하나. */
+    classPublic: boolean;
     createdAt: string;
     endedAt: string | null;
     updatedAt: string;
@@ -71,6 +73,7 @@ export const createSession = async (body: SessionCreateRequest): Promise<Session
     const { data } = await axiosInstance.post<SessionResponse>('/sessions', {
         classId: body.classId,
         title: body.title,
+        ...(body.classPublic !== undefined && { classPublic: body.classPublic }),
     });
     return data;
 };
