@@ -270,7 +270,7 @@ function MembersBody() {
                   </span>
                 </span>
               </span>
-              <span>{roleBadge(m.role)}</span>
+              <span style={{ display: 'inline-flex', justifySelf: 'start' }}>{roleBadge(m.role)}</span>
               <span>{m.weeklySessionCount}</span>
               <span style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
                 {m.lastSessionCreatedAt

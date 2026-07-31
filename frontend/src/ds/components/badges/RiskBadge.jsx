@@ -4,6 +4,7 @@ const L={warning:{fg:'var(--status-warning)',bg:'var(--status-warning-bg)',label
 export function RiskBadge({level='warning',label,style={}}){
 const t=L[level]||L.warning;
 return <span style={{display:'inline-flex',alignItems:'center',gap:5,
+width:'fit-content',maxWidth:'100%',alignSelf:'center',justifySelf:'start',
 backgroundColor:`color-mix(in srgb, ${t.bg} 62%, transparent)`,
 backgroundImage:NOISE_TEXTURE,
 boxShadow:`inset 0 0 0 1px color-mix(in srgb, ${t.fg} 18%, transparent), inset 0 1px 0 color-mix(in srgb, var(--text-inverse) 50%, transparent)`,

@@ -7,6 +7,8 @@ export type CollabStatus = 'connecting' | 'connected' | 'disconnected';
 export interface CollabUser {
   name: string;
   color: string;
+  /** 세션 참가자 userId — 퇴장 시 원격 커서 정리에 사용 */
+  id?: number | null;
 }
 
 /** 원격 커서 색: DS 토큰에서 런타임 해석(raw hex 금지 규칙 준수). */
@@ -37,8 +39,14 @@ export function resolveYjsWsUrl(): string {
  * 전송 계층은 resolveYjsWsUrl() 로 추상화한다.
  *  - 개발: npm run collab:server (AUTH_DISABLED) + Vite `/yjs` 프록시
  *  - 배포: collab-server 컨테이너. nginx `/yjs` → 1234, JWT 쿠키 인증
+ *
+ * 퇴장/탭 종료 시 awareness local state 를 null 로 브로드캐스트해
+ * 다른 참가자 화면에 남은 원격 커서를 즉시 지운다.
  */
-export function useCollabSession(roomId: string, user: { name: string }) {
+export function useCollabSession(
+  roomId: string,
+  user: { name: string; id?: number | null },
+) {
   const [status, setStatus] = useState<CollabStatus>('connecting');
 
   // roomId가 바뀌기 전까지 동일 인스턴스 유지
@@ -56,25 +64,44 @@ export function useCollabSession(roomId: string, user: { name: string }) {
     p.awareness.setLocalStateField('user', {
       name: user.name,
       color: resolveCursorColor(ydoc.clientID),
+      id: user.id ?? null,
     } satisfies CollabUser);
 
     const onStatus = ({ status: s }: { status: string }) => {
       setStatus(s === 'connected' ? 'connected' : s === 'connecting' ? 'connecting' : 'disconnected');
     };
     p.on('status', onStatus);
-    // 외부 시스템(WebSocket provider) 인스턴스를 렌더 트리에 노출하는 유일한 시점 —
-    // 생성은 effect에서만 가능하므로 여기서의 setState는 의도된 1회성 동기화다.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+
+    /** 연결이 살아있는 동안 null 상태를 보내 원격 커서를 제거한다. */
+    const clearLocalAwareness = () => {
+      try {
+        p.awareness.setLocalState(null);
+      } catch {
+        // provider 이미 destroy된 경우
+      }
+    };
+
+    const onPageLeave = () => {
+      clearLocalAwareness();
+    };
+    window.addEventListener('pagehide', onPageLeave);
+    window.addEventListener('beforeunload', onPageLeave);
+
+    // provider는 effect에서만 생성 가능 — 렌더 트리 노출을 위한 1회성 동기화.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- external WebsocketProvider bridge
     setProvider(p);
 
     return () => {
+      window.removeEventListener('pagehide', onPageLeave);
+      window.removeEventListener('beforeunload', onPageLeave);
       p.off('status', onStatus);
+      clearLocalAwareness();
       p.destroy();
       ydoc.destroy();
       providerRef.current = null;
       setProvider(null);
     };
-  }, [roomId, ydoc, user.name]);
+  }, [roomId, ydoc, user.name, user.id]);
 
   return { ydoc, ytext, provider, status };
 }

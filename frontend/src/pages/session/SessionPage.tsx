@@ -176,11 +176,13 @@ export default function SessionPage() {
 
   const meQuery = useMeOptional();
   const collabUserName = meQuery.isSuccess && meQuery.data?.name ? meQuery.data.name : '익명 참가자';
+  const collabUserId = meQuery.isSuccess ? meQuery.data?.id ?? null : null;
   const collabUser = useMemo(
     () => ({
       name: collabUserName,
+      id: collabUserId,
     }),
-    [collabUserName],
+    [collabUserName, collabUserId],
   );
   const updateSession = useUpdateSession();
   const deleteSession = useDeleteSession();
@@ -193,8 +195,18 @@ export default function SessionPage() {
   /** 채팅 · 참여자 · 퀴즈 알림 STOMP. 세션 id 없으면 연결하지 않는다. */
   const chat = useSessionSocket(hasSessionId ? sessionId : null);
   const myUserId = meQuery.data?.id ?? null;
+  const onlineUserIds = useMemo(
+    () => chat.participants.map((p) => p.userId),
+    [chat.participants],
+  );
 
   const leaveDestination = () => {
+    // 퇴장 직전 커서 awareness를 비워 다른 참가자 화면에 잔상이 남지 않게 한다.
+    try {
+      provider?.awareness.setLocalState(null);
+    } catch {
+      // ignore
+    }
     // 새 탭으로 연 세션이면 탭을 닫고, 막히면 역할별 홈으로 이동한다.
     window.close();
     const role = meQuery.isSuccess ? meQuery.data?.role : undefined;
@@ -840,7 +852,12 @@ export default function SessionPage() {
               </div>
             ) : null}
             {provider ? (
-              <CollabMonacoEditor ytext={ytext} provider={provider} language={editorLanguage} />
+              <CollabMonacoEditor
+                ytext={ytext}
+                provider={provider}
+                language={editorLanguage}
+                onlineUserIds={onlineUserIds}
+              />
             ) : (
               <div style={{ flex: 1 }} />
             )}
