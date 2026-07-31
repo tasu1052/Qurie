@@ -24,6 +24,7 @@ import {
   useMe,
   type SessionResponse,
 } from '../../data';
+import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
 
 function TableSkeleton() {
   return (
@@ -65,7 +66,7 @@ function SessionTable({
   page: number;
   onPage: (p: number) => void;
   onEmptyCreate: () => void;
-  onEnter: (sessionId: number) => void;
+  onEnter: (sessionId: number, title: string) => void;
   onReport: (sessionId: number) => void;
   onDelete: (session: SessionResponse) => void;
 }) {
@@ -154,7 +155,7 @@ function SessionTable({
                   size="sm"
                   onClick={() => {
                     if (status === '종료') onReport(s.id);
-                    else if (status === 'LIVE' || status === '예정') onEnter(s.id);
+                    else if (status === 'LIVE' || status === '예정') onEnter(s.id, s.title);
                   }}
                 >
                   {status === '종료' ? '리포트' : status === 'LIVE' ? '입장' : '편집'}
@@ -201,8 +202,10 @@ export default function SessionListPage() {
 
   const chips = ['전체', '진행', '예정', '종료'];
 
-  const openSessionInNewTab = (sessionId: number) => {
-    const url = `/session/${sessionId}`;
+  const openSessionInNewTab = (sessionId: number, title?: string) => {
+    if (title) saveSessionTitle(sessionId, title);
+    const qs = title ? `?title=${encodeURIComponent(title)}` : '';
+    const url = `/session/${sessionId}${qs}`;
     const win = window.open(url, '_blank');
     if (!win) {
       setPopupBlockedSessionId(sessionId);
@@ -223,7 +226,7 @@ export default function SessionListPage() {
           setTitle('');
           setClassPublic(false);
           setRowKey((k) => k + 1);
-          openSessionInNewTab(created.id);
+          openSessionInNewTab(created.id, created.title);
         },
       },
     );

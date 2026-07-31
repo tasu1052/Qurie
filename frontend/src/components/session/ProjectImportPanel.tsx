@@ -112,7 +112,13 @@ export function ProjectImportPanel({ sessionId, onImported }: ProjectImportPanel
           actionLabel="폴더 선택"
           onSelect={() => fileInputRef.current?.click()}
           secondary={
-            <Button variant="secondary" size="sm" disabled={busy} onClick={() => setGitOpen(true)}>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={busy}
+              onClick={() => setGitOpen(true)}
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
               Git 연동
             </Button>
           }

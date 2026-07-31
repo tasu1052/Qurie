@@ -707,5 +707,103 @@ module.exports = {
         };
       },
     },
+
+    /* ── Buttons stay single-line ─────────────────────────────────────── */
+    'button-nowrap': {
+      meta: {
+        type: 'problem',
+        docs: {
+          description:
+            'Button labels must stay on one line (whiteSpace: nowrap). Do not wrap CTA text; shorten the label or widen the control instead.',
+        },
+        messages: {
+          wrapStyle:
+            'Button text must not wrap — set whiteSpace: "nowrap" (or remove a wrapping whiteSpace override).',
+          multiline:
+            'Button label contains a line break — keep button copy on a single line.',
+        },
+      },
+      create(ctx) {
+        const WRAP_VALUES = new Set(['normal', 'pre-wrap', 'pre-line', 'break', 'break-reverse']);
+
+        function isButtonLike(open) {
+          const name = jsxTagName(open);
+          return name === 'button' || name === 'Button';
+        }
+
+        function whiteSpaceValue(styleExpr) {
+          if (!styleExpr || styleExpr.type !== 'ObjectExpression') return undefined;
+          for (const prop of styleExpr.properties || []) {
+            if (prop.type !== 'Property' || prop.computed) continue;
+            const k = prop.key.name || prop.key.value;
+            if (k !== 'whiteSpace') continue;
+            if (prop.value.type === 'Literal') return prop.value.value;
+          }
+          return undefined;
+        }
+
+        function hasTextChild(jsxEl) {
+          return (jsxEl.children || []).some((c) => {
+            if (c.type === 'JSXText' && String(c.value || '').trim()) return true;
+            if (
+              c.type === 'JSXExpressionContainer' &&
+              c.expression.type === 'Literal' &&
+              String(c.expression.value || '').trim()
+            ) {
+              return true;
+            }
+            return false;
+          });
+        }
+
+        return {
+          JSXElement(node) {
+            const open = node.openingElement;
+            if (!isButtonLike(open)) return;
+
+            for (const child of node.children || []) {
+              if (child.type !== 'JSXText') continue;
+              const nonEmptyLines = String(child.value || '')
+                .split('\n')
+                .map((line) => line.trim())
+                .filter(Boolean);
+              if (nonEmptyLines.length > 1) {
+                ctx.report({ node: child, messageId: 'multiline' });
+              }
+            }
+
+            const name = jsxTagName(open);
+            const styleAttr = getAttr(open, 'style');
+            if (styleAttr && styleAttr.value && styleAttr.value.type === 'JSXExpressionContainer') {
+              const expr = styleAttr.value.expression;
+              if (expr.type === 'ObjectExpression') {
+                const ws = whiteSpaceValue(expr);
+                if (typeof ws === 'string' && WRAP_VALUES.has(ws)) {
+                  ctx.report({ node: styleAttr, messageId: 'wrapStyle' });
+                }
+              }
+            }
+
+            // Raw <button> with label + inline style object must set nowrap.
+            // style={helper()} / style={var} is allowed (helpers like tabBtn own the tokens).
+            if (name === 'button' && hasTextChild(node)) {
+              if (!styleAttr) {
+                ctx.report({ node: open, messageId: 'wrapStyle' });
+                return;
+              }
+              if (styleAttr.value && styleAttr.value.type === 'JSXExpressionContainer') {
+                const expr = styleAttr.value.expression;
+                if (expr.type === 'ObjectExpression') {
+                  const ws = whiteSpaceValue(expr);
+                  if (ws !== 'nowrap' && ws !== 'pre') {
+                    ctx.report({ node: open, messageId: 'wrapStyle' });
+                  }
+                }
+              }
+            }
+          },
+        };
+      },
+    },
   },
 };

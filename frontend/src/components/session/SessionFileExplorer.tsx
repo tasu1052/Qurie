@@ -1,11 +1,162 @@
-import { FileCode, FileJson, FileText } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronDown, ChevronRight, FileCode, FileJson, FileText, Folder } from 'lucide-react';
 import { QueryAsyncBoundary, useGetProjectFiles } from '../../data';
 import { RowErrorFallback, Skeleton } from '../../ds';
+
+type TreeNode = {
+  name: string;
+  path: string;
+  kind: 'file' | 'dir';
+  children: TreeNode[];
+};
 
 function fileIcon(path: string) {
   if (path.endsWith('.json')) return <FileJson size={13} />;
   if (path.endsWith('.md')) return <FileText size={13} />;
   return <FileCode size={13} />;
+}
+
+function buildFileTree(paths: string[]): TreeNode[] {
+  const root: TreeNode[] = [];
+
+  const ensureDir = (nodes: TreeNode[], name: string, dirPath: string): TreeNode => {
+    let node = nodes.find((n) => n.kind === 'dir' && n.name === name);
+    if (!node) {
+      node = { name, path: dirPath, kind: 'dir', children: [] };
+      nodes.push(node);
+    }
+    return node;
+  };
+
+  for (const fullPath of [...paths].sort((a, b) => a.localeCompare(b))) {
+    const parts = fullPath.split('/').filter(Boolean);
+    if (parts.length === 0) continue;
+    let cursor = root;
+    let acc = '';
+    for (let i = 0; i < parts.length; i += 1) {
+      const part = parts[i];
+      acc = acc ? `${acc}/${part}` : part;
+      const isFile = i === parts.length - 1;
+      if (isFile) {
+        if (!cursor.some((n) => n.kind === 'file' && n.path === fullPath)) {
+          cursor.push({ name: part, path: fullPath, kind: 'file', children: [] });
+        }
+      } else {
+        const dir = ensureDir(cursor, part, acc);
+        cursor = dir.children;
+      }
+    }
+  }
+
+  const sortNodes = (nodes: TreeNode[]) => {
+    nodes.sort((a, b) => {
+      if (a.kind !== b.kind) return a.kind === 'dir' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    nodes.forEach((n) => {
+      if (n.kind === 'dir') sortNodes(n.children);
+    });
+  };
+  sortNodes(root);
+  return root;
+}
+
+function TreeRows({
+  nodes,
+  depth,
+  activePath,
+  collapsed,
+  onToggle,
+  onSelect,
+}: {
+  nodes: TreeNode[];
+  depth: number;
+  activePath: string | null;
+  collapsed: Set<string>;
+  onToggle: (path: string) => void;
+  onSelect: (path: string) => void;
+}) {
+  return (
+    <>
+      {nodes.map((node) => {
+        if (node.kind === 'dir') {
+          const open = !collapsed.has(node.path);
+          return (
+            <div key={`d:${node.path}`}>
+              <button
+                type="button"
+                onClick={() => onToggle(node.path)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '5px 8px',
+                  paddingLeft: 8 + depth * 12,
+                  borderRadius: 6,
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  width: '100%',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 12.5,
+                  color: 'var(--text-secondary)',
+                  textAlign: 'left',
+                }}
+              >
+                {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                <Folder size={13} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {node.name}
+                </span>
+              </button>
+              {open ? (
+                <TreeRows
+                  nodes={node.children}
+                  depth={depth + 1}
+                  activePath={activePath}
+                  collapsed={collapsed}
+                  onToggle={onToggle}
+                  onSelect={onSelect}
+                />
+              ) : null}
+            </div>
+          );
+        }
+
+        const active = activePath === node.path;
+        return (
+          <button
+            key={`f:${node.path}`}
+            type="button"
+            onClick={() => onSelect(node.path)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '5px 8px',
+              paddingLeft: 8 + depth * 12 + 18,
+              borderRadius: 6,
+              background: active ? 'var(--accent-softer)' : 'transparent',
+              fontSize: 12.5,
+              fontWeight: active ? 600 : 400,
+              color: active ? 'var(--accent)' : 'var(--text-secondary)',
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+              textAlign: 'left',
+              width: '100%',
+            }}
+            title={node.path}
+          >
+            {fileIcon(node.path)}
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {node.name}
+            </span>
+          </button>
+        );
+      })}
+    </>
+  );
 }
 
 function FilesBody({
@@ -18,6 +169,8 @@ function FilesBody({
   onSelect: (path: string) => void;
 }) {
   const { data: files } = useGetProjectFiles(projectId);
+  const tree = useMemo(() => buildFileTree(files.map((f) => f.path)), [files]);
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
 
   if (files.length === 0) {
     return (
@@ -27,55 +180,22 @@ function FilesBody({
     );
   }
 
-  const sorted = [...files].sort((a, b) => a.path.localeCompare(b.path));
-
   return (
-    <>
-      {sorted.map((f) => {
-        const active = activePath === f.path;
-        return (
-          <button
-            key={f.path}
-            type="button"
-            onClick={() => onSelect(f.path)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '6px 8px',
-              borderRadius: 6,
-              background: active ? 'var(--accent-softer)' : 'transparent',
-              fontSize: 12.5,
-              fontWeight: active ? 600 : 400,
-              color: active ? 'var(--accent)' : 'var(--text-secondary)',
-              border: 'none',
-              cursor: 'pointer',
-              fontFamily: 'var(--font-sans)',
-              textAlign: 'left',
-              width: '100%',
-            }}
-            title={f.path}
-          >
-            {fileIcon(f.path)}
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {f.path}
-            </span>
-            {active ? (
-              <span
-                style={{
-                  marginLeft: 'auto',
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: 'var(--accent)',
-                  flexShrink: 0,
-                }}
-              />
-            ) : null}
-          </button>
-        );
-      })}
-    </>
+    <TreeRows
+      nodes={tree}
+      depth={0}
+      activePath={activePath}
+      collapsed={collapsed}
+      onToggle={(path) => {
+        setCollapsed((prev) => {
+          const next = new Set(prev);
+          if (next.has(path)) next.delete(path);
+          else next.add(path);
+          return next;
+        });
+      }}
+      onSelect={onSelect}
+    />
   );
 }
 

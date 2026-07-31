@@ -20,6 +20,7 @@ import {
   useMe,
 } from '../../data';
 import { DashboardNoticesSection } from '../../components/notices/DashboardNoticesSection';
+import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
 
 function DashSkeleton() {
   return (
@@ -126,7 +127,10 @@ function ManagerDashBody({ classId }: { classId: number }) {
               <button
                 key={s.id}
                 type="button"
-                onClick={() => navigate(`/session/${s.id}`)}
+                onClick={() => {
+                  saveSessionTitle(s.id, s.title);
+                  navigate(`/session/${s.id}?title=${encodeURIComponent(s.title)}`);
+                }}
                 style={{
                   textAlign: 'left',
                   border: '1px solid var(--border)',
