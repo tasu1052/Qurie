@@ -7,6 +7,7 @@ import {
     refresh,
     type LoginRequest,
 } from './auth-apis';
+import { notifyLogout } from './logoutSignal';
 
 export const useMe = () => {
     return useSuspenseQuery({
@@ -41,8 +42,12 @@ export const useLogout = () => {
 
     return useMutation({
         mutationFn: logout,
-        onSuccess: () => {
-        queryClient.removeQueries({ queryKey: queryKeys.auth.all });
+        // 요청이 실패해도(네트워크 등) 로컬 정리는 해야 한다 — 쿠키가 남아 있어도 화면은 로그아웃 상태로 간다.
+        onSettled: () => {
+            // auth 키만 지우면 이전 사용자의 클래스·학생·세션 캐시가 남아 다음 로그인 화면에 그려질 수 있다.
+            queryClient.clear();
+            // 다른 탭의 세션 소켓·캐시까지 정리하도록 알린다.
+            notifyLogout();
         },
     });
 };

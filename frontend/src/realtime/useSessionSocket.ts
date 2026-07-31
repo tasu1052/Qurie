@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Client, IMessage } from '@stomp/stompjs';
 import { queryKeys } from '../network/core/queryKeys';
+import { onLogout } from '../network/auth/logoutSignal';
 import { useGetSessionPresence } from '../network/session';
 import type { ChatMessageResponse, SessionParticipantResponse } from '../network/session';
 import type { QuizSetStatus } from '../network/quiz';
@@ -137,7 +138,21 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
 
     client.activate();
 
+    /**
+     * 로그아웃해도 이미 열린 소켓은 핸드셰이크 시점 인증을 유지하므로 서버가 끊어주지 않는다.
+     * (다른 탭에서 로그아웃한 경우까지 포함해) 신호를 받으면 이쪽에서 연결을 내린다.
+     */
+    const unsubscribeLogout = onLogout(() => {
+      if (client.connected) {
+        client.publish({ destination: sessionDestinations.leave(sessionId) });
+      }
+      void client.deactivate();
+      setStatus('disconnected');
+      setError('로그아웃되어 실시간 연결이 종료되었습니다.');
+    });
+
     return () => {
+      unsubscribeLogout();
       if (client.connected) {
         client.publish({ destination: sessionDestinations.leave(sessionId) });
       }

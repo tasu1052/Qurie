@@ -17,7 +17,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class RefreshTokenProvider {
 
-    private static final Duration REFRESH_TOKEN_EXPIRATION = Duration.ofDays(14);
+    /**
+     * 로그인 유지 한도. 쿠키는 persistent 로 내려가므로 브라우저를 닫아도 로그인이 남고,
+     * 마지막 활동 후 이 시간이 지나면 재발급이 거부되어 로그아웃된다.
+     * 재발급마다 새 만료가 부여되므로(회전) 사용 중에는 계속 연장된다 — 유휴 기준 2시간이다.
+     */
+    private static final Duration REFRESH_TOKEN_EXPIRATION = Duration.ofHours(2);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     public Duration getExpiration() {
