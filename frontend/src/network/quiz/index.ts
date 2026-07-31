@@ -1,3 +1,3 @@
 export * from './quiz-apis';
 
-export { useGenerateQuiz } from './quiz-hooks';
+export { useGenerateQuiz, useGetQuizSet } from './quiz-hooks';

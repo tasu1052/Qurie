@@ -1,25 +1,58 @@
 import { axiosInstance } from '../core/axiosInstance';
 
-export type QuizGenerationMode = 'INITIAL' | 'REVIEW';
+export type QuizGenerationMode = 'ASSESSMENT' | 'PRACTICE';
 export type QuizType = 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_IN_BLANK';
+export type QuizPurpose = 'CONCEPTUAL' | 'MICRO';
+export type QuizDifficulty = 'EASY' | 'NORMAL' | 'HARD';
 export type QuizSetStatus = 'QUEUED' | 'GENERATING' | 'COMPLETED' | 'FAILED';
 
 export interface QuizGenerateRequest {
     mode: QuizGenerationMode;
-    snapshotId?: number;
     count: number;
-    types: QuizType[];
     ratioEasy: number;
     ratioNormal: number;
     ratioHard: number;
     userPrompt?: string;
-    createdBy: number;
+    versionHash: string;
+    targetFiles?: string[];
+    files: Record<string, string>;
 }
 
 export interface QuizGenerateResponse {
     quizSetId: number;
     status: QuizSetStatus;
     requestedCount: number;
+}
+
+export interface QuizChoiceItem {
+    idx: number;
+    content: string;
+    answer: boolean;
+}
+
+export interface QuizItem {
+    id: number;
+    type: QuizType;
+    purpose: QuizPurpose;
+    difficulty: QuizDifficulty;
+    testedConcept: string;
+    question: string;
+    explanation: string;
+    filePath: string;
+    lineStart: number | null;
+    lineEnd: number | null;
+    timeLimitSec: number;
+    orderNo: number;
+    choices: QuizChoiceItem[];
+}
+
+export interface QuizSetDetailResponse {
+    quizSetId: number;
+    status: QuizSetStatus;
+    requestedCount: number;
+    generatedCount: number;
+    errorMessage: string | null;
+    quizzes: QuizItem[];
 }
 
 export const generateQuiz = async (
@@ -29,5 +62,10 @@ export const generateQuiz = async (
     const { data } = await axiosInstance.post<QuizGenerateResponse>('/quiz', body, {
         params: { project: projectId },
     });
+    return data;
+};
+
+export const getQuizSet = async (quizSetId: number): Promise<QuizSetDetailResponse> => {
+    const { data } = await axiosInstance.get<QuizSetDetailResponse>(`/quiz/${quizSetId}`);
     return data;
 };

@@ -4,6 +4,8 @@ import { classKeys } from './class.keys';
 import { groupKeys } from './group.keys';
 import { invitationKeys } from './invitation.keys';
 import { noticeKeys } from './notice.keys';
+import { projectKeys } from './project.keys';
+import { quizKeys } from './quiz.keys';
 import { sessionKeys } from './session.keys';
 import { trackKeys } from './track.keys';
 import { userKeys } from './user.keys';
@@ -15,6 +17,8 @@ export const queryKeys = {
     groups: groupKeys,
     invitations: invitationKeys,
     notices: noticeKeys,
+    projects: projectKeys,
+    quiz: quizKeys,
     sessions: sessionKeys,
     tracks: trackKeys,
     users: userKeys,
@@ -27,6 +31,8 @@ export {
     groupKeys,
     invitationKeys,
     noticeKeys,
+    projectKeys,
+    quizKeys,
     sessionKeys,
     trackKeys,
     userKeys,
