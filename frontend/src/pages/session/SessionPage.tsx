@@ -3,14 +3,9 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ArrowDown,
   ArrowUp,
-  ChevronDown,
   Code,
   Download,
-  FileCode,
-  FileJson,
   FilePlus,
-  FileText,
-  Folder,
   FolderGit2,
   FolderPlus,
   GitBranch,
@@ -28,40 +23,61 @@ import {
   Terminal,
   Trash2,
 } from 'lucide-react';
-import { Button, LiveBadge } from '../../ds';
+import { AlertBanner, Button, LiveBadge } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
 import { CollabMonacoEditor } from '../../collab/CollabMonacoEditor';
 import { useCollabSession } from '../../collab/useCollabSession';
-import { useMeOptional } from '../../data';
+import {
+  getProjectFileContent,
+  useMeOptional,
+  type ProjectImportResponse,
+} from '../../data';
+import { ProjectImportPanel } from '../../components/session/ProjectImportPanel';
+import { SessionFileExplorer } from '../../components/session/SessionFileExplorer';
+import { SessionQuizPanel } from '../../components/session/SessionQuizPanel';
+import { languageFromPath } from '../../components/session/readLocalProjectFiles';
+import {
+  loadSessionProject,
+  saveSessionProject,
+  type SessionProjectRef,
+} from '../../components/session/sessionProjectStorage';
+import type * as Y from 'yjs';
 
 type LeftTab = 'explorer' | 'materials';
 type RightTab = 'community' | 'quiz';
 type BottomTab = 'terminal' | 'debug' | 'output';
 type EditorLanguage = 'java' | 'javascript' | 'typescript' | 'python' | 'html' | 'cpp';
 
-const FILES = [
-  { id: 'solution.js', icon: <FileCode size={13} />, active: true },
-  { id: 'test_cases.json', icon: <FileJson size={13} /> },
-  { id: 'readme.md', icon: <FileText size={13} /> },
-];
+function applyContentToYText(ytext: Y.Text, content: string) {
+  ytext.doc?.transact(() => {
+    const len = ytext.length;
+    if (len > 0) ytext.delete(0, len);
+    if (content.length > 0) ytext.insert(0, content);
+  });
+}
 
 /**
- * Mockup 1o — Code Editor collab shell.
- * Monaco / Yjs intentionally omitted: static code pane only.
+ * Mockup 1o — Code Editor collab shell + project import / quiz hooks.
  */
 export default function SessionPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const initialRight: RightTab = params.get('mode') === 'quiz' ? 'quiz' : 'community';
+  const sessionId = Number(id);
+  const hasSessionId = Number.isFinite(sessionId) && sessionId > 0;
 
   const [leftTab, setLeftTab] = useState<LeftTab>('explorer');
   const [rightTab, setRightTab] = useState<RightTab>(initialRight);
   const [bottomTab, setBottomTab] = useState<BottomTab>('terminal');
   const [editorLanguage, setEditorLanguage] = useState<EditorLanguage>('typescript');
   const [gitOpen, setGitOpen] = useState(false);
-  const [activeFile, setActiveFile] = useState('solution.js');
+  const [activeFile, setActiveFile] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  const [projectRef, setProjectRef] = useState<SessionProjectRef | null>(() =>
+    hasSessionId ? loadSessionProject(sessionId) : null,
+  );
+  const [importNotice, setImportNotice] = useState<string | null>(null);
   const meQuery = useMeOptional();
   const collabUserName = meQuery.isSuccess && meQuery.data?.name ? meQuery.data.name : '익명 참가자';
   const collabUser = useMemo(
@@ -71,10 +87,50 @@ export default function SessionPage() {
     [collabUserName],
   );
 
-  const sessionTitle = useMemo(() => 'React Hooks 심화 실습', []);
-  const sessionSlug = useMemo(() => `java-seoul-1/${id ?? 'react-hooks-deep-dive'}`, [id]);
+  const sessionTitle = useMemo(
+    () => (hasSessionId ? `세션 #${sessionId}` : '세션'),
+    [hasSessionId, sessionId],
+  );
+  const sessionSlug = useMemo(
+    () => (hasSessionId ? `session/${sessionId}` : 'session/demo'),
+    [hasSessionId, sessionId],
+  );
 
-  const { ytext, provider, status: collabStatus } = useCollabSession(id ?? 'demo', collabUser);
+  const { ytext, provider, status: collabStatus } = useCollabSession(
+    hasSessionId ? String(sessionId) : 'demo',
+    collabUser,
+  );
+
+  const onImported = (result: ProjectImportResponse) => {
+    const next = { projectId: result.projectId, versionHash: result.versionHash };
+    setProjectRef(next);
+    if (hasSessionId) saveSessionProject(sessionId, next);
+    if (result.skippedFiles.length > 0) {
+      setImportNotice(
+        `${result.fileCount}개 파일 반영 · 스킵 ${result.skippedFiles.length}개 (${result.skippedFiles
+          .slice(0, 3)
+          .map((s) => s.path)
+          .join(', ')}${result.skippedFiles.length > 3 ? '…' : ''})`,
+      );
+    } else {
+      setImportNotice(`${result.fileCount}개 파일을 가져왔습니다.`);
+    }
+  };
+
+  const onSelectFile = async (path: string) => {
+    if (!projectRef) return;
+    setActiveFile(path);
+    const lang = languageFromPath(path);
+    if (['java', 'javascript', 'typescript', 'python', 'html', 'cpp'].includes(lang)) {
+      setEditorLanguage(lang as EditorLanguage);
+    }
+    try {
+      const file = await getProjectFileContent(projectRef.projectId, path);
+      applyContentToYText(ytext, file.content);
+    } catch {
+      setImportNotice(`파일을 열지 못했습니다: ${path}`);
+    }
+  };
 
   const tabBtn = (active: boolean): CSSProperties => ({
     flex: 1,
@@ -222,7 +278,7 @@ export default function SessionPage() {
               강의자료
             </button>
           </div>
-          <div style={{ padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minHeight: 0 }}>
+          <div style={{ padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minHeight: 0, overflow: 'auto' }}>
             {leftTab === 'explorer' ? (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 6px 8px' }}>
@@ -234,67 +290,21 @@ export default function SessionPage() {
                     <FolderPlus size={13} />
                   </span>
                 </div>
-                {FILES.map((f) => {
-                  const active = activeFile === f.id;
-                  return (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => setActiveFile(f.id)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '6px 8px',
-                        borderRadius: 6,
-                        background: active ? 'var(--accent-softer)' : 'transparent',
-                        fontSize: 12.5,
-                        fontWeight: active ? 600 : 400,
-                        color: active ? 'var(--accent)' : 'var(--text-secondary)',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontFamily: 'var(--font-sans)',
-                        textAlign: 'left',
-                        width: '100%',
-                      }}
-                    >
-                      {f.icon}
-                      {f.id}
-                      {active ? (
-                        <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }} />
-                      ) : null}
-                    </button>
-                  );
-                })}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '6px 8px',
-                    borderRadius: 6,
-                    fontSize: 12.5,
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  <ChevronDown size={12} />
-                  <Folder size={13} />
-                  lib/
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '6px 8px 6px 30px',
-                    borderRadius: 6,
-                    fontSize: 12.5,
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  <FileCode size={13} />
-                  utils.js
-                </div>
+                {!hasSessionId ? (
+                  <p style={{ margin: '8px 6px', fontSize: 13, color: 'var(--text-muted)' }}>
+                    유효한 세션 ID가 없습니다.
+                  </p>
+                ) : projectRef == null ? (
+                  <ProjectImportPanel sessionId={sessionId} onImported={onImported} />
+                ) : (
+                  <SessionFileExplorer
+                    projectId={projectRef.projectId}
+                    activePath={activeFile}
+                    onSelect={(path) => {
+                      void onSelectFile(path);
+                    }}
+                  />
+                )}
               </>
             ) : (
               <p style={{ margin: '8px 6px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
@@ -373,7 +383,9 @@ export default function SessionPage() {
             <FolderGit2 size={13} style={{ color: 'var(--text-muted)' }} />
             <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>workspace</span>
             <span style={{ color: 'var(--accent)', fontWeight: 800, fontSize: 10 }}>&gt;</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>{activeFile}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>
+              {activeFile ?? (projectRef ? '파일을 선택하세요' : '프로젝트 미연결')}
+            </span>
             <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <select
                 value={editorLanguage}
@@ -415,6 +427,15 @@ export default function SessionPage() {
               background: 'var(--secondary-700)',
             }}
           >
+            {importNotice ? (
+              <AlertBanner
+                tone="info"
+                title="프로젝트"
+                description={importNotice}
+                actionLabel="확인"
+                onAction={() => setImportNotice(null)}
+              />
+            ) : null}
             {collabStatus !== 'connected' ? (
               <div
                 style={{
@@ -624,12 +645,10 @@ export default function SessionPage() {
               </div>
             </>
           ) : (
-            <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>AI 퀴즈</span>
-              <span style={{ fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.55 }}>
-                API 미구현: 퀴즈 모드 데이터/액션 연동 전입니다.
-              </span>
-            </div>
+            <SessionQuizPanel
+              projectId={projectRef?.projectId ?? null}
+              versionHash={projectRef?.versionHash ?? null}
+            />
           )}
         </aside>
       </div>
@@ -654,7 +673,7 @@ export default function SessionPage() {
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <GitBranch size={11} />
-          API 미구현: 세션 상태 요약
+          CRDT sync · {projectRef ? `project #${projectRef.projectId}` : '프로젝트 없음'}
         </span>
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 16, fontFamily: 'var(--font-mono)', fontSize: 11 }}>
           <span>Ln 11, Col 58</span>

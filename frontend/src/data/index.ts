@@ -173,15 +173,37 @@ export { useGetNotices } from '../network/notice';
 export type { NoticeResponse, NoticeScope, NoticeListFilters } from '../network/notice';
 export { useGetAnalyticsOverview } from '../network/analytics';
 export type { AnalyticsOverviewResponse } from '../network/analytics';
-export { useCreateProject } from '../network/project';
-export type { ProjectCreateRequest, ProjectResponse } from '../network/project';
-export { useGenerateQuiz } from '../network/quiz';
+export {
+  useCreateProject,
+  useImportProjectLocal,
+  useImportProjectGit,
+  useGetProjectFiles,
+  useGetProjectFileContent,
+  getProjectFiles,
+  getProjectFileContent,
+} from '../network/project';
+export type {
+  ProjectCreateRequest,
+  ProjectResponse,
+  ProjectImportLocalRequest,
+  ProjectImportGitRequest,
+  ProjectImportResponse,
+  ProjectSkippedFileResponse,
+  ProjectFileSummaryResponse,
+  ProjectFileContentResponse,
+} from '../network/project';
+export { useGenerateQuiz, useGetQuizSet, usePollQuizSet } from '../network/quiz';
 export type {
   QuizGenerateRequest,
   QuizGenerateResponse,
   QuizGenerationMode,
   QuizType,
+  QuizPurpose,
+  QuizDifficulty,
   QuizSetStatus,
+  QuizChoiceItem,
+  QuizItem,
+  QuizSetDetailResponse,
 } from '../network/quiz';
 export { useCreateUserReport } from '../network/report';
 export type { UserReportCreateRequest, UserReportCreateResponse } from '../network/report';

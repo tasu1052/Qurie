@@ -42,7 +42,7 @@ function ClassLobbyBody({ classId }: { classId: number }) {
   const [title, setTitle] = useState('');
   const [popupBlockedSessionId, setPopupBlockedSessionId] = useState<number | null>(null);
   const active = sessions.filter((s) => s.active);
-  const live = active[0];
+  const livePublic = active.find((s) => s.classPublic) ?? null;
 
   const openSessionInNewTab = (sessionId: number) => {
     const url = `/session/${sessionId}`;
@@ -105,17 +105,19 @@ function ClassLobbyBody({ classId }: { classId: number }) {
             >
               track #{cls.trackId}
             </span>
-            {live ? <LiveBadge /> : <Badge status="accent">대기</Badge>}
+            {livePublic ? <LiveBadge /> : <Badge status="accent">대기</Badge>}
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: '4px 0 0', color: 'var(--text-inverse)' }}>
             {cls.name}
           </h1>
           <p style={{ margin: '8px 0 0', fontSize: 13, opacity: 0.75 }}>
-            {cls.description || '클래스 로비'}
+            {livePublic
+              ? `수업 LIVE · ${livePublic.title}`
+              : cls.description || '클래스 로비'}
           </p>
         </div>
-        {live ? (
-          <Button variant="accent" onClick={() => openSessionInNewTab(live.id)}>
+        {livePublic ? (
+          <Button variant="accent" onClick={() => openSessionInNewTab(livePublic.id)}>
             LIVE 입장
           </Button>
         ) : null}
@@ -184,6 +186,7 @@ function ClassLobbyBody({ classId }: { classId: number }) {
                 }}
               >
                 {s.active ? <LiveBadge /> : <Badge status="neutral">종료</Badge>}
+                {s.classPublic ? <Badge status="accent">수업</Badge> : null}
                 <span style={{ fontWeight: 600, fontSize: 13 }}>{s.title}</span>
               </button>
             ))

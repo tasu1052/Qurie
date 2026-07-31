@@ -71,11 +71,9 @@ function StudentDashWithClass({ classId }: { classId: number }) {
   const { data: sessions } = useGetSessions(classId);
   const [popupBlockedSessionId, setPopupBlockedSessionId] = useState<number | null>(null);
 
-  const isClassPublicSession = (session: (typeof sessions)[number]) =>
-    session.classPublic === true || session.class_public === true;
   const activeSessions = useMemo(() => sessions.filter((s) => s.active), [sessions]);
   const livePublicSession = useMemo(
-    () => activeSessions.find(isClassPublicSession) ?? null,
+    () => activeSessions.find((session) => session.classPublic === true) ?? null,
     [activeSessions],
   );
   const className = myClasses.find((c) => c.id === classId)?.name ?? '내 클래스';

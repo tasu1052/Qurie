@@ -134,7 +134,10 @@ function SessionTable({
                 alignItems: 'center',
               }}
             >
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)' }}>{s.title}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                {s.title}
+                {s.classPublic ? <Badge status="accent">수업</Badge> : null}
+              </span>
               <span style={{ color: 'var(--text-secondary)' }}>#{s.createdBy}</span>
               <span style={{ color: 'var(--text-secondary)' }}>
                 {new Date(s.createdAt).toLocaleString('ko-KR', { hour12: false })}
@@ -191,6 +194,7 @@ export default function SessionListPage() {
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [title, setTitle] = useState('');
+  const [classPublic, setClassPublic] = useState(false);
   const [rowKey, setRowKey] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState<SessionResponse | null>(null);
   const [popupBlockedSessionId, setPopupBlockedSessionId] = useState<number | null>(null);
@@ -212,11 +216,12 @@ export default function SessionListPage() {
     if (!hasValidClassId) return;
     if (!title.trim()) return;
     createSession.mutate(
-      { classId, title: title.trim() },
+      { classId, title: title.trim(), classPublic: classPublic || undefined },
       {
         onSuccess: (created) => {
           setCreateOpen(false);
           setTitle('');
+          setClassPublic(false);
           setRowKey((k) => k + 1);
           openSessionInNewTab(created.id);
         },
@@ -323,7 +328,7 @@ export default function SessionListPage() {
         <Modal
           open={createOpen}
           title="세션 만들기"
-          description="제목을 입력하면 세션이 생성됩니다."
+          description="제목을 입력하면 세션이 생성됩니다. 수업 공개는 반 전체 LIVE 한 개만 가능합니다."
           primaryLabel={createSession.isPending ? '생성 중…' : '생성하기'}
           secondaryLabel="취소"
           onPrimary={onCreate}
@@ -331,15 +336,40 @@ export default function SessionListPage() {
           onClose={() => setCreateOpen(false)}
           width={480}
         >
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>세션 제목</span>
-            <Input
-              placeholder="react-hooks-deep-dive"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              width="100%"
-            />
-          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>세션 제목</span>
+              <Input
+                placeholder="react-hooks-deep-dive"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                width="100%"
+              />
+            </label>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+                fontSize: 13,
+                color: 'var(--ink)',
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={classPublic}
+                onChange={(e) => setClassPublic(e.target.checked)}
+                style={{ marginTop: 2 }}
+              />
+              <span>
+                <span style={{ fontWeight: 600 }}>수업 공개 세션 (classPublic)</span>
+                <span style={{ display: 'block', marginTop: 4, fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  강사만 생성 가능. 학생 대시보드 LIVE에 표시됩니다.
+                </span>
+              </span>
+            </label>
+          </div>
         </Modal>
 
         <ConfirmDeleteOverlay
