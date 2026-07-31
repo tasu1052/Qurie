@@ -111,6 +111,28 @@ class ProjectServiceTest {
 	}
 
 	@Test
+	void getCurrentProjectReturnsLatestImportOfTheSession() {
+		Project latest = new Project(SESSION_ID, null, 7L);
+		ReflectionTestUtils.setField(latest, "id", PROJECT_ID);
+		given(projectRepository.findFirstBySessionIdOrderByIdDesc(SESSION_ID))
+				.willReturn(Optional.of(latest));
+
+		assertThat(projectService.getCurrentProject(student(), SESSION_ID).id()).isEqualTo(PROJECT_ID);
+		verify(participantService).verifyCanEnter(eq(SESSION_ID), any(AuthUser.class));
+	}
+
+	@Test
+	void getCurrentProjectThrowsNotFoundWhenNothingImported() {
+		given(projectRepository.findFirstBySessionIdOrderByIdDesc(SESSION_ID))
+				.willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> projectService.getCurrentProject(student(), SESSION_ID))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(ProjectServiceTest::statusOf)
+				.isEqualTo(HttpStatus.NOT_FOUND);
+	}
+
+	@Test
 	void importGitMergesReaderSkipsWithSanitizerSkipsAndStoresRepoUrl() {
 		given(gitProjectReader.readFiles("https://github.com/foo/bar.git", null, null))
 				.willReturn(new GitProjectReader.ReadResult(

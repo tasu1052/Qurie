@@ -54,6 +54,13 @@ public class ProjectController {
         return ResponseEntity.created(URI.create("/api/projects/" + response.projectId())).body(response);
     }
 
+    /** 세션의 현재 프로젝트(가장 최근 임포트). 없으면 404 — 참가자 전원이 이 값으로 같은 프로젝트를 연다 */
+    @GetMapping("/current")
+    public ProjectResponse current(
+            @AuthenticationPrincipal AuthUser requester, @RequestParam("sessionId") Long sessionId) {
+        return projectService.getCurrentProject(requester, sessionId);
+    }
+
     /** 파일 목록(경로·크기). 세션 편집기의 파일 트리가 이 경로 문자열로 트리를 구성한다 */
     @GetMapping("/{projectId}/files")
     public List<ProjectFileSummaryResponse> files(

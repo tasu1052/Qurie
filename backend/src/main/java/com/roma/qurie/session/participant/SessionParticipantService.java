@@ -33,6 +33,19 @@ public class SessionParticipantService {
 	private final ClassUserRepository classUserRepository;
 	private final GroupParticipantRepository groupParticipantRepository;
 
+	/**
+	 * 세션이 열린 반의 구성원인지 확인한다. verifyCanEnter 와 달리 세션 활성 여부는 보지 않는다 —
+	 * 닫힌 세션의 퀴즈 결과를 매니저가 나중에 확인하는 흐름을 막지 않기 위해서다.
+	 */
+	public AuthUser verifySessionClassMember(Long sessionId, AuthUser authUser) {
+		if (authUser == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, LOGIN_REQUIRED_MESSAGE);
+		}
+		Session session = findSessionOrThrow(sessionId);
+		verifyClassMember(session.getClassId(), authUser);
+		return authUser;
+	}
+
 	public AuthUser verifyCanEnter(Long sessionId, Principal principal) {
 		return verifyCanEnter(sessionId, requireAuthenticated(principal));
 	}

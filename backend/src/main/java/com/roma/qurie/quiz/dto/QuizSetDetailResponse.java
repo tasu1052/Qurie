@@ -13,21 +13,25 @@ import com.roma.qurie.quiz.entity.QuizType;
 /**
  * 퀴즈셋 상태/결과 응답. 프론트는 COMPLETED 가 될 때까지 이 응답을 폴링한다.
  *
- * 정답(answer)이 포함되므로 출제자(매니저) 화면 전용이다 — 학생 응시 화면이 생기면
- * 정답을 뺀 별도 응답으로 분리해야 한다.
+ * 정답(answer)이 포함되므로 출제자(강사) 전용이다 — 학생 응시 화면은 정답·해설을 뺀
+ * QuizQuestionsResponse(GET /api/quiz/{id}/questions)를 쓴다.
+ *
+ * generationStage 는 GENERATING 인 동안의 현재 단계(GENERATE/SOLVE/JUDGE). 그 외 상태에서는 null.
  */
 public record QuizSetDetailResponse(
 		Long quizSetId,
 		QuizSetStatus status,
+		String generationStage,
 		int requestedCount,
 		int generatedCount,
 		String errorMessage,
 		List<QuizItem> quizzes) {
 
-	public static QuizSetDetailResponse from(QuizSet quizSet) {
+	public static QuizSetDetailResponse from(QuizSet quizSet, String generationStage) {
 		return new QuizSetDetailResponse(
 				quizSet.getId(),
 				quizSet.getStatus(),
+				generationStage,
 				quizSet.getRequestedCount(),
 				quizSet.getGeneratedCount(),
 				quizSet.getErrorMessage(),

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.roma.qurie.project.Project;
 import com.roma.qurie.project.ProjectRepository;
 import com.roma.qurie.quiz.ai.AiQuizCreateRequest;
 import com.roma.qurie.quiz.ai.AiQuizSetAccepted;
@@ -18,7 +19,10 @@ import com.roma.qurie.quiz.ai.QuizAiException;
 import com.roma.qurie.quiz.dto.QuizGenerateRequest;
 import com.roma.qurie.quiz.dto.QuizGenerateResponse;
 import com.roma.qurie.quiz.dto.QuizGenerationNotification;
+import com.roma.qurie.quiz.dto.QuizQuestionsResponse;
 import com.roma.qurie.quiz.dto.QuizSetDetailResponse;
+import com.roma.qurie.security.AuthUser;
+import com.roma.qurie.session.participant.SessionParticipantService;
 import com.roma.qurie.quiz.entity.Quiz;
 import com.roma.qurie.quiz.entity.QuizChoice;
 import com.roma.qurie.quiz.entity.QuizDifficulty;
@@ -38,11 +42,13 @@ public class QuizService {
 
 	/** todo: 문항 제한 시간 정책이 정해지면 요청/난이도별 값으로 교체. */
 	private static final int DEFAULT_TIME_LIMIT_SEC = 60;
+	private static final String MANAGER_ROLE = "MANAGER";
 
 	private final QuizSetRepository quizSetRepository;
 	private final ProjectRepository projectRepository;
 	private final QuizAiClient quizAiClient;
 	private final SimpMessagingTemplate messagingTemplate;
+	private final SessionParticipantService participantService;
 
 	/** AI 서버가 생성 완료를 알려올 콜백 주소의 베이스 — 배포 시 백엔드 자신의 외부 접근 주소로 바뀐다. */
 	@Value("${app.ai.callback-base-url}")
@@ -81,16 +87,51 @@ public class QuizService {
 	}
 
 	/**
-	 * 퀴즈셋 조회. 생성 중이면 AI 서버 상태를 함께 확인해서 완료(READY)면 문항을 저장하고
-	 * COMPLETED 로 넘긴다 — 콜백이 오지 않았을 때(네트워크 문제 등)를 대비한 안전망이다.
+	 * 퀴즈셋 조회(정답 포함, 출제자 전용). 생성 중이면 AI 서버 상태를 함께 확인해서 완료(READY)면
+	 * 문항을 저장하고 COMPLETED 로 넘긴다 — 콜백이 오지 않았을 때(네트워크 문제 등)를 대비한 안전망이다.
 	 */
 	@Transactional
-	public QuizSetDetailResponse getQuizSet(Long quizSetId) {
+	public QuizSetDetailResponse getQuizSet(Long quizSetId, AuthUser requester) {
 		QuizSet quizSet = findQuizSetOrThrow(quizSetId);
+		verifyManagerAccess(quizSet, requester);
 
-		syncFromAi(quizSet);
+		String generationStage = syncFromAi(quizSet);
 
-		return QuizSetDetailResponse.from(quizSet);
+		return QuizSetDetailResponse.from(quizSet, generationStage);
+	}
+
+	/**
+	 * 학생 응시용 문항 조회. 세션이 열린 반의 구성원이면 볼 수 있고, 정답·해설은 응답에 담기지 않는다.
+	 */
+	@Transactional
+	public QuizQuestionsResponse getQuizQuestions(Long quizSetId, AuthUser requester) {
+		QuizSet quizSet = findQuizSetOrThrow(quizSetId);
+		participantService.verifySessionClassMember(sessionIdOf(quizSet), requester);
+
+		String generationStage = syncFromAi(quizSet);
+
+		return QuizQuestionsResponse.from(quizSet, generationStage);
+	}
+
+	/**
+	 * 정답이 포함된 상세는 강사만 볼 수 있다. 세션 활성 여부는 보지 않는다 —
+	 * 세션을 닫은 뒤에 결과를 검토하는 흐름을 막지 않기 위해서다.
+	 */
+	private void verifyManagerAccess(QuizSet quizSet, AuthUser requester) {
+		if (requester == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
+		if (!MANAGER_ROLE.equals(requester.role())) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "정답이 포함된 퀴즈 상세는 강사만 볼 수 있습니다.");
+		}
+		participantService.verifySessionClassMember(sessionIdOf(quizSet), requester);
+	}
+
+	private Long sessionIdOf(QuizSet quizSet) {
+		return projectRepository.findById(quizSet.getProjectId())
+				.map(Project::getSessionId)
+				.orElseThrow(() -> new ResponseStatusException(
+						HttpStatus.NOT_FOUND, "퀴즈셋의 프로젝트를 찾을 수 없습니다: " + quizSet.getProjectId()));
 	}
 
 	/**
@@ -112,9 +153,13 @@ public class QuizService {
 		applyAiResult(quizSet, payload);
 	}
 
-	private void syncFromAi(QuizSet quizSet) {
+	/**
+	 * @return 아직 생성 중이면 AI meter 의 마지막 stage(GENERATE/SOLVE/JUDGE), 아니면 null.
+	 *         프론트 진행바가 단계를 표시하는 데 쓴다.
+	 */
+	private String syncFromAi(QuizSet quizSet) {
 		if (quizSet.getStatus() != QuizSetStatus.GENERATING || quizSet.getAiQuizSetId() == null) {
-			return;
+			return null;
 		}
 
 		AiQuizStatusResponse aiResponse;
@@ -122,10 +167,20 @@ public class QuizService {
 			aiResponse = quizAiClient.getStatus(quizSet.getAiQuizSetId());
 		} catch (QuizAiException e) {
 			// AI 가 잠깐 안 붙는 것은 조회 실패가 아니다. 지금 상태를 그대로 돌려주고 다음 폴링에 맡긴다.
-			return;
+			return null;
 		}
 
 		applyAiResult(quizSet, aiResponse);
+
+		return quizSet.getStatus() == QuizSetStatus.GENERATING ? latestStage(aiResponse) : null;
+	}
+
+	private String latestStage(AiQuizStatusResponse aiResponse) {
+		List<AiQuizStatusResponse.AiLlmCall> meter = aiResponse.meter();
+		if (meter == null || meter.isEmpty()) {
+			return null;
+		}
+		return meter.get(meter.size() - 1).stage();
 	}
 
 	private void applyAiResult(QuizSet quizSet, AiQuizStatusResponse aiResponse) {

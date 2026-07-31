@@ -73,6 +73,20 @@ public class ProjectService {
         return store(request.sessionId(), request.repoUrl(), requester.id(), sanitized.files(), skipped);
     }
 
+    /**
+     * 세션의 현재 프로젝트(가장 최근 임포트) 조회. 모든 참가자가 같은 프로젝트를 보게 하는 기준점이다 —
+     * 프론트가 localStorage 로 각자 들고 있으면 임포트한 사람 외에는 프로젝트를 찾을 수 없다.
+     */
+    @Transactional(readOnly = true)
+    public ProjectResponse getCurrentProject(AuthUser requester, Long sessionId) {
+        participantService.verifyCanEnter(sessionId, requester);
+
+        return projectRepository.findFirstBySessionIdOrderByIdDesc(sessionId)
+                .map(ProjectResponse::from)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "세션에 임포트된 프로젝트가 없습니다."));
+    }
+
     /** 파일 트리용 목록. 경로 오름차순, 내용은 포함하지 않는다. */
     @Transactional(readOnly = true)
     public List<ProjectFileSummaryResponse> getFiles(AuthUser requester, Long projectId) {
