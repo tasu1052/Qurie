@@ -30,6 +30,14 @@ public class Session {
     @Column(name = "class_id", nullable = false)
     private Long classId;
 
+    /**
+     * 세션이 속한 그룹. 일반 세션은 그룹 단위로만 열리므로 항상 채워지고, 반 공개(수업) 세션은 반 전체가
+     * 대상이라 null 이다. 컬럼을 nullable 로 두는 이유가 하나 더 있다 — ddl-auto=update 로 운영하는 동안
+     * NOT NULL 컬럼을 추가하면 기존 행이 0 같은 암묵적 기본값으로 채워져 존재하지 않는 그룹을 가리킨다.
+     */
+    @Column(name = "group_id")
+    private Long groupId;
+
     /** 방 제목 */
     @Column(name = "title", nullable = false, length = 100)
     private String title;
@@ -63,16 +71,18 @@ public class Session {
         String title,
         Long createdBy
     ) {
-        this(classId, title, createdBy, false);
+        this(classId, null, title, createdBy, false);
     }
 
     public Session(
         Long classId,
+        Long groupId,
         String title,
         Long createdBy,
         boolean classPublic
     ) {
         this.classId = classId;
+        this.groupId = groupId;
         this.title = title;
         this.createdBy = createdBy;
         this.active = true;

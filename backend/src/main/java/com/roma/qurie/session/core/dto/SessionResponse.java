@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 public record SessionResponse(
         Long id,
         Long classId,
+        /** 그룹 세션이면 그룹 id, 반 공개(수업) 세션이면 null. */
+        Long groupId,
         String title,
         Long createdBy,
         boolean active,
@@ -18,6 +20,7 @@ public record SessionResponse(
         return new SessionResponse(
                 session.getId(),
                 session.getClassId(),
+                session.getGroupId(),
                 session.getTitle(),
                 session.getCreatedBy(),
                 session.isActive(),

@@ -47,7 +47,7 @@ public class SessionController {
     public List<SessionResponse> list(
             @RequestParam Long classId, @AuthenticationPrincipal AuthUser requester) {
         sessionParticipantService.verifyClassMember(classId, requester);
-        return sessionService.getOpenSessions(classId);
+        return sessionService.getOpenSessions(classId, requester);
     }
 
     @GetMapping("/{id}/participants")
@@ -70,17 +70,20 @@ public class SessionController {
         return ResponseEntity.noContent().build();
     }
 
-    /** 방 수정 (제목 변경 / active=false 로 닫기). 닫힌 세션은 수정 불가, 재오픈 불가. */
+    /** 방 수정 (제목 변경 / active=false 로 닫기). 강사만 가능. 닫힌 세션은 수정 불가, 재오픈 불가. */
     @PatchMapping("/{id}")
     public SessionResponse update(
-            @PathVariable Long id, @Valid @RequestBody SessionUpdateRequest request) {
-        return sessionService.update(id, request);
+            @PathVariable Long id,
+            @Valid @RequestBody SessionUpdateRequest request,
+            @AuthenticationPrincipal AuthUser requester) {
+        return sessionService.update(id, request, requester);
     }
 
-    /** 방 삭제 */
+    /** 방 삭제. 강사만 가능. */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        sessionService.delete(id);
+    public ResponseEntity<Void> delete(
+            @PathVariable Long id, @AuthenticationPrincipal AuthUser requester) {
+        sessionService.delete(id, requester);
         return ResponseEntity.noContent().build();
     }
 
