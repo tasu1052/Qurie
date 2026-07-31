@@ -54,4 +54,11 @@ public class Master extends BaseTimeEntity {
         this.password = password;
         this.name = name;
     }
+
+    /**
+     * @param encodedPassword: 서비스 계층에서 인코딩을 끝낸 값
+     */
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
 }
