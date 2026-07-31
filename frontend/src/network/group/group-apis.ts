@@ -65,6 +65,8 @@ export interface GroupEditRequest {
 
 export interface GroupDuplicateRequest {
     name?: string;
+    /** true 이면 백엔드 409 — 한 학생은 그룹 하나에만 속할 수 있다. */
+    includeMembers?: boolean;
 }
 
 export interface GroupShuffleRequest {

@@ -21,10 +21,6 @@ export interface SessionResponse {
     classId: number;
     title: string;
     createdBy: number;
-    /** 클래스 전체 공개 세션(강사용 공개 세션) 여부. */
-    classPublic?: boolean;
-    /** snake_case 응답 호환용 필드. */
-    class_public?: boolean;
     active: boolean;
     createdAt: string;
     endedAt: string | null;
