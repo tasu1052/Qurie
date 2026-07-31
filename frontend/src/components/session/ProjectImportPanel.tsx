@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import { AlertBanner, Button, FileDropzone, Input, Modal, UploadRow } from '../../ds';
 import {
@@ -12,10 +13,38 @@ type ProjectImportPanelProps = {
   onImported: (result: ProjectImportResponse) => void;
 };
 
+function apiErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError(error)) {
+    const status = error.response?.status;
+    const message = error.response?.data?.message;
+    if (typeof message === 'string' && message.trim()) {
+      if (status === 403) {
+        return `${message} (반 명단에 없는 계정으로는 프로젝트 임포트가 거부됩니다.)`;
+      }
+      return message;
+    }
+    if (status === 403) {
+      return '이 반에 소속된 사용자만 입장할 수 있습니다. (403)';
+    }
+    if (status === 401) {
+      return '로그인이 필요합니다. 다시 로그인해 주세요.';
+    }
+    if (status === 409) {
+      return '종료된 세션에는 프로젝트를 가져올 수 없습니다.';
+    }
+    if (status === 413) {
+      return '파일 개수 또는 용량 제한을 초과했습니다. (최대 500개 · 파일당 200KB · 합 10MB)';
+    }
+  }
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return fallback;
+}
+
 export function ProjectImportPanel({ sessionId, onImported }: ProjectImportPanelProps) {
   const importLocal = useImportProjectLocal();
   const importGit = useImportProjectGit();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
   const [gitOpen, setGitOpen] = useState(false);
   const [repoUrl, setRepoUrl] = useState('');
   const [branch, setBranch] = useState('main');
@@ -24,7 +53,7 @@ export function ProjectImportPanel({ sessionId, onImported }: ProjectImportPanel
   const [uploadingName, setUploadingName] = useState<string | null>(null);
 
   useEffect(() => {
-    const el = fileInputRef.current;
+    const el = folderInputRef.current;
     if (!el) return;
     el.setAttribute('webkitdirectory', '');
     el.setAttribute('directory', '');
@@ -39,7 +68,7 @@ export function ProjectImportPanel({ sessionId, onImported }: ProjectImportPanel
     try {
       const files = await readLocalProjectFiles(fileList);
       if (Object.keys(files).length === 0) {
-        setError('읽을 수 있는 텍스트 파일이 없습니다.');
+        setError('읽을 수 있는 텍스트 파일이 없습니다. (바이너리·숨김·제외 경로는 스킵됩니다)');
         setUploadingName(null);
         return;
       }
@@ -52,7 +81,7 @@ export function ProjectImportPanel({ sessionId, onImported }: ProjectImportPanel
           },
           onError: (err) => {
             setUploadingName(null);
-            setError(err instanceof Error ? err.message : '로컬 임포트에 실패했습니다.');
+            setError(apiErrorMessage(err, '로컬 임포트에 실패했습니다.'));
           },
         },
       );
@@ -84,7 +113,7 @@ export function ProjectImportPanel({ sessionId, onImported }: ProjectImportPanel
           onImported(data);
         },
         onError: (err) => {
-          setError(err instanceof Error ? err.message : 'Git 임포트에 실패했습니다.');
+          setError(apiErrorMessage(err, 'Git 임포트에 실패했습니다.'));
         },
       },
     );
@@ -107,26 +136,47 @@ export function ProjectImportPanel({ sessionId, onImported }: ProjectImportPanel
       ) : (
         <FileDropzone
           title="프로젝트를 가져와 주세요"
-          description="로컬 폴더를 선택하거나 공개 Git 저장소를 연결합니다."
-          hint="폴더 · 텍스트 파일 · 공개 HTTPS Git"
-          actionLabel="폴더 선택"
+          description="파일 단위로 올리거나 폴더를 선택하고, 공개 Git 저장소도 연결할 수 있습니다."
+          hint="텍스트 파일 · 폴더 · 공개 HTTPS Git"
+          actionLabel="파일 선택"
           onSelect={() => fileInputRef.current?.click()}
           secondary={
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={busy}
-              onClick={() => setGitOpen(true)}
-              style={{ width: '100%', justifyContent: 'center' }}
-            >
-              Git 연동
-            </Button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={busy}
+                onClick={() => folderInputRef.current?.click()}
+                style={{ width: '100%', justifyContent: 'center', whiteSpace: 'nowrap' }}
+              >
+                폴더 선택
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={busy}
+                onClick={() => setGitOpen(true)}
+                style={{ width: '100%', justifyContent: 'center', whiteSpace: 'nowrap' }}
+              >
+                Git 연동
+              </Button>
+            </div>
           }
         />
       )}
 
       <input
         ref={fileInputRef}
+        type="file"
+        multiple
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          void handleLocalFiles(e.target.files);
+          e.target.value = '';
+        }}
+      />
+      <input
+        ref={folderInputRef}
         type="file"
         multiple
         style={{ display: 'none' }}

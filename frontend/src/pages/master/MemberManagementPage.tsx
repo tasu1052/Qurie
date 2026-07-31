@@ -133,13 +133,20 @@ function MembersBody() {
       { email: first, classId: cid, role },
       {
         onSuccess: (res) => {
-          setInviteOk(`${res.email} 초대 완료 · 만료 ${new Date(res.expiresAt).toLocaleString('ko-KR')}`);
+          setInviteOk(
+            `${res.email}으로 초대장을 보냈습니다. 만료 ${new Date(res.expiresAt).toLocaleString('ko-KR')}`,
+          );
           setEmail(emails.slice(1).join(', '));
-          if (emails.length === 1) setInviteOpen(false);
         },
         onError: (err) => setInviteError(apiErrorMessage(err, '초대에 실패했습니다.')),
       },
     );
+  };
+
+  const closeInvite = () => {
+    setInviteOpen(false);
+    setInviteError(null);
+    setInviteOk(null);
   };
 
   return (
@@ -156,6 +163,9 @@ function MembersBody() {
           icon={<UserPlus size={15} strokeWidth={1.75} />}
           onClick={() => {
             setClassId(String(classes[0]?.id ?? ''));
+            setEmail('');
+            setInviteError(null);
+            setInviteOk(null);
             setInviteOpen(true);
           }}
         >
@@ -276,16 +286,20 @@ function MembersBody() {
         open={inviteOpen}
         title="새 멤버 초대"
         description="이메일로 멤버를 초대합니다. 클래스가 필요합니다."
-        primaryLabel={createInvitation.isPending ? '발송 중…' : '초대장 발송하기'}
-        secondaryLabel="취소"
+        primaryLabel={
+          createInvitation.isPending ? '발송 중…' : inviteOk ? '추가로 발송' : '초대장 발송하기'
+        }
+        secondaryLabel={inviteOk ? '닫기' : '취소'}
         onPrimary={onInvite}
-        onSecondary={() => setInviteOpen(false)}
-        onClose={() => setInviteOpen(false)}
+        onSecondary={closeInvite}
+        onClose={closeInvite}
         width={520}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {inviteError ? <AlertBanner tone="error" title="초대 실패" description={inviteError} /> : null}
-          {inviteOk ? <AlertBanner tone="success" title="초대 완료" description={inviteOk} /> : null}
+          {inviteOk ? (
+            <AlertBanner tone="success" title="초대 발송 완료" description={inviteOk} />
+          ) : null}
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>이메일 주소</span>
             <Input
