@@ -46,10 +46,10 @@ public class ProjectService {
 
     /**
      * 로컬 폴더 임포트. 프론트가 폴더 선택으로 읽어 보낸 {경로: 내용}을 검증해 프로젝트와 파일로 저장한다.
-     * 방 입장 자격이 있는 사람(세션이 열린 반의 구성원)만 가져올 수 있다.
+     * 임포트는 그룹 전체의 작업 대상을 고정하므로 그룹 리더(반 공개 세션은 강사)만 할 수 있다.
      */
     public ProjectImportResponse importLocal(AuthUser requester, ProjectImportLocalRequest request) {
-        participantService.verifyCanEnter(request.sessionId(), requester);
+        participantService.verifyCanImportProject(request.sessionId(), requester);
 
         ImportedFileSanitizer.Result sanitized = ImportedFileSanitizer.sanitize(request.files());
 
@@ -61,7 +61,7 @@ public class ProjectService {
      * 메서드 전체에 @Transactional 을 걸면 clone 하는 동안 DB 커넥션을 점유한다.
      */
     public ProjectImportResponse importGit(AuthUser requester, ProjectImportGitRequest request) {
-        participantService.verifyCanEnter(request.sessionId(), requester);
+        participantService.verifyCanImportProject(request.sessionId(), requester);
 
         GitProjectReader.ReadResult read =
                 gitProjectReader.readFiles(request.repoUrl(), request.branch(), request.subPath());
