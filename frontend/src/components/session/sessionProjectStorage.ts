@@ -1,9 +1,25 @@
 const STORAGE_PREFIX = 'qurie:session-project:';
+const TITLE_PREFIX = 'qurie:session-title:';
 
 export type SessionProjectRef = {
   projectId: number;
   versionHash: string;
 };
+
+export function saveSessionTitle(sessionId: number, title: string): void {
+  const trimmed = title.trim();
+  if (!trimmed) return;
+  sessionStorage.setItem(`${TITLE_PREFIX}${sessionId}`, trimmed);
+}
+
+export function loadSessionTitle(sessionId: number): string | null {
+  try {
+    const raw = sessionStorage.getItem(`${TITLE_PREFIX}${sessionId}`);
+    return raw && raw.trim() ? raw.trim() : null;
+  } catch {
+    return null;
+  }
+}
 
 export function loadSessionProject(sessionId: number): SessionProjectRef | null {
   try {

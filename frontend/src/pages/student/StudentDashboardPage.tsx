@@ -20,6 +20,7 @@ import {
   useMe,
 } from '../../data';
 import { DashboardNoticesSection } from '../../components/notices/DashboardNoticesSection';
+import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
 
 function DashSkeleton() {
   return (
@@ -78,8 +79,10 @@ function StudentDashWithClass({ classId }: { classId: number }) {
   );
   const className = myClasses.find((c) => c.id === classId)?.name ?? '내 클래스';
 
-  const openSessionInNewTab = (sessionId: number) => {
-    const url = `/session/${sessionId}`;
+  const openSessionInNewTab = (sessionId: number, title?: string) => {
+    if (title) saveSessionTitle(sessionId, title);
+    const qs = title ? `?title=${encodeURIComponent(title)}` : '';
+    const url = `/session/${sessionId}${qs}`;
     const win = window.open(url, '_blank');
     if (!win) {
       setPopupBlockedSessionId(sessionId);
@@ -119,7 +122,7 @@ function StudentDashWithClass({ classId }: { classId: number }) {
           </span>
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
             {livePublicSession ? (
-              <Button variant="accent" onClick={() => openSessionInNewTab(livePublicSession.id)}>
+              <Button variant="accent" onClick={() => openSessionInNewTab(livePublicSession.id, livePublicSession.title)}>
                 LIVE 입장
               </Button>
             ) : null}
@@ -212,7 +215,7 @@ function StudentDashWithClass({ classId }: { classId: number }) {
               <button
                 key={s.id}
                 type="button"
-                onClick={() => openSessionInNewTab(s.id)}
+                onClick={() => openSessionInNewTab(s.id, s.title)}
                 style={{
                   minWidth: 220,
                   textAlign: 'left',

@@ -97,6 +97,7 @@ export {
   useGetSessionParticipants,
   useGetSessionChatHistory,
   useGetSessionMessages,
+  useGetSessionPresence,
   useUpdateSession,
   useDeleteSession,
 } from '../network/session';

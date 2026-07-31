@@ -53,6 +53,7 @@ export default defineConfig([
       'qurie/ds-component-placement': 'error',
       'qurie/live-status-badge': 'error',
       'qurie/livebadge-fit-content': 'error',
+      'qurie/button-nowrap': 'error',
       'no-restricted-imports': ['error', {
         paths: [{
           name: '../../components/badges/LiveBadge',
@@ -79,6 +80,7 @@ export default defineConfig([
       'qurie/ds-component-placement': 'error',
       'qurie/live-status-badge': 'error',
       'qurie/livebadge-fit-content': 'error',
+      'qurie/button-nowrap': 'error',
     },
   },
   {

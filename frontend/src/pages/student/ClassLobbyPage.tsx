@@ -19,6 +19,7 @@ import {
   useGetGroups,
   useGetSessions,
 } from '../../data';
+import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
 
 function LobbySkeleton() {
   return (
@@ -44,8 +45,10 @@ function ClassLobbyBody({ classId }: { classId: number }) {
   const active = sessions.filter((s) => s.active);
   const livePublic = active.find((s) => s.classPublic) ?? null;
 
-  const openSessionInNewTab = (sessionId: number) => {
-    const url = `/session/${sessionId}`;
+  const openSessionInNewTab = (sessionId: number, title?: string) => {
+    if (title) saveSessionTitle(sessionId, title);
+    const qs = title ? `?title=${encodeURIComponent(title)}` : '';
+    const url = `/session/${sessionId}${qs}`;
     const win = window.open(url, '_blank');
     if (!win) {
       setPopupBlockedSessionId(sessionId);
@@ -63,7 +66,7 @@ function ClassLobbyBody({ classId }: { classId: number }) {
         onSuccess: (created) => {
           setCreateOpen(false);
           setTitle('');
-          openSessionInNewTab(created.id);
+          openSessionInNewTab(created.id, created.title);
         },
       },
     );
@@ -117,7 +120,7 @@ function ClassLobbyBody({ classId }: { classId: number }) {
           </p>
         </div>
         {livePublic ? (
-          <Button variant="accent" onClick={() => openSessionInNewTab(livePublic.id)}>
+          <Button variant="accent" onClick={() => openSessionInNewTab(livePublic.id, livePublic.title)}>
             LIVE 입장
           </Button>
         ) : null}
@@ -171,7 +174,7 @@ function ClassLobbyBody({ classId }: { classId: number }) {
               <button
                 key={s.id}
                 type="button"
-                onClick={() => openSessionInNewTab(s.id)}
+                onClick={() => openSessionInNewTab(s.id, s.title)}
                 style={{
                   textAlign: 'left',
                   border: '1px solid var(--border)',
