@@ -15,20 +15,42 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class SessionService {
 
+    private static final String MANAGER_ROLE = "MANAGER";
+
     private final SessionRepository sessionRepository;
 
-    /* 방을 생성하는 함수. 생성자는 요청 본문이 아니라 인증된 사용자로 고정한다. */
+    /*
+     * 방을 생성하는 함수. 생성자는 요청 본문이 아니라 인증된 사용자로 고정한다.
+     * 반 공개(수업) 세션은 강사만, 반마다 열려 있는 것 하나만 만들 수 있다.
+     */
     @Transactional
     public SessionResponse create(SessionCreateRequest request, AuthUser creator) {
         if (creator == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
         }
+        if (request.isClassPublicRequested()) {
+            verifyCanOpenClassPublicSession(request.classId(), creator);
+        }
         Session session =
                 new Session(
                         request.classId(),
                         request.title(),
-                        creator.id());
+                        creator.id(),
+                        request.isClassPublicRequested());
         return SessionResponse.from(sessionRepository.save(session));
+    }
+
+    /*
+     * 검사~저장 사이에 같은 반 공개 세션이 동시에 생기는 레이스는 막지 못한다.
+     * MySQL 이 조건부 유니크를 지원하지 않아 DB 제약을 못 걸고, 강사가 반에 한 명이라 실질 위험이 없다.
+     */
+    private void verifyCanOpenClassPublicSession(Long classId, AuthUser creator) {
+        if (!MANAGER_ROLE.equals(creator.role())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "반 공개 세션은 강사만 열 수 있습니다.");
+        }
+        if (sessionRepository.existsByClassIdAndClassPublicTrueAndActiveTrue(classId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 열려 있는 반 공개 세션이 있습니다. 먼저 닫아 주세요.");
+        }
     }
 
     @Transactional(readOnly = true)

@@ -10,4 +10,7 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
 
     /** 클래스 삭제 시 세션 기록이 남아 있으면 막기 위한 검사 */
     boolean existsByClassId(Long classId);
+
+    /** 반 공개 세션은 열려 있는 것 하나만 허용한다. 생성 전에 이미 열린 공개 세션이 있는지 확인한다. */
+    boolean existsByClassIdAndClassPublicTrueAndActiveTrue(Long classId);
 }
