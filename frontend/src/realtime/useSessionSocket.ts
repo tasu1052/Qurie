@@ -31,6 +31,8 @@ interface ChatErrorPayload {
   occurredAt: string;
 }
 
+const EMPTY_PARTICIPANTS: SessionParticipantResponse[] = [];
+
 /**
  * 서버가 입장 전 전송을 막을 때 쓰는 문구. 백엔드가 에러 코드를 주지 않아 메시지로 판별한다 —
  * 매칭에 실패하면 재시도 없이 그대로 사용자에게 노출되므로 동작상 안전한 최선 노력 복구다.
@@ -191,7 +193,7 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
     // 연결 대상이 없는 화면(목업·잘못된 주소)은 소켓 상태를 노출하지 않는다.
     status: sessionId == null ? 'idle' : status,
     messages,
-    participants: socketParticipants ?? presence.data ?? [],
+    participants: socketParticipants ?? presence.data ?? EMPTY_PARTICIPANTS,
     error,
     dismissError,
     sendMessage,

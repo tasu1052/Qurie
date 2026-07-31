@@ -4,6 +4,7 @@ import * as monaco from 'monaco-editor';
 import editorWorker from 'monaco-editor/editor/editor.worker.js?worker';
 import tsWorker from 'monaco-editor/language/typescript/ts.worker.js?worker';
 import { MonacoBinding } from 'y-monaco';
+import { removeAwarenessStates } from 'y-protocols/awareness';
 import type * as Y from 'yjs';
 import type { WebsocketProvider } from 'y-websocket';
 import type { CollabUser } from './useCollabSession';
@@ -20,14 +21,22 @@ interface CollabMonacoEditorProps {
   ytext: Y.Text;
   provider: WebsocketProvider;
   language?: string;
+  /** STOMP 참가자 userId — 세션 퇴장 시 해당 유저 원격 커서 즉시 제거 */
+  onlineUserIds?: number[];
 }
 
 /**
  * Yjs(Y.Text)와 양방향 바인딩된 Monaco 에디터.
  * 원격 참가자 커서/선택은 awareness 상태 기반으로 클라이언트별 CSS를 주입해 색을 입힌다.
  */
-export function CollabMonacoEditor({ ytext, provider, language = 'typescript' }: CollabMonacoEditorProps) {
+export function CollabMonacoEditor({
+  ytext,
+  provider,
+  language = 'typescript',
+  onlineUserIds,
+}: CollabMonacoEditorProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const prevOnlineRef = useRef<Set<number> | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -77,6 +86,30 @@ export function CollabMonacoEditor({ ytext, provider, language = 'typescript' }:
       editor.dispose();
     };
   }, [ytext, provider, language]);
+
+  // 참가자 목록에서 빠진 userId → 그 유저의 awareness(커서)를 로컬에서도 즉시 제거·브로드캐스트
+  const onlineKey = onlineUserIds?.slice().sort((a, b) => a - b).join(',') ?? '';
+  useEffect(() => {
+    if (!onlineUserIds) return;
+    const next = new Set(onlineUserIds);
+    const prev = prevOnlineRef.current;
+    prevOnlineRef.current = next;
+    // 첫 스냅샷이거나 전원 비움(재연결 플리커)은 무시 — 오탐으로 커서를 지우지 않는다.
+    if (!prev || prev.size === 0 || next.size === 0) return;
+
+    const leftUserIds = [...prev].filter((id) => !next.has(id));
+    if (leftUserIds.length === 0) return;
+    const left = new Set(leftUserIds);
+
+    const clientIds: number[] = [];
+    provider.awareness.getStates().forEach((state, clientId) => {
+      if (clientId === provider.awareness.clientID) return;
+      const user = state.user as CollabUser | undefined;
+      if (user?.id != null && left.has(user.id)) clientIds.push(clientId);
+    });
+    if (clientIds.length === 0) return;
+    removeAwarenessStates(provider.awareness, clientIds, 'participant-left');
+  }, [provider, onlineKey, onlineUserIds]);
 
   return <div ref={containerRef} style={{ flex: 1, minHeight: 0, minWidth: 0 }} />;
 }
