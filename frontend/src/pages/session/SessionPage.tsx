@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowDown,
@@ -30,6 +30,7 @@ import { useCollabSession } from '../../collab/useCollabSession';
 import {
   getProjectFileContent,
   useMeOptional,
+  useSessionSocket,
   type ProjectImportResponse,
 } from '../../data';
 import { ProjectImportPanel } from '../../components/session/ProjectImportPanel';
@@ -47,6 +48,13 @@ type LeftTab = 'explorer' | 'materials';
 type RightTab = 'community' | 'quiz';
 type BottomTab = 'terminal' | 'debug' | 'output';
 type EditorLanguage = 'java' | 'javascript' | 'typescript' | 'python' | 'html' | 'cpp';
+
+/** 서버는 타임존 없는 LocalDateTime 을 준다. 파싱이 안 되면 원문을 그대로 노출한다. */
+function formatChatTime(value: string): string {
+  const at = new Date(value);
+  if (Number.isNaN(at.getTime())) return value;
+  return `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
+}
 
 function applyContentToYText(ytext: Y.Text, content: string) {
   ytext.doc?.transact(() => {
@@ -100,6 +108,33 @@ export default function SessionPage() {
     hasSessionId ? String(sessionId) : 'demo',
     collabUser,
   );
+
+  /** 채팅 · 참여자 명단 · 퀴즈 생성 알림을 받는 STOMP 연결. 세션 id 가 없으면 붙지 않는다. */
+  const chat = useSessionSocket(hasSessionId ? sessionId : null);
+  const myUserId = meQuery.data?.id ?? null;
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const roleByUserId = useMemo(
+    () => new Map(chat.participants.map((p) => [p.userId, p.role])),
+    [chat.participants],
+  );
+
+  // 새 메시지가 붙으면 항상 마지막 메시지가 보이도록 맨 아래로 내린다.
+  useEffect(() => {
+    const el = chatScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [chat.messages.length]);
+
+  const onSendChat = () => {
+    if (!chat.sendMessage(draft)) return;
+    setDraft('');
+  };
+
+  const chatPresenceLabel = useMemo(() => {
+    if (!hasSessionId) return '세션 주소가 올바르지 않습니다';
+    if (chat.status === 'connected') return `현재 ${chat.participants.length}명 접속 중`;
+    if (chat.status === 'connecting') return '실시간 연결을 준비하는 중';
+    return '연결이 끊어졌습니다 · 자동으로 재연결합니다';
+  }, [chat.participants.length, chat.status, hasSessionId]);
 
   const onImported = (result: ProjectImportResponse) => {
     const next = { projectId: result.projectId, versionHash: result.versionHash };
@@ -562,39 +597,43 @@ export default function SessionPage() {
           </div>
           {rightTab === 'community' ? (
             <>
-              <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 14, overflow: 'auto', minHeight: 0 }}>
+              <div
+                ref={chatScrollRef}
+                style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 14, overflow: 'auto', minHeight: 0 }}
+              >
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, paddingBottom: 6, borderBottom: '1px solid var(--divider)' }}>
                   <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)' }}>실시간 클래스 채팅</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>현재 18명의 학생이 접속 중</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{chatPresenceLabel}</span>
                 </div>
-                <ChatBubble
-                  initial="지"
-                  name="김지원"
-                  role="ADMIN"
-                  time="14:30"
-                  text={
-                    <>
-                      cleanup은{' '}
-                      <code style={{ fontFamily: 'var(--font-mono)', fontSize: 12, background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 4, padding: '0 4px' }}>
-                        useEffect
-                      </code>{' '}
-                      안에서 반환해야 합니다. 11번 줄을 다시 보세요.
-                    </>
-                  }
-                />
-                <ChatBubble initial="민" name="박민수" time="14:31" mine text="setTimeout을 effect 안으로 옮기면 되는 건가요? 의존성 배열은 그대로 두고요?" />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ flex: 1, height: 1, background: 'var(--divider)' }} />
-                  <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', color: 'var(--text-muted)' }}>새 메시지</span>
-                  <span style={{ flex: 1, height: 1, background: 'var(--divider)' }} />
-                </div>
-                <ChatBubble
-                  initial="지"
-                  name="김지원"
-                  role="ADMIN"
-                  time="14:32"
-                  text="네, 맞습니다. 이 부분은 세션 종료 후 AI 퀴즈로도 출제될 예정이에요."
-                />
+                {chat.error ? (
+                  <AlertBanner
+                    tone="error"
+                    title="채팅 오류"
+                    description={chat.error}
+                    actionLabel="닫기"
+                    onAction={chat.dismissError}
+                  />
+                ) : null}
+                {chat.messages.length === 0 ? (
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', alignSelf: 'center', lineHeight: 1.6 }}>
+                    아직 메시지가 없습니다.
+                  </span>
+                ) : (
+                  chat.messages.map((message) => {
+                    const senderRole = roleByUserId.get(message.senderId);
+                    return (
+                      <ChatBubble
+                        key={message.id}
+                        initial={message.senderName.trim().charAt(0) || '?'}
+                        name={message.senderName}
+                        role={senderRole && senderRole !== 'STUDENT' ? senderRole : undefined}
+                        time={formatChatTime(message.createdAt)}
+                        mine={myUserId != null && message.senderId === myUserId}
+                        text={message.content}
+                      />
+                    );
+                  })
+                )}
               </div>
               <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div
@@ -610,7 +649,14 @@ export default function SessionPage() {
                   <input
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
-                    placeholder="메시지를 입력하세요…"
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+                      e.preventDefault();
+                      onSendChat();
+                    }}
+                    maxLength={1000}
+                    disabled={chat.status !== 'connected'}
+                    placeholder={chat.status === 'connected' ? '메시지를 입력하세요…' : '연결을 기다리는 중…'}
                     style={{
                       flex: 1,
                       border: 'none',
@@ -621,21 +667,27 @@ export default function SessionPage() {
                       fontFamily: 'var(--font-sans)',
                     }}
                   />
-                  <span
+                  <button
+                    type="button"
+                    onClick={onSendChat}
+                    disabled={chat.status !== 'connected' || draft.trim().length === 0}
+                    aria-label="메시지 보내기"
                     style={{
                       width: 28,
                       height: 28,
                       borderRadius: 6,
+                      border: 'none',
                       background: 'var(--accent)',
                       color: 'var(--text-inverse)',
                       display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       cursor: 'pointer',
+                      opacity: chat.status === 'connected' && draft.trim().length > 0 ? 1 : 0.5,
                     }}
                   >
                     <Send size={13} />
-                  </span>
+                  </button>
                 </div>
                 <div style={{ display: 'flex', gap: 14, color: 'var(--text-muted)' }}>
                   <Paperclip size={14} />
@@ -648,6 +700,7 @@ export default function SessionPage() {
             <SessionQuizPanel
               projectId={projectRef?.projectId ?? null}
               versionHash={projectRef?.versionHash ?? null}
+              pushedQuizSetId={chat.lastQuizNotification?.quizSetId ?? null}
             />
           )}
         </aside>

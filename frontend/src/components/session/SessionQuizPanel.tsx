@@ -12,6 +12,8 @@ import { AlertBanner, AsyncJobPanel, Badge, Button, Input, Select } from '../../
 type SessionQuizPanelProps = {
   projectId: number | null;
   versionHash: string | null;
+  /** 세션 웹소켓(`/topic/sessions/{id}/quiz`)으로 도착한 퀴즈셋 id. 다른 참여자가 만든 것도 여기로 들어온다. */
+  pushedQuizSetId?: number | null;
 };
 
 function mapJobStatus(
@@ -66,7 +68,11 @@ function QuizList({ quizzes }: { quizzes: QuizItem[] }) {
   );
 }
 
-export function SessionQuizPanel({ projectId, versionHash }: SessionQuizPanelProps) {
+export function SessionQuizPanel({
+  projectId,
+  versionHash,
+  pushedQuizSetId = null,
+}: SessionQuizPanelProps) {
   const generateQuiz = useGenerateQuiz();
   const [mode, setMode] = useState<QuizGenerationMode>('PRACTICE');
   const [count, setCount] = useState('5');
@@ -74,7 +80,16 @@ export function SessionQuizPanel({ projectId, versionHash }: SessionQuizPanelPro
   const [quizSetId, setQuizSetId] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const poll = usePollQuizSet(quizSetId);
+  /**
+   * 내가 요청한 세트와 소켓으로 통보된 세트 중 더 최신(id 가 큰) 쪽을 본다 —
+   * 강사가 만든 퀴즈가 학생 화면에도 그대로 열리게 하는 경로다.
+   */
+  const activeQuizSetId =
+    pushedQuizSetId != null && (quizSetId == null || pushedQuizSetId > quizSetId)
+      ? pushedQuizSetId
+      : quizSetId;
+
+  const poll = usePollQuizSet(activeQuizSetId);
 
   const jobStatus = mapJobStatus(poll.data?.status);
   const canGenerate = projectId != null && versionHash != null && !generateQuiz.isPending;
@@ -129,7 +144,8 @@ export function SessionQuizPanel({ projectId, versionHash }: SessionQuizPanelPro
     }
   };
 
-  if (projectId == null || versionHash == null) {
+  // 프로젝트가 없어도 소켓으로 통보된 퀴즈셋이 있으면 그것만은 보여준다(학생 화면 경로).
+  if (activeQuizSetId == null && (projectId == null || versionHash == null)) {
     return (
       <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>AI 퀴즈</span>
@@ -197,16 +213,16 @@ export function SessionQuizPanel({ projectId, versionHash }: SessionQuizPanelPro
         {generateQuiz.isPending ? '요청 중…' : '퀴즈 생성'}
       </Button>
 
-      {quizSetId != null ? (
+      {activeQuizSetId != null ? (
         <AsyncJobPanel
           label="AI 퀴즈"
           status={jobStatus}
           title={
             summary?.status === 'COMPLETED'
-              ? `퀴즈셋 #${quizSetId} 생성 완료`
+              ? `퀴즈셋 #${activeQuizSetId} 생성 완료`
               : summary?.status === 'FAILED'
-                ? `퀴즈셋 #${quizSetId} 실패`
-                : `퀴즈셋 #${quizSetId} 생성 중`
+                ? `퀴즈셋 #${activeQuizSetId} 실패`
+                : `퀴즈셋 #${activeQuizSetId} 생성 중`
           }
           description={
             summary
@@ -216,7 +232,7 @@ export function SessionQuizPanel({ projectId, versionHash }: SessionQuizPanelPro
           done={summary?.generatedCount ?? null}
           total={summary?.requestedCount ?? null}
           errorMessage={summary?.errorMessage ?? undefined}
-          meta={`polling GET /quiz/${quizSetId}`}
+          meta={`GET /quiz/${activeQuizSetId} · 세션 소켓 알림 수신 시 즉시 갱신`}
         >
           {summary?.status === 'COMPLETED' && summary.quizzes.length > 0 ? (
             <QuizList quizzes={summary.quizzes} />

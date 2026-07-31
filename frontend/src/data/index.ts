@@ -95,6 +95,7 @@ export {
   useGetSessions,
   useGetSession,
   useGetSessionParticipants,
+  useGetSessionChatHistory,
   useGetSessionMessages,
   useUpdateSession,
   useDeleteSession,
@@ -205,6 +206,14 @@ export type {
   QuizItem,
   QuizSetDetailResponse,
 } from '../network/quiz';
+/** 세션 실시간(STOMP) — 채팅 · 참여자 명단 · 퀴즈 생성 알림을 한 연결에서 받는다. */
+export { useSessionSocket } from '../realtime/useSessionSocket';
+export type {
+  QuizGenerationNotification,
+  SessionParticipantEvent,
+  SessionSocketStatus,
+} from '../realtime/useSessionSocket';
+
 export { useCreateUserReport } from '../network/report';
 export type { UserReportCreateRequest, UserReportCreateResponse } from '../network/report';
 
