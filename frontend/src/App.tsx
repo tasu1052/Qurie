@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthGate } from './components/auth/AuthGate';
 import { AdminGate } from './components/auth/AdminGate';
+import { LogoutSync } from './components/auth/LogoutSync';
 import LandingPage from './pages/marketing/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
@@ -54,6 +55,7 @@ function PlaceholderPage({ title }: { title: string }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <LogoutSync />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />

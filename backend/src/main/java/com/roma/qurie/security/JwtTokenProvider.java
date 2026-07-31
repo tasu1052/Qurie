@@ -13,12 +13,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * 액세스 토큰(JWT) 발급/파싱. 리프레시 토큰은 이번 범위에 없음(별도 작업 예정).
+ * 액세스 토큰(JWT) 발급/파싱.
+ *
+ * 수명은 리프레시 토큰(2시간)보다 짧게 둔다 — 액세스 토큰은 폐기 수단이 없는 stateless 토큰이라
+ * 로그아웃·비밀번호 변경으로 무효화할 수 없고, 만료를 기다리는 것이 유일한 회수 수단이다.
+ * 또한 짧게 둘수록 role·classId·name 클레임이 낡아 있는 시간(재로그인 없이 반영 안 되는 창)도 줄어든다.
  */
 @Component
 public class JwtTokenProvider {
 
-    private static final Duration ACCESS_TOKEN_EXPIRATION = Duration.ofHours(24);
+    private static final Duration ACCESS_TOKEN_EXPIRATION = Duration.ofMinutes(30);
 
     private final SecretKey key;
 
