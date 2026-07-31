@@ -742,25 +742,12 @@ module.exports = {
           return undefined;
         }
 
-        function hasTextChild(jsxEl) {
-          return (jsxEl.children || []).some((c) => {
-            if (c.type === 'JSXText' && String(c.value || '').trim()) return true;
-            if (
-              c.type === 'JSXExpressionContainer' &&
-              c.expression.type === 'Literal' &&
-              String(c.expression.value || '').trim()
-            ) {
-              return true;
-            }
-            return false;
-          });
-        }
-
         return {
           JSXElement(node) {
             const open = node.openingElement;
             if (!isButtonLike(open)) return;
 
+            // 실제 라벨이 두 줄 이상이면 금지 (포맷용 줄바꿈은 무시).
             for (const child of node.children || []) {
               if (child.type !== 'JSXText') continue;
               const nonEmptyLines = String(child.value || '')
@@ -772,7 +759,8 @@ module.exports = {
               }
             }
 
-            const name = jsxTagName(open);
+            // whiteSpace를 wrapping 값으로 오버라이드하는 경우만 금지.
+            // DS <Button> 기본값·링크형 text button·style={helper()} 는 허용.
             const styleAttr = getAttr(open, 'style');
             if (styleAttr && styleAttr.value && styleAttr.value.type === 'JSXExpressionContainer') {
               const expr = styleAttr.value.expression;
@@ -780,24 +768,6 @@ module.exports = {
                 const ws = whiteSpaceValue(expr);
                 if (typeof ws === 'string' && WRAP_VALUES.has(ws)) {
                   ctx.report({ node: styleAttr, messageId: 'wrapStyle' });
-                }
-              }
-            }
-
-            // Raw <button> with label + inline style object must set nowrap.
-            // style={helper()} / style={var} is allowed (helpers like tabBtn own the tokens).
-            if (name === 'button' && hasTextChild(node)) {
-              if (!styleAttr) {
-                ctx.report({ node: open, messageId: 'wrapStyle' });
-                return;
-              }
-              if (styleAttr.value && styleAttr.value.type === 'JSXExpressionContainer') {
-                const expr = styleAttr.value.expression;
-                if (expr.type === 'ObjectExpression') {
-                  const ws = whiteSpaceValue(expr);
-                  if (ws !== 'nowrap' && ws !== 'pre') {
-                    ctx.report({ node: open, messageId: 'wrapStyle' });
-                  }
                 }
               }
             }

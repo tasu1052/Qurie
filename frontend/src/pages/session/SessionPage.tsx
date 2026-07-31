@@ -163,6 +163,8 @@ export default function SessionPage() {
   const [endConfirmOpen, setEndConfirmOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [voiceJoined, setVoiceJoined] = useState(true);
+  const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
 
   const viewportWidth = useViewportWidth();
   const chrome = sessionChromeVisibility(viewportWidth);
@@ -193,12 +195,24 @@ export default function SessionPage() {
   const myUserId = meQuery.data?.id ?? null;
 
   const leaveDestination = () => {
+    // 새 탭으로 연 세션이면 탭을 닫고, 막히면 역할별 홈으로 이동한다.
+    window.close();
     const role = meQuery.isSuccess ? meQuery.data?.role : undefined;
     if (role === 'MANAGER' || role === 'MASTER') {
       navigate('/manager/sessions');
     } else {
       navigate('/app');
     }
+  };
+
+  const leaveVoiceChannel = () => {
+    if (!voiceJoined) {
+      setVoiceJoined(true);
+      setVoiceNotice('음성 채널에 다시 참여했습니다. (음성 API 연동 전 로컬 상태)');
+      return;
+    }
+    setVoiceJoined(false);
+    setVoiceNotice('음성 채널에서 나갔습니다. 세션은 유지됩니다.');
   };
 
   const applyLanguageFromPath = (path: string) => {
@@ -666,7 +680,7 @@ export default function SessionPage() {
                         flexShrink: 0,
                       }}
                     />
-                    음성
+                    음성{voiceJoined ? '' : ' · 나감'}
                   </span>
                   <span style={{ marginLeft: 'auto', display: 'flex', gap: 4, flexShrink: 0 }}>
                     <RoundIcon bg="var(--accent)" color="var(--text-inverse)" title="마이크">
@@ -675,11 +689,20 @@ export default function SessionPage() {
                     <RoundIcon title="헤드셋">
                       <Headphones size={12} />
                     </RoundIcon>
-                    <RoundIcon title="나가기" color="var(--status-error)" onClick={leaveDestination}>
+                    <RoundIcon
+                      title={voiceJoined ? '음성 채널 나가기' : '음성 채널 다시 참여'}
+                      color="var(--status-error)"
+                      onClick={leaveVoiceChannel}
+                    >
                       <PhoneOff size={12} />
                     </RoundIcon>
                   </span>
                 </div>
+                {voiceNotice ? (
+                  <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                    {voiceNotice}
+                  </p>
+                ) : null}
                 <span
                   style={{
                     fontSize: 11,
