@@ -27,6 +27,37 @@ public class SessionParticipantService {
 	private final SessionPresenceRegistry presenceRegistry;
 	private final ClassUserRepository classUserRepository;
 
+	/**
+	 * 세션 생성자만 할 수 있는 작업(프로젝트 임포트 등)의 자격 검사.
+	 * 입장 자격(반 소속·세션 활성)을 먼저 확인하고 생성자인지 본다.
+	 */
+	public AuthUser verifySessionCreator(Long sessionId, AuthUser authUser) {
+		AuthUser verified = verifyCanEnter(sessionId, authUser);
+		Session session = findSession(sessionId);
+		if (!session.getCreatedBy().equals(verified.id())) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "세션 생성자만 할 수 있는 작업입니다.");
+		}
+		return verified;
+	}
+
+	/**
+	 * 세션이 열린 반의 구성원인지 확인한다. verifyCanEnter 와 달리 세션 활성 여부는 보지 않는다 —
+	 * 닫힌 세션의 퀴즈 결과를 매니저가 나중에 확인하는 흐름을 막지 않기 위해서다.
+	 */
+	public AuthUser verifySessionClassMember(Long sessionId, AuthUser authUser) {
+		if (authUser == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, LOGIN_REQUIRED_MESSAGE);
+		}
+		Session session = findSession(sessionId);
+		verifyClassMember(session.getClassId(), authUser);
+		return authUser;
+	}
+
+	private Session findSession(Long sessionId) {
+		return sessionRepository.findById(sessionId)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, SESSION_NOT_FOUND_MESSAGE));
+	}
+
 	public AuthUser verifyCanEnter(Long sessionId, Principal principal) {
 		return verifyCanEnter(sessionId, requireAuthenticated(principal));
 	}

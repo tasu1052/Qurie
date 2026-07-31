@@ -5,15 +5,20 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * AI 서버 GET /api/quiz/{id}/status 응답. ai_service 의 QuizResponse 에서 우리가 저장에 쓰는
- * 필드만 담는다 — rejected(탈락 문항)·meter(LLM 호출 로그)는 AI 쪽 분석용이라 받지 않는다.
+ * AI 서버 GET /api/quiz/{id}/status 응답. ai_service 의 QuizResponse 에서 우리가 쓰는 필드만 담는다 —
+ * rejected(탈락 문항)는 AI 쪽 분석용이라 받지 않고, meter 는 진행 단계 표시에 stage 만 쓴다.
  */
 public record AiQuizStatusResponse(
 		String project,
 		@JsonProperty("quiz_set_id") Long quizSetId,
 		AiQuizSetState status,
 		List<AiQuiz> quizzes,
-		@JsonProperty("error_message") String errorMessage) {
+		@JsonProperty("error_message") String errorMessage,
+		List<AiLlmCall> meter) {
+
+	/** LLM 호출 로그 한 건. 호출 순서대로 쌓이므로 마지막 항목의 stage 가 현재 진행 단계다. */
+	public record AiLlmCall(String stage) {
+	}
 
 	public enum AiQuizSetState {
 

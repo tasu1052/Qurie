@@ -49,7 +49,8 @@ public class ProjectService {
      * 방 입장 자격이 있는 사람(세션이 열린 반의 구성원)만 가져올 수 있다.
      */
     public ProjectImportResponse importLocal(AuthUser requester, ProjectImportLocalRequest request) {
-        participantService.verifyCanEnter(request.sessionId(), requester);
+        // 세션의 작업 코드는 하나의 기준이어야 하므로 임포트는 방을 만든 사람에게만 허용한다.
+        participantService.verifySessionCreator(request.sessionId(), requester);
 
         ImportedFileSanitizer.Result sanitized = ImportedFileSanitizer.sanitize(request.files());
 
@@ -61,7 +62,7 @@ public class ProjectService {
      * 메서드 전체에 @Transactional 을 걸면 clone 하는 동안 DB 커넥션을 점유한다.
      */
     public ProjectImportResponse importGit(AuthUser requester, ProjectImportGitRequest request) {
-        participantService.verifyCanEnter(request.sessionId(), requester);
+        participantService.verifySessionCreator(request.sessionId(), requester);
 
         GitProjectReader.ReadResult read =
                 gitProjectReader.readFiles(request.repoUrl(), request.branch(), request.subPath());
@@ -71,6 +72,20 @@ public class ProjectService {
         skipped.addAll(sanitized.skipped());
 
         return store(request.sessionId(), request.repoUrl(), requester.id(), sanitized.files(), skipped);
+    }
+
+    /**
+     * 세션의 현재 프로젝트(가장 최근 임포트) 조회. 모든 참가자가 같은 프로젝트를 보게 하는 기준점이다 —
+     * 프론트가 localStorage 로 각자 들고 있으면 임포트한 사람 외에는 프로젝트를 찾을 수 없다.
+     */
+    @Transactional(readOnly = true)
+    public ProjectResponse getCurrentProject(AuthUser requester, Long sessionId) {
+        participantService.verifyCanEnter(sessionId, requester);
+
+        return projectRepository.findFirstBySessionIdOrderByIdDesc(sessionId)
+                .map(ProjectResponse::from)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "세션에 임포트된 프로젝트가 없습니다."));
     }
 
     /** 파일 트리용 목록. 경로 오름차순, 내용은 포함하지 않는다. */

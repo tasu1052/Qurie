@@ -97,9 +97,9 @@ class ProjectServiceTest {
 	}
 
 	@Test
-	void importLocalRequiresSessionAccess() {
-		given(participantService.verifyCanEnter(eq(SESSION_ID), any(AuthUser.class)))
-				.willThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "반 구성원이 아닙니다."));
+	void importLocalIsAllowedOnlyForSessionCreator() {
+		given(participantService.verifySessionCreator(eq(SESSION_ID), any(AuthUser.class)))
+				.willThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "세션 생성자만 할 수 있는 작업입니다."));
 
 		assertThatThrownBy(() -> projectService.importLocal(student(),
 				new ProjectImportLocalRequest(SESSION_ID, Map.of("a.txt", "x"))))
@@ -108,6 +108,28 @@ class ProjectServiceTest {
 				.isEqualTo(HttpStatus.FORBIDDEN);
 
 		verify(projectRepository, org.mockito.Mockito.never()).save(any(Project.class));
+	}
+
+	@Test
+	void getCurrentProjectReturnsLatestImportOfTheSession() {
+		Project latest = new Project(SESSION_ID, null, 7L);
+		ReflectionTestUtils.setField(latest, "id", PROJECT_ID);
+		given(projectRepository.findFirstBySessionIdOrderByIdDesc(SESSION_ID))
+				.willReturn(Optional.of(latest));
+
+		assertThat(projectService.getCurrentProject(student(), SESSION_ID).id()).isEqualTo(PROJECT_ID);
+		verify(participantService).verifyCanEnter(eq(SESSION_ID), any(AuthUser.class));
+	}
+
+	@Test
+	void getCurrentProjectThrowsNotFoundWhenNothingImported() {
+		given(projectRepository.findFirstBySessionIdOrderByIdDesc(SESSION_ID))
+				.willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> projectService.getCurrentProject(student(), SESSION_ID))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(ProjectServiceTest::statusOf)
+				.isEqualTo(HttpStatus.NOT_FOUND);
 	}
 
 	@Test

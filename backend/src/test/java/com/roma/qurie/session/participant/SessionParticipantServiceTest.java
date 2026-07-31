@@ -85,6 +85,45 @@ class SessionParticipantServiceTest {
 	}
 
 	@Test
+	void verifySessionCreatorAcceptsTheCreator() {
+		AuthUser creator = new AuthUser(30L, "MANAGER", 100L, "manager@qurie.com", "매니저", CLASS_ID);
+		given(sessionRepository.findById(SESSION_ID))
+				.willReturn(Optional.of(new Session(CLASS_ID, "방", 30L)));
+		given(classUserRepository.existsByClassEntityIdAndUserId(CLASS_ID, creator.id()))
+				.willReturn(true);
+
+		AuthUser result = participantService.verifySessionCreator(SESSION_ID, creator);
+
+		assertThat(result).isEqualTo(creator);
+	}
+
+	@Test
+	void verifySessionCreatorRejectsOtherClassMember() {
+		given(sessionRepository.findById(SESSION_ID))
+				.willReturn(Optional.of(new Session(CLASS_ID, "방", 30L)));
+		given(classUserRepository.existsByClassEntityIdAndUserId(CLASS_ID, AUTH_USER.id()))
+				.willReturn(true);
+
+		assertThatThrownBy(() -> participantService.verifySessionCreator(SESSION_ID, AUTH_USER))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(exception -> ((ResponseStatusException)exception).getStatusCode())
+				.isEqualTo(HttpStatus.FORBIDDEN);
+	}
+
+	@Test
+	void verifySessionClassMemberAllowsMemberOfClosedSession() {
+		Session session = new Session(CLASS_ID, "방", 30L);
+		session.close();
+		given(sessionRepository.findById(SESSION_ID)).willReturn(Optional.of(session));
+		given(classUserRepository.existsByClassEntityIdAndUserId(CLASS_ID, AUTH_USER.id()))
+				.willReturn(true);
+
+		AuthUser result = participantService.verifySessionClassMember(SESSION_ID, AUTH_USER);
+
+		assertThat(result).isEqualTo(AUTH_USER);
+	}
+
+	@Test
 	void requireAuthenticatedRejectsAnonymousPrincipal() {
 		assertThatThrownBy(() -> participantService.requireAuthenticated(null))
 				.isInstanceOf(ResponseStatusException.class)
