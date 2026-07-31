@@ -38,7 +38,7 @@ class SessionServiceTest {
 				.willAnswer(invocation -> invocation.getArgument(0));
 
 		SessionResponse response =
-				sessionService.create(new SessionCreateRequest(CLASS_ID, "1교시 방"), CREATOR);
+				sessionService.create(new SessionCreateRequest(CLASS_ID, "1교시 방", null), CREATOR);
 
 		ArgumentCaptor<Session> captor = ArgumentCaptor.forClass(Session.class);
 		verify(sessionRepository).save(captor.capture());
@@ -46,15 +46,62 @@ class SessionServiceTest {
 		assertThat(saved.getClassId()).isEqualTo(CLASS_ID);
 		assertThat(saved.getTitle()).isEqualTo("1교시 방");
 		assertThat(saved.getCreatedBy()).isEqualTo(CREATOR.id());
+		assertThat(saved.isClassPublic()).isFalse();
 		assertThat(response.createdBy()).isEqualTo(CREATOR.id());
 	}
 
 	@Test
 	void createRejectsUnauthenticatedRequest() {
-		assertThatThrownBy(() -> sessionService.create(new SessionCreateRequest(CLASS_ID, "1교시 방"), null))
+		assertThatThrownBy(() -> sessionService.create(new SessionCreateRequest(CLASS_ID, "1교시 방", null), null))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(exception -> ((ResponseStatusException)exception).getStatusCode())
 				.isEqualTo(HttpStatus.UNAUTHORIZED);
 		verify(sessionRepository, never()).save(any(Session.class));
+	}
+
+	@Test
+	void createOpensClassPublicSessionWhenManagerAndNoneIsOpen() {
+		given(sessionRepository.existsByClassIdAndClassPublicTrueAndActiveTrue(CLASS_ID)).willReturn(false);
+		given(sessionRepository.save(any(Session.class)))
+				.willAnswer(invocation -> invocation.getArgument(0));
+
+		SessionResponse response =
+				sessionService.create(new SessionCreateRequest(CLASS_ID, "수업 방", true), CREATOR);
+
+		assertThat(response.classPublic()).isTrue();
+	}
+
+	@Test
+	void createRejectsClassPublicSessionFromStudent() {
+		AuthUser student = new AuthUser(20L, "STUDENT", 100L, "student@qurie.com", "학생", CLASS_ID);
+
+		assertThatThrownBy(() -> sessionService.create(new SessionCreateRequest(CLASS_ID, "수업 방", true), student))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(exception -> ((ResponseStatusException)exception).getStatusCode())
+				.isEqualTo(HttpStatus.FORBIDDEN);
+		verify(sessionRepository, never()).save(any(Session.class));
+	}
+
+	@Test
+	void createRejectsSecondOpenClassPublicSessionInSameClass() {
+		given(sessionRepository.existsByClassIdAndClassPublicTrueAndActiveTrue(CLASS_ID)).willReturn(true);
+
+		assertThatThrownBy(() -> sessionService.create(new SessionCreateRequest(CLASS_ID, "수업 방", true), CREATOR))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(exception -> ((ResponseStatusException)exception).getStatusCode())
+				.isEqualTo(HttpStatus.CONFLICT);
+		verify(sessionRepository, never()).save(any(Session.class));
+	}
+
+	@Test
+	void createAllowsRegularSessionWhileClassPublicSessionIsOpen() {
+		given(sessionRepository.save(any(Session.class)))
+				.willAnswer(invocation -> invocation.getArgument(0));
+
+		SessionResponse response =
+				sessionService.create(new SessionCreateRequest(CLASS_ID, "스터디 방", false), CREATOR);
+
+		assertThat(response.classPublic()).isFalse();
+		verify(sessionRepository, never()).existsByClassIdAndClassPublicTrueAndActiveTrue(CLASS_ID);
 	}
 }

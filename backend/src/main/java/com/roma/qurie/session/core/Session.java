@@ -40,6 +40,13 @@ public class Session {
     @Column(name = "is_active", nullable = false)
     private boolean active;
 
+    /**
+     * 반 공개(수업) 세션 여부. 강사(MANAGER)만 열 수 있고, 반마다 열려 있는 공개 세션은 하나뿐이다.
+     * "지금 우리 반 수업이 어디서 진행 중인지"가 항상 하나로 정해지게 하기 위한 구분이다.
+     */
+    @Column(name = "is_class_public", nullable = false)
+    private boolean classPublic;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -56,10 +63,20 @@ public class Session {
         String title,
         Long createdBy
     ) {
+        this(classId, title, createdBy, false);
+    }
+
+    public Session(
+        Long classId,
+        String title,
+        Long createdBy,
+        boolean classPublic
+    ) {
         this.classId = classId;
         this.title = title;
         this.createdBy = createdBy;
         this.active = true;
+        this.classPublic = classPublic;
     }
 
     /** 방 제목을 변경한다. */

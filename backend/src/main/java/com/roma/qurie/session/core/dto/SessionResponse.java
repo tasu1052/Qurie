@@ -9,6 +9,7 @@ public record SessionResponse(
         String title,
         Long createdBy,
         boolean active,
+        boolean classPublic,
         LocalDateTime createdAt,
         LocalDateTime endedAt,
         LocalDateTime updatedAt) {
@@ -20,6 +21,7 @@ public record SessionResponse(
                 session.getTitle(),
                 session.getCreatedBy(),
                 session.isActive(),
+                session.isClassPublic(),
                 session.getCreatedAt(),
                 session.getEndedAt(),
                 session.getUpdatedAt());
