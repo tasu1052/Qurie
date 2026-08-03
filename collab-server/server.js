@@ -30,7 +30,7 @@ if (!process.env.YPERSISTENCE) {
 const http = require('http')
 const { WebSocketServer } = require('ws')
 const jwt = require('jsonwebtoken')
-const { setupWSConnection } = require('y-websocket/bin/utils')
+const { setupWSConnection, getYDoc, getPersistence, setPersistence } = require('y-websocket/bin/utils')
 
 const host = process.env.HOST || '0.0.0.0'
 const port = Number.parseInt(process.env.PORT || '1234', 10)
@@ -48,6 +48,37 @@ if (!authDisabled && !jwtSecret) {
 
 /** 프론트 useCollabSession 이 만드는 방 이름 형식 외에는 문서를 만들어주지 않는다. */
 const ROOM_PATTERN = /^qurie-session-\d+$/
+
+/**
+ * LevelDB 로드(bindState)는 utils 안에서 await 없이 시작되는데, 로드가 끝나기 전에 클라이언트와
+ * sync 가 진행되면 빈 문서가 "동기화 완료"로 보인다 — 프론트는 빈 문서로 판단해 DB 스냅샷을
+ * 시딩하고, 뒤늦게 LevelDB 내용이 병합되어 문서가 중복(편집 줄 밀림)된다.
+ * bindState 완료 Promise 를 방 이름별로 기록해 두고, 연결 수락 전에 기다린다.
+ */
+const docLoadPromises = new Map()
+const basePersistence = getPersistence()
+if (basePersistence) {
+  setPersistence({
+    ...basePersistence,
+    bindState: (docName, ydoc) => {
+      const loaded = Promise.resolve(basePersistence.bindState(docName, ydoc)).catch((error) => {
+        // 로드 실패 시 빈 문서로라도 열어준다 — 프론트 시딩이 DB 스냅샷으로 채운다.
+        console.error(`LevelDB 문서 로드 실패 (doc=${docName}):`, error)
+      })
+      docLoadPromises.set(docName, loaded)
+      return loaded
+    },
+  })
+}
+
+/** 방 문서를 미리 만들어 영속화 로드를 시작시키고, 로드가 끝날 때까지 기다린다. */
+const waitForDocLoad = async (roomName) => {
+  getYDoc(roomName)
+  const loaded = docLoadPromises.get(roomName)
+  if (loaded) {
+    await loaded
+  }
+}
 
 const parseCookies = (header) => {
   const cookies = {}
@@ -134,8 +165,13 @@ server.on('upgrade', (request, socket, head) => {
   }
 
   const accept = () => {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit('connection', ws, request)
+    waitForDocLoad(roomName).then(() => {
+      if (socket.destroyed) {
+        return
+      }
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request)
+      })
     })
   }
 
