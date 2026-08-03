@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import type { AuthUserResponse } from '../auth/auth-apis';
+import { refresh, type AuthUserResponse } from '../auth/auth-apis';
 import { queryKeys } from '../core/queryKeys';
 import {
     getUserProfile,
@@ -37,9 +37,17 @@ export const useUpdateUserProfile = () => {
     return useMutation({
         mutationFn: ({ userId, ...body }: UserProfileUpdateRequest & { userId: number }) =>
             updateUserProfile(userId, body),
-        onSuccess: (data) => {
+        onSuccess: async (data, variables) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(data.userId) });
             queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+
+            const nameChanged = variables.name != null && variables.name.trim() !== '';
+            if (nameChanged) {
+                const me = await refresh();
+                queryClient.setQueryData(queryKeys.auth.me(), me);
+                return;
+            }
+
             queryClient.setQueryData<AuthUserResponse>(queryKeys.auth.me(), (prev) =>
                 prev ? { ...prev, name: data.name } : prev,
             );
