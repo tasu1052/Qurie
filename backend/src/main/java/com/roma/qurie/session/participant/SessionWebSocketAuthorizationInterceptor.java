@@ -20,7 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class SessionWebSocketAuthorizationInterceptor implements ChannelInterceptor {
 
 	private static final Pattern SESSION_TOPIC_PATTERN =
-			Pattern.compile("^/topic/sessions/(\\d+)/(messages|participants|quiz|voice)$");
+			Pattern.compile("^/topic/sessions/(\\d+)/(messages|participants|quiz|project|voice)$");
 	private static final Pattern VOICE_SIGNAL_TOPIC_PATTERN =
 			Pattern.compile("^/topic/sessions/(\\d+)/voice/signal/(\\d+)$");
 	private static final Pattern SESSION_APPLICATION_PATTERN =

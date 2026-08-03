@@ -47,17 +47,32 @@ def node_generate(state: PipelineState) -> PipelineState:
         quiz_tool(count, state["primary_file"]),
         max_tokens=config.max_tokens_for("GENERATE", count),
     )
-    quizzes = data["quizzes"]
+    quizzes = data.get("quizzes") or []
+    if not isinstance(quizzes, list):
+        quizzes = []
 
     perms: list[list[int]] = []
     shuffled: list[dict] = []
     for q in quizzes:
-        choices = list(q["choices"])
+        # 스키마 밖 응답(문항이 int/str로 오는 경우)은 섞지 말고 건너뛴다.
+        if not isinstance(q, dict):
+            continue
+        raw_choices = q.get("choices")
+        if not isinstance(raw_choices, list) or len(raw_choices) != 4:
+            shuffled.append(dict(q))
+            perms.append(list(range(4)))
+            continue
+        choices = list(raw_choices)
         order = list(range(len(choices)))
         random.shuffle(order)
         new_choices = [choices[i] for i in order]
-        old_ans = int(q["answer_index"])
-        new_ans = order.index(old_ans)
+        try:
+            old_ans = int(q["answer_index"])
+            new_ans = order.index(old_ans)
+        except (KeyError, TypeError, ValueError):
+            shuffled.append(dict(q))
+            perms.append(list(range(4)))
+            continue
         nq = dict(q)
         nq["choices"] = new_choices
         nq["answer_index"] = new_ans
