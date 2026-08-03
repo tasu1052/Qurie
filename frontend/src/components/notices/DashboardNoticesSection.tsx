@@ -27,6 +27,7 @@ function NoticesBody({
   const { data } = useGetNotices({
     size,
     classId,
+    forAudience: role === 'MANAGER' || role === 'STUDENT' ? true : undefined,
   });
   const notices = data.data;
   const path = morePath(role);
