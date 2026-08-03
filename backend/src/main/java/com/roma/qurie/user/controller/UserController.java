@@ -19,6 +19,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.roma.qurie.common.dto.PageResponse;
+import com.roma.qurie.report.dto.UserReportCreateRequest;
+import com.roma.qurie.report.dto.UserReportCreateResponse;
+import com.roma.qurie.report.service.UserReportService;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.user.dto.UserProfileResponse;
 import com.roma.qurie.user.dto.UserProfileUpdateRequest;
@@ -34,6 +37,7 @@ import com.roma.qurie.user.service.UserService;
 public class UserController {
 
 	private final UserService userService;
+	private final UserReportService userReportService;
 
 	/**
 	 * 매니저/학생 회원가입. API 설계의 UserController 표에는 조회·수정·삭제만 있어 생성 경로는
@@ -83,5 +87,23 @@ public class UserController {
 			@Valid @RequestBody UserProfileUpdateRequest request,
 			@AuthenticationPrincipal AuthUser requester) {
 		return userService.updateProfile(userId, request, requester);
+	}
+
+	/**
+	 * 사용자 최종 리포트 발급. /users 리소스 하위 경로라 세션 리포트(SessionController)와 같은 방식으로
+	 * 리소스 소유 컨트롤러에 둔다 — 별도 UserReportController 로 빼면 /api/v1 처럼 prefix 가 어긋난다.
+	 *
+	 * todo: API 설계안(v0.1)은 report-summary 를 저장하지 않는 GET 집계 리소스로 정의한다.
+	 *       user_reports 테이블 유지가 확정되면 이 엔드포인트도 함께 정리해야 한다.
+	 * todo: 집계 수치는 session_reports 에서 서버가 계산하도록 옮긴다.
+	 *
+	 * @param ordinaryUserId: 최종 리포트를 발급할 사용자 id
+	 * @param request: 클래스 id와 누적 집계 수치
+	 */
+	@PostMapping("/{userId}/report-summary")
+	@ResponseStatus(HttpStatus.CREATED)
+	public UserReportCreateResponse createUserReport(@PathVariable("userId") Long ordinaryUserId,
+			@Valid @RequestBody UserReportCreateRequest request) {
+		return userReportService.createUserReport(ordinaryUserId, request);
 	}
 }
