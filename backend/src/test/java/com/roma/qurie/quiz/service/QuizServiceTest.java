@@ -81,6 +81,9 @@ class QuizServiceTest {
 	@BeforeEach
 	void setUp() {
 		ReflectionTestUtils.setField(quizService, "callbackBaseUrl", CALLBACK_BASE_URL);
+		org.mockito.Mockito.lenient()
+				.when(quizSetRepository.existsByProjectIdAndStatusIn(any(), any()))
+				.thenReturn(false);
 	}
 
 	@Test
@@ -121,6 +124,22 @@ class QuizServiceTest {
 				quizService.requestQuizGeneration(PROJECT_ID, generateRequest(), MANAGER);
 
 		assertThat(response.status()).isEqualTo(QuizSetStatus.FAILED);
+	}
+
+	@Test
+	void requestQuizGenerationRejectsWhenProjectAlreadyGenerating() {
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
+		given(quizSetRepository.existsByProjectIdAndStatusIn(
+				eq(PROJECT_ID), eq(List.of(QuizSetStatus.QUEUED, QuizSetStatus.GENERATING))))
+				.willReturn(true);
+
+		assertThatThrownBy(() -> quizService.requestQuizGeneration(PROJECT_ID, generateRequest(), MANAGER))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(QuizServiceTest::statusOf)
+				.isEqualTo(HttpStatus.CONFLICT);
+
+		org.mockito.Mockito.verify(quizAiClient, org.mockito.Mockito.never())
+				.createQuizSet(any(), any());
 	}
 
 	@Test

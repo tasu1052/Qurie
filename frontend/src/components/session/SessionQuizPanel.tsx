@@ -444,11 +444,16 @@ export function SessionQuizPanel({
   const studentPoll = usePollQuizQuestions(!isInstructor ? activeQuizSetId : null);
   const poll = isInstructor ? managerPoll : studentPoll;
 
-  const jobStatus = mapJobStatus(poll.data?.status);
-  const canGenerate = isInstructor && projectId != null && !generateQuiz.isPending;
-
   const summary = useMemo(() => poll.data ?? null, [poll.data]);
   const latestSummary = projectQuizSets.data?.[0] ?? null;
+  const jobStatus = mapJobStatus(summary?.status);
+  const generatingInFlight =
+    summary?.status === 'QUEUED' ||
+    summary?.status === 'GENERATING' ||
+    (projectQuizSets.data ?? []).some((s) => s.status === 'QUEUED' || s.status === 'GENERATING');
+  const canGenerate =
+    isInstructor && projectId != null && !generateQuiz.isPending && !generatingInFlight;
+
   const playableQuizzes = useMemo(
     () => (summary && summary.quizzes.length > 0 ? toPlayableQuizzes(summary) : []),
     [summary],
@@ -657,7 +662,7 @@ export function SessionQuizPanel({
           </label>
 
           <Button variant="primary" disabled={!canGenerate} onClick={() => void onGenerate()}>
-            {generateQuiz.isPending ? '요청 중…' : '퀴즈 생성'}
+            {generateQuiz.isPending || generatingInFlight ? '생성 중…' : '퀴즈 생성'}
           </Button>
         </>
       ) : null}

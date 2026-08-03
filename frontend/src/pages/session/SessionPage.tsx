@@ -69,7 +69,18 @@ type LeftTab = 'explorer' | 'materials';
 type RightTab = 'community' | 'quiz';
 type BottomTab = 'terminal' | 'debug' | 'output';
 
-function applyContentToYText(ytext: Y.Text, content: string) {
+/** 공유 Y.Text 가 비어 있을 때만 DB 스냅샷을 넣는다. 이미 원격 편집이 있으면 덮지 않는다. */
+function seedYTextIfEmpty(ytext: Y.Text, content: string): boolean {
+  if (ytext.length > 0) return false;
+  if (content.length === 0) return true;
+  ytext.doc?.transact(() => {
+    ytext.insert(0, content);
+  });
+  return true;
+}
+
+/** 임포트 확정 등 의도적으로 문서를 갈아끼울 때만 쓴다. */
+function replaceYText(ytext: Y.Text, content: string) {
   ytext.doc?.transact(() => {
     const len = ytext.length;
     if (len > 0) ytext.delete(0, len);
@@ -214,7 +225,7 @@ export default function SessionPage() {
     !groupDetailQuery.data &&
     (groupDetailQuery.isPending || groupDetailQuery.isFetching);
 
-  const { ytext, provider, status: collabStatus } = useCollabSession(
+  const { ytext, provider, status: collabStatus, synced: collabSynced } = useCollabSession(
     hasSessionId ? String(sessionId) : 'demo',
     collabUser,
   );
@@ -293,29 +304,40 @@ export default function SessionPage() {
     setEditorLanguage(languageFromPath(path));
   };
 
-  const openFile = async (projectId: number, path: string) => {
+  const openFile = async (
+    projectId: number,
+    path: string,
+    options?: { replaceSharedDoc?: boolean },
+  ) => {
     setActiveFile(path);
     applyLanguageFromPath(path);
     if (hasSessionId) saveSessionActiveFile(sessionId, path);
     try {
       const file = await getProjectFileContent(projectId, path);
-      applyContentToYText(ytext, file.content);
+      if (options?.replaceSharedDoc) {
+        replaceYText(ytext, file.content);
+      } else {
+        // 방에 이미 편집본이 있으면 DB 원본으로 덮지 않는다 (새로고침 hydrate 포함).
+        seedYTextIfEmpty(ytext, file.content);
+      }
     } catch {
       setImportNotice(`파일을 열지 못했습니다: ${path}`);
     }
   };
 
-  /** 새로고침 후 활성 파일·확장자 언어를 복구한다. openFile 이 언어까지 세팅한다. */
+  /**
+   * 새로고침 후 활성 파일·확장자 언어를 복구한다.
+   * provider sync 이후에만 시딩해, 아직 방에 있는 사람들의 실시간 편집을 롤백하지 않는다.
+   */
   useEffect(() => {
-    if (!hasSessionId || !projectRef || hydratedActiveFileRef.current) return;
+    if (!hasSessionId || !projectRef || !collabSynced || hydratedActiveFileRef.current) return;
     hydratedActiveFileRef.current = true;
     const path = activeFile ?? loadSessionActiveFile(sessionId);
     if (!path) return;
-    // hydrate once after project bind — openFile updates editor language/content
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot restore of last active file
     void openFile(projectRef.projectId, path);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 최초 프로젝트 바인딩 시에만 복구
-  }, [hasSessionId, sessionId, projectRef?.projectId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync 완료 후 1회만
+  }, [hasSessionId, sessionId, projectRef?.projectId, collabSynced]);
 
   const onImported = (result: ProjectImportResponse) => {
     setPendingImport(result);
@@ -344,7 +366,7 @@ export default function SessionPage() {
     try {
       const files = await getProjectFiles(next.projectId);
       const first = [...files].map((f) => f.path).sort((a, b) => a.localeCompare(b))[0];
-      if (first) await openFile(next.projectId, first);
+      if (first) await openFile(next.projectId, first, { replaceSharedDoc: true });
     } catch {
       // 목록 실패해도 확정은 유지
     }

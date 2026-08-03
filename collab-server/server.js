@@ -18,7 +18,15 @@
  * 세션 참여 자격(반 명단 소속·세션 활성)은 규칙을 여기 복제하지 않고 백엔드의
  * GET /api/sessions/{id}/access 로 위임한다. 백엔드가 죽어 있으면 입장을 거부한다
  * (fail-closed) — 자격을 모르는 채 문서를 열어주는 것보다 안전하다.
+ *
+ * YPERSISTENCE 가 설정되면 y-websocket/bin/utils 가 LevelDB 로 문서를 영속화한다.
+ * 이 값은 utils require 이전에 잡혀 있어야 한다(모듈 로드 시 env 를 읽음).
  */
+if (!process.env.YPERSISTENCE) {
+  // 로컬 개발 기본 경로. compose 배포에서는 /data/yjs 를 명시한다.
+  process.env.YPERSISTENCE = './yjs-data'
+}
+
 const http = require('http')
 const { WebSocketServer } = require('ws')
 const jwt = require('jsonwebtoken')
@@ -31,6 +39,7 @@ const jwtSecret = process.env.JWT_SECRET
 const backendBaseUrl = (process.env.BACKEND_BASE_URL || 'http://localhost:8080').replace(/\/+$/, '')
 // 로컬에서 백엔드 없이 에디터만 볼 때 인증을 끄는 명시적 스위치. 배포에서는 켜면 안 된다.
 const authDisabled = process.env.AUTH_DISABLED === 'true'
+const persistenceDir = process.env.YPERSISTENCE
 
 if (!authDisabled && !jwtSecret) {
   console.error('JWT_SECRET 이 없습니다. 인증 없이 띄우려면 AUTH_DISABLED=true 를 명시하세요.')
@@ -154,5 +163,7 @@ server.on('upgrade', (request, socket, head) => {
 })
 
 server.listen(port, host, () => {
-  console.log(`collab-server: ${host}:${port} (auth ${authDisabled ? 'OFF — 개발 전용' : 'on'})`)
+  console.log(
+    `collab-server: ${host}:${port} (auth ${authDisabled ? 'OFF — 개발 전용' : 'on'}, persistence=${persistenceDir})`,
+  )
 })
