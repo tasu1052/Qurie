@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import type { AuthUserResponse } from '../auth/auth-apis';
 import { queryKeys } from '../core/queryKeys';
 import {
     getUserProfile,
@@ -39,7 +40,9 @@ export const useUpdateUserProfile = () => {
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(data.userId) });
             queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-            queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
+            queryClient.setQueryData<AuthUserResponse>(queryKeys.auth.me(), (prev) =>
+                prev ? { ...prev, name: data.name } : prev,
+            );
         },
     });
 };
