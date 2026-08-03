@@ -64,7 +64,7 @@ public class ProjectService {
         participantService.verifyCanImportProject(request.sessionId(), requester);
 
         GitProjectReader.ReadResult read =
-                gitProjectReader.readFiles(request.repoUrl(), request.branch(), request.subPath());
+                gitProjectReader.readFiles(request.repoUrl(), request.branch(), request.subPath(), request.pat());
         ImportedFileSanitizer.Result sanitized = ImportedFileSanitizer.sanitize(read.files());
 
         List<SkippedFile> skipped = new ArrayList<>(read.skipped());
