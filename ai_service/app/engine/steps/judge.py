@@ -33,7 +33,14 @@ def node_judge(state: PipelineState) -> PipelineState:
             judge_tool(len(sub)),
             max_tokens=config.max_tokens_for("JUDGE", len(sub)),
         )
-        scores = {int(s["index"]): s for s in data["scores"]}
+        scores = {}
+        for s in data.get("scores") or []:
+            if not isinstance(s, dict) or s.get("index") is None:
+                continue
+            try:
+                scores[int(s["index"])] = s
+            except (TypeError, ValueError):
+                continue
 
     out = []
     for i, q in enumerate(quizzes):
@@ -44,7 +51,10 @@ def node_judge(state: PipelineState) -> PipelineState:
             out.append({**q, "status": "REJECTED", "judge_score": None,
                         "reject_reason": "SOLVER_MISMATCH"})
             continue
-        sc = scores.get(i, {}).get("quality_score")
+        entry = scores.get(i)
+        if not isinstance(entry, dict):
+            entry = {}
+        sc = entry.get("quality_score")
         if isinstance(sc, float) and 0 <= sc <= 1:
             sc = int(round(sc * 10))
         try:
@@ -57,7 +67,7 @@ def node_judge(state: PipelineState) -> PipelineState:
         elif sc >= config.JUDGE_PASS_SCORE:
             out.append({**q, "status": "APPROVED", "judge_score": sc, "reject_reason": None})
         else:
-            critique = scores.get(i, {}).get("critique", "")
+            critique = entry.get("critique", "")
             out.append({**q, "status": "REJECTED", "judge_score": sc,
                         "reject_reason": f"JUDGE: {critique}"[:200]})
     state["quizzes"] = out

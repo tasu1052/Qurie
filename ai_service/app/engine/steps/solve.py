@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from app.core import config
-from app.engine.llm import call_llm, parse_json
+from app.engine.llm import call_llm
 from app.engine.prompts import build_solve_prompt, number_code
+from app.engine.solve_parse import parse_solver_answers
 from app.engine.state import PipelineState
+
+__all__ = ["node_solve", "parse_solver_answers"]
 
 
 def node_solve(state: PipelineState) -> PipelineState:
@@ -19,11 +22,17 @@ def node_solve(state: PipelineState) -> PipelineState:
     code_block = number_code(state["primary_file"], state["files"][state["primary_file"]])
     blind = [{"question": q["question"], "choices": q["choices"]} for _, q in solvable]
     prompt = build_solve_prompt(code_block, blind)
-    raw = call_llm(
-        config.SOLVER_MODEL, prompt, state["meter"], "SOLVE",
-        max_tokens=config.max_tokens_for("SOLVE", len(solvable)),
-    )
-    by_local = {int(a["i"]): int(a["choice"]) for a in parse_json(raw)["answers"]}
+    try:
+        raw = call_llm(
+            config.SOLVER_MODEL, prompt, state["meter"], "SOLVE",
+            max_tokens=config.max_tokens_for("SOLVE", len(solvable)),
+        )
+        by_local = parse_solver_answers(raw)
+    except Exception:
+        # 솔버 파싱/호출 실패는 세트 전체를 죽이지 않는다.
+        # 전부 불일치로 두고 judge가 거절 → refine이 재시도한다.
+        by_local = {}
+
     for local_i, (orig_i, _) in enumerate(solvable):
         answers_out[orig_i] = by_local.get(local_i, -1)
     state["solver_answers"] = answers_out
