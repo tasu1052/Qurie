@@ -17,8 +17,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
@@ -30,7 +32,8 @@ import com.roma.qurie.project.ImportedFileSanitizer.SkippedFile;
  *
  * 사용자가 지정한 URL 로 서버가 나가서 접속하는 기능이라 SSRF 방어가 필수다 —
  * https 만 허용하고 내부망·루프백·메타데이터 주소로 풀리는 호스트를 거부한다.
- * 인증은 지원하지 않는다(공개 저장소만). PAT 지원은 저장·마스킹 정책이 정해진 뒤 별도 작업.
+ * 비공개 저장소는 요청에 실려 온 PAT 로만 인증한다. 토큰은 이 clone 한 번에만 쓰고
+ * 저장하지 않는다 — URL 에 토큰을 담는 방식은 로그·에러 메시지에 노출되므로 계속 거부한다.
  */
 @Component
 public class GitProjectReader {
@@ -42,7 +45,7 @@ public class GitProjectReader {
 	public record ReadResult(Map<String, String> files, List<SkippedFile> skipped) {
 	}
 
-	public ReadResult readFiles(String repoUrl, String branch, String subPath) {
+	public ReadResult readFiles(String repoUrl, String branch, String subPath, String pat) {
 		URI uri = validateRepoUrl(repoUrl);
 
 		Path cloneDir;
@@ -53,7 +56,7 @@ public class GitProjectReader {
 		}
 
 		try {
-			cloneShallow(uri, branch, cloneDir);
+			cloneShallow(uri, branch, cloneDir, pat);
 			Path root = resolveSubPath(cloneDir, subPath);
 			return readTextFiles(root);
 		} finally {
@@ -98,17 +101,20 @@ public class GitProjectReader {
 		return uri;
 	}
 
-	private void cloneShallow(URI uri, String branch, Path cloneDir) {
+	private void cloneShallow(URI uri, String branch, Path cloneDir, String pat) {
 		try {
-			Git.cloneRepository()
+			CloneCommand clone = Git.cloneRepository()
 					.setURI(uri.toString())
 					.setDirectory(cloneDir.toFile())
 					.setDepth(1)
 					.setCloneAllBranches(false)
 					.setBranch(branch == null || branch.isBlank() ? null : branch)
-					.setTimeout(CLONE_TIMEOUT_SECONDS)
-					.call()
-					.close();
+					.setTimeout(CLONE_TIMEOUT_SECONDS);
+			if (pat != null && !pat.isBlank()) {
+				// GitHub·GitLab 모두 사용자명은 검사하지 않고 비밀번호 자리의 토큰만 본다.
+				clone.setCredentialsProvider(new UsernamePasswordCredentialsProvider("oauth2", pat.trim()));
+			}
+			clone.call().close();
 		} catch (GitAPIException e) {
 			// 비공개/없는 repo, 없는 브랜치, 네트워크 실패가 전부 여기로 온다. 원인은 메시지로 전달한다.
 			throw new ResponseStatusException(
