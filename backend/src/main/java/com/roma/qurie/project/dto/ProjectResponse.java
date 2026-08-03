@@ -14,7 +14,11 @@ public record ProjectResponse(
         LocalDateTime updatedAt) {
 
     public static ProjectResponse from(Project project) {
-        return from(project, null, 0);
+        Integer count = project.getFileCount();
+        return from(
+                project,
+                project.getVersionHash(),
+                count != null ? count : 0);
     }
 
     public static ProjectResponse from(Project project, String versionHash, int fileCount) {

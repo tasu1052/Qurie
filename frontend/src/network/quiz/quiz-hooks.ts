@@ -1,6 +1,14 @@
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { queryKeys } from '../core/queryKeys';
-import { generateQuiz, getQuizQuestions, getQuizSet, type QuizGenerateRequest } from './quiz-apis';
+import {
+    generateQuiz,
+    getQuizQuestions,
+    getQuizSet,
+    listQuizSetsByProject,
+    submitQuizSatisfaction,
+    type QuizGenerateRequest,
+    type QuizSatisfactionRequest,
+} from './quiz-apis';
 
 export const useGenerateQuiz = () => {
     const queryClient = useQueryClient();
@@ -10,9 +18,22 @@ export const useGenerateQuiz = () => {
             projectId,
             ...body
         }: QuizGenerateRequest & { projectId: number }) => generateQuiz(projectId, body),
-        onSuccess: (data) => {
+        onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.quiz.detail(data.quizSetId) });
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.quiz.byProject(variables.projectId),
+            });
         },
+    });
+};
+
+/** 프로젝트 퀴즈셋 목록 — 새로고침 복원용. */
+export const useQuizSetsByProject = (projectId: number | null) => {
+    return useQuery({
+        queryKey: projectId != null ? queryKeys.quiz.byProject(projectId) : (['quiz', 'project', 'idle'] as const),
+        queryFn: () => listQuizSetsByProject(projectId as number),
+        enabled: projectId != null,
+        staleTime: 5_000,
     });
 };
 
@@ -29,6 +50,8 @@ export const usePollQuizSet = (quizSetId: number | null) => {
         queryKey: quizSetId != null ? queryKeys.quiz.detail(quizSetId) : (['quiz', 'idle'] as const),
         queryFn: () => getQuizSet(quizSetId as number),
         enabled: quizSetId != null,
+        staleTime: 0,
+        refetchOnWindowFocus: true,
         refetchInterval: (query) => {
             const status = query.state.data?.status;
             return status === 'QUEUED' || status === 'GENERATING' ? 2000 : false;
@@ -50,9 +73,27 @@ export const usePollQuizQuestions = (quizSetId: number | null) => {
             quizSetId != null ? queryKeys.quiz.questions(quizSetId) : (['quiz', 'questions', 'idle'] as const),
         queryFn: () => getQuizQuestions(quizSetId as number),
         enabled: quizSetId != null,
+        staleTime: 0,
+        refetchOnWindowFocus: true,
         refetchInterval: (query) => {
             const status = query.state.data?.status;
             return status === 'QUEUED' || status === 'GENERATING' ? 2000 : false;
+        },
+    });
+};
+
+export const useSubmitQuizSatisfaction = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({
+            quizSetId,
+            ...body
+        }: QuizSatisfactionRequest & { quizSetId: number }) =>
+            submitQuizSatisfaction(quizSetId, body),
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.quiz.detail(data.quizSetId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.quiz.all });
         },
     });
 };

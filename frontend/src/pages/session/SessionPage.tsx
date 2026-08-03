@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowDown,
   ArrowUp,
@@ -35,8 +35,10 @@ import {
   useSessionSocket,
   useUpdateSession,
   type ProjectImportResponse,
+  type ProjectResponse,
 } from '../../data';
 import { queryKeys } from '../../network/core/queryKeys';
+import { getGroupDetail } from '../../network/group/group-apis';
 import { getSession } from '../../network/session/session-apis';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
 import { ProjectImportPanel } from '../../components/session/ProjectImportPanel';
@@ -149,9 +151,8 @@ export default function SessionPage() {
   const [gitOpen, setGitOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeFile, setActiveFile] = useState<string | null>(initialActiveFile);
-  const [projectRef, setProjectRef] = useState<SessionProjectRef | null>(() =>
-    hasSessionId ? loadSessionProject(sessionId) : null,
-  );
+  /** 리더가 다시 가져오기 중일 때만 true — 서버 프로젝트가 있어도 ImportPanel 을 연다. */
+  const [reimportMode, setReimportMode] = useState(false);
   const hydratedActiveFileRef = useRef(false);
   const [pendingImport, setPendingImport] = useState<ProjectImportResponse | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
@@ -170,6 +171,7 @@ export default function SessionPage() {
   const bottomDrag = usePointerDrag('y', bottomHeight, setBottomHeight, 1);
 
   const meQuery = useMeOptional();
+  const myUserId = meQuery.data?.id ?? null;
   const collabUserName = meQuery.isSuccess && meQuery.data?.name ? meQuery.data.name : '익명 참가자';
   const collabUserId = meQuery.isSuccess ? meQuery.data?.id ?? null : null;
   const collabUser = useMemo(
@@ -181,34 +183,80 @@ export default function SessionPage() {
   );
   const updateSession = useUpdateSession();
   const deleteSession = useDeleteSession();
+  const queryClient = useQueryClient();
   const sessionProjectQuery = useGetSessionProject(hasSessionId ? sessionId : null);
+  const sessionMetaQuery = useQuery({
+    queryKey: hasSessionId ? queryKeys.sessions.detail(sessionId) : ['sessions', 'detail', 'idle'],
+    queryFn: () => getSession(sessionId),
+    enabled: hasSessionId,
+  });
+  const groupId = sessionMetaQuery.data?.groupId ?? null;
+  const groupDetailQuery = useQuery({
+    queryKey: groupId != null ? queryKeys.groups.detailFull(groupId) : ['groups', 'detailFull', 'idle'],
+    queryFn: () => getGroupDetail(groupId as number),
+    enabled: groupId != null,
+  });
+
+  const canImportProject = useMemo(() => {
+    const role = meQuery.data?.role;
+    if (role === 'MANAGER') return true;
+    if (groupId == null || myUserId == null) return false;
+    return (
+      groupDetailQuery.data?.members.some(
+        (m) => m.userId === myUserId && m.role === 'LEADER',
+      ) ?? false
+    );
+  }, [meQuery.data?.role, groupId, groupDetailQuery.data?.members, myUserId]);
+
+  const importRolePending =
+    meQuery.data?.role !== 'MANAGER' &&
+    groupId != null &&
+    !groupDetailQuery.data &&
+    (groupDetailQuery.isPending || groupDetailQuery.isFetching);
 
   const { ytext, provider, status: collabStatus } = useCollabSession(
     hasSessionId ? String(sessionId) : 'demo',
     collabUser,
   );
 
-  /** 서버에 묶인 세션 프로젝트를 폴링해 다른 참가자 임포트도 좌측 트리에 반영한다. */
+  /**
+   * 트리 바인딩의 단일 소스: GET /projects/current (폴링·STOMP).
+   * sessionStorage 는 첫 페치 전 깜빡임 완화용 fallback 만 쓴다.
+   */
+  const projectRef = useMemo<SessionProjectRef | null>(() => {
+    if (reimportMode) return null;
+    const remote = sessionProjectQuery.data;
+    if (remote != null) {
+      return {
+        projectId: remote.id,
+        versionHash: remote.versionHash ?? '',
+      };
+    }
+    if (sessionProjectQuery.isFetching || sessionProjectQuery.isPending) {
+      return hasSessionId ? loadSessionProject(sessionId) : null;
+    }
+    return null;
+  }, [
+    reimportMode,
+    sessionProjectQuery.data,
+    sessionProjectQuery.isFetching,
+    sessionProjectQuery.isPending,
+    hasSessionId,
+    sessionId,
+  ]);
+
   useEffect(() => {
     if (!hasSessionId) return;
     const remote = sessionProjectQuery.data;
     if (remote == null) return;
-    const next: SessionProjectRef = {
+    saveSessionProject(sessionId, {
       projectId: remote.id,
       versionHash: remote.versionHash ?? '',
-    };
-    // remote poll → local project binding (intentional sync from query)
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- keep editor tree in sync with GET /projects/current
-    setProjectRef((prev) => {
-      if (prev?.projectId === next.projectId && prev.versionHash === next.versionHash) return prev;
-      return next;
     });
-    saveSessionProject(sessionId, next);
   }, [hasSessionId, sessionId, sessionProjectQuery.data]);
 
-  /** 채팅 · 참여자 · 퀴즈 알림 STOMP. 세션 id 없으면 연결하지 않는다. */
+  /** 채팅 · 참여자 · 퀴즈 · 프로젝트 임포트 STOMP. 세션 id 없으면 연결하지 않는다. */
   const chat = useSessionSocket(hasSessionId ? sessionId : null);
-  const myUserId = meQuery.data?.id ?? null;
   const onlineUserIds = useMemo(
     () => chat.participants.map((p) => p.userId),
     [chat.participants],
@@ -277,8 +325,20 @@ export default function SessionPage() {
   const confirmPendingImport = async () => {
     if (!pendingImport || !hasSessionId) return;
     const next = { projectId: pendingImport.projectId, versionHash: pendingImport.versionHash };
-    setProjectRef(next);
+    const cached: ProjectResponse = {
+      id: pendingImport.projectId,
+      sessionId,
+      path: null,
+      importedBy: myUserId ?? 0,
+      versionHash: pendingImport.versionHash,
+      fileCount: pendingImport.fileCount,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    queryClient.setQueryData(queryKeys.projects.bySession(sessionId), cached);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.projects.files(next.projectId) });
     saveSessionProject(sessionId, next);
+    setReimportMode(false);
     setPendingImport(null);
     setImportNotice(`${pendingImport.fileCount}개 파일을 세션에 적용했습니다.`);
     try {
@@ -296,13 +356,20 @@ export default function SessionPage() {
   };
 
   const startReimport = () => {
+    if (!canImportProject) return;
     setPendingImport(null);
-    setProjectRef(null);
+    setReimportMode(true);
     setActiveFile(null);
     hydratedActiveFileRef.current = false;
     if (hasSessionId) clearSessionProject(sessionId);
     setImportNotice(null);
     setLeftTab('explorer');
+  };
+
+  const cancelReimport = () => {
+    setReimportMode(false);
+    setPendingImport(null);
+    setImportNotice(null);
   };
 
   const onSelectFile = (path: string) => {
@@ -599,42 +666,46 @@ export default function SessionPage() {
                         Workspace
                       </span>
                       <span style={{ display: 'flex', gap: 6, color: 'var(--text-muted)', flexShrink: 0 }}>
-                        <button
-                          type="button"
-                          title="다시 가져오기"
-                          onClick={startReimport}
-                          disabled={!hasSessionId}
-                          style={{
-                            border: 'none',
-                            background: 'transparent',
-                            color: 'var(--text-muted)',
-                            padding: 0,
-                            cursor: hasSessionId ? 'pointer' : 'not-allowed',
-                            display: 'inline-flex',
-                            whiteSpace: 'nowrap',
-                            lineHeight: 1,
-                          }}
-                        >
-                          <FilePlus size={13} />
-                        </button>
-                        <button
-                          type="button"
-                          title="폴더 다시 선택"
-                          onClick={startReimport}
-                          disabled={!hasSessionId}
-                          style={{
-                            border: 'none',
-                            background: 'transparent',
-                            color: 'var(--text-muted)',
-                            padding: 0,
-                            cursor: hasSessionId ? 'pointer' : 'not-allowed',
-                            display: 'inline-flex',
-                            whiteSpace: 'nowrap',
-                            lineHeight: 1,
-                          }}
-                        >
-                          <FolderPlus size={13} />
-                        </button>
+                        {canImportProject ? (
+                          <>
+                            <button
+                              type="button"
+                              title="다시 가져오기"
+                              onClick={startReimport}
+                              disabled={!hasSessionId}
+                              style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: 'var(--text-muted)',
+                                padding: 0,
+                                cursor: hasSessionId ? 'pointer' : 'not-allowed',
+                                display: 'inline-flex',
+                                whiteSpace: 'nowrap',
+                                lineHeight: 1,
+                              }}
+                            >
+                              <FilePlus size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              title="폴더 다시 선택"
+                              onClick={startReimport}
+                              disabled={!hasSessionId}
+                              style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: 'var(--text-muted)',
+                                padding: 0,
+                                cursor: hasSessionId ? 'pointer' : 'not-allowed',
+                                display: 'inline-flex',
+                                whiteSpace: 'nowrap',
+                                lineHeight: 1,
+                              }}
+                            >
+                              <FolderPlus size={13} />
+                            </button>
+                          </>
+                        ) : null}
                       </span>
                     </div>
                     {!hasSessionId ? (
@@ -653,7 +724,41 @@ export default function SessionPage() {
                         />
                       </div>
                     ) : projectRef == null ? (
-                      <ProjectImportPanel sessionId={sessionId} onImported={onImported} />
+                      !sessionProjectQuery.isFetched || importRolePending ? (
+                        <p style={{ margin: '8px 6px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                          프로젝트 정보를 불러오는 중…
+                        </p>
+                      ) : canImportProject ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0 }}>
+                          {reimportMode && sessionProjectQuery.data != null ? (
+                            <div style={{ padding: '0 6px', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                              <p style={{ margin: 0, fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                                새 프로젝트를 가져오면 세션 작업 대상이 바뀝니다.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={cancelReimport}
+                                style={{
+                                  border: 'none',
+                                  background: 'transparent',
+                                  color: 'var(--text-muted)',
+                                  fontSize: 12,
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                  padding: 0,
+                                }}
+                              >
+                                취소
+                              </button>
+                            </div>
+                          ) : null}
+                          <ProjectImportPanel sessionId={sessionId} onImported={onImported} />
+                        </div>
+                      ) : (
+                        <p style={{ margin: '8px 6px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                          그룹 리더가 프로젝트를 가져올 때까지 기다려 주세요.
+                        </p>
+                      )
                     ) : (
                       <SessionFileExplorer
                         projectId={projectRef.projectId}
@@ -1038,6 +1143,7 @@ export default function SessionPage() {
                 <SessionChatPanel chat={chat} hasSessionId={hasSessionId} />
               ) : (
                 <SessionQuizPanel
+                  sessionId={sessionId}
                   projectId={projectRef?.projectId ?? null}
                   versionHash={projectRef?.versionHash ?? null}
                   pushedQuizSetId={chat.lastQuizNotification?.quizSetId ?? null}

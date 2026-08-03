@@ -24,6 +24,7 @@ import org.mockito.quality.Strictness;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
@@ -58,6 +59,9 @@ class ProjectServiceTest {
 
 	@Mock
 	private TransactionTemplate transactionTemplate;
+
+	@Mock
+	private SimpMessagingTemplate messagingTemplate;
 
 	@InjectMocks
 	private ProjectService projectService;

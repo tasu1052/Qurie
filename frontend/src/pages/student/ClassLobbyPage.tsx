@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus } from 'lucide-react';
 import { StudentShell, PageMain } from '../../components/layout/StudentShell';
 import {
   AlertBanner,
@@ -8,13 +7,11 @@ import {
   Button,
   EmptyState,
   LiveBadge,
-  Modal,
   RowErrorFallback,
   Skeleton,
 } from '../../ds';
 import {
   QueryAsyncBoundary,
-  useCreateSession,
   useGetClass,
   useGetGroups,
   useGetSessions,
@@ -38,9 +35,6 @@ function ClassLobbyBody({ classId }: { classId: number }) {
   const { data: cls } = useGetClass(classId);
   const { data: sessions } = useGetSessions(classId);
   const { data: groups } = useGetGroups(classId);
-  const createSession = useCreateSession();
-  const [createOpen, setCreateOpen] = useState(false);
-  const [title, setTitle] = useState('');
   const [popupBlockedSessionId, setPopupBlockedSessionId] = useState<number | null>(null);
   const active = sessions.filter((s) => s.active);
   const livePublic = active.find((s) => s.classPublic) ?? null;
@@ -56,20 +50,6 @@ function ClassLobbyBody({ classId }: { classId: number }) {
     }
     win.opener = null;
     setPopupBlockedSessionId(null);
-  };
-
-  const onCreateSession = () => {
-    if (!title.trim()) return;
-    createSession.mutate(
-      { classId, title: title.trim() },
-      {
-        onSuccess: (created) => {
-          setCreateOpen(false);
-          setTitle('');
-          openSessionInNewTab(created.id, created.title);
-        },
-      },
-    );
   };
 
   return (
@@ -124,18 +104,6 @@ function ClassLobbyBody({ classId }: { classId: number }) {
             LIVE 입장
           </Button>
         ) : null}
-        <Button
-          variant="secondary"
-          icon={<Plus size={14} strokeWidth={1.75} />}
-          onClick={() => setCreateOpen(true)}
-          style={{
-            background: 'transparent',
-            color: 'var(--text-inverse)',
-            borderColor: 'var(--border-strong)',
-          }}
-        >
-          세션 생성
-        </Button>
       </div>
 
       <div className="qurie-master-split">
@@ -166,8 +134,9 @@ function ClassLobbyBody({ classId }: { classId: number }) {
           {sessions.length === 0 ? (
             <EmptyState
               message="세션이 없습니다"
-              actionLabel="세션 생성"
-              onAction={() => setCreateOpen(true)}
+              description="강사가 세션을 열면 여기에서 입장할 수 있어요."
+              actionLabel="대시보드"
+              onAction={() => navigate('/app')}
             />
           ) : (
             sessions.map((s) => (
@@ -261,38 +230,12 @@ function ClassLobbyBody({ classId }: { classId: number }) {
             <EmptyState
               message="API 미구현"
               description="자료 조회 API가 구현되면 업로드된 교육/학습자료 카드가 표시됩니다."
-              actionLabel="새로고침"
-              onAction={() => navigate(0)}
+              actionLabel="대시보드"
+              onAction={() => navigate('/app')}
             />
           </div>
         </div>
       </div>
-
-      <Modal
-        open={createOpen}
-        title="세션 생성"
-        description="이 클래스에 새 실습 세션을 만듭니다."
-        primaryLabel={createSession.isPending ? '생성 중…' : '생성'}
-        secondaryLabel="취소"
-        onPrimary={onCreateSession}
-        onSecondary={() => setCreateOpen(false)}
-        onClose={() => setCreateOpen(false)}
-      >
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="세션 제목"
-          style={{
-            width: '100%',
-            border: '1px solid var(--border-strong)',
-            borderRadius: 8,
-            padding: '10px 12px',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            boxSizing: 'border-box',
-          }}
-        />
-      </Modal>
     </>
   );
 }
@@ -305,7 +248,7 @@ export default function ClassLobbyPage() {
 
   if (!Number.isFinite(classId) || classId <= 0) {
     return (
-      <StudentShell activeKey="class" breadcrumbs={['클래스']}>
+      <StudentShell activeKey="dashboard" breadcrumbs={['클래스']}>
         <PageMain>
           <EmptyState
             message="잘못된 클래스 경로입니다"
@@ -319,7 +262,7 @@ export default function ClassLobbyPage() {
   }
 
   return (
-    <StudentShell activeKey="class" breadcrumbs={['클래스']}>
+    <StudentShell activeKey="dashboard" breadcrumbs={['클래스']}>
       <PageMain>
         <QueryAsyncBoundary
           key={rowKey}
