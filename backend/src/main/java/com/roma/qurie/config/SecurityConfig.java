@@ -1,6 +1,7 @@
 package com.roma.qurie.config;
 
 import com.roma.qurie.security.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
 import java.util.List;
@@ -61,6 +62,9 @@ public class SecurityConfig {
         http.cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
+                        // sendError 로 만들어지는 모든 에러 응답(403/404/405...)은 /error 재디스패치를
+                        // 거쳐 본문이 채워진다. 이 디스패치를 막으면 에러가 전부 본문 없는 401로 둔갑한다.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/invitations/*").permitAll()
