@@ -73,8 +73,13 @@ export type {
  * Auth / user / session / class / track / group / … hooks — re-exported from `network/`.
  * Pages and shells import from here only (never deep-import network query modules).
  */
-export { useLogin, useLogout, useMe, useMeOptional, useRefresh } from '../network/auth';
-export type { AuthUserResponse, LoginRequest } from '../network/auth';
+export { useLogin, useLogout, useMe, useMeOptional, useRefresh, useRequestPasswordReset, useConfirmPasswordReset } from '../network/auth';
+export type {
+  AuthUserResponse,
+  LoginRequest,
+  PasswordResetRequest,
+  PasswordResetConfirmRequest,
+} from '../network/auth';
 export {
   useSignUp,
   useGetUsers,
@@ -164,16 +169,26 @@ export type {
   GroupShuffleRequest,
   GroupParticipantRole,
 } from '../network/group';
-export { useCreateInvitation, useGetInvitationPreview } from '../network/invitation';
+export { useCreateInvitation, useGetInvitationPreview, useCreateBulkInvitations } from '../network/invitation';
 export type {
   InvitationCreateRequest,
   InvitationCreateResponse,
   InvitationPreviewResponse,
+  BulkInvitationParams,
+  BulkInvitationResponse,
+  BulkInvitationRowResult,
 } from '../network/invitation';
-export { useGetNotices } from '../network/notice';
-export type { NoticeResponse, NoticeScope, NoticeListFilters } from '../network/notice';
-export { useGetAnalyticsOverview } from '../network/analytics';
-export type { AnalyticsOverviewResponse } from '../network/analytics';
+export { useGetNotices, useCreateNotice, useUpdateNotice, useDeleteNotice } from '../network/notice';
+export type {
+  NoticeResponse,
+  NoticeScope,
+  NoticeListFilters,
+  NoticeCreateRequest,
+  NoticeUpdateRequest,
+  NoticeDetailResponse,
+} from '../network/notice';
+export { useGetAnalyticsOverview, useGetClassAnalytics } from '../network/analytics';
+export type { AnalyticsOverviewResponse, ClassAnalyticsResponse } from '../network/analytics';
 export {
   useCreateProject,
   useImportProjectLocal,
@@ -194,11 +209,20 @@ export type {
   ProjectFileSummaryResponse,
   ProjectFileContentResponse,
 } from '../network/project';
-export { useGenerateQuiz, useGetQuizSet, usePollQuizSet } from '../network/quiz';
+export {
+  useGenerateQuiz,
+  useGetQuizSet,
+  usePollQuizSet,
+  useGetQuizQuestions,
+  usePollQuizQuestions,
+} from '../network/quiz';
 export type {
   QuizGenerateRequest,
   QuizGenerateResponse,
   QuizSetDetailResponse,
+  QuizQuestionsResponse,
+  QuizQuestionItem,
+  QuizQuestionChoiceItem,
   QuizItem,
   QuizChoiceItem,
   QuizGenerationMode,
@@ -217,8 +241,17 @@ export type {
 
 export { useCreateUserReport } from '../network/report';
 export type { UserReportCreateRequest, UserReportCreateResponse } from '../network/report';
-export { useCreateStudentComment, useGetStudentComments } from '../network/comment';
-export type { StudentCommentCreateRequest, StudentCommentResponse } from '../network/comment';
+export {
+  useCreateStudentComment,
+  useGetStudentComments,
+  useUpdateStudentComment,
+  useDeleteStudentComment,
+} from '../network/comment';
+export type {
+  StudentCommentCreateRequest,
+  StudentCommentUpdateRequest,
+  StudentCommentResponse,
+} from '../network/comment';
 
 /** Teammate boundary — UI supplies fallbacks only. */
 export { QueryAsyncBoundary } from '../network/boundaries/QueryAsyncBoundary';

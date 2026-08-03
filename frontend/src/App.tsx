@@ -28,8 +28,6 @@ import GroupListPage from './pages/manager/GroupListPage';
 import GroupEditPage from './pages/manager/GroupEditPage';
 import ManagerMyPage from './pages/manager/ManagerMyPage';
 import StudentDashboardPage from './pages/student/StudentDashboardPage';
-import ClassHomePage from './pages/student/ClassHomePage';
-import ClassLobbyPage from './pages/student/ClassLobbyPage';
 import MyPage from './pages/student/MyPage';
 import SessionPage from './pages/session/SessionPage';
 import FinalReportPage from './pages/student/FinalReportPage';
@@ -98,8 +96,8 @@ export default function App() {
           <Route path="/manager/settings" element={<Navigate to="/manager/me" replace />} />
 
           <Route path="/app" element={<StudentDashboardPage />} />
-          <Route path="/app/classes" element={<ClassHomePage />} />
-          <Route path="/app/classes/:id" element={<ClassLobbyPage />} />
+          <Route path="/app/classes" element={<Navigate to="/app" replace />} />
+          <Route path="/app/classes/:id" element={<Navigate to="/app" replace />} />
           <Route path="/app/me" element={<MyPage />} />
           <Route path="/app/report" element={<FinalReportPage />} />
 

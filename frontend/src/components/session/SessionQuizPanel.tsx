@@ -3,9 +3,12 @@ import {
   getProjectFileContent,
   getProjectFiles,
   useGenerateQuiz,
+  useMeOptional,
+  usePollQuizQuestions,
   usePollQuizSet,
   type QuizGenerationMode,
   type QuizItem,
+  type QuizQuestionItem,
 } from '../../data';
 import { AlertBanner, AsyncJobPanel, Badge, Button, Input, Select } from '../../ds';
 
@@ -26,7 +29,7 @@ function mapJobStatus(
   return undefined;
 }
 
-function QuizList({ quizzes }: { quizzes: QuizItem[] }) {
+function ManagerQuizList({ quizzes }: { quizzes: QuizItem[] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
       {quizzes.map((q) => (
@@ -68,11 +71,52 @@ function QuizList({ quizzes }: { quizzes: QuizItem[] }) {
   );
 }
 
+function StudentQuizList({ quizzes }: { quizzes: QuizQuestionItem[] }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+      {quizzes.map((q) => (
+        <div
+          key={q.id}
+          style={{
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            padding: 12,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+          }}
+        >
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <Badge status="neutral">{q.type}</Badge>
+            <Badge status="accent">{q.difficulty}</Badge>
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.45 }}>
+            {q.orderNo}. {q.question}
+          </span>
+          {q.choices.length > 0 ? (
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: 'var(--text-secondary)' }}>
+              {q.choices.map((c) => (
+                <li key={c.idx} style={{ marginBottom: 2 }}>
+                  {c.content}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function SessionQuizPanel({
   projectId,
   versionHash,
   pushedQuizSetId = null,
 }: SessionQuizPanelProps) {
+  const meQuery = useMeOptional();
+  const role = meQuery.isSuccess ? meQuery.data?.role : undefined;
+  const isInstructor = role === 'MANAGER' || role === 'MASTER';
+
   const generateQuiz = useGenerateQuiz();
   const [mode, setMode] = useState<QuizGenerationMode>('PRACTICE');
   const [count, setCount] = useState('5');
@@ -80,27 +124,23 @@ export function SessionQuizPanel({
   const [quizSetId, setQuizSetId] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  /**
-   * 내가 요청한 세트와 소켓으로 통보된 세트 중 더 최신(id 가 큰) 쪽을 본다 —
-   * 강사가 만든 퀴즈가 학생 화면에도 그대로 열리게 하는 경로다.
-   */
   const activeQuizSetId =
     pushedQuizSetId != null && (quizSetId == null || pushedQuizSetId > quizSetId)
       ? pushedQuizSetId
       : quizSetId;
 
-  const poll = usePollQuizSet(activeQuizSetId);
+  const managerPoll = usePollQuizSet(isInstructor ? activeQuizSetId : null);
+  const studentPoll = usePollQuizQuestions(!isInstructor ? activeQuizSetId : null);
+  const poll = isInstructor ? managerPoll : studentPoll;
 
   const jobStatus = mapJobStatus(poll.data?.status);
-  const canGenerate = projectId != null && versionHash != null && !generateQuiz.isPending;
+  const canGenerate =
+    isInstructor && projectId != null && versionHash != null && !generateQuiz.isPending;
 
-  const summary = useMemo(() => {
-    if (!poll.data) return null;
-    return poll.data;
-  }, [poll.data]);
+  const summary = useMemo(() => poll.data ?? null, [poll.data]);
 
   const onGenerate = async () => {
-    if (projectId == null || versionHash == null) return;
+    if (!isInstructor || projectId == null || versionHash == null) return;
     const n = Number(count);
     if (!Number.isFinite(n) || n < 1 || n > 20) {
       setFormError('문항 수는 1–20 사이여야 합니다.');
@@ -144,13 +184,14 @@ export function SessionQuizPanel({
     }
   };
 
-  // 프로젝트가 없어도 소켓으로 통보된 퀴즈셋이 있으면 그것만은 보여준다(학생 화면 경로).
   if (activeQuizSetId == null && (projectId == null || versionHash == null)) {
     return (
       <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>AI 퀴즈</span>
         <span style={{ fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.55 }}>
-          프로젝트를 임포트한 뒤 퀴즈를 생성할 수 있습니다.
+          {isInstructor
+            ? '프로젝트를 임포트한 뒤 퀴즈를 생성할 수 있습니다.'
+            : '강사가 퀴즈를 생성하면 여기에 나타나요.'}
         </span>
       </div>
     );
@@ -180,38 +221,42 @@ export function SessionQuizPanel({
         />
       ) : null}
 
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>모드</span>
-        <Select
-          size="sm"
-          value={mode}
-          onChange={(v) => setMode(v as QuizGenerationMode)}
-          options={[
-            { value: 'PRACTICE', label: 'PRACTICE' },
-            { value: 'ASSESSMENT', label: 'ASSESSMENT' },
-          ]}
-          style={{ width: '100%' }}
-        />
-      </label>
+      {isInstructor ? (
+        <>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>모드</span>
+            <Select
+              size="sm"
+              value={mode}
+              onChange={(v) => setMode(v as QuizGenerationMode)}
+              options={[
+                { value: 'PRACTICE', label: 'PRACTICE' },
+                { value: 'ASSESSMENT', label: 'ASSESSMENT' },
+              ]}
+              style={{ width: '100%' }}
+            />
+          </label>
 
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>문항 수</span>
-        <Input value={count} onChange={(e) => setCount(e.target.value)} width="100%" />
-      </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>문항 수</span>
+            <Input value={count} onChange={(e) => setCount(e.target.value)} width="100%" />
+          </label>
 
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>추가 프롬프트</span>
-        <Input
-          value={userPrompt}
-          onChange={(e) => setUserPrompt(e.target.value)}
-          placeholder="강조할 개념 (선택)"
-          width="100%"
-        />
-      </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>추가 프롬프트</span>
+            <Input
+              value={userPrompt}
+              onChange={(e) => setUserPrompt(e.target.value)}
+              placeholder="강조할 개념 (선택)"
+              width="100%"
+            />
+          </label>
 
-      <Button variant="primary" disabled={!canGenerate} onClick={() => void onGenerate()}>
-        {generateQuiz.isPending ? '요청 중…' : '퀴즈 생성'}
-      </Button>
+          <Button variant="primary" disabled={!canGenerate} onClick={() => void onGenerate()}>
+            {generateQuiz.isPending ? '요청 중…' : '퀴즈 생성'}
+          </Button>
+        </>
+      ) : null}
 
       {activeQuizSetId != null ? (
         <AsyncJobPanel
@@ -226,16 +271,32 @@ export function SessionQuizPanel({
           }
           description={
             summary
-              ? `요청 ${summary.requestedCount} · 생성 ${summary.generatedCount}`
+              ? isInstructor && 'generatedCount' in summary
+                ? `요청 ${summary.requestedCount} · 생성 ${summary.generatedCount}`
+                : `요청 ${summary.requestedCount}문항`
               : '상태를 확인하는 중…'
           }
-          done={summary?.generatedCount ?? null}
+          done={
+            isInstructor && summary && 'generatedCount' in summary ? summary.generatedCount : null
+          }
           total={summary?.requestedCount ?? null}
-          errorMessage={summary?.errorMessage ?? undefined}
-          meta={`GET /quiz/${activeQuizSetId} · 세션 소켓 알림 수신 시 즉시 갱신`}
+          errorMessage={
+            isInstructor && summary && 'errorMessage' in summary
+              ? (summary.errorMessage ?? undefined)
+              : undefined
+          }
+          meta={
+            isInstructor
+              ? `GET /quiz/${activeQuizSetId} · 세션 소켓 알림 수신 시 즉시 갱신`
+              : `GET /quiz/${activeQuizSetId}/questions · 정답·해설 제외`
+          }
         >
           {summary?.status === 'COMPLETED' && summary.quizzes.length > 0 ? (
-            <QuizList quizzes={summary.quizzes} />
+            isInstructor ? (
+              <ManagerQuizList quizzes={summary.quizzes as QuizItem[]} />
+            ) : (
+              <StudentQuizList quizzes={summary.quizzes as QuizQuestionItem[]} />
+            )
           ) : null}
         </AsyncJobPanel>
       ) : null}

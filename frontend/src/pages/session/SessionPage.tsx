@@ -67,18 +67,6 @@ type LeftTab = 'explorer' | 'materials';
 type RightTab = 'community' | 'quiz';
 type BottomTab = 'terminal' | 'debug' | 'output';
 
-const LANGUAGE_OPTIONS = [
-  { value: 'java', label: 'Java' },
-  { value: 'javascript', label: 'JavaScript' },
-  { value: 'typescript', label: 'TypeScript' },
-  { value: 'python', label: 'Python' },
-  { value: 'html', label: 'HTML' },
-  { value: 'css', label: 'CSS' },
-  { value: 'cpp', label: 'C++' },
-  { value: 'json', label: 'JSON' },
-  { value: 'markdown', label: 'Markdown' },
-] as const;
-
 function applyContentToYText(ytext: Y.Text, content: string) {
   ytext.doc?.transact(() => {
     const len = ytext.length;
@@ -357,7 +345,14 @@ export default function SessionPage() {
   });
 
   const explorerProjectId = pendingImport?.projectId ?? projectRef?.projectId ?? null;
-  const languageInOptions = LANGUAGE_OPTIONS.some((o) => o.value === editorLanguage);
+
+  const toggleBrowserFullscreen = () => {
+    if (!document.fullscreenElement) {
+      void document.documentElement.requestFullscreen?.();
+    } else {
+      void document.exitFullscreen?.();
+    }
+  };
 
   return (
     <div
@@ -818,36 +813,33 @@ export default function SessionPage() {
               {activeFile ?? (projectRef ? '파일을 선택하세요' : pendingImport ? '미리보기 중' : '프로젝트 미연결')}
             </span>
             <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <select
-                value={editorLanguage}
-                onChange={(e) => setEditorLanguage(e.target.value)}
-                aria-label="코드 언어 선택"
+              <span
                 style={{
-                  height: 26,
-                  borderRadius: 6,
-                  border: '1px solid var(--border-strong)',
-                  background: 'var(--surface-card)',
-                  color: 'var(--ink)',
-                  fontFamily: 'var(--font-sans)',
                   fontSize: 12,
                   fontWeight: 600,
-                  padding: '0 8px',
+                  color: 'var(--text-secondary)',
+                  fontFamily: 'var(--font-mono)',
+                }}
+                title="파일 확장자로 감지한 언어"
+              >
+                {editorLanguage}
+              </span>
+              <button
+                type="button"
+                title="전체화면"
+                aria-label="브라우저 전체화면"
+                onClick={toggleBrowserFullscreen}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-muted)',
                   cursor: 'pointer',
-                  maxWidth: chrome.narrowHeader ? 110 : 160,
+                  display: 'inline-flex',
+                  padding: 4,
                 }}
               >
-                {!languageInOptions ? <option value={editorLanguage}>{editorLanguage}</option> : null}
-                {LANGUAGE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-              {!chrome.narrowHeader ? (
-                <span style={{ color: 'var(--text-muted)', display: 'inline-flex' }}>
-                  <Maximize2 size={13} />
-                </span>
-              ) : null}
+                <Maximize2 size={13} />
+              </button>
             </span>
           </div>
 

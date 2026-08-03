@@ -98,7 +98,7 @@ class NoticeServiceTest {
 	}
 
 	@Test
-	void createThrowsForbiddenWhenRequesterIsNotMaster() {
+	void createThrowsForbiddenWhenManagerCreatesEnterpriseNotice() {
 		AuthUser manager = new AuthUser(
 				11L, UserRole.MANAGER.name(), ENTERPRISE_ID, "manager@qurie.com", "매니저", CLASS_ID);
 
@@ -106,6 +106,23 @@ class NoticeServiceTest {
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(NoticeServiceTest::statusOf)
 				.isEqualTo(HttpStatus.FORBIDDEN);
+	}
+
+	@Test
+	void createSavesClassScopedNoticeForManagerOfOwnClass() {
+		AuthUser manager = new AuthUser(
+				11L, UserRole.MANAGER.name(), ENTERPRISE_ID, "manager@qurie.com", "매니저", CLASS_ID);
+		given(classRepository.findById(CLASS_ID)).willReturn(Optional.of(classEntity(ENTERPRISE_ID)));
+		given(enterpriseRepository.findById(ENTERPRISE_ID)).willReturn(Optional.of(enterprise(ENTERPRISE_ID)));
+		given(noticeRepository.save(any(Notice.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+		NoticeDetailResponse response = noticeService.create(manager, classScopedRequest());
+
+		ArgumentCaptor<Notice> captor = ArgumentCaptor.forClass(Notice.class);
+		verify(noticeRepository).save(captor.capture());
+		assertThat(captor.getValue().getCreatedBy()).isEqualTo(11L);
+		assertThat(captor.getValue().getCreatedByType()).isEqualTo(NoticeAuthorType.MANAGER);
+		assertThat(response.scope()).isEqualTo(NoticeScope.CLASS);
 	}
 
 	@Test

@@ -57,10 +57,14 @@ public class NoticeService {
         return PageResponse.from(notices);
     }
 
-    /** 공지사항 생성. 지금은 MASTER만 만들 수 있다 — 매니저 발신은 정책이 정해지면 추가한다. */
+    /**
+     * 공지사항 생성.
+     * 마스터는 ENTERPRISE·TRACK·CLASS 범위로 작성하고,
+     * 매니저는 자기 반(CLASS) 공지만 작성할 수 있다.
+     */
     @Transactional
     public NoticeDetailResponse create(AuthUser requester, NoticeCreateRequest request) {
-        requireMaster(requester);
+        NoticeAuthorType authorType = resolveAuthorTypeForCreate(requester, request);
         verifyTargetOwnership(requester, request.scope(), request.trackId(), request.classId());
 
         Enterprise enterprise = enterpriseRepository.findById(requester.enterpriseId())
@@ -75,10 +79,28 @@ public class NoticeService {
                 .body(request.body())
                 .pinned(request.pinned())
                 .createdBy(requester.id())
-                .createdByType(NoticeAuthorType.MASTER)
+                .createdByType(authorType)
                 .build();
 
         return NoticeDetailResponse.from(noticeRepository.save(notice));
+    }
+
+    private NoticeAuthorType resolveAuthorTypeForCreate(AuthUser requester, NoticeCreateRequest request) {
+        requireAuthenticated(requester);
+        if (isMaster(requester)) {
+            return NoticeAuthorType.MASTER;
+        }
+        if ("MANAGER".equals(requester.role())) {
+            if (request.scope() != NoticeScope.CLASS) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "매니저는 클래스 공지만 작성할 수 있습니다.");
+            }
+            Long classId = requester.classId();
+            if (classId == null || request.classId() == null || !classId.equals(request.classId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "담당 클래스 공지만 작성할 수 있습니다.");
+            }
+            return NoticeAuthorType.MANAGER;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "공지사항을 생성할 권한이 없습니다.");
     }
 
     /** 공지사항 수정. PATCH(부분 수정) 계약이라 보낸 항목만 반영한다. */
@@ -156,13 +178,6 @@ public class NoticeService {
                 && notice.getCreatedByType().name().equals(requester.role());
         if (!isAuthor) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "작성자 또는 마스터만 수정·삭제할 수 있습니다.");
-        }
-    }
-
-    private void requireMaster(AuthUser requester) {
-        requireAuthenticated(requester);
-        if (!isMaster(requester)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "공지사항을 생성할 권한이 없습니다.");
         }
     }
 

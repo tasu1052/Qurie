@@ -11,13 +11,24 @@ export interface CollabUser {
   id?: number | null;
 }
 
-/** 원격 커서 색: DS 토큰에서 런타임 해석(raw hex 금지 규칙 준수). */
-const CURSOR_TOKEN_NAMES = ['--accent', '--status-green', '--status-amber', '--status-red'];
+/** 원격 커서 색: 유저마다 구분되도록 CMYK 계열 팔레트. */
+const CURSOR_PALETTE = [
+  '#00A3E0', // Cyan
+  '#E4007C', // Magenta
+  '#FFD100', // Yellow
+  '#111111', // Key (black)
+  '#008B8B', // Dark cyan
+  '#C71585', // Medium violet red (magenta family)
+  '#DAA520', // Goldenrod (yellow family)
+  '#2F4F4F', // Dark slate (key family)
+  '#40E0D0', // Turquoise
+  '#FF69B4', // Hot pink
+  '#F0E68C', // Khaki
+  '#696969', // Dim gray
+];
 
 function resolveCursorColor(clientId: number): string {
-  const token = CURSOR_TOKEN_NAMES[clientId % CURSOR_TOKEN_NAMES.length];
-  const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
-  return value || 'var(--accent)';
+  return CURSOR_PALETTE[Math.abs(clientId) % CURSOR_PALETTE.length];
 }
 
 /**
