@@ -102,6 +102,7 @@ export {
   useGetSessionParticipants,
   useGetSessionMessages,
   useGetSessionPresence,
+  useGetSessionReport,
   useUpdateSession,
   useDeleteSession,
 } from '../network/session';
@@ -114,6 +115,7 @@ export type {
   ChatMessageListParams,
   SessionReportCreateRequest,
   SessionReportCreateResponse,
+  SessionReportDetailResponse,
 } from '../network/session';
 export {
   useGetMyClasses,
@@ -239,8 +241,12 @@ export type {
   SessionSocketStatus,
 } from '../realtime/useSessionSocket';
 
-export { useCreateUserReport } from '../network/report';
-export type { UserReportCreateRequest, UserReportCreateResponse } from '../network/report';
+export { useCreateUserReport, useGetUserSessionReports } from '../network/report';
+export type {
+  UserReportCreateRequest,
+  UserReportCreateResponse,
+  SessionReportSummaryResponse,
+} from '../network/report';
 export {
   useCreateStudentComment,
   useGetStudentComments,

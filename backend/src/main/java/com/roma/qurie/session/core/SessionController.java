@@ -2,6 +2,7 @@ package com.roma.qurie.session.core;
 
 import com.roma.qurie.report.dto.SessionReportCreateRequest;
 import com.roma.qurie.report.dto.SessionReportCreateResponse;
+import com.roma.qurie.report.dto.SessionReportDetailResponse;
 import com.roma.qurie.report.service.SessionReportService;
 import com.roma.qurie.session.core.dto.SessionCreateRequest;
 import com.roma.qurie.session.core.dto.SessionResponse;
@@ -98,5 +99,16 @@ public class SessionController {
     public SessionReportCreateResponse createSessionReport(@PathVariable Long sessionId,
                                                            @Valid @RequestBody SessionReportCreateRequest request) {
         return sessionReportService.createSessionReport(sessionId, request);
+    }
+
+    /**
+     * 세션 리포트 조회. userId 없으면 본인, 있으면 해당 학생(같은 반 매니저·마스터 또는 본인).
+     */
+    @GetMapping("{sessionId}/reports")
+    public SessionReportDetailResponse getSessionReport(
+            @PathVariable Long sessionId,
+            @RequestParam(name = "userId", required = false) Long userId,
+            @AuthenticationPrincipal AuthUser requester) {
+        return sessionReportService.getSessionReport(sessionId, userId, requester);
     }
 }
