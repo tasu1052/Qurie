@@ -109,7 +109,7 @@ function SessionTable({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '2fr 1fr 1.2fr 1fr 0.8fr 1.2fr',
+            gridTemplateColumns: '2fr 1.2fr 1fr 0.8fr 1.2fr',
             padding: '10px 24px',
             borderBottom: '1px solid var(--divider)',
             fontSize: 11,
@@ -120,7 +120,6 @@ function SessionTable({
           }}
         >
           <span>세션</span>
-          <span>생성자</span>
           <span>시작</span>
           <span>참여</span>
           <span>상태</span>
@@ -133,7 +132,7 @@ function SessionTable({
               key={s.id}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '2fr 1fr 1.2fr 1fr 0.8fr 1.2fr',
+                gridTemplateColumns: '2fr 1.2fr 1fr 0.8fr 1.2fr',
                 padding: '13px 24px',
                 borderBottom: '1px solid var(--divider)',
                 fontSize: 13,
@@ -147,7 +146,6 @@ function SessionTable({
                   <Badge status="neutral">그룹 #{s.groupId}</Badge>
                 ) : null}
               </span>
-              <span style={{ color: 'var(--text-secondary)' }}>#{s.createdBy}</span>
               <span style={{ color: 'var(--text-secondary)' }}>
                 {new Date(s.createdAt).toLocaleString('ko-KR', { hour12: false })}
               </span>
@@ -365,7 +363,7 @@ export default function SessionListPage() {
         <Modal
           open={createOpen}
           title="세션 만들기"
-          description="제목을 입력하면 세션이 생성됩니다. 수업 공개는 반 전체 LIVE 한 개만 가능합니다."
+          description="제목을 입력하면 세션이 생성됩니다. 수업 공개는 반 전체, 아니면 그룹 단위로 열 수 있어요. 강사만 생성할 수 있고, 프로젝트 임포트는 그룹 리더가 담당해요."
           primaryLabel={createSession.isPending ? '생성 중…' : '생성하기'}
           secondaryLabel="취소"
           onPrimary={onCreate}

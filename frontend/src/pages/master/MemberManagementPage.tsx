@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { isAxiosError } from 'axios';
 import { useSearchParams } from 'react-router-dom';
 import { Filter, Mail, Search, UserPlus } from 'lucide-react';
@@ -8,6 +8,7 @@ import {
   AlertBanner,
   Badge,
   Button,
+  FileDropzone,
   Input,
   Modal,
   RowErrorFallback,
@@ -15,9 +16,11 @@ import {
   Skeleton,
   StatCard,
   StatCardRow,
+  UploadRow,
 } from '../../ds';
 import {
   QueryAsyncBoundary,
+  useCreateBulkInvitations,
   useCreateInvitation,
   useGetClassMembers,
   useGetClasses,
@@ -126,14 +129,18 @@ function MembersChrome({
   onInvite,
   inviteEmail,
   setInviteEmail,
-  inviteRole,
-  setInviteRole,
   inviteClassId,
   setInviteClassId,
   createPending,
   inviteError,
   inviteOk,
   classes,
+  bulkFile,
+  onPickBulkFile,
+  onClearBulkFile,
+  onBulkInvite,
+  bulkPending,
+  bulkSummary,
 }: {
   members: MemberRow[];
   totalCaption: number;
@@ -150,14 +157,18 @@ function MembersChrome({
   onInvite: () => void;
   inviteEmail: string;
   setInviteEmail: (v: string) => void;
-  inviteRole: UserRole;
-  setInviteRole: (v: UserRole) => void;
   inviteClassId: string;
   setInviteClassId: (v: string) => void;
   createPending: boolean;
   inviteError: string | null;
   inviteOk: string | null;
   classes: { id: number; name: string }[];
+  bulkFile: File | null;
+  onPickBulkFile: () => void;
+  onClearBulkFile: () => void;
+  onBulkInvite: () => void;
+  bulkPending: boolean;
+  bulkSummary: string | null;
 }) {
   const debouncedQuery = useDebouncedValue(query, 300);
   const filtered = useMemo(() => {
@@ -179,13 +190,23 @@ function MembersChrome({
     [members, totalCaption],
   );
 
+  const pending = createPending || bulkPending;
+  const primaryAction = bulkFile ? onBulkInvite : onInvite;
+  const primaryLabel = pending
+    ? '발송 중…'
+    : bulkFile
+      ? '엑셀·CSV 일괄 초대'
+      : inviteOk
+        ? '추가로 발송'
+        : '초대장 발송하기';
+
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>회원 관리</h1>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            소속 멤버를 조회하고 초대를 발송합니다.
+            소속 멤버를 조회하고 강사(매니저) 초대를 발송합니다.
           </span>
         </div>
         <Button variant="primary" icon={<UserPlus size={15} strokeWidth={1.75} />} onClick={onOpenInvite}>
@@ -317,11 +338,11 @@ function MembersChrome({
 
       <Modal
         open={inviteOpen}
-        title="새 멤버 초대"
-        description="이메일로 멤버를 초대합니다. 클래스가 필요합니다."
-        primaryLabel={createPending ? '발송 중…' : inviteOk ? '추가로 발송' : '초대장 발송하기'}
-        secondaryLabel={inviteOk ? '닫기' : '취소'}
-        onPrimary={onInvite}
+        title="강사(매니저) 초대"
+        description="이메일 한 명 또는 엑셀·CSV로 일괄 초대합니다. 마스터는 매니저만 초대할 수 있어요."
+        primaryLabel={primaryLabel}
+        secondaryLabel={inviteOk || bulkSummary ? '닫기' : '취소'}
+        onPrimary={primaryAction}
         onSecondary={closeInvite}
         onClose={closeInvite}
         width={520}
@@ -329,6 +350,9 @@ function MembersChrome({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {inviteError ? <AlertBanner tone="error" title="초대 실패" description={inviteError} /> : null}
           {inviteOk ? <AlertBanner tone="success" title="초대 발송 완료" description={inviteOk} /> : null}
+          {bulkSummary ? (
+            <AlertBanner tone="success" title="일괄 초대 결과" description={bulkSummary} />
+          ) : null}
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>이메일 주소</span>
             <Input
@@ -337,17 +361,7 @@ function MembersChrome({
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
               width="100%"
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>시스템 역할</span>
-            <Select
-              options={[
-                { value: 'MANAGER', label: '매니저 (MANAGER)' },
-                { value: 'STUDENT', label: '학생 (STUDENT)' },
-              ]}
-              value={inviteRole}
-              onChange={(v) => setInviteRole(v as UserRole)}
+              disabled={!!bulkFile}
             />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -358,6 +372,17 @@ function MembersChrome({
               onChange={setInviteClassId}
             />
           </label>
+          {bulkFile ? (
+            <UploadRow name={bulkFile.name} percent={100} onCancel={onClearBulkFile} />
+          ) : (
+            <FileDropzone
+              title="엑셀·CSV 일괄 초대"
+              description="이메일 열이 있는 .xlsx / .xls / .csv 파일을 업로드하세요."
+              hint="역할은 매니저로 고정됩니다"
+              actionLabel="파일 선택"
+              onSelect={onPickBulkFile}
+            />
+          )}
         </div>
       </Modal>
     </>
@@ -380,11 +405,14 @@ function AllUsersBody({
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<UserRole>('MANAGER');
   const [inviteClassId, setInviteClassId] = useState('');
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteOk, setInviteOk] = useState<string | null>(null);
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkSummary, setBulkSummary] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const createInvitation = useCreateInvitation();
+  const createBulk = useCreateBulkInvitations();
 
   const filters = useMemo(
     () => ({
@@ -397,15 +425,20 @@ function AllUsersBody({
   const { data: usersPage } = useGetUsers(filters);
   const members = usersPage.data.map(toRowFromUser);
 
-  const onInvite = () => {
+  const resetInviteMessages = () => {
     setInviteError(null);
     setInviteOk(null);
+    setBulkSummary(null);
+  };
+
+  const onInvite = () => {
+    resetInviteMessages();
     const emails = inviteEmail
       .split(',')
       .map((e) => e.trim())
       .filter(Boolean);
     if (emails.length === 0) {
-      setInviteError('이메일을 입력하세요.');
+      setInviteError('이메일을 입력하거나 엑셀·CSV 파일을 선택하세요.');
       return;
     }
     const cid = Number(inviteClassId || classes[0]?.id);
@@ -414,7 +447,7 @@ function AllUsersBody({
       return;
     }
     createInvitation.mutate(
-      { email: emails[0], classId: cid, role: inviteRole },
+      { email: emails[0], classId: cid, role: 'MANAGER' },
       {
         onSuccess: (res) => {
           setInviteOk(
@@ -427,42 +460,84 @@ function AllUsersBody({
     );
   };
 
+  const onBulkInvite = () => {
+    resetInviteMessages();
+    if (!bulkFile) {
+      setInviteError('업로드할 파일을 선택하세요.');
+      return;
+    }
+    const cid = Number(inviteClassId || classes[0]?.id);
+    if (!Number.isFinite(cid)) {
+      setInviteError('초대할 클래스를 선택하세요.');
+      return;
+    }
+    createBulk.mutate(
+      { file: bulkFile, classId: cid, role: 'MANAGER' },
+      {
+        onSuccess: (res) => {
+          setBulkSummary(`전체 ${res.total}건 · 성공 ${res.invited} · 실패 ${res.failed}`);
+          setBulkFile(null);
+        },
+        onError: (err) => setInviteError(apiErrorMessage(err, '일괄 초대에 실패했습니다.')),
+      },
+    );
+  };
+
   return (
-    <MembersChrome
-      members={members}
-      totalCaption={usersPage.meta.total}
-      classFilter={classFilter}
-      setClassFilter={setClassFilter}
-      classOptions={classOptions}
-      query={query}
-      setQuery={setQuery}
-      roleFilter={roleFilter}
-      setRoleFilter={setRoleFilter}
-      onOpenInvite={() => {
-        setInviteClassId(String(classes[0]?.id ?? ''));
-        setInviteEmail('');
-        setInviteError(null);
-        setInviteOk(null);
-        setInviteOpen(true);
-      }}
-      inviteOpen={inviteOpen}
-      closeInvite={() => {
-        setInviteOpen(false);
-        setInviteError(null);
-        setInviteOk(null);
-      }}
-      onInvite={onInvite}
-      inviteEmail={inviteEmail}
-      setInviteEmail={setInviteEmail}
-      inviteRole={inviteRole}
-      setInviteRole={setInviteRole}
-      inviteClassId={inviteClassId}
-      setInviteClassId={setInviteClassId}
-      createPending={createInvitation.isPending}
-      inviteError={inviteError}
-      inviteOk={inviteOk}
-      classes={classes}
-    />
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0] ?? null;
+          setBulkFile(file);
+          setInviteEmail('');
+          resetInviteMessages();
+          e.target.value = '';
+        }}
+      />
+      <MembersChrome
+        members={members}
+        totalCaption={usersPage.meta.total}
+        classFilter={classFilter}
+        setClassFilter={setClassFilter}
+        classOptions={classOptions}
+        query={query}
+        setQuery={setQuery}
+        roleFilter={roleFilter}
+        setRoleFilter={setRoleFilter}
+        onOpenInvite={() => {
+          setInviteClassId(String(classes[0]?.id ?? ''));
+          setInviteEmail('');
+          setBulkFile(null);
+          resetInviteMessages();
+          setInviteOpen(true);
+        }}
+        inviteOpen={inviteOpen}
+        closeInvite={() => {
+          setInviteOpen(false);
+          setBulkFile(null);
+          resetInviteMessages();
+        }}
+        onInvite={onInvite}
+        inviteEmail={inviteEmail}
+        setInviteEmail={setInviteEmail}
+        inviteClassId={inviteClassId}
+        setInviteClassId={setInviteClassId}
+        createPending={createInvitation.isPending}
+        inviteError={inviteError}
+        inviteOk={inviteOk}
+        classes={classes}
+        bulkFile={bulkFile}
+        onPickBulkFile={() => fileInputRef.current?.click()}
+        onClearBulkFile={() => setBulkFile(null)}
+        onBulkInvite={onBulkInvite}
+        bulkPending={createBulk.isPending}
+        bulkSummary={bulkSummary}
+      />
+    </>
   );
 }
 
@@ -483,28 +558,36 @@ function ClassMembersBody({
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<UserRole>('MANAGER');
   const [inviteClassId, setInviteClassId] = useState(String(classId));
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteOk, setInviteOk] = useState<string | null>(null);
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkSummary, setBulkSummary] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const createInvitation = useCreateInvitation();
+  const createBulk = useCreateBulkInvitations();
   const { data: membersPage } = useGetClassMembers(classId, { size: 200 });
   const members = membersPage.data.map(toRowFromMember);
 
-  const onInvite = () => {
+  const resetInviteMessages = () => {
     setInviteError(null);
     setInviteOk(null);
+    setBulkSummary(null);
+  };
+
+  const onInvite = () => {
+    resetInviteMessages();
     const emails = inviteEmail
       .split(',')
       .map((e) => e.trim())
       .filter(Boolean);
     if (emails.length === 0) {
-      setInviteError('이메일을 입력하세요.');
+      setInviteError('이메일을 입력하거나 엑셀·CSV 파일을 선택하세요.');
       return;
     }
     const cid = Number(inviteClassId || classId);
     createInvitation.mutate(
-      { email: emails[0], classId: cid, role: inviteRole },
+      { email: emails[0], classId: cid, role: 'MANAGER' },
       {
         onSuccess: (res) => {
           setInviteOk(
@@ -517,42 +600,80 @@ function ClassMembersBody({
     );
   };
 
+  const onBulkInvite = () => {
+    resetInviteMessages();
+    if (!bulkFile) {
+      setInviteError('업로드할 파일을 선택하세요.');
+      return;
+    }
+    const cid = Number(inviteClassId || classId);
+    createBulk.mutate(
+      { file: bulkFile, classId: cid, role: 'MANAGER' },
+      {
+        onSuccess: (res) => {
+          setBulkSummary(`전체 ${res.total}건 · 성공 ${res.invited} · 실패 ${res.failed}`);
+          setBulkFile(null);
+        },
+        onError: (err) => setInviteError(apiErrorMessage(err, '일괄 초대에 실패했습니다.')),
+      },
+    );
+  };
+
   return (
-    <MembersChrome
-      members={members}
-      totalCaption={membersPage.meta.total}
-      classFilter={classFilter}
-      setClassFilter={setClassFilter}
-      classOptions={classOptions}
-      query={query}
-      setQuery={setQuery}
-      roleFilter={roleFilter}
-      setRoleFilter={setRoleFilter}
-      onOpenInvite={() => {
-        setInviteClassId(String(classId));
-        setInviteEmail('');
-        setInviteError(null);
-        setInviteOk(null);
-        setInviteOpen(true);
-      }}
-      inviteOpen={inviteOpen}
-      closeInvite={() => {
-        setInviteOpen(false);
-        setInviteError(null);
-        setInviteOk(null);
-      }}
-      onInvite={onInvite}
-      inviteEmail={inviteEmail}
-      setInviteEmail={setInviteEmail}
-      inviteRole={inviteRole}
-      setInviteRole={setInviteRole}
-      inviteClassId={inviteClassId}
-      setInviteClassId={setInviteClassId}
-      createPending={createInvitation.isPending}
-      inviteError={inviteError}
-      inviteOk={inviteOk}
-      classes={classes}
-    />
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0] ?? null;
+          setBulkFile(file);
+          setInviteEmail('');
+          resetInviteMessages();
+          e.target.value = '';
+        }}
+      />
+      <MembersChrome
+        members={members}
+        totalCaption={membersPage.meta.total}
+        classFilter={classFilter}
+        setClassFilter={setClassFilter}
+        classOptions={classOptions}
+        query={query}
+        setQuery={setQuery}
+        roleFilter={roleFilter}
+        setRoleFilter={setRoleFilter}
+        onOpenInvite={() => {
+          setInviteClassId(String(classId));
+          setInviteEmail('');
+          setBulkFile(null);
+          resetInviteMessages();
+          setInviteOpen(true);
+        }}
+        inviteOpen={inviteOpen}
+        closeInvite={() => {
+          setInviteOpen(false);
+          setBulkFile(null);
+          resetInviteMessages();
+        }}
+        onInvite={onInvite}
+        inviteEmail={inviteEmail}
+        setInviteEmail={setInviteEmail}
+        inviteClassId={inviteClassId}
+        setInviteClassId={setInviteClassId}
+        createPending={createInvitation.isPending}
+        inviteError={inviteError}
+        inviteOk={inviteOk}
+        classes={classes}
+        bulkFile={bulkFile}
+        onPickBulkFile={() => fileInputRef.current?.click()}
+        onClearBulkFile={() => setBulkFile(null)}
+        onBulkInvite={onBulkInvite}
+        bulkPending={createBulk.isPending}
+        bulkSummary={bulkSummary}
+      />
+    </>
   );
 }
 
