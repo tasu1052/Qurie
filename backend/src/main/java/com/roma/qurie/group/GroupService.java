@@ -75,6 +75,30 @@ public class GroupService {
         return GroupResponse.from(group);
     }
 
+    /**
+     * 요청자가 속한 그룹만 상세로 돌려준다. 학생은 반 전체 명단을 볼 수 없으므로
+     * 대시보드의 "내 그룹"은 이 API 로만 채운다.
+     */
+    @Transactional(readOnly = true)
+    public List<GroupDetailResponse> getMyGroups(AuthUser authUser, Long classId) {
+        verifyClassAccessible(authUser, classId);
+        requireLogin(authUser);
+
+        List<Long> groupIds =
+                groupParticipantRepository.findGroupIdsByClassIdAndUserId(classId, authUser.id());
+        if (groupIds.isEmpty()) {
+            return List.of();
+        }
+
+        return groupRepository.findAllById(groupIds).stream()
+                .sorted((a, b) -> a.getName().compareToIgnoreCase(b.getName()))
+                .map(group -> GroupDetailResponse.of(
+                        group,
+                        groupParticipantRepository.findAllWithUserByGroupIdAndRole(
+                                group.getId(), UserRole.STUDENT)))
+                .toList();
+    }
+
     /* 그룹을 수정하는 함수. PUT(전체 교체) 계약이다. */
     @Transactional
     public GroupResponse update(AuthUser authUser, Long groupId, GroupUpdateRequest request) {

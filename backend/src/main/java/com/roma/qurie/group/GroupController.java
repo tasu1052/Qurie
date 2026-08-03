@@ -58,6 +58,16 @@ public class GroupController {
     }
 
     /**
+     * 내가 속한 그룹(상세+구성원). 학생 대시보드가 반 전체 회원 API 대신 이 경로를 쓴다.
+     * 리터럴 경로를 `/{groupId}` 보다 앞에 둔다.
+     */
+    @GetMapping("/mine")
+    public List<GroupDetailResponse> mine(
+            @AuthenticationPrincipal AuthUser authUser, @RequestParam("classId") Long classId) {
+        return groupService.getMyGroups(authUser, classId);
+    }
+
+    /**
      * 랜덤 배정(셔플). 리터럴 경로를 path variable 보다 앞에 둔다.
      */
     @PostMapping("/shuffle")

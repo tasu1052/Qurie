@@ -9,6 +9,7 @@ import {
     getGroupCandidates,
     getGroupDetail,
     getGroups,
+    getMyGroups,
     shuffleGroups,
     updateGroup,
     type GroupCreateRequest,
@@ -25,6 +26,7 @@ const invalidateGroupClass = (
 ) => {
     queryClient.invalidateQueries({ queryKey: queryKeys.groups.all });
     queryClient.invalidateQueries({ queryKey: queryKeys.groups.list(classId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.groups.mine(classId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.groups.candidates(classId) });
     if (groupId !== undefined) {
         queryClient.invalidateQueries({ queryKey: queryKeys.groups.detail(groupId) });
@@ -50,6 +52,14 @@ export const useGetGroupDetail = (groupId: number) => {
     return useSuspenseQuery({
         queryKey: queryKeys.groups.detailFull(groupId),
         queryFn: () => getGroupDetail(groupId),
+    });
+};
+
+/** 내가 속한 그룹 — 학생/매니저 모두 호출 가능. 반 전체 회원 API 대체. */
+export const useGetMyGroups = (classId: number) => {
+    return useSuspenseQuery({
+        queryKey: queryKeys.groups.mine(classId),
+        queryFn: () => getMyGroups(classId),
     });
 };
 

@@ -154,6 +154,7 @@ export {
   useGetGroupDetail,
   useGetGroupCandidates,
   useGetGroupCandidatesQuery,
+  useGetMyGroups,
   useUpdateGroup,
   useEditGroup,
   useDuplicateGroup,
