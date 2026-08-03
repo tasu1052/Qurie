@@ -44,14 +44,11 @@ function ClassSettingsFormFields({ cls }: { cls: ClassResponse }) {
   const updateClass = useUpdateClass();
   const [name, setName] = useState(cls.name);
   const [description, setDescription] = useState(cls.description ?? '');
-  const [capacity, setCapacity] = useState(cls.capacity != null ? String(cls.capacity) : '');
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   const dirty =
-    name.trim() !== cls.name ||
-    (description.trim() || '') !== (cls.description ?? '') ||
-    (capacity.trim() || '') !== (cls.capacity != null ? String(cls.capacity) : '');
+    name.trim() !== cls.name || (description.trim() || '') !== (cls.description ?? '');
 
   const onSave = () => {
     setError(null);
@@ -60,17 +57,11 @@ function ClassSettingsFormFields({ cls }: { cls: ClassResponse }) {
       setError('클래스 이름을 입력하세요.');
       return;
     }
-    const cap = capacity.trim() === '' ? undefined : Number(capacity);
-    if (capacity.trim() !== '' && (!Number.isFinite(cap) || (cap as number) < 1)) {
-      setError('정원은 1 이상의 숫자여야 합니다.');
-      return;
-    }
     updateClass.mutate(
       {
         classId: cls.id,
         name: name.trim(),
         description: description.trim() || undefined,
-        capacity: cap,
       },
       {
         onSuccess: () => setSaved(true),
@@ -139,27 +130,6 @@ function ClassSettingsFormFields({ cls }: { cls: ClassResponse }) {
             fontFamily: 'var(--font-sans)',
             fontSize: 14,
             resize: 'vertical',
-          }}
-        />
-      </label>
-
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
-        <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>정원</span>
-        <input
-          value={capacity}
-          onChange={(e) => {
-            setCapacity(e.target.value);
-            setSaved(false);
-          }}
-          inputMode="numeric"
-          placeholder="선택"
-          style={{
-            border: '1px solid var(--border-strong)',
-            borderRadius: 8,
-            padding: '10px 12px',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            maxWidth: 160,
           }}
         />
       </label>

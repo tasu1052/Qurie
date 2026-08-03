@@ -11,6 +11,8 @@ export interface ProjectResponse {
     sessionId: number;
     path: string | null;
     importedBy: number;
+    versionHash: string | null;
+    fileCount: number;
     createdAt: string;
     updatedAt: string;
 }
@@ -53,6 +55,16 @@ export interface ProjectFileContentResponse {
 export const createProject = async (body: ProjectCreateRequest): Promise<ProjectResponse> => {
     const { data } = await axiosInstance.post<ProjectResponse>('/projects', body);
     return data;
+};
+
+/** 세션의 현재 프로젝트(가장 최근 임포트). 없으면 null */
+export const getSessionProject = async (sessionId: number): Promise<ProjectResponse | null> => {
+    const { data, status } = await axiosInstance.get<ProjectResponse | ''>('/projects/current', {
+        params: { sessionId },
+        validateStatus: (s) => (s >= 200 && s < 300) || s === 404,
+    });
+    if (status === 404 || data == null || data === '') return null;
+    return data as ProjectResponse;
 };
 
 export const importProjectLocal = async (

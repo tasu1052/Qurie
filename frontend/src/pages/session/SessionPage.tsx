@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -30,6 +30,7 @@ import {
   QueryAsyncBoundary,
   useDeleteSession,
   useGetSession,
+  useGetSessionProject,
   useMeOptional,
   useSessionSocket,
   useUpdateSession,
@@ -45,8 +46,10 @@ import { SessionQuizPanel } from '../../components/session/SessionQuizPanel';
 import { languageFromPath } from '../../components/session/readLocalProjectFiles';
 import {
   clearSessionProject,
+  loadSessionActiveFile,
   loadSessionProject,
   loadSessionTitle,
+  saveSessionActiveFile,
   saveSessionProject,
   saveSessionTitle,
   type SessionProjectRef,
@@ -63,18 +66,6 @@ import type * as Y from 'yjs';
 type LeftTab = 'explorer' | 'materials';
 type RightTab = 'community' | 'quiz';
 type BottomTab = 'terminal' | 'debug' | 'output';
-
-const LANGUAGE_OPTIONS = [
-  { value: 'java', label: 'Java' },
-  { value: 'javascript', label: 'JavaScript' },
-  { value: 'typescript', label: 'TypeScript' },
-  { value: 'python', label: 'Python' },
-  { value: 'html', label: 'HTML' },
-  { value: 'css', label: 'CSS' },
-  { value: 'cpp', label: 'C++' },
-  { value: 'json', label: 'JSON' },
-  { value: 'markdown', label: 'Markdown' },
-] as const;
 
 function applyContentToYText(ytext: Y.Text, content: string) {
   ytext.doc?.transact(() => {
@@ -148,16 +139,20 @@ export default function SessionPage() {
   const sessionId = Number(id);
   const hasSessionId = Number.isFinite(sessionId) && sessionId > 0;
 
+  const initialActiveFile = hasSessionId ? loadSessionActiveFile(sessionId) : null;
   const [leftTab, setLeftTab] = useState<LeftTab>('explorer');
   const [rightTab, setRightTab] = useState<RightTab>(initialRight);
   const [bottomTab, setBottomTab] = useState<BottomTab>('terminal');
-  const [editorLanguage, setEditorLanguage] = useState<string>('typescript');
+  const [editorLanguage, setEditorLanguage] = useState<string>(() =>
+    initialActiveFile ? languageFromPath(initialActiveFile) : 'typescript',
+  );
   const [gitOpen, setGitOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [activeFile, setActiveFile] = useState<string | null>(null);
+  const [activeFile, setActiveFile] = useState<string | null>(initialActiveFile);
   const [projectRef, setProjectRef] = useState<SessionProjectRef | null>(() =>
     hasSessionId ? loadSessionProject(sessionId) : null,
   );
+  const hydratedActiveFileRef = useRef(false);
   const [pendingImport, setPendingImport] = useState<ProjectImportResponse | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [endConfirmOpen, setEndConfirmOpen] = useState(false);
@@ -186,11 +181,30 @@ export default function SessionPage() {
   );
   const updateSession = useUpdateSession();
   const deleteSession = useDeleteSession();
+  const sessionProjectQuery = useGetSessionProject(hasSessionId ? sessionId : null);
 
   const { ytext, provider, status: collabStatus } = useCollabSession(
     hasSessionId ? String(sessionId) : 'demo',
     collabUser,
   );
+
+  /** 서버에 묶인 세션 프로젝트를 폴링해 다른 참가자 임포트도 좌측 트리에 반영한다. */
+  useEffect(() => {
+    if (!hasSessionId) return;
+    const remote = sessionProjectQuery.data;
+    if (remote == null) return;
+    const next: SessionProjectRef = {
+      projectId: remote.id,
+      versionHash: remote.versionHash ?? '',
+    };
+    // remote poll → local project binding (intentional sync from query)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- keep editor tree in sync with GET /projects/current
+    setProjectRef((prev) => {
+      if (prev?.projectId === next.projectId && prev.versionHash === next.versionHash) return prev;
+      return next;
+    });
+    saveSessionProject(sessionId, next);
+  }, [hasSessionId, sessionId, sessionProjectQuery.data]);
 
   /** 채팅 · 참여자 · 퀴즈 알림 STOMP. 세션 id 없으면 연결하지 않는다. */
   const chat = useSessionSocket(hasSessionId ? sessionId : null);
@@ -234,6 +248,7 @@ export default function SessionPage() {
   const openFile = async (projectId: number, path: string) => {
     setActiveFile(path);
     applyLanguageFromPath(path);
+    if (hasSessionId) saveSessionActiveFile(sessionId, path);
     try {
       const file = await getProjectFileContent(projectId, path);
       applyContentToYText(ytext, file.content);
@@ -241,6 +256,18 @@ export default function SessionPage() {
       setImportNotice(`파일을 열지 못했습니다: ${path}`);
     }
   };
+
+  /** 새로고침 후 활성 파일·확장자 언어를 복구한다. openFile 이 언어까지 세팅한다. */
+  useEffect(() => {
+    if (!hasSessionId || !projectRef || hydratedActiveFileRef.current) return;
+    hydratedActiveFileRef.current = true;
+    const path = activeFile ?? loadSessionActiveFile(sessionId);
+    if (!path) return;
+    // hydrate once after project bind — openFile updates editor language/content
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot restore of last active file
+    void openFile(projectRef.projectId, path);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 최초 프로젝트 바인딩 시에만 복구
+  }, [hasSessionId, sessionId, projectRef?.projectId]);
 
   const onImported = (result: ProjectImportResponse) => {
     setPendingImport(result);
@@ -272,6 +299,7 @@ export default function SessionPage() {
     setPendingImport(null);
     setProjectRef(null);
     setActiveFile(null);
+    hydratedActiveFileRef.current = false;
     if (hasSessionId) clearSessionProject(sessionId);
     setImportNotice(null);
     setLeftTab('explorer');
@@ -320,7 +348,14 @@ export default function SessionPage() {
   });
 
   const explorerProjectId = pendingImport?.projectId ?? projectRef?.projectId ?? null;
-  const languageInOptions = LANGUAGE_OPTIONS.some((o) => o.value === editorLanguage);
+
+  const toggleBrowserFullscreen = () => {
+    if (!document.fullscreenElement) {
+      void document.documentElement.requestFullscreen?.();
+    } else {
+      void document.exitFullscreen?.();
+    }
+  };
 
   return (
     <div
@@ -781,36 +816,33 @@ export default function SessionPage() {
               {activeFile ?? (projectRef ? '파일을 선택하세요' : pendingImport ? '미리보기 중' : '프로젝트 미연결')}
             </span>
             <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <select
-                value={editorLanguage}
-                onChange={(e) => setEditorLanguage(e.target.value)}
-                aria-label="코드 언어 선택"
+              <span
                 style={{
-                  height: 26,
-                  borderRadius: 6,
-                  border: '1px solid var(--border-strong)',
-                  background: 'var(--surface-card)',
-                  color: 'var(--ink)',
-                  fontFamily: 'var(--font-sans)',
                   fontSize: 12,
                   fontWeight: 600,
-                  padding: '0 8px',
+                  color: 'var(--text-secondary)',
+                  fontFamily: 'var(--font-mono)',
+                }}
+                title="파일 확장자로 감지한 언어"
+              >
+                {editorLanguage}
+              </span>
+              <button
+                type="button"
+                title="전체화면"
+                aria-label="브라우저 전체화면"
+                onClick={toggleBrowserFullscreen}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-muted)',
                   cursor: 'pointer',
-                  maxWidth: chrome.narrowHeader ? 110 : 160,
+                  display: 'inline-flex',
+                  padding: 4,
                 }}
               >
-                {!languageInOptions ? <option value={editorLanguage}>{editorLanguage}</option> : null}
-                {LANGUAGE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-              {!chrome.narrowHeader ? (
-                <span style={{ color: 'var(--text-muted)', display: 'inline-flex' }}>
-                  <Maximize2 size={13} />
-                </span>
-              ) : null}
+                <Maximize2 size={13} />
+              </button>
             </span>
           </div>
 

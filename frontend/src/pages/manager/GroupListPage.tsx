@@ -1,9 +1,10 @@
 import { isAxiosError } from 'axios';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { Calendar, Copy, Plus, Search, Shuffle, Trash2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
   AlertBanner,
   Badge,
@@ -74,6 +75,43 @@ function defaultPeriod() {
   const endedAt = new Date(startedAt);
   endedAt.setDate(endedAt.getDate() + 30);
   return { startedAt: toLocalDateTime(startedAt), endedAt: toLocalDateTime(endedAt) };
+}
+
+function toDateInputValue(value: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function dateInputToLocalStart(dateStr: string): string {
+  return `${dateStr}T00:00:00`;
+}
+
+function dateInputToLocalEnd(dateStr: string): string {
+  return `${dateStr}T23:59:59`;
+}
+
+function defaultDateInputs() {
+  const period = defaultPeriod();
+  return {
+    startDate: toDateInputValue(period.startedAt),
+    endDate: toDateInputValue(period.endedAt),
+  };
+}
+
+function dateFieldStyle(): CSSProperties {
+  return {
+    width: '100%',
+    height: 40,
+    borderRadius: 10,
+    border: '1px solid var(--border-strong)',
+    background: 'var(--surface-card)',
+    color: 'var(--ink)',
+    padding: '0 12px',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 13,
+    boxSizing: 'border-box',
+  };
 }
 
 function groupLetter(index: number): string {
@@ -230,10 +268,6 @@ function ShuffleModal({
   );
 }
 
-function avatarChar(name: string) {
-  return name.trim().slice(0, 1) || '?';
-}
-
 function GroupCard({
   group,
   onChanged,
@@ -246,8 +280,6 @@ function GroupCard({
   const deleteGroup = useDeleteGroup();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const leader = detail.members.find((m) => m.role === 'LEADER');
-  const shown = detail.members.slice(0, 4);
-  const extra = Math.max(0, detail.memberCount - shown.length);
 
   return (
     <div
@@ -260,6 +292,7 @@ function GroupCard({
         display: 'flex',
         flexDirection: 'column',
         gap: 14,
+        minHeight: 260,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -290,55 +323,14 @@ function GroupCard({
           그룹 삭제
         </button>
       </div>
-      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
+      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)', minHeight: 40 }}>
         {detail.description || '설명이 없습니다.'}
       </p>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex' }}>
-          {shown.map((m, i) => (
-            <span
-              key={m.userId}
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: '50%',
-                background: 'var(--surface-sunken)',
-                border: '2px solid var(--surface-card)',
-                color: 'var(--text-secondary)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 11,
-                fontWeight: 700,
-                marginLeft: i === 0 ? 0 : -8,
-              }}
-            >
-              {avatarChar(m.name)}
-            </span>
-          ))}
-          {extra > 0 && (
-            <span
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: '50%',
-                background: 'var(--surface-sunken)',
-                border: '2px solid var(--surface-card)',
-                color: 'var(--text-muted)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 11,
-                fontWeight: 600,
-                marginLeft: shown.length ? -8 : 0,
-              }}
-            >
-              +{extra}
-            </span>
-          )}
-        </div>
-        {leader && (
-          <Badge status="accent">LEADER {leader.name}</Badge>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minHeight: 28 }}>
+        {leader ? (
+          <Badge status="accent">리더 {leader.name}</Badge>
+        ) : (
+          <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>리더 미지정</span>
         )}
       </div>
       <div style={{ display: 'flex', gap: 14, fontSize: 12.5, color: 'var(--text-secondary)' }}>
@@ -355,6 +347,7 @@ function GroupCard({
           alignItems: 'center',
           borderTop: '1px solid var(--divider)',
           paddingTop: 12,
+          marginTop: 'auto',
         }}
       >
         <Link
@@ -432,17 +425,18 @@ function GroupGrid({
   onRefresh: () => void;
 }) {
   const { data: groups } = useGetGroups(classId);
+  const debouncedQuery = useDebouncedValue(query, 300);
 
   const filtered = useMemo(
     () =>
       groups.filter((g) => {
         const status = groupStatus(g.endedAt);
-        if (query && !g.name.toLowerCase().includes(query.toLowerCase())) return false;
+        if (debouncedQuery && !g.name.toLowerCase().includes(debouncedQuery.toLowerCase())) return false;
         if (statusFilter === '전체') return true;
         if (statusFilter === '활동') return status === '활동 중';
         return status === '종료';
       }),
-    [groups, query, statusFilter],
+    [groups, debouncedQuery, statusFilter],
   );
 
   return (
@@ -523,28 +517,47 @@ export default function GroupListPage() {
   const [shuffleOpen, setShuffleOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
+  const defaults = defaultDateInputs();
+  const [startDate, setStartDate] = useState(defaults.startDate);
+  const [endDate, setEndDate] = useState(defaults.endDate);
   const [rowKey, setRowKey] = useState(0);
   const [createError, setCreateError] = useState<string | null>(null);
 
   const refresh = () => setRowKey((k) => k + 1);
 
+  const resetCreateForm = () => {
+    setGroupName('');
+    setDescription('');
+    const next = defaultDateInputs();
+    setStartDate(next.startDate);
+    setEndDate(next.endDate);
+    setCreateError(null);
+  };
+
   const onCreate = () => {
     if (!hasValidClassId) return;
     if (!groupName.trim() || !description.trim()) return;
-    const period = defaultPeriod();
+    if (!startDate || !endDate) {
+      setCreateError('시작일과 종료일을 선택하세요.');
+      return;
+    }
+    if (startDate > endDate) {
+      setCreateError('종료일은 시작일 이후여야 합니다.');
+      return;
+    }
     setCreateError(null);
     createGroup.mutate(
       {
         classId,
         name: groupName.trim(),
         description: description.trim(),
-        ...period,
+        startedAt: dateInputToLocalStart(startDate),
+        endedAt: dateInputToLocalEnd(endDate),
       },
       {
         onSuccess: () => {
           setCreateOpen(false);
-          setGroupName('');
-          setDescription('');
+          resetCreateForm();
           refresh();
         },
         onError: (err) => {
@@ -678,11 +691,11 @@ export default function GroupListPage() {
           onPrimary={onCreate}
           onSecondary={() => {
             setCreateOpen(false);
-            setCreateError(null);
+            resetCreateForm();
           }}
           onClose={() => {
             setCreateOpen(false);
-            setCreateError(null);
+            resetCreateForm();
           }}
           width={480}
         >
@@ -708,6 +721,26 @@ export default function GroupListPage() {
                 width="100%"
               />
             </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>시작일</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  style={dateFieldStyle()}
+                />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>종료일</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  style={dateFieldStyle()}
+                />
+              </label>
+            </div>
           </div>
         </Modal>
 

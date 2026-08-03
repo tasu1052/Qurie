@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios';
 import { BookOpen, PlayCircle, Plus, Search, Users } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
   AlertBanner,
   Badge,
@@ -11,7 +12,6 @@ import {
   EmptyState,
   Input,
   Modal,
-  Pagination,
   RowErrorFallback,
   Select,
   Skeleton,
@@ -188,8 +188,8 @@ function TrackCardView({
 function TrackListBody() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
+  const debouncedQuery = useDebouncedValue(query, 300);
   const [techFilter, setTechFilter] = useState<'all' | 'java' | 'python' | 'database'>('all');
-  const [page, setPage] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState('');
   const [tech, setTech] = useState('java');
@@ -200,12 +200,11 @@ function TrackListBody() {
 
   const filters = useMemo(
     () => ({
-      page,
-      size: 12,
-      q: query.trim() || undefined,
+      size: 100,
+      q: debouncedQuery.trim() || undefined,
       tech: techFilter === 'all' ? undefined : techFilter,
     }),
-    [page, query, techFilter],
+    [debouncedQuery, techFilter],
   );
 
   const { data: tracksPage } = useGetTracks(filters);
@@ -278,7 +277,6 @@ function TrackListBody() {
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
-            setPage(0);
           }}
           width={240}
         />
@@ -290,7 +288,6 @@ function TrackListBody() {
               type="button"
               onClick={() => {
                 setTechFilter(c.key);
-                setPage(0);
               }}
               style={{
                 display: 'inline-flex',
@@ -374,13 +371,7 @@ function TrackListBody() {
               </span>
             </button>
           </div>
-          <Pagination
-            page={page + 1}
-            pageCount={Math.max(1, Math.ceil(total / 12))}
-            pageSize={12}
-            rangeLabel={`${page * 12 + 1}–${Math.min((page + 1) * 12, total)} / ${total}개 트랙`}
-            onPage={(p) => setPage(Math.max(0, p - 1))}
-          />
+          <span style={{ marginTop: 4, fontSize: 12, color: 'var(--text-muted)' }}>총 {total}개 트랙</span>
         </>
       )}
 

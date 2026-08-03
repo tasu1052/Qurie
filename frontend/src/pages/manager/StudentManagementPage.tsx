@@ -1,26 +1,40 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, Search } from 'lucide-react';
+import { isAxiosError } from 'axios';
+import { ChevronRight, Mail, Search, UserPlus } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
+  AlertBanner,
   Badge,
   Button,
   EmptyState,
+  FileDropzone,
   Input,
+  Modal,
   RowErrorFallback,
-  Select,
   Skeleton,
+  UploadRow,
 } from '../../ds';
 import {
   QueryAsyncBoundary,
+  useCreateBulkInvitations,
+  useCreateInvitation,
   useGetClass,
   useGetClassMembers,
   useGetGroups,
   useMe,
   type ClassMemberResponse,
   type GroupResponse,
-  type UserRole,
 } from '../../data';
+
+function apiErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError(error)) {
+    const message = error.response?.data?.message;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return fallback;
+}
 
 function TableSkeleton() {
   return (
@@ -43,12 +57,6 @@ function GroupsPanelSkeleton() {
 
 function groupStatus(endedAt: string): '활동' | '종료' {
   return new Date(endedAt).getTime() > Date.now() ? '활동' : '종료';
-}
-
-function roleBadgeStatus(role: UserRole): 'accent' | 'neutral' | 'success' {
-  if (role === 'MANAGER') return 'accent';
-  if (role === 'STUDENT') return 'neutral';
-  return 'success';
 }
 
 function GroupsSidePanel({
@@ -91,14 +99,14 @@ function GroupsSidePanel({
           icon={<ChevronRight size={14} strokeWidth={1.75} />}
           onClick={() => navigate('/manager/groups')}
         >
-          이동
+          그룹 관리
         </Button>
       </div>
 
       {preview.length === 0 ? (
         <EmptyState
           message="그룹이 없습니다"
-          description="생성하거나 그룹 관리에서 셔플하세요."
+          description="그룹 관리에서 만들거나 셔플할 수 있어요."
           actionLabel="그룹 관리"
           onAction={() => navigate('/manager/groups')}
         />
@@ -142,24 +150,21 @@ function MembersTable({
   members,
   query,
   onQueryChange,
-  roleFilter,
-  onRoleFilterChange,
 }: {
   members: ClassMemberResponse[];
   query: string;
   onQueryChange: (v: string) => void;
-  roleFilter: 'all' | UserRole;
-  onRoleFilterChange: (v: 'all' | UserRole) => void;
 }) {
   const navigate = useNavigate();
+  const debouncedQuery = useDebouncedValue(query, 300);
+  const students = useMemo(() => members.filter((m) => m.role === 'STUDENT'), [members]);
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return members.filter((m) => {
-      if (roleFilter !== 'all' && m.role !== roleFilter) return false;
+    const q = debouncedQuery.trim().toLowerCase();
+    return students.filter((m) => {
       if (!q) return true;
       return m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q);
     });
-  }, [members, query, roleFilter]);
+  }, [students, debouncedQuery]);
 
   return (
     <div
@@ -188,22 +193,11 @@ function MembersTable({
           onChange={(e) => onQueryChange(e.target.value)}
           width={220}
         />
-        <Select
-          size="sm"
-          options={[
-            { value: 'all', label: '전체 역할' },
-            { value: 'STUDENT', label: 'STUDENT' },
-            { value: 'MANAGER', label: 'MANAGER' },
-          ]}
-          value={roleFilter}
-          onChange={(v) => onRoleFilterChange(v as 'all' | UserRole)}
-          style={{ width: 148 }}
-        />
       </div>
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1.8fr 1fr 1.2fr',
+          gridTemplateColumns: '1.8fr 1.2fr',
           padding: '10px 24px',
           borderBottom: '1px solid var(--divider)',
           fontSize: 11,
@@ -213,18 +207,17 @@ function MembersTable({
           color: 'var(--text-muted)',
         }}
       >
-        <span>멤버</span>
-        <span>역할</span>
+        <span>학생</span>
         <span>그룹</span>
       </div>
       {filtered.length === 0 ? (
         <div style={{ padding: 32 }}>
         <EmptyState
-          message={members.length === 0 ? '반 명단이 비어 있습니다' : '검색 결과가 없습니다'}
+          message={students.length === 0 ? '학생이 없습니다' : '검색 결과가 없습니다'}
           description={
-            members.length === 0
-              ? '클래스에 배정된 사용자가 없습니다.'
-              : '이름·이메일·역할 필터를 바꿔 보세요.'
+            students.length === 0
+              ? '클래스에 배정된 학생이 없습니다.'
+              : '이름·이메일을 바꿔 검색해 보세요.'
           }
           actionLabel="그룹 관리"
           onAction={() => navigate('/manager/groups')}
@@ -236,11 +229,13 @@ function MembersTable({
             key={m.userId}
             role="button"
             tabIndex={0}
-            onClick={() => navigate(`/manager/students/${m.userId}`)}
-            onKeyDown={(e) => e.key === 'Enter' && navigate(`/manager/students/${m.userId}`)}
+            onClick={() => navigate(`/manager/students/detail/${m.userId}`)}
+            onKeyDown={(e) =>
+              e.key === 'Enter' && navigate(`/manager/students/detail/${m.userId}`)
+            }
             style={{
               display: 'grid',
-              gridTemplateColumns: '1.8fr 1fr 1.2fr',
+              gridTemplateColumns: '1.8fr 1.2fr',
               padding: '13px 24px',
               borderBottom: '1px solid var(--divider)',
               fontSize: 13,
@@ -260,7 +255,6 @@ function MembersTable({
                 {m.email}
               </span>
             </span>
-            <Badge status={roleBadgeStatus(m.role)}>{m.role}</Badge>
             <span style={{ color: 'var(--text-secondary)' }}>{m.groupName ?? '—'}</span>
           </div>
         ))
@@ -270,26 +264,111 @@ function MembersTable({
 }
 
 function StudentManagementBody({ classId }: { classId: number }) {
-  const navigate = useNavigate();
   const { data: cls } = useGetClass(classId);
   const { data: membersPage } = useGetClassMembers(classId, { size: 100 });
   const [query, setQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('STUDENT');
   const [groupPanelKey, setGroupPanelKey] = useState(0);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteOk, setInviteOk] = useState<string | null>(null);
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkSummary, setBulkSummary] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const createInvitation = useCreateInvitation();
+  const createBulk = useCreateBulkInvitations();
 
   const members = membersPage.data;
+  const studentCount = members.filter((m) => m.role === 'STUDENT').length;
+
+  const resetInviteMessages = () => {
+    setInviteError(null);
+    setInviteOk(null);
+    setBulkSummary(null);
+  };
+
+  const onInvite = () => {
+    resetInviteMessages();
+    const email = inviteEmail.trim();
+    if (!email) {
+      setInviteError('이메일을 입력하거나 엑셀·CSV 파일을 선택하세요.');
+      return;
+    }
+    createInvitation.mutate(
+      { email, classId, role: 'STUDENT' },
+      {
+        onSuccess: (res) => {
+          setInviteOk(
+            `${res.email}으로 초대장을 보냈습니다. 만료 ${new Date(res.expiresAt).toLocaleString('ko-KR')}`,
+          );
+          setInviteEmail('');
+        },
+        onError: (err) => setInviteError(apiErrorMessage(err, '초대에 실패했습니다.')),
+      },
+    );
+  };
+
+  const onBulkInvite = () => {
+    resetInviteMessages();
+    if (!bulkFile) {
+      setInviteError('업로드할 파일을 선택하세요.');
+      return;
+    }
+    createBulk.mutate(
+      { file: bulkFile, classId, role: 'STUDENT' },
+      {
+        onSuccess: (res) => {
+          setBulkSummary(`전체 ${res.total}건 · 성공 ${res.invited} · 실패 ${res.failed}`);
+          setBulkFile(null);
+        },
+        onError: (err) => setInviteError(apiErrorMessage(err, '일괄 초대에 실패했습니다.')),
+      },
+    );
+  };
+
+  const pending = createInvitation.isPending || createBulk.isPending;
+  const primaryAction = bulkFile ? onBulkInvite : onInvite;
+  const primaryLabel = pending
+    ? '발송 중…'
+    : bulkFile
+      ? '엑셀·CSV 일괄 초대'
+      : inviteOk
+        ? '추가로 발송'
+        : '초대장 발송하기';
 
   return (
     <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0] ?? null;
+          setBulkFile(file);
+          setInviteEmail('');
+          resetInviteMessages();
+          e.target.value = '';
+        }}
+      />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>학생 관리</h1>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            {cls.name} · 반 소속 {membersPage.meta.total}명
+            {cls.name} · 학생 {studentCount}명
           </span>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => navigate('/manager/groups')}>
-          그룹 관리
+        <Button
+          variant="primary"
+          icon={<UserPlus size={15} strokeWidth={1.75} />}
+          onClick={() => {
+            setInviteEmail('');
+            setBulkFile(null);
+            resetInviteMessages();
+            setInviteOpen(true);
+          }}
+        >
+          학생 초대
         </Button>
       </div>
 
@@ -301,8 +380,6 @@ function StudentManagementBody({ classId }: { classId: number }) {
           members={members}
           query={query}
           onQueryChange={setQuery}
-          roleFilter={roleFilter}
-          onRoleFilterChange={setRoleFilter}
         />
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
@@ -341,11 +418,60 @@ function StudentManagementBody({ classId }: { classId: number }) {
               color: 'var(--text-body)',
             }}
           >
-            완료율·액티비티는 분석 API가 준비되면 붙입니다. 지금은 반 명단의 이름·역할·그룹만
-            표시합니다.
+            엑셀·CSV로 학생을 일괄 초대할 수 있어요. 이메일 열이 포함된 파일을 사용하세요.
           </div>
         </div>
       </div>
+
+      <Modal
+        open={inviteOpen}
+        title="학생 초대"
+        description="이메일 한 명 또는 엑셀·CSV로 일괄 초대합니다."
+        primaryLabel={primaryLabel}
+        secondaryLabel={inviteOk || bulkSummary ? '닫기' : '취소'}
+        onPrimary={primaryAction}
+        onSecondary={() => {
+          setInviteOpen(false);
+          setBulkFile(null);
+          resetInviteMessages();
+        }}
+        onClose={() => {
+          setInviteOpen(false);
+          setBulkFile(null);
+          resetInviteMessages();
+        }}
+        width={520}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {inviteError ? <AlertBanner tone="error" title="초대 실패" description={inviteError} /> : null}
+          {inviteOk ? <AlertBanner tone="success" title="초대 발송 완료" description={inviteOk} /> : null}
+          {bulkSummary ? (
+            <AlertBanner tone="success" title="일괄 초대 결과" description={bulkSummary} />
+          ) : null}
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>이메일 주소</span>
+            <Input
+              placeholder="student@ssafy.com"
+              icon={<Mail size={15} strokeWidth={1.75} />}
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              width="100%"
+              disabled={!!bulkFile}
+            />
+          </label>
+          {bulkFile ? (
+            <UploadRow name={bulkFile.name} percent={100} onCancel={() => setBulkFile(null)} />
+          ) : (
+            <FileDropzone
+              title="엑셀·CSV 일괄 초대"
+              description="이메일 열이 있는 .xlsx / .xls / .csv 파일을 업로드하세요."
+              hint="역할은 학생으로 고정됩니다"
+              actionLabel="파일 선택"
+              onSelect={() => fileInputRef.current?.click()}
+            />
+          )}
+        </div>
+      </Modal>
     </>
   );
 }

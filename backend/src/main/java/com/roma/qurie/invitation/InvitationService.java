@@ -66,7 +66,11 @@ public class InvitationService {
 
 		Invitation saved = invitationRepository.save(invitation);
 		String signUpUrl = signUpUrl(rawToken);
-		mailSender.send(saved, signUpUrl);
+		/*
+		 * 발송은 다른 스레드에서 일어나므로 엔티티가 아니라 스냅샷을 넘긴다(LAZY 인 classEntity 를 여기서 읽어둔다).
+		 * 이 호출 뒤에는 DB 작업이 없어 트랜잭션이 롤백될 여지가 사실상 없다.
+		 */
+		mailSender.send(InvitationMail.from(saved, signUpUrl));
 
 		return InvitationCreateResponse.of(saved, rawToken, signUpUrl);
 	}

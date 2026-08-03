@@ -5,6 +5,8 @@ import logoSrc from '../../ds/assets/logo.png';
 import { useLogin, type AuthUserResponse } from '../../data';
 import { homePathForRole } from '../../components/auth/roleRoutes';
 
+const EMAIL_STORAGE_KEY = 'qurie:login-email';
+
 function AuthCardShell({ children, title, subtitle }: { children: React.ReactNode; title: string; subtitle?: string }) {
   return (
     <div
@@ -52,12 +54,20 @@ function AuthCardShell({ children, title, subtitle }: { children: React.ReactNod
   );
 }
 
+function readSavedEmail(): string {
+  try {
+    return localStorage.getItem(EMAIL_STORAGE_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const login = useLogin();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => readSavedEmail());
   const [password, setPassword] = useState('');
-  const [remember, setRemember] = useState(true);
+  const [saveEmail, setSaveEmail] = useState(() => Boolean(readSavedEmail()));
   const [formError, setFormError] = useState<string | null>(null);
 
   const onSubmit = (e: FormEvent) => {
@@ -67,7 +77,12 @@ export default function LoginPage() {
       { email, password },
       {
         onSuccess: (user: AuthUserResponse) => {
-          void remember;
+          try {
+            if (saveEmail) localStorage.setItem(EMAIL_STORAGE_KEY, email.trim());
+            else localStorage.removeItem(EMAIL_STORAGE_KEY);
+          } catch {
+            /* ignore */
+          }
           navigate(homePathForRole(user.role), { replace: true });
         },
         onError: () => {
@@ -77,9 +92,8 @@ export default function LoginPage() {
     );
   };
 
-
   return (
-    <AuthCardShell title="로그인" subtitle="기업 계정으로 Qurie 콘솔에 접속합니다.">
+    <AuthCardShell title="로그인" subtitle="기업 계정으로 Qurie 콘솔에 접속해요.">
       <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontSize: 13, fontWeight: 600 }}>이메일</span>
@@ -103,8 +117,8 @@ export default function LoginPage() {
         </label>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5 }}>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: 'var(--text-secondary)' }}>
-            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-            로그인 상태 유지
+            <input type="checkbox" checked={saveEmail} onChange={(e) => setSaveEmail(e.target.checked)} />
+            이메일 저장하기
           </label>
           <Link to="/reset" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
             비밀번호 재설정
@@ -157,30 +171,9 @@ export default function LoginPage() {
       </div>
 
       <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-        Qurie 계정은 기업 관리자(Master)의 초대로 생성됩니다.
+        Qurie 계정은 기업 관리자(Master)의 초대로 만들 수 있어요.
         <br />
-        초대 메일을 받으셨나요?{' '}
-        <button
-          type="button"
-          onClick={() => {
-            // 로컬 테스트용 임시 토큰 — 실초대 API 연동 전까지만 사용
-            const token = `dev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-            navigate(`/signup?token=${encodeURIComponent(token)}`);
-          }}
-          style={{
-            border: 'none',
-            background: 'none',
-            padding: 0,
-            color: 'var(--accent)',
-            fontWeight: 600,
-            fontSize: 'inherit',
-            fontFamily: 'var(--font-sans)',
-            cursor: 'pointer',
-            textDecoration: 'none',
-          }}
-        >
-          초대 수락하기
-        </button>
+        초대 메일의 링크로 가입을 이어가면 돼요.
       </p>
     </AuthCardShell>
   );

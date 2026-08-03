@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios';
 import { Grid2x2, PlayCircle, Plus, Search, Users } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
   AlertBanner,
   Badge,
@@ -84,6 +85,8 @@ function ClassCardView({
 }) {
   const { status, label } = classStatus(item.endedAt);
   const active = status === 'active';
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <div
       style={{
@@ -95,6 +98,7 @@ function ClassCardView({
         display: 'flex',
         flexDirection: 'column',
         gap: 14,
+        position: 'relative',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -148,27 +152,91 @@ function ClassCardView({
             fontFamily: 'var(--font-sans)',
           }}
         >
-          {active ? '클래스 보기' : '분석 보기'} <span style={{ fontWeight: 800 }}>&gt;</span>
+          {active ? '클래스 보기' : '상세 보기'} <span style={{ fontWeight: 800 }}>&gt;</span>
         </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          aria-label="클래스 삭제"
-          style={{
-            marginLeft: 'auto',
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
-            fontWeight: 700,
-            letterSpacing: 1,
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            padding: 0,
-          }}
-        >
-          ⋯
-        </button>
+        <div style={{ marginLeft: 'auto', position: 'relative' }}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="클래스 메뉴"
+            aria-expanded={menuOpen}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              fontWeight: 700,
+              letterSpacing: 1,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              padding: 0,
+            }}
+          >
+            ⋯
+          </button>
+          {menuOpen ? (
+            <div
+              style={{
+                position: 'absolute',
+                right: 0,
+                bottom: '100%',
+                marginBottom: 6,
+                minWidth: 132,
+                background: 'var(--surface-card)',
+                border: '1px solid var(--border-strong)',
+                borderRadius: 10,
+                boxShadow: 'var(--shadow-card)',
+                padding: 4,
+                zIndex: 5,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onOpen();
+                }}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  textAlign: 'left',
+                  border: 'none',
+                  background: 'transparent',
+                  padding: '8px 10px',
+                  fontSize: 13,
+                  fontFamily: 'var(--font-sans)',
+                  color: 'var(--ink)',
+                  cursor: 'pointer',
+                  borderRadius: 6,
+                }}
+              >
+                상세 보기
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onDelete();
+                }}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  textAlign: 'left',
+                  border: 'none',
+                  background: 'transparent',
+                  padding: '8px 10px',
+                  fontSize: 13,
+                  fontFamily: 'var(--font-sans)',
+                  color: 'var(--status-error)',
+                  cursor: 'pointer',
+                  borderRadius: 6,
+                }}
+              >
+                삭제
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -177,6 +245,7 @@ function ClassCardView({
 function ClassListBody() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
+  const debouncedQuery = useDebouncedValue(query, 300);
   const [trackId, setTrackId] = useState<string>('all');
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState('');
@@ -200,10 +269,10 @@ function ClassListBody() {
   const classFilters = useMemo(
     () => ({
       size: 50,
-      q: query.trim() || undefined,
+      q: debouncedQuery.trim() || undefined,
       trackId: trackId === 'all' ? undefined : Number(trackId),
     }),
-    [query, trackId],
+    [debouncedQuery, trackId],
   );
 
   const { data: classesPage } = useGetClasses(classFilters);
@@ -309,17 +378,12 @@ function ClassListBody() {
       ) : (
         <div className="qurie-card-grid">
           {classes.map((c) => {
-            const { status } = classStatus(c.endedAt);
             return (
               <ClassCardView
                 key={c.id}
                 item={c}
                 trackLabel={trackNameById.get(c.trackId) ?? `track #${c.trackId}`}
-                onOpen={() =>
-                  status === 'ended'
-                    ? navigate(`/master/analytics/${c.id}`)
-                    : navigate('/manager')
-                }
+                onOpen={() => navigate(`/master/classes/${c.id}`)}
                 onDelete={() => setDeleteTarget(c)}
               />
             );

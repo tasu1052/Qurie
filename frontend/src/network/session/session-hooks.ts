@@ -8,6 +8,7 @@ import {
     getSession,
     getSessionMessages,
     getSessionParticipants,
+    getSessionReport,
     getSessions,
     updateSession,
     type SessionCreateRequest,
@@ -79,6 +80,13 @@ export const useCreateSessionReport = () => {
             ...body
         }: SessionReportCreateRequest & { sessionId: number }) =>
             createSessionReport(sessionId, body),
+    });
+};
+
+export const useGetSessionReport = (sessionId: number, userId?: number) => {
+    return useSuspenseQuery({
+        queryKey: queryKeys.sessions.report(sessionId, userId),
+        queryFn: () => getSessionReport(sessionId, userId),
     });
 };
 

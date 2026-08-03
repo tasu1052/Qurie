@@ -5,7 +5,8 @@ import {
   Users,
   PlayCircle,
   Grid2x2,
-  Settings,
+  Megaphone,
+  UserRound,
 } from 'lucide-react';
 import { Button, Sidebar, Topbar } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
@@ -26,7 +27,8 @@ const managerNav = [
   { key: 'students', label: '학생 관리', path: '/manager/students', icon: <Users {...iconProps} /> },
   { key: 'sessions', label: '세션', path: '/manager/sessions', icon: <PlayCircle {...iconProps} /> },
   { key: 'groups', label: '그룹', path: '/manager/groups', icon: <Grid2x2 {...iconProps} /> },
-  { key: 'settings', label: '설정', path: '/manager/settings', icon: <Settings {...iconProps} /> },
+  { key: 'announcements', label: '공지사항', path: '/manager/announcements', icon: <Megaphone {...iconProps} /> },
+  { key: 'me', label: '마이페이지', path: '/manager/me', icon: <UserRound {...iconProps} /> },
 ];
 
 export function ManagerShell({ activeKey, breadcrumbs, children }: AppShellProps) {

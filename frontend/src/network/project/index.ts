@@ -4,6 +4,7 @@ export {
     useCreateProject,
     useGetProjectFileContent,
     useGetProjectFiles,
+    useGetSessionProject,
     useImportProjectGit,
     useImportProjectLocal,
 } from './project-hooks';

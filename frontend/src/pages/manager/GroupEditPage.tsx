@@ -58,6 +58,24 @@ function saveErrorMessage(error: unknown): string {
   return '저장에 실패했습니다. 잠시 후 다시 시도해 주세요.';
 }
 
+function pad2(n: number) {
+  return String(n).padStart(2, '0');
+}
+
+function toDateInputValue(value: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function dateInputToLocalStart(dateStr: string): string {
+  return `${dateStr}T00:00:00`;
+}
+
+function dateInputToLocalEnd(dateStr: string): string {
+  return `${dateStr}T23:59:59`;
+}
+
 function EditSkeleton() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
@@ -126,6 +144,8 @@ function GroupEditForm({
 
   const [name, setName] = useState(detail.name);
   const [description, setDescription] = useState(detail.description);
+  const [startDate, setStartDate] = useState(toDateInputValue(detail.startedAt));
+  const [endDate, setEndDate] = useState(toDateInputValue(detail.endedAt));
   const [members, setMembers] = useState<DraftMember[]>(
     detail.members.map((m) => ({
       userId: m.userId,
@@ -177,11 +197,13 @@ function GroupEditForm({
     return (
       name !== detail.name ||
       description !== detail.description ||
+      startDate !== toDateInputValue(detail.startedAt) ||
+      endDate !== toDateInputValue(detail.endedAt) ||
       origLeader !== leaderId ||
       origIds.length !== nextIds.length ||
       origIds.some((id, i) => id !== nextIds[i])
     );
-  }, [detail, name, description, memberIdSet, leaderId]);
+  }, [detail, name, description, startDate, endDate, memberIdSet, leaderId]);
 
   const addMembers = (ids: number[]) => {
     setMembers((prev) => {
@@ -300,11 +322,21 @@ function GroupEditForm({
 
   const onSave = () => {
     setSaveError(null);
+    if (!startDate || !endDate) {
+      setSaveError('시작일과 종료일을 선택하세요.');
+      return;
+    }
+    if (startDate > endDate) {
+      setSaveError('종료일은 시작일 이후여야 합니다.');
+      return;
+    }
     editGroup.mutate(
       {
         groupId,
         name: name.trim(),
         description: description.trim(),
+        startedAt: dateInputToLocalStart(startDate),
+        endedAt: dateInputToLocalEnd(endDate),
         memberIds: members.map((m) => m.userId),
         leaderId: leaderId ?? undefined,
       },
@@ -468,6 +500,67 @@ function GroupEditForm({
                     }}
                   />
                 </label>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: 'var(--text-muted)',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      시작일
+                    </span>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      style={{
+                        width: '100%',
+                        height: 40,
+                        borderRadius: 12,
+                        border: '1px solid var(--border-strong)',
+                        background: 'var(--surface-modal)',
+                        color: 'var(--ink)',
+                        padding: '0 12px',
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 14,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </label>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: 'var(--text-muted)',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      종료일
+                    </span>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      style={{
+                        width: '100%',
+                        height: 40,
+                        borderRadius: 12,
+                        border: '1px solid var(--border-strong)',
+                        background: 'var(--surface-modal)',
+                        color: 'var(--ink)',
+                        padding: '0 12px',
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 14,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </label>
+                </div>
 
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
                   멤버 {members.length}

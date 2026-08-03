@@ -1,5 +1,6 @@
 const STORAGE_PREFIX = 'qurie:session-project:';
 const TITLE_PREFIX = 'qurie:session-title:';
+const ACTIVE_FILE_PREFIX = 'qurie:session-active-file:';
 
 export type SessionProjectRef = {
   projectId: number;
@@ -45,4 +46,20 @@ export function saveSessionProject(sessionId: number, ref: SessionProjectRef): v
 
 export function clearSessionProject(sessionId: number): void {
   sessionStorage.removeItem(`${STORAGE_PREFIX}${sessionId}`);
+  sessionStorage.removeItem(`${ACTIVE_FILE_PREFIX}${sessionId}`);
+}
+
+export function saveSessionActiveFile(sessionId: number, path: string): void {
+  const trimmed = path.trim();
+  if (!trimmed) return;
+  sessionStorage.setItem(`${ACTIVE_FILE_PREFIX}${sessionId}`, trimmed);
+}
+
+export function loadSessionActiveFile(sessionId: number): string | null {
+  try {
+    const raw = sessionStorage.getItem(`${ACTIVE_FILE_PREFIX}${sessionId}`);
+    return raw && raw.trim() ? raw.trim() : null;
+  } catch {
+    return null;
+  }
 }
