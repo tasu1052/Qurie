@@ -33,24 +33,6 @@ import SessionPage from './pages/session/SessionPage';
 import SessionReportPage from './pages/session/SessionReportPage';
 import FinalReportPage from './pages/student/FinalReportPage';
 
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        fontFamily: 'var(--font-sans)',
-        color: 'var(--text-secondary)',
-        fontSize: 17,
-      }}
-    >
-      {title} — 준비 중
-    </div>
-  );
-}
-
 function RedirectClassAnalytics() {
   const { classId } = useParams<{ classId: string }>();
   return <Navigate to={classId ? `/master/classes/${classId}` : '/master/classes'} replace />;

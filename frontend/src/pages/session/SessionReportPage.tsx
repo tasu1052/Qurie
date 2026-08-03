@@ -146,17 +146,17 @@ function SessionReportBody({
           style={{
             alignSelf: 'flex-start',
             background: 'var(--accent)',
-            color: '#fff',
+            color: 'var(--text-inverse)',
             borderRadius: 999,
             padding: '4px 14px',
-            fontSize: 10.5,
+            fontSize: 11,
             fontWeight: 700,
             letterSpacing: '0.08em',
           }}
         >
           SESSION COMPLETED
         </span>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: '#fff', margin: 0 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-inverse)', margin: 0 }}>
           {report.aiComment?.trim()
             ? '세션 리포트가 발급되었습니다'
             : '퀴즈 결과가 정리되었습니다'}
@@ -166,10 +166,10 @@ function SessionReportBody({
             `${report.userName} 학생의 이번 세션 정답률은 ${formatPct(report.accuracy)}, 완료율은 ${formatPct(report.completionRate)}입니다.`}
         </p>
         <div style={{ display: 'flex', gap: 16, marginTop: 4, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12.5, color: '#fff' }}>
+          <span style={{ fontSize: 12.5, color: 'var(--text-inverse)' }}>
             평점 {formatRating(report.quizRating)} / 5.0
           </span>
-          <span style={{ fontSize: 12.5, color: '#fff' }}>발급 {issued}</span>
+          <span style={{ fontSize: 12.5, color: 'var(--text-inverse)' }}>발급 {issued}</span>
         </div>
       </div>
 
@@ -371,7 +371,7 @@ function SessionReportBody({
               paddingTop: 10,
               display: 'flex',
               justifyContent: 'space-between',
-              fontSize: 11.5,
+              fontSize: 12,
               color: 'var(--text-muted)',
             }}
           >

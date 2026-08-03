@@ -66,9 +66,11 @@ function avg(xs: number[]): number | null {
 function SessionReportTable({
   reports,
   onOpen,
+  onGoDashboard,
 }: {
   reports: SessionReportSummaryResponse[];
   onOpen: (sessionId: number) => void;
+  onGoDashboard: () => void;
 }) {
   return (
     <div
@@ -97,7 +99,9 @@ function SessionReportTable({
         <div style={{ padding: '8px 24px 24px' }}>
           <EmptyState
             message="발급된 세션 리포트가 없습니다"
-            description="세션이 종료되고 리포트가 발급되면 여기에서 확인할 수 있어요. 행을 클릭하면 상세를 봐요."
+            description="세션이 종료되고 리포트가 발급되면 여기에서 확인할 수 있어요."
+            actionLabel="대시보드"
+            onAction={onGoDashboard}
           />
         </div>
       ) : (
@@ -265,6 +269,7 @@ function FinalReportBody({ className }: { className: string }) {
       <SessionReportTable
         reports={reports}
         onOpen={(sessionId) => navigate(`/session/${sessionId}/report`)}
+        onGoDashboard={() => navigate('/app')}
       />
     </>
   );

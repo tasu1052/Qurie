@@ -11,6 +11,7 @@ export interface CollabUser {
   id?: number | null;
 }
 
+/* eslint-disable qurie/no-raw-color -- remote cursors need distinct hex per client; DS tokens are not a multi-user palette */
 /** 원격 커서 색: 유저마다 구분되도록 CMYK 계열 팔레트. */
 const CURSOR_PALETTE = [
   '#00A3E0', // Cyan
@@ -26,6 +27,7 @@ const CURSOR_PALETTE = [
   '#F0E68C', // Khaki
   '#696969', // Dim gray
 ];
+/* eslint-enable qurie/no-raw-color */
 
 function resolveCursorColor(clientId: number): string {
   return CURSOR_PALETTE[Math.abs(clientId) % CURSOR_PALETTE.length];
