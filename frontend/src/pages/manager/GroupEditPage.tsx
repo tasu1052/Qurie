@@ -19,7 +19,7 @@ import {
   QueryAsyncBoundary,
   useDeleteGroup,
   useEditGroup,
-  useGetGroupCandidates,
+  useGetGroupCandidatesQuery,
   useGetGroupDetail,
   useMe,
   type GroupDetailResponse,
@@ -802,16 +802,30 @@ function GroupEditBody({
   classId: number;
 }) {
   const { data: detail } = useGetGroupDetail(groupId);
-  const { data: candidates } = useGetGroupCandidates(classId);
+  const candidatesQuery = useGetGroupCandidatesQuery(classId);
+  const candidates = candidatesQuery.data ?? [];
 
   return (
-    <GroupEditForm
-      key={`${detail.id}-${detail.updatedAt}`}
-      groupId={groupId}
-      classId={classId}
-      detail={detail}
-      candidates={candidates}
-    />
+    <>
+      {candidatesQuery.isError ? (
+        <div style={{ marginBottom: 16 }}>
+          <AlertBanner
+            tone="warning"
+            title="배정 후보를 불러오지 못했습니다"
+            description="그룹 정보는 표시됩니다. 후보 목록만 비어 있을 수 있어요. 다시 시도해 주세요."
+            actionLabel="다시 시도"
+            onAction={() => void candidatesQuery.refetch()}
+          />
+        </div>
+      ) : null}
+      <GroupEditForm
+        key={`${detail.id}-${detail.updatedAt}`}
+        groupId={groupId}
+        classId={classId}
+        detail={detail}
+        candidates={candidates}
+      />
+    </>
   );
 }
 
