@@ -67,6 +67,8 @@ services:
       AI_CALLBACK_BASE_URL: http://backend:8080
       # 비어있으면 콜백 인증을 건너뛴다 — 채우려면 ai 서비스 쪽과 같은 값으로 맞춘다.
       AI_CALLBACK_SECRET: ${AI_CALLBACK_SECRET:-}
+      # API 명세(Swagger UI) 노출 여부. 운영 기본값은 끔 — 명세는 로컬에서 뽑는다.
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       TZ: Asia/Seoul
       # SMTP. .env 에 값이 없으면 빈 문자열이 그대로 들어가 JavaMailSender 빈이 잘못된 host 로
       # 만들어진다 — 이 다섯 줄을 살리려면 .env 에 실제 값을 반드시 먼저 채워야 한다.
