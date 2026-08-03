@@ -68,6 +68,8 @@ export function useCollabSession(
 
   const providerRef = useRef<WebsocketProvider | null>(null);
   const [provider, setProvider] = useState<WebsocketProvider | null>(null);
+  /** 'sync' 콜백에서 provider.synced 를 다시 읽도록 리렌더만 유발한다. */
+  const [syncTick, setSyncTick] = useState(0);
 
   useEffect(() => {
     const wsUrl = resolveYjsWsUrl();
@@ -83,7 +85,11 @@ export function useCollabSession(
     const onStatus = ({ status: s }: { status: string }) => {
       setStatus(s === 'connected' ? 'connected' : s === 'connecting' ? 'connecting' : 'disconnected');
     };
+    const onSync = () => {
+      setSyncTick((n) => n + 1);
+    };
     p.on('status', onStatus);
+    p.on('sync', onSync);
 
     /** 연결이 살아있는 동안 null 상태를 보내 원격 커서를 제거한다. */
     const clearLocalAwareness = () => {
@@ -108,6 +114,7 @@ export function useCollabSession(
       window.removeEventListener('pagehide', onPageLeave);
       window.removeEventListener('beforeunload', onPageLeave);
       p.off('status', onStatus);
+      p.off('sync', onSync);
       clearLocalAwareness();
       p.destroy();
       ydoc.destroy();
@@ -116,5 +123,8 @@ export function useCollabSession(
     };
   }, [roomId, ydoc, user.name, user.id]);
 
-  return { ydoc, ytext, provider, status };
+  // syncTick 변경 시 provider.synced 를 재평가한다. provider 가 없으면 false.
+  const synced = syncTick >= 0 && Boolean(provider?.synced);
+
+  return { ydoc, ytext, provider, status, synced };
 }

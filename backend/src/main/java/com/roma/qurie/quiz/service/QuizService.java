@@ -72,6 +72,12 @@ public class QuizService {
 						HttpStatus.NOT_FOUND, "프로젝트를 찾을 수 없습니다: " + projectId));
 		verifyCanGenerate(project.getSessionId(), requester);
 
+		if (quizSetRepository.existsByProjectIdAndStatusIn(
+				projectId, List.of(QuizSetStatus.QUEUED, QuizSetStatus.GENERATING))) {
+			throw new ResponseStatusException(
+					HttpStatus.CONFLICT, "이미 생성 중인 퀴즈가 있습니다. 완료될 때까지 기다려 주세요.");
+		}
+
 		QuizSet quizSet = quizSetRepository.save(QuizSet.builder()
 				.projectId(projectId)
 				.versionHash(request.versionHash())
