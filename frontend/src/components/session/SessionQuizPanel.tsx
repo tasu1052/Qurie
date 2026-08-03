@@ -21,7 +21,7 @@ import {
   loadSessionQuizSetId,
   saveSessionQuizSetId,
 } from './sessionProjectStorage';
-import { AlertBanner, AsyncJobPanel, Badge, Button, Input, Modal, Select } from '../../ds';
+import { AlertBanner, AsyncJobPanel, Badge, Button, Input, Select } from '../../ds';
 
 type SessionQuizPanelProps = {
   sessionId: number;
@@ -29,6 +29,22 @@ type SessionQuizPanelProps = {
   versionHash: string | null;
   /** 세션 웹소켓(`/topic/sessions/{id}/quiz`)으로 도착한 퀴즈셋 id. 다른 참여자가 만든 것도 여기로 들어온다. */
   pushedQuizSetId?: number | null;
+};
+
+type PlayableChoice = { idx: number; content: string; answer?: boolean };
+type PlayableQuiz = {
+  id: number;
+  orderNo: number;
+  type: string;
+  difficulty: string;
+  purpose?: string;
+  testedConcept: string;
+  question: string;
+  explanation?: string | null;
+  filePath: string;
+  lineStart: number | null;
+  lineEnd: number | null;
+  choices: PlayableChoice[];
 };
 
 function mapJobStatus(
@@ -68,6 +84,39 @@ function resolveQuizVersionHash(versionHash: string | null | undefined, projectI
   if (trimmed.length > 0) return trimmed.slice(0, 64);
   const stamp = Date.now().toString(16);
   return `local-${projectId}-${stamp}`.slice(0, 64);
+}
+
+function toPlayableQuizzes(
+  summary: QuizSetDetailResponse | QuizQuestionsResponse,
+): PlayableQuiz[] {
+  if (isManagerSummary(summary)) {
+    return summary.quizzes.map((q: QuizItem) => ({
+      id: q.id,
+      orderNo: q.orderNo,
+      type: q.type,
+      difficulty: q.difficulty,
+      purpose: q.purpose,
+      testedConcept: q.testedConcept,
+      question: q.question,
+      explanation: q.explanation,
+      filePath: q.filePath,
+      lineStart: q.lineStart,
+      lineEnd: q.lineEnd,
+      choices: q.choices.map((c) => ({ idx: c.idx, content: c.content, answer: c.answer })),
+    }));
+  }
+  return summary.quizzes.map((q: QuizQuestionItem) => ({
+    id: q.id,
+    orderNo: q.orderNo,
+    type: q.type,
+    difficulty: q.difficulty,
+    testedConcept: q.testedConcept,
+    question: q.question,
+    filePath: q.filePath,
+    lineStart: q.lineStart,
+    lineEnd: q.lineEnd,
+    choices: q.choices.map((c) => ({ idx: c.idx, content: c.content })),
+  }));
 }
 
 function QuizMetaRow({
@@ -116,132 +165,228 @@ function QuizMetaRow({
   );
 }
 
-function ManagerQuizList({ quizzes }: { quizzes: QuizItem[] }) {
+function PlayableQuizList({
+  quizzes,
+  answers,
+  onSelect,
+  canCheckAnswer,
+  revealedIds,
+  onReveal,
+  accuracyByQuiz,
+  onAccuracy,
+}: {
+  quizzes: PlayableQuiz[];
+  answers: Record<number, number>;
+  onSelect: (quizId: number, choiceIdx: number) => void;
+  /** 강사만 true — 학생과 같은 풀이 UI + 문항별 정답 확인 */
+  canCheckAnswer: boolean;
+  revealedIds: Record<number, boolean>;
+  onReveal: (quizId: number) => void;
+  /** 로컬 전용 예/아니오 피드백 (서버 미연동) */
+  accuracyByQuiz: Record<number, boolean>;
+  onAccuracy: (quizId: number, accurate: boolean) => void;
+}) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
-      {quizzes.map((q) => (
-        <div
-          key={q.id}
-          style={{
-            border: '1px solid var(--border)',
-            borderRadius: 12,
-            padding: 12,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-          }}
-        >
-          <QuizMetaRow
-            type={q.type}
-            difficulty={q.difficulty}
-            purpose={q.purpose}
-            testedConcept={q.testedConcept}
-            filePath={q.filePath}
-            lineStart={q.lineStart}
-            lineEnd={q.lineEnd}
-          />
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.45 }}>
-            {q.orderNo}. {q.question}
-          </span>
-          {q.choices.length > 0 ? (
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: 0,
-                listStyle: 'none',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 4,
-              }}
-            >
-              {q.choices.map((c) => (
-                <li
-                  key={c.idx}
-                  style={{
-                    fontSize: 12.5,
-                    color: c.answer ? 'var(--status-success)' : 'var(--text-secondary)',
-                    fontWeight: c.answer ? 600 : 400,
-                    lineHeight: 1.45,
-                    padding: '6px 8px',
-                    borderRadius: 8,
-                    background: c.answer ? 'var(--status-success-bg)' : 'var(--surface-sunken)',
-                  }}
-                >
-                  {c.idx + 1}. {c.content}
-                  {c.answer ? <span style={{ marginLeft: 6 }}>정답</span> : null}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {q.explanation ? (
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-              해설 · {q.explanation}
+      {quizzes.map((q) => {
+        const revealed = Boolean(revealedIds[q.id]);
+        const feedback = Object.prototype.hasOwnProperty.call(accuracyByQuiz, q.id)
+          ? accuracyByQuiz[q.id]
+          : undefined;
+        return (
+          <div
+            key={q.id}
+            style={{
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: 12,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
+            <QuizMetaRow
+              type={q.type}
+              difficulty={q.difficulty}
+              purpose={q.purpose}
+              testedConcept={q.testedConcept}
+              filePath={q.filePath}
+              lineStart={q.lineStart}
+              lineEnd={q.lineEnd}
+            />
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.45 }}>
+              {q.orderNo}. {q.question}
             </span>
-          ) : null}
-        </div>
-      ))}
+            {q.choices.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {q.choices.map((c) => {
+                  const selected = answers[q.id] === c.idx;
+                  const isCorrect = Boolean(c.answer);
+                  const showResult = revealed && c.answer != null;
+                  return (
+                    <button
+                      key={c.idx}
+                      type="button"
+                      onClick={() => onSelect(q.id, c.idx)}
+                      disabled={revealed}
+                      style={{
+                        textAlign: 'left',
+                        fontSize: 12.5,
+                        color: showResult && isCorrect ? 'var(--status-success)' : 'var(--ink)',
+                        fontWeight: showResult && isCorrect ? 600 : 400,
+                        lineHeight: 1.45,
+                        padding: '8px 10px',
+                        borderRadius: 8,
+                        border:
+                          showResult && isCorrect
+                            ? '1px solid var(--status-success)'
+                            : selected
+                              ? '1px solid var(--accent-strong)'
+                              : '1px solid var(--border)',
+                        background:
+                          showResult && isCorrect
+                            ? 'var(--status-success-bg)'
+                            : selected
+                              ? 'var(--status-accent-bg)'
+                              : 'var(--surface-sunken)',
+                        cursor: revealed ? 'default' : 'pointer',
+                        fontFamily: 'var(--font-sans)',
+                      }}
+                    >
+                      {c.idx + 1}. {c.content}
+                      {showResult && isCorrect ? <span style={{ marginLeft: 6 }}>정답</span> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            {canCheckAnswer && !revealed ? (
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Button variant="secondary" size="sm" onClick={() => onReveal(q.id)}>
+                  정답 확인
+                </Button>
+              </div>
+            ) : null}
+
+            {canCheckAnswer && revealed ? (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  paddingTop: 4,
+                  borderTop: '1px solid var(--border)',
+                }}
+              >
+                {q.explanation ? (
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                    해설 · {q.explanation}
+                  </span>
+                ) : null}
+                {feedback === undefined ? (
+                  <>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)' }}>
+                      문제가 정확한가요?
+                    </span>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Button variant="primary" size="sm" onClick={() => onAccuracy(q.id, true)}>
+                        예
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => onAccuracy(q.id, false)}>
+                        아니오
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                    피드백 · {feedback ? '정확함' : '부정확함'}
+                  </span>
+                )}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function StudentQuizList({ quizzes }: { quizzes: QuizQuestionItem[] }) {
-  const [answers, setAnswers] = useState<Record<number, number>>({});
-
+function SatisfactionSticky({
+  rating,
+  comment,
+  submitting,
+  onRating,
+  onComment,
+  onSubmit,
+  onDismiss,
+}: {
+  rating: number;
+  comment: string;
+  submitting: boolean;
+  onRating: (n: number) => void;
+  onComment: (v: string) => void;
+  onSubmit: () => void;
+  onDismiss: () => void;
+}) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
-      {quizzes.map((q) => (
-        <div
-          key={q.id}
-          style={{
-            border: '1px solid var(--border)',
-            borderRadius: 12,
-            padding: 12,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-          }}
-        >
-          <QuizMetaRow
-            type={q.type}
-            difficulty={q.difficulty}
-            testedConcept={q.testedConcept}
-            filePath={q.filePath}
-            lineStart={q.lineStart}
-            lineEnd={q.lineEnd}
-          />
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.45 }}>
-            {q.orderNo}. {q.question}
-          </span>
-          {q.choices.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {q.choices.map((c) => {
-                const selected = answers[q.id] === c.idx;
-                return (
-                  <button
-                    key={c.idx}
-                    type="button"
-                    onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: c.idx }))}
-                    style={{
-                      textAlign: 'left',
-                      fontSize: 12.5,
-                      color: 'var(--ink)',
-                      lineHeight: 1.45,
-                      padding: '8px 10px',
-                      borderRadius: 8,
-                      border: selected ? '1px solid var(--accent-strong)' : '1px solid var(--border)',
-                      background: selected ? 'var(--status-accent-bg)' : 'var(--surface-sunken)',
-                      cursor: 'pointer',
-                      fontFamily: 'var(--font-sans)',
-                    }}
-                  >
-                    {c.idx + 1}. {c.content}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-        </div>
-      ))}
+    <div
+      style={{
+        position: 'sticky',
+        bottom: 0,
+        zIndex: 2,
+        marginTop: 'auto',
+        borderTop: '1px solid var(--border)',
+        background: 'var(--surface-card)',
+        boxShadow: 'var(--shadow-card)',
+        padding: '12px 4px 4px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>퀴즈 만족도</span>
+        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+          문항을 모두 풀었습니다. 생성된 퀴즈 품질을 평가해 주세요.
+        </span>
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onRating(n)}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              border: rating === n ? '1px solid var(--accent-strong)' : '1px solid var(--border)',
+              background: rating === n ? 'var(--status-accent-bg)' : 'var(--surface-sunken)',
+              color: 'var(--ink)',
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+            }}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+      <Input
+        value={comment}
+        onChange={(e) => onComment(e.target.value)}
+        placeholder="의견 (선택)"
+        width="100%"
+      />
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <Button variant="ghost" onClick={onDismiss}>
+          나중에
+        </Button>
+        <Button variant="primary" disabled={submitting || rating < 1} onClick={onSubmit}>
+          {submitting ? '저장 중…' : '제출'}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -266,8 +411,14 @@ export function SessionQuizPanel({
   const [formError, setFormError] = useState<string | null>(null);
   const [satisfactionRating, setSatisfactionRating] = useState(0);
   const [satisfactionComment, setSatisfactionComment] = useState('');
-  /** 모달을 닫거나 제출한 퀴즈셋 — 같은 세트에 대해 다시 띄우지 않는다. */
+  /** 닫거나 제출한 퀴즈셋 — 같은 세트에 대해 다시 띄우지 않는다. */
   const [satisfactionDismissedFor, setSatisfactionDismissedFor] = useState<number | null>(null);
+  /** 퀴즈셋별 선택 답안 — 세트 바뀌면 키만 달라져 자동 리셋 */
+  const [answersBySet, setAnswersBySet] = useState<Record<number, Record<number, number>>>({});
+  /** 퀴즈셋별 · 문항별 정답 확인 여부 */
+  const [revealedBySet, setRevealedBySet] = useState<Record<number, Record<number, boolean>>>({});
+  /** 퀴즈셋별 · 문항별 정확도 피드백 (UI 전용, 서버 미저장) */
+  const [accuracyBySet, setAccuracyBySet] = useState<Record<number, Record<number, boolean>>>({});
 
   const projectQuizSets = useQuizSetsByProject(projectId);
 
@@ -285,6 +436,10 @@ export function SessionQuizPanel({
     saveSessionQuizSetId(sessionId, activeQuizSetId);
   }, [sessionId, activeQuizSetId]);
 
+  const answers = activeQuizSetId != null ? (answersBySet[activeQuizSetId] ?? {}) : {};
+  const revealedIds = activeQuizSetId != null ? (revealedBySet[activeQuizSetId] ?? {}) : {};
+  const accuracyByQuiz = activeQuizSetId != null ? (accuracyBySet[activeQuizSetId] ?? {}) : {};
+
   const managerPoll = usePollQuizSet(isInstructor ? activeQuizSetId : null);
   const studentPoll = usePollQuizQuestions(!isInstructor ? activeQuizSetId : null);
   const poll = isInstructor ? managerPoll : studentPoll;
@@ -294,15 +449,23 @@ export function SessionQuizPanel({
 
   const summary = useMemo(() => poll.data ?? null, [poll.data]);
   const latestSummary = projectQuizSets.data?.[0] ?? null;
+  const playableQuizzes = useMemo(
+    () => (summary && summary.quizzes.length > 0 ? toPlayableQuizzes(summary) : []),
+    [summary],
+  );
+
+  const allAnswered =
+    playableQuizzes.length > 0 && playableQuizzes.every((q) => answers[q.id] != null);
 
   const alreadyRated =
     activeQuizSetId != null &&
     latestSummary?.quizSetId === activeQuizSetId &&
     latestSummary.satisfactionRating != null;
 
-  const satisfactionOpen =
+  const satisfactionVisible =
     isInstructor &&
     summary?.status === 'COMPLETED' &&
+    allAnswered &&
     activeQuizSetId != null &&
     !alreadyRated &&
     satisfactionDismissedFor !== activeQuizSetId;
@@ -353,6 +516,8 @@ export function SessionQuizPanel({
             setCreatedQuizSetId(res.quizSetId);
             saveSessionQuizSetId(sessionId, res.quizSetId);
             setSatisfactionDismissedFor(null);
+            setSatisfactionRating(0);
+            setSatisfactionComment('');
           },
           onError: (err) => {
             setFormError(apiErrorMessage(err, '퀴즈 생성 요청에 실패했습니다.'));
@@ -412,7 +577,11 @@ export function SessionQuizPanel({
   }
 
   const generatedCount =
-    summary && isManagerSummary(summary) ? summary.generatedCount : null;
+    summary && isManagerSummary(summary)
+      ? summary.generatedCount
+      : playableQuizzes.length > 0
+        ? playableQuizzes.length
+        : null;
   const errorMessage =
     summary && isManagerSummary(summary) ? (summary.errorMessage ?? undefined) : undefined;
   const requestedCount = summary?.requestedCount ?? latestSummary?.requestedCount ?? null;
@@ -429,6 +598,8 @@ export function SessionQuizPanel({
       (latestSummary?.quizSetId === activeQuizSetId &&
         (latestSummary.status === 'QUEUED' || latestSummary.status === 'GENERATING') &&
         summary == null));
+
+  const showQuizList = playableQuizzes.length > 0;
 
   return (
     <div
@@ -517,7 +688,11 @@ export function SessionQuizPanel({
           description={
             summary
               ? generatedCount != null
-                ? `요청 ${summary.requestedCount} · 생성 ${generatedCount}`
+                ? `요청 ${summary.requestedCount} · 생성 ${generatedCount}${
+                    summary.status === 'GENERATING' && generatedCount > 0
+                      ? ' · 준비된 문항부터 풀 수 있어요'
+                      : ''
+                  }`
                 : `요청 ${summary.requestedCount}문항`
               : showGeneratingPlaceholder
                 ? '생성 중입니다. 새로고침해도 이어서 표시됩니다.'
@@ -532,62 +707,50 @@ export function SessionQuizPanel({
               : `GET /quiz/${activeQuizSetId}/questions · 정답·해설 제외`
           }
         >
-          {summary?.status === 'COMPLETED' && summary.quizzes.length > 0 ? (
-            isInstructor && isManagerSummary(summary) ? (
-              <ManagerQuizList quizzes={summary.quizzes} />
-            ) : (
-              <StudentQuizList quizzes={summary.quizzes as QuizQuestionItem[]} />
-            )
+          {showQuizList ? (
+            <PlayableQuizList
+              quizzes={playableQuizzes}
+              answers={answers}
+              onSelect={(quizId, choiceIdx) => {
+                if (activeQuizSetId == null) return;
+                setAnswersBySet((prev) => ({
+                  ...prev,
+                  [activeQuizSetId]: { ...(prev[activeQuizSetId] ?? {}), [quizId]: choiceIdx },
+                }));
+              }}
+              canCheckAnswer={isInstructor && isManagerSummary(summary!)}
+              revealedIds={revealedIds}
+              onReveal={(quizId) => {
+                if (activeQuizSetId == null) return;
+                setRevealedBySet((prev) => ({
+                  ...prev,
+                  [activeQuizSetId]: { ...(prev[activeQuizSetId] ?? {}), [quizId]: true },
+                }));
+              }}
+              accuracyByQuiz={accuracyByQuiz}
+              onAccuracy={(quizId, accurate) => {
+                if (activeQuizSetId == null) return;
+                setAccuracyBySet((prev) => ({
+                  ...prev,
+                  [activeQuizSetId]: { ...(prev[activeQuizSetId] ?? {}), [quizId]: accurate },
+                }));
+              }}
+            />
           ) : null}
         </AsyncJobPanel>
       ) : null}
 
-      <Modal
-        open={satisfactionOpen}
-        onClose={dismissSatisfaction}
-        title="퀴즈 만족도"
-        description="생성된 퀴즈 품질을 평가해 주세요."
-        primaryLabel={submitSatisfaction.isPending ? '저장 중…' : '제출'}
-        secondaryLabel="나중에"
-        onPrimary={onSubmitSatisfaction}
-        onSecondary={dismissSatisfaction}
-        width={420}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setSatisfactionRating(n)}
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 10,
-                  border:
-                    satisfactionRating === n
-                      ? '1px solid var(--accent-strong)'
-                      : '1px solid var(--border)',
-                  background:
-                    satisfactionRating === n ? 'var(--status-accent-bg)' : 'var(--surface-sunken)',
-                  color: 'var(--ink)',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                }}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-          <Input
-            value={satisfactionComment}
-            onChange={(e) => setSatisfactionComment(e.target.value)}
-            placeholder="의견 (선택)"
-            width="100%"
-          />
-        </div>
-      </Modal>
+      {satisfactionVisible ? (
+        <SatisfactionSticky
+          rating={satisfactionRating}
+          comment={satisfactionComment}
+          submitting={submitSatisfaction.isPending}
+          onRating={setSatisfactionRating}
+          onComment={setSatisfactionComment}
+          onSubmit={onSubmitSatisfaction}
+          onDismiss={dismissSatisfaction}
+        />
+      ) : null}
     </div>
   );
 }

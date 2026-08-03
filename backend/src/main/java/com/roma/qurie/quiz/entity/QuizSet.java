@@ -115,6 +115,11 @@ public class QuizSet extends BaseTimeEntity {
 		this.status = QuizSetStatus.GENERATING;
 	}
 
+	/** 생성 중 부분 반영. 상태는 GENERATING 유지. */
+	public void updateProgress(int generatedCount) {
+		this.generatedCount = generatedCount;
+	}
+
 	public void complete(int generatedCount) {
 		this.generatedCount = generatedCount;
 		this.status = QuizSetStatus.COMPLETED;

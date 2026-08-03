@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.core import config
 from app.engine.llm import call_llm_json
+from app.engine.progress import publish_approved_progress
 from app.engine.prompts import build_judge_prompt, number_code
 from app.engine.state import PipelineState
 from app.engine.tools import judge_tool
@@ -71,4 +72,6 @@ def node_judge(state: PipelineState) -> PipelineState:
             out.append({**q, "status": "REJECTED", "judge_score": sc,
                         "reject_reason": f"JUDGE: {critique}"[:200]})
     state["quizzes"] = out
+    # 승인분이 생기면 READY 전에 status에 올려 폴링이 순차 표시할 수 있게 한다.
+    publish_approved_progress(state)
     return state
