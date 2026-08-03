@@ -18,7 +18,7 @@ function fileIcon(path: string) {
   return <FileCode size={13} />;
 }
 
-export function buildFileTree(paths: string[]): TreeNode[] {
+function buildFileTree(paths: string[]): TreeNode[] {
   const root: TreeNode[] = [];
 
   const ensureDir = (nodes: TreeNode[], name: string, dirPath: string): TreeNode => {
