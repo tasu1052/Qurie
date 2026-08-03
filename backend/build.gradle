@@ -28,6 +28,8 @@ dependencies {
 	implementation 'org.eclipse.jgit:org.eclipse.jgit:7.3.0.202506031305-r'
 	// 초대 일괄 발송의 엑셀(xlsx/xls) 파싱. CSV 는 의존성 없이 직접 읽는다.
 	implementation 'org.apache.poi:poi-ooxml:5.4.0'
+	// 리포트 PDF 내보내기(XHTML → PDF). danfickle 원본은 2024년에 보관 처리되어 유지보수 포크를 쓴다.
+	implementation 'io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.65'
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
