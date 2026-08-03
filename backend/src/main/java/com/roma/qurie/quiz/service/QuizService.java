@@ -244,15 +244,22 @@ public class QuizService {
 
 	private void applyAiResult(QuizSet quizSet, AiQuizStatusResponse aiResponse) {
 		switch (aiResponse.status()) {
-			case READY -> applyGeneratedQuizzes(quizSet, aiResponse.quizzes());
-			case FAILED -> quizSet.fail(
-					aiResponse.errorMessage() != null ? aiResponse.errorMessage() : "AI 퀴즈 생성에 실패했습니다.");
+			case READY -> {
+				applyGeneratedQuizzes(quizSet, aiResponse.quizzes());
+				notifySession(quizSet);
+			}
+			case FAILED -> {
+				quizSet.fail(
+						aiResponse.errorMessage() != null ? aiResponse.errorMessage() : "AI 퀴즈 생성에 실패했습니다.");
+				notifySession(quizSet);
+			}
 			case PENDING, GENERATING -> {
-				return;
+				// 승인된 문항이 먼저 올라오면 DB에 붙여 두고 세션에 알려 순차 표시한다.
+				if (mergePartialQuizzes(quizSet, aiResponse.quizzes())) {
+					notifySession(quizSet);
+				}
 			}
 		}
-
-		notifySession(quizSet);
 	}
 
 	/** 세트가 끝났음을 세션에 연결된 구성원들에게 웹소켓으로 알린다. */
@@ -270,12 +277,35 @@ public class QuizService {
 						HttpStatus.NOT_FOUND, "퀴즈셋을 찾을 수 없습니다: " + quizSetId));
 	}
 
+	/**
+	 * 생성 중 부분 문항 반영. 이미 저장된 개수보다 AI 쪽이 많으면 뒤만 이어 붙인다.
+	 * @return 새 문항이 추가됐으면 true
+	 */
+	private boolean mergePartialQuizzes(QuizSet quizSet, List<AiQuizStatusResponse.AiQuiz> aiQuizzes) {
+		List<AiQuizStatusResponse.AiQuiz> generated = aiQuizzes == null ? List.of() : aiQuizzes;
+		int already = quizSet.getQuizzes().size();
+		if (generated.size() <= already) {
+			return false;
+		}
+		appendQuizzes(quizSet, generated.subList(already, generated.size()), already + 1);
+		quizSet.updateProgress(quizSet.getQuizzes().size());
+		return true;
+	}
+
 	/** AI 는 현재 4지선다만 생성하므로 type 은 MULTIPLE_CHOICE 로 고정한다. */
 	private void applyGeneratedQuizzes(QuizSet quizSet, List<AiQuizStatusResponse.AiQuiz> aiQuizzes) {
 		List<AiQuizStatusResponse.AiQuiz> generated = aiQuizzes == null ? List.of() : aiQuizzes;
+		int already = quizSet.getQuizzes().size();
+		if (generated.size() > already) {
+			appendQuizzes(quizSet, generated.subList(already, generated.size()), already + 1);
+		}
+		quizSet.complete(generated.size());
+	}
 
-		int orderNo = 1;
-		for (AiQuizStatusResponse.AiQuiz aiQuiz : generated) {
+	private void appendQuizzes(
+			QuizSet quizSet, List<AiQuizStatusResponse.AiQuiz> aiQuizzes, int startOrderNo) {
+		int orderNo = startOrderNo;
+		for (AiQuizStatusResponse.AiQuiz aiQuiz : aiQuizzes) {
 			List<String> choices = aiQuiz.choices() == null ? List.of() : aiQuiz.choices();
 			boolean answerInRange = aiQuiz.answerIndex() >= 0 && aiQuiz.answerIndex() < choices.size();
 
@@ -298,7 +328,5 @@ public class QuizService {
 			}
 			quizSet.addQuiz(quiz);
 		}
-
-		quizSet.complete(generated.size());
 	}
 }

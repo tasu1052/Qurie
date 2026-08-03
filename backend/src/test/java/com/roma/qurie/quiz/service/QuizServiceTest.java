@@ -175,6 +175,25 @@ class QuizServiceTest {
 	}
 
 	@Test
+	void getQuizSetMergesPartialQuizzesWhileGenerating() {
+		QuizSet quizSet = generatingQuizSet();
+		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(quizSet));
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
+		given(quizAiClient.getStatus(AI_QUIZ_SET_ID)).willReturn(new AiQuizStatusResponse(
+				"1", AI_QUIZ_SET_ID, AiQuizSetState.GENERATING, List.of(readyAiResponse().quizzes().get(0)),
+				null, List.of(new AiQuizStatusResponse.AiLlmCall("JUDGE"))));
+
+		QuizSetDetailResponse response = quizService.getQuizSet(QUIZ_SET_ID, MANAGER);
+
+		assertThat(response.status()).isEqualTo(QuizSetStatus.GENERATING);
+		assertThat(response.quizzes()).hasSize(1);
+		assertThat(response.generatedCount()).isEqualTo(1);
+		assertThat(response.generationStage()).isEqualTo("JUDGE");
+		org.mockito.Mockito.verify(messagingTemplate)
+				.convertAndSend(eq("/topic/sessions/" + SESSION_ID + "/quiz"), any(Object.class));
+	}
+
+	@Test
 	void getQuizSetKeepsCurrentStateWhenAiIsUnreachable() {
 		QuizSet quizSet = generatingQuizSet();
 		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(quizSet));
