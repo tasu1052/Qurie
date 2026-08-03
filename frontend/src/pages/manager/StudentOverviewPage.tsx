@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
 import {
+  AlertBanner,
   Badge,
   Button,
   ChartLegend,
   DonutChart,
   EmptyState,
   LineChart,
+  Modal,
   RowErrorFallback,
   Skeleton,
   StatCard,
@@ -16,8 +18,11 @@ import {
 } from '../../ds';
 import {
   QueryAsyncBoundary,
+  useCreateStudentComment,
+  useCreateUserReport,
   useGetClass,
   useGetClassMembers,
+  useGetStudentComments,
   useGetUserProfile,
   useMe,
   useStudentOverviewRow,
@@ -46,7 +51,19 @@ function OverviewSkeleton() {
   );
 }
 
-function StudentHeader({ userId, classId }: { userId: number; classId: number }) {
+function StudentHeader({
+  userId,
+  classId,
+  canManage,
+  onCreateReport,
+  reportPending,
+}: {
+  userId: number;
+  classId: number;
+  canManage: boolean;
+  onCreateReport: () => void;
+  reportPending: boolean;
+}) {
   const { data: profile } = useGetUserProfile(userId);
   const { data: cls } = useGetClass(classId);
   const { data: membersPage } = useGetClassMembers(classId, { size: 100 });
@@ -100,16 +117,120 @@ function StudentHeader({ userId, classId }: { userId: number; classId: number })
           {profile.email} · {cls.name}
         </span>
       </div>
-      <Button variant="secondary" onClick={() => undefined}>
-        리포트 이력
-      </Button>
+      {canManage ? (
+        <Button variant="secondary" onClick={onCreateReport} disabled={reportPending}>
+          {reportPending ? '생성 중…' : '리포트 생성'}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+function InstructorCommentPanel({ userId, classId }: { userId: number; classId: number }) {
+  const commentsQuery = useGetStudentComments(userId, classId);
+  const createComment = useCreateStudentComment();
+  const [comment, setComment] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+
+  const onSave = () => {
+    const content = comment.trim();
+    if (!content) return;
+    setError(null);
+    setOk(null);
+    createComment.mutate(
+      { userId, classId, content },
+      {
+        onSuccess: () => {
+          setComment('');
+          setOk('코멘트를 저장했어요.');
+        },
+        onError: () => setError('코멘트 저장에 실패했습니다.'),
+      },
+    );
+  };
+
+  const comments = commentsQuery.data ?? [];
+
+  return (
+    <div
+      style={{
+        background: 'var(--surface-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        boxShadow: 'var(--shadow-card)',
+        padding: 24,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        매니저 코멘트
+      </span>
+      {error ? <AlertBanner tone="error" title="저장 실패" description={error} /> : null}
+      {ok ? <AlertBanner tone="success" title="저장됨" description={ok} /> : null}
+      {commentsQuery.isPending ? <Skeleton width="100%" height={64} radius={12} /> : null}
+      {!commentsQuery.isPending && comments.length === 0 ? (
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>아직 코멘트가 없어요.</p>
+      ) : null}
+      {comments.map((c) => (
+        <div key={c.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 14 }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              fontSize: 12,
+              color: 'var(--text-muted)',
+              marginBottom: 6,
+            }}
+          >
+            <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{c.authorName}</span>
+            <span>{new Date(c.createdAt).toLocaleString('ko-KR', { hour12: false })}</span>
+          </div>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+            {c.content}
+          </p>
+        </div>
+      ))}
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder="코멘트를 입력하세요"
+        style={{
+          border: '1px solid var(--border-strong)',
+          borderRadius: 12,
+          padding: 12,
+          minHeight: 80,
+          fontFamily: 'var(--font-sans)',
+          fontSize: 14,
+          resize: 'vertical',
+        }}
+      />
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Button
+          variant="primary"
+          size="sm"
+          disabled={!comment.trim() || createComment.isPending}
+          onClick={onSave}
+        >
+          {createComment.isPending ? '저장 중…' : '코멘트 저장'}
+        </Button>
+      </div>
     </div>
   );
 }
 
 function AnalyticsMock({ userId }: { userId: number }) {
   const row = useStudentOverviewRow(String(userId));
-  const [comment, setComment] = useState('');
 
   return (
     <MockRowBoundary
@@ -120,13 +241,7 @@ function AnalyticsMock({ userId }: { userId: number }) {
     >
       {row.data && (
         <>
-          <div
-            style={{
-              fontSize: 12,
-              color: 'var(--text-muted)',
-              marginTop: -8,
-            }}
-          >
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: -8 }}>
             API 미구현: 아래 지표는 mock 데이터이며 분석 API 연동 전까지 참고용으로만 표시합니다.
           </div>
           <StatCardRow>
@@ -258,90 +373,87 @@ function AnalyticsMock({ userId }: { userId: number }) {
               </div>
             ))}
           </div>
-
-          <div
-            style={{
-              background: 'var(--surface-card)',
-              border: '1px solid var(--border)',
-              borderRadius: 16,
-              boxShadow: 'var(--shadow-card)',
-              padding: 24,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 14,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              매니저 코멘트
-            </span>
-            {row.data.comments.map((c) => (
-              <div key={c.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 14 }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: 8,
-                    fontSize: 12,
-                    color: 'var(--text-muted)',
-                    marginBottom: 6,
-                  }}
-                >
-                  <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{c.author}</span>
-                  <span>{c.date}</span>
-                </div>
-                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-                  {c.body}
-                </p>
-              </div>
-            ))}
-            <textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="코멘트를 입력하세요"
-              style={{
-                border: '1px solid var(--border-strong)',
-                borderRadius: 12,
-                padding: 12,
-                minHeight: 80,
-                fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                resize: 'vertical',
-              }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button variant="primary" size="sm" onClick={() => setComment('')}>
-                코멘트 저장
-              </Button>
-            </div>
-          </div>
         </>
       )}
     </MockRowBoundary>
   );
 }
 
-function StudentOverviewBody({ userId, classId }: { userId: number; classId: number }) {
+function StudentOverviewBody({
+  userId,
+  classId,
+  canManage,
+}: {
+  userId: number;
+  classId: number;
+  canManage: boolean;
+}) {
+  const createReport = useCreateUserReport();
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportMsg, setReportMsg] = useState<string | null>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
+
+  const onCreateReport = () => {
+    setReportError(null);
+    setReportMsg(null);
+    createReport.mutate(
+      {
+        userId,
+        classId,
+        sessionCount: 0,
+        quizTotalCount: 0,
+        quizAttemptedCount: 0,
+        quizCorrectCount: 0,
+        quizSkippedCount: 0,
+        completionRate: 0,
+        accuracy: 0,
+      },
+      {
+        onSuccess: (res) => {
+          setReportOpen(false);
+          setReportMsg(`리포트 #${res.userReportId}을(를) 생성했어요.`);
+        },
+        onError: () => setReportError('리포트 생성에 실패했습니다.'),
+      },
+    );
+  };
+
   return (
     <>
-      <StudentHeader userId={userId} classId={classId} />
+      <StudentHeader
+        userId={userId}
+        classId={classId}
+        canManage={canManage}
+        onCreateReport={() => setReportOpen(true)}
+        reportPending={createReport.isPending}
+      />
+      {reportMsg ? <AlertBanner tone="success" title="리포트 생성" description={reportMsg} /> : null}
+      {reportError ? <AlertBanner tone="error" title="리포트 실패" description={reportError} /> : null}
       <AnalyticsMock userId={userId} />
+      {canManage ? <InstructorCommentPanel userId={userId} classId={classId} /> : null}
+
+      <Modal
+        open={reportOpen}
+        title="리포트 생성"
+        description="선택한 학생의 학습 요약 리포트를 지금 발급해요. 세션 집계 API가 붙기 전에는 기본값으로 생성됩니다."
+        primaryLabel={createReport.isPending ? '생성 중…' : '생성하기'}
+        secondaryLabel="취소"
+        onPrimary={onCreateReport}
+        onSecondary={() => setReportOpen(false)}
+        onClose={() => setReportOpen(false)}
+        width={440}
+      />
     </>
   );
 }
 
 function StudentOverviewGate() {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-  const userId = Number(id);
+  const { userId: userIdParam } = useParams<{ userId: string }>();
+  const userId = Number(userIdParam);
   const { data: me } = useMe();
   const classId = me.classId;
+  const canManage = me.role === 'MANAGER' || me.role === 'MASTER';
 
   if (!Number.isFinite(userId) || userId <= 0) {
     return (
@@ -365,14 +477,14 @@ function StudentOverviewGate() {
     );
   }
 
-  return <StudentOverviewBody userId={userId} classId={classId} />;
+  return <StudentOverviewBody userId={userId} classId={classId} canManage={canManage} />;
 }
 
 export default function StudentOverviewPage() {
   const [rowKey, setRowKey] = useState(0);
 
   return (
-    <ManagerShell activeKey="students" breadcrumbs={['학생 관리', '상세']}>
+    <ManagerShell activeKey="students" breadcrumbs={['학생 관리', '학생 상세']}>
       <PageMain>
         <QueryAsyncBoundary
           key={rowKey}
@@ -389,4 +501,11 @@ export default function StudentOverviewPage() {
       </PageMain>
     </ManagerShell>
   );
+}
+
+/** 예전 `/manager/students/:id` 북마크 호환 */
+export function RedirectLegacyStudentDetail() {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return <Navigate to="/manager/students" replace />;
+  return <Navigate to={`/manager/students/detail/${id}`} replace />;
 }

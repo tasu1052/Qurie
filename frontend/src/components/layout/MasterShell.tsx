@@ -7,7 +7,6 @@ import {
   Users,
   Megaphone,
   UserRound,
-  Settings,
 } from 'lucide-react';
 import { Button, Footer, Sidebar, Topbar } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
@@ -30,7 +29,6 @@ const masterNav = [
   { key: 'members', label: '회원 관리', path: '/master/members', icon: <Users {...iconProps} /> },
   { key: 'announcements', label: '공지사항', path: '/master/announcements', icon: <Megaphone {...iconProps} /> },
   { key: 'me', label: '마이페이지', path: '/master/me', icon: <UserRound {...iconProps} /> },
-  { key: 'settings', label: '설정', path: '/master/settings', icon: <Settings {...iconProps} /> },
 ];
 
 export function MasterShell({ activeKey, breadcrumbs, children }: AppShellProps) {

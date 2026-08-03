@@ -1,9 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { Download } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { DashboardNoticesSection } from '../../components/notices/DashboardNoticesSection';
-import { Badge, Button, Chevron, RowErrorFallback, Skeleton, StatCard, StatCardRow } from '../../ds';
+import { Badge, Chevron, RowErrorFallback, Skeleton, StatCard, StatCardRow } from '../../ds';
 import {
   QueryAsyncBoundary,
   useGetAnalyticsOverview,
@@ -307,20 +306,11 @@ export default function MasterDashboardPage() {
   return (
     <MasterShell activeKey="dashboard" breadcrumbs={['SSAFY 서울캠퍼스', '대시보드']}>
       <PageMain>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>대시보드</h1>
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-              SSAFY 서울캠퍼스의 학습 운영 현황을 한눈에 확인하세요.
-            </span>
-          </div>
-          <Button
-            variant="secondary"
-            icon={<Download size={14} strokeWidth={1.75} />}
-            onClick={() => undefined}
-          >
-            리포트 내보내기
-          </Button>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>대시보드</h1>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            SSAFY 서울캠퍼스의 학습 운영 현황을 한눈에 확인하세요.
+          </span>
         </div>
 
         <QueryAsyncBoundary

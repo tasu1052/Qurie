@@ -17,16 +17,16 @@ import ClassDetailPage from './pages/master/ClassDetailPage';
 import MemberManagementPage from './pages/master/MemberManagementPage';
 import AnnouncementsPage from './pages/master/AnnouncementsPage';
 import MasterMyPage from './pages/master/MasterMyPage';
-import MasterSettingsPage from './pages/master/MasterSettingsPage';
 import ManagerDashboardPage from './pages/manager/ManagerDashboardPage';
 import ManagerAnnouncementsPage from './pages/manager/ManagerAnnouncementsPage';
 import StudentManagementPage from './pages/manager/StudentManagementPage';
-import StudentOverviewPage from './pages/manager/StudentOverviewPage';
+import StudentOverviewPage, {
+  RedirectLegacyStudentDetail,
+} from './pages/manager/StudentOverviewPage';
 import SessionListPage from './pages/manager/SessionListPage';
 import GroupListPage from './pages/manager/GroupListPage';
 import GroupEditPage from './pages/manager/GroupEditPage';
 import ManagerMyPage from './pages/manager/ManagerMyPage';
-import ManagerSettingsPage from './pages/manager/ManagerSettingsPage';
 import StudentDashboardPage from './pages/student/StudentDashboardPage';
 import ClassHomePage from './pages/student/ClassHomePage';
 import ClassLobbyPage from './pages/student/ClassLobbyPage';
@@ -84,17 +84,18 @@ export default function App() {
           <Route path="/master/analytics" element={<Navigate to="/master/classes" replace />} />
           <Route path="/master/analytics/:classId" element={<RedirectClassAnalytics />} />
           <Route path="/master/me" element={<MasterMyPage />} />
-          <Route path="/master/settings" element={<MasterSettingsPage />} />
+          <Route path="/master/settings" element={<Navigate to="/master/me" replace />} />
 
           <Route path="/manager" element={<ManagerDashboardPage />} />
           <Route path="/manager/students" element={<StudentManagementPage />} />
-          <Route path="/manager/students/:id" element={<StudentOverviewPage />} />
+          <Route path="/manager/students/detail/:userId" element={<StudentOverviewPage />} />
+          <Route path="/manager/students/:id" element={<RedirectLegacyStudentDetail />} />
           <Route path="/manager/sessions" element={<SessionListPage />} />
           <Route path="/manager/groups" element={<GroupListPage />} />
           <Route path="/manager/groups/:id" element={<GroupEditPage />} />
           <Route path="/manager/announcements" element={<ManagerAnnouncementsPage />} />
           <Route path="/manager/me" element={<ManagerMyPage />} />
-          <Route path="/manager/settings" element={<ManagerSettingsPage />} />
+          <Route path="/manager/settings" element={<Navigate to="/manager/me" replace />} />
 
           <Route path="/app" element={<StudentDashboardPage />} />
           <Route path="/app/classes" element={<ClassHomePage />} />

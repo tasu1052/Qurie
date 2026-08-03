@@ -217,6 +217,8 @@ export type {
 
 export { useCreateUserReport } from '../network/report';
 export type { UserReportCreateRequest, UserReportCreateResponse } from '../network/report';
+export { useCreateStudentComment, useGetStudentComments } from '../network/comment';
+export type { StudentCommentCreateRequest, StudentCommentResponse } from '../network/comment';
 
 /** Teammate boundary — UI supplies fallbacks only. */
 export { QueryAsyncBoundary } from '../network/boundaries/QueryAsyncBoundary';

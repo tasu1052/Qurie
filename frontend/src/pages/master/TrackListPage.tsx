@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios';
 import { BookOpen, PlayCircle, Plus, Search, Users } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
   AlertBanner,
   Badge,
@@ -187,6 +188,7 @@ function TrackCardView({
 function TrackListBody() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
+  const debouncedQuery = useDebouncedValue(query, 300);
   const [techFilter, setTechFilter] = useState<'all' | 'java' | 'python' | 'database'>('all');
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState('');
@@ -199,10 +201,10 @@ function TrackListBody() {
   const filters = useMemo(
     () => ({
       size: 100,
-      q: query.trim() || undefined,
+      q: debouncedQuery.trim() || undefined,
       tech: techFilter === 'all' ? undefined : techFilter,
     }),
-    [query, techFilter],
+    [debouncedQuery, techFilter],
   );
 
   const { data: tracksPage } = useGetTracks(filters);
