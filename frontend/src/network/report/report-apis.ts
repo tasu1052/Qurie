@@ -23,6 +23,16 @@ export interface UserReportCreateResponse {
     issuedAt: string;
 }
 
+export interface SessionReportSummaryResponse {
+    sessionReportId: number;
+    sessionId: number;
+    sessionTitle: string;
+    accuracy: number | null;
+    quizRating: number | null;
+    completionRate: number | null;
+    issuedAt: string | null;
+}
+
 export const createUserReport = async (
     userId: number,
     body: UserReportCreateRequest,
@@ -30,6 +40,15 @@ export const createUserReport = async (
     const { data } = await axiosInstance.post<UserReportCreateResponse>(
         `/users/${userId}/report-summary`,
         body,
+    );
+    return data;
+};
+
+export const getUserSessionReports = async (
+    userId: number,
+): Promise<SessionReportSummaryResponse[]> => {
+    const { data } = await axiosInstance.get<SessionReportSummaryResponse[]>(
+        `/users/${userId}/session-reports`,
     );
     return data;
 };

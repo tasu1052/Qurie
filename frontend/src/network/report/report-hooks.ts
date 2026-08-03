@@ -1,5 +1,10 @@
-import { useMutation } from '@tanstack/react-query';
-import { createUserReport, type UserReportCreateRequest } from './report-apis';
+import { useMutation, useSuspenseQuery } from '@tanstack/react-query';
+import { queryKeys } from '../core/queryKeys';
+import {
+    createUserReport,
+    getUserSessionReports,
+    type UserReportCreateRequest,
+} from './report-apis';
 
 export const useCreateUserReport = () => {
     return useMutation({
@@ -7,5 +12,12 @@ export const useCreateUserReport = () => {
             userId,
             ...body
         }: UserReportCreateRequest & { userId: number }) => createUserReport(userId, body),
+    });
+};
+
+export const useGetUserSessionReports = (userId: number) => {
+    return useSuspenseQuery({
+        queryKey: queryKeys.users.sessionReports(userId),
+        queryFn: () => getUserSessionReports(userId),
     });
 };

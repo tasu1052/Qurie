@@ -2,6 +2,8 @@ package com.roma.qurie.user.controller;
 
 import jakarta.validation.Valid;
 
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Pageable;
@@ -19,8 +21,10 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.roma.qurie.common.dto.PageResponse;
+import com.roma.qurie.report.dto.SessionReportSummaryResponse;
 import com.roma.qurie.report.dto.UserReportCreateRequest;
 import com.roma.qurie.report.dto.UserReportCreateResponse;
+import com.roma.qurie.report.service.SessionReportService;
 import com.roma.qurie.report.service.UserReportService;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.user.dto.UserProfileResponse;
@@ -38,6 +42,7 @@ public class UserController {
 
 	private final UserService userService;
 	private final UserReportService userReportService;
+	private final SessionReportService sessionReportService;
 
 	/**
 	 * 매니저/학생 회원가입. API 설계의 UserController 표에는 조회·수정·삭제만 있어 생성 경로는
@@ -105,5 +110,13 @@ public class UserController {
 	public UserReportCreateResponse createUserReport(@PathVariable("userId") Long ordinaryUserId,
 			@Valid @RequestBody UserReportCreateRequest request) {
 		return userReportService.createUserReport(ordinaryUserId, request);
+	}
+
+	/** 종합 리포트 화면의 세션 리포트 목록. */
+	@GetMapping("/{userId}/session-reports")
+	public List<SessionReportSummaryResponse> listSessionReports(
+			@PathVariable("userId") Long ordinaryUserId,
+			@AuthenticationPrincipal AuthUser requester) {
+		return sessionReportService.listSessionReports(ordinaryUserId, requester);
 	}
 }

@@ -30,6 +30,7 @@ import ManagerMyPage from './pages/manager/ManagerMyPage';
 import StudentDashboardPage from './pages/student/StudentDashboardPage';
 import MyPage from './pages/student/MyPage';
 import SessionPage from './pages/session/SessionPage';
+import SessionReportPage from './pages/session/SessionReportPage';
 import FinalReportPage from './pages/student/FinalReportPage';
 
 function PlaceholderPage({ title }: { title: string }) {
@@ -102,7 +103,7 @@ export default function App() {
           <Route path="/app/report" element={<FinalReportPage />} />
 
           <Route path="/session/:id" element={<SessionPage />} />
-          <Route path="/session/:id/report" element={<PlaceholderPage title="세션 리포트" />} />
+          <Route path="/session/:id/report" element={<SessionReportPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

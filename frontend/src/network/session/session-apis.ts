@@ -72,6 +72,30 @@ export interface SessionReportCreateResponse {
     issuedAt: string;
 }
 
+export interface SessionReportDetailResponse {
+    sessionReportId: number;
+    sessionId: number;
+    sessionTitle: string;
+    ordinaryUserId: number;
+    userName: string;
+    quizSetId: number | null;
+    quizTotalCount: number;
+    quizAttemptedCount: number;
+    quizCorrectCount: number;
+    quizSkippedCount: number;
+    completionRate: number | null;
+    accuracy: number | null;
+    avgElapsedMs: number | null;
+    difficultyRatio: Record<string, unknown> | null;
+    conceptStats: Record<string, unknown> | null;
+    quizRating: number | null;
+    aiComment: string | null;
+    aiStrengths: string[] | null;
+    aiImprovements: string[] | null;
+    managerComment: string | null;
+    issuedAt: string | null;
+}
+
 export const createSession = async (body: SessionCreateRequest): Promise<SessionResponse> => {
     const { data } = await axiosInstance.post<SessionResponse>('/sessions', {
         classId: body.classId,
@@ -132,6 +156,17 @@ export const createSessionReport = async (
     const { data } = await axiosInstance.post<SessionReportCreateResponse>(
         `/sessions/${sessionId}/reports`,
         body,
+    );
+    return data;
+};
+
+export const getSessionReport = async (
+    sessionId: number,
+    userId?: number,
+): Promise<SessionReportDetailResponse> => {
+    const { data } = await axiosInstance.get<SessionReportDetailResponse>(
+        `/sessions/${sessionId}/reports`,
+        { params: userId != null ? { userId } : undefined },
     );
     return data;
 };

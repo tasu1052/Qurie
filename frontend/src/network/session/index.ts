@@ -8,6 +8,7 @@ export {
     useGetSessionMessages,
     useGetSessionParticipants,
     useGetSessionPresence,
+    useGetSessionReport,
     useGetSessions,
     useUpdateSession,
 } from './session-hooks';
