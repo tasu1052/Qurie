@@ -4,6 +4,7 @@ import { Plus, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
   AlertBanner,
   Badge,
@@ -74,10 +75,11 @@ function SessionTable({
   onDelete: (session: SessionResponse) => void;
 }) {
   const { data: sessions } = useGetSessions(classId);
+  const debouncedQuery = useDebouncedValue(query, 300);
 
   const filtered = sessions.filter((s) => {
     const status = sessionStatus(s);
-    if (query && !s.title.toLowerCase().includes(query.toLowerCase())) return false;
+    if (debouncedQuery && !s.title.toLowerCase().includes(debouncedQuery.toLowerCase())) return false;
     if (statusFilter === '전체') return true;
     if (statusFilter === '진행') return status === 'LIVE';
     return status === statusFilter;

@@ -3,6 +3,7 @@ import { isAxiosError } from 'axios';
 import { useSearchParams } from 'react-router-dom';
 import { Filter, Mail, Search, UserPlus } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
   AlertBanner,
   Badge,
@@ -158,14 +159,15 @@ function MembersChrome({
   inviteOk: string | null;
   classes: { id: number; name: string }[];
 }) {
+  const debouncedQuery = useDebouncedValue(query, 300);
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = debouncedQuery.trim().toLowerCase();
     return members.filter((m) => {
       if (roleFilter !== 'all' && m.role !== roleFilter) return false;
       if (!q) return true;
       return m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q);
     });
-  }, [members, query, roleFilter]);
+  }, [members, debouncedQuery, roleFilter]);
 
   const counts = useMemo(
     () => ({
@@ -374,6 +376,7 @@ function AllUsersBody({
   classes: { id: number; name: string }[];
 }) {
   const [query, setQuery] = useState('');
+  const debouncedQuery = useDebouncedValue(query, 300);
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -386,10 +389,10 @@ function AllUsersBody({
   const filters = useMemo(
     () => ({
       size: 200,
-      q: query.trim() || undefined,
+      q: debouncedQuery.trim() || undefined,
       role: roleFilter === 'all' ? undefined : roleFilter,
     }),
-    [query, roleFilter],
+    [debouncedQuery, roleFilter],
   );
   const { data: usersPage } = useGetUsers(filters);
   const members = usersPage.data.map(toRowFromUser);

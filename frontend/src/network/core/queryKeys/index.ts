@@ -1,6 +1,7 @@
 import { analyticsKeys } from './analytics.keys';
 import { authKeys } from './auth.keys';
 import { classKeys } from './class.keys';
+import { commentKeys } from './comment.keys';
 import { groupKeys } from './group.keys';
 import { invitationKeys } from './invitation.keys';
 import { noticeKeys } from './notice.keys';
@@ -14,6 +15,7 @@ export const queryKeys = {
     analytics: analyticsKeys,
     auth: authKeys,
     classes: classKeys,
+    comments: commentKeys,
     groups: groupKeys,
     invitations: invitationKeys,
     notices: noticeKeys,
@@ -28,6 +30,7 @@ export {
     analyticsKeys,
     authKeys,
     classKeys,
+    commentKeys,
     groupKeys,
     invitationKeys,
     noticeKeys,

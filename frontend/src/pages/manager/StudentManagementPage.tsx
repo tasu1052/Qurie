@@ -2,13 +2,12 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronRight, Search } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
-  Badge,
   Button,
   EmptyState,
   Input,
   RowErrorFallback,
-  Select,
   Skeleton,
 } from '../../ds';
 import {
@@ -19,7 +18,6 @@ import {
   useMe,
   type ClassMemberResponse,
   type GroupResponse,
-  type UserRole,
 } from '../../data';
 
 function TableSkeleton() {
@@ -43,12 +41,6 @@ function GroupsPanelSkeleton() {
 
 function groupStatus(endedAt: string): '활동' | '종료' {
   return new Date(endedAt).getTime() > Date.now() ? '활동' : '종료';
-}
-
-function roleBadgeStatus(role: UserRole): 'accent' | 'neutral' | 'success' {
-  if (role === 'MANAGER') return 'accent';
-  if (role === 'STUDENT') return 'neutral';
-  return 'success';
 }
 
 function GroupsSidePanel({
@@ -91,14 +83,14 @@ function GroupsSidePanel({
           icon={<ChevronRight size={14} strokeWidth={1.75} />}
           onClick={() => navigate('/manager/groups')}
         >
-          이동
+          그룹 관리
         </Button>
       </div>
 
       {preview.length === 0 ? (
         <EmptyState
           message="그룹이 없습니다"
-          description="생성하거나 그룹 관리에서 셔플하세요."
+          description="그룹 관리에서 만들거나 셔플할 수 있어요."
           actionLabel="그룹 관리"
           onAction={() => navigate('/manager/groups')}
         />
@@ -142,24 +134,21 @@ function MembersTable({
   members,
   query,
   onQueryChange,
-  roleFilter,
-  onRoleFilterChange,
 }: {
   members: ClassMemberResponse[];
   query: string;
   onQueryChange: (v: string) => void;
-  roleFilter: 'all' | UserRole;
-  onRoleFilterChange: (v: 'all' | UserRole) => void;
 }) {
   const navigate = useNavigate();
+  const debouncedQuery = useDebouncedValue(query, 300);
+  const students = useMemo(() => members.filter((m) => m.role === 'STUDENT'), [members]);
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return members.filter((m) => {
-      if (roleFilter !== 'all' && m.role !== roleFilter) return false;
+    const q = debouncedQuery.trim().toLowerCase();
+    return students.filter((m) => {
       if (!q) return true;
       return m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q);
     });
-  }, [members, query, roleFilter]);
+  }, [students, debouncedQuery]);
 
   return (
     <div
@@ -188,22 +177,11 @@ function MembersTable({
           onChange={(e) => onQueryChange(e.target.value)}
           width={220}
         />
-        <Select
-          size="sm"
-          options={[
-            { value: 'all', label: '전체 역할' },
-            { value: 'STUDENT', label: 'STUDENT' },
-            { value: 'MANAGER', label: 'MANAGER' },
-          ]}
-          value={roleFilter}
-          onChange={(v) => onRoleFilterChange(v as 'all' | UserRole)}
-          style={{ width: 148 }}
-        />
       </div>
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1.8fr 1fr 1.2fr',
+          gridTemplateColumns: '1.8fr 1.2fr',
           padding: '10px 24px',
           borderBottom: '1px solid var(--divider)',
           fontSize: 11,
@@ -213,18 +191,17 @@ function MembersTable({
           color: 'var(--text-muted)',
         }}
       >
-        <span>멤버</span>
-        <span>역할</span>
+        <span>학생</span>
         <span>그룹</span>
       </div>
       {filtered.length === 0 ? (
         <div style={{ padding: 32 }}>
         <EmptyState
-          message={members.length === 0 ? '반 명단이 비어 있습니다' : '검색 결과가 없습니다'}
+          message={students.length === 0 ? '학생이 없습니다' : '검색 결과가 없습니다'}
           description={
-            members.length === 0
-              ? '클래스에 배정된 사용자가 없습니다.'
-              : '이름·이메일·역할 필터를 바꿔 보세요.'
+            students.length === 0
+              ? '클래스에 배정된 학생이 없습니다.'
+              : '이름·이메일을 바꿔 검색해 보세요.'
           }
           actionLabel="그룹 관리"
           onAction={() => navigate('/manager/groups')}
@@ -236,11 +213,13 @@ function MembersTable({
             key={m.userId}
             role="button"
             tabIndex={0}
-            onClick={() => navigate(`/manager/students/${m.userId}`)}
-            onKeyDown={(e) => e.key === 'Enter' && navigate(`/manager/students/${m.userId}`)}
+            onClick={() => navigate(`/manager/students/detail/${m.userId}`)}
+            onKeyDown={(e) =>
+              e.key === 'Enter' && navigate(`/manager/students/detail/${m.userId}`)
+            }
             style={{
               display: 'grid',
-              gridTemplateColumns: '1.8fr 1fr 1.2fr',
+              gridTemplateColumns: '1.8fr 1.2fr',
               padding: '13px 24px',
               borderBottom: '1px solid var(--divider)',
               fontSize: 13,
@@ -260,7 +239,6 @@ function MembersTable({
                 {m.email}
               </span>
             </span>
-            <Badge status={roleBadgeStatus(m.role)}>{m.role}</Badge>
             <span style={{ color: 'var(--text-secondary)' }}>{m.groupName ?? '—'}</span>
           </div>
         ))
@@ -270,27 +248,21 @@ function MembersTable({
 }
 
 function StudentManagementBody({ classId }: { classId: number }) {
-  const navigate = useNavigate();
   const { data: cls } = useGetClass(classId);
   const { data: membersPage } = useGetClassMembers(classId, { size: 100 });
   const [query, setQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('STUDENT');
   const [groupPanelKey, setGroupPanelKey] = useState(0);
 
   const members = membersPage.data;
+  const studentCount = members.filter((m) => m.role === 'STUDENT').length;
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>학생 관리</h1>
-          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            {cls.name} · 반 소속 {membersPage.meta.total}명
-          </span>
-        </div>
-        <Button variant="secondary" size="sm" onClick={() => navigate('/manager/groups')}>
-          그룹 관리
-        </Button>
+      <div>
+        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>학생 관리</h1>
+        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+          {cls.name} · 학생 {studentCount}명
+        </span>
       </div>
 
       <div
@@ -301,8 +273,6 @@ function StudentManagementBody({ classId }: { classId: number }) {
           members={members}
           query={query}
           onQueryChange={setQuery}
-          roleFilter={roleFilter}
-          onRoleFilterChange={setRoleFilter}
         />
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>

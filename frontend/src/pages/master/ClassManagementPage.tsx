@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios';
 import { Grid2x2, PlayCircle, Plus, Search, Users } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
   AlertBanner,
   Badge,
@@ -244,6 +245,7 @@ function ClassCardView({
 function ClassListBody() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
+  const debouncedQuery = useDebouncedValue(query, 300);
   const [trackId, setTrackId] = useState<string>('all');
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState('');
@@ -267,10 +269,10 @@ function ClassListBody() {
   const classFilters = useMemo(
     () => ({
       size: 50,
-      q: query.trim() || undefined,
+      q: debouncedQuery.trim() || undefined,
       trackId: trackId === 'all' ? undefined : Number(trackId),
     }),
-    [query, trackId],
+    [debouncedQuery, trackId],
   );
 
   const { data: classesPage } = useGetClasses(classFilters);
