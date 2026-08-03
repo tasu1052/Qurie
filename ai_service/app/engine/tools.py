@@ -49,7 +49,10 @@ def judge_tool(item_count: int) -> dict:
     }
 
 
-def quiz_tool(requested_count: int, primary_file: str) -> dict:
+def quiz_tool(requested_count: int, file_paths: str | list[str]) -> dict:
+    paths = [file_paths] if isinstance(file_paths, str) else list(file_paths)
+    # MICRO면 값을 채우고, CONCEPTUAL이면 null. 폴더 선택 시 여러 경로를 허용한다.
+    file_path_enum = [*paths, None]
     item = {
         "type": "object",
         "properties": {
@@ -65,8 +68,7 @@ def quiz_tool(requested_count: int, primary_file: str) -> dict:
             },
             "answer_index": {"type": "integer", "minimum": 0, "maximum": 3},
             "explanation": {"type": "string"},
-            # MICRO면 값을 채우고, CONCEPTUAL이면 null.
-            "file_path": {"enum": [primary_file, None]},
+            "file_path": {"enum": file_path_enum},
             "line_start": {"type": ["integer", "null"], "minimum": 1},
             "line_end": {"type": ["integer", "null"], "minimum": 1},
         },

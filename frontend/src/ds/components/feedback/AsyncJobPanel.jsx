@@ -6,7 +6,7 @@ const TONE={PENDING:{fg:'var(--accent-strong)',bg:'var(--status-accent-bg)'},GEN
 export function AsyncJobPanel({label,status='PENDING',title,description,done=null,total=null,errorMessage=null,meta=null,primaryLabel,onPrimary,secondaryLabel,onSecondary,children,style={}}){
 const t=TONE[status]||TONE.PENDING;
 const failed=status==='FAILED';
-return <div style={{background:'#fff',border:'1px solid var(--border)',borderRadius:'var(--radius-lg)',padding:20,display:'flex',flexDirection:'column',gap:14,fontFamily:'var(--font-sans)',...style}}>
+return <div style={{background:'var(--surface-card)',border:'1px solid var(--border)',borderRadius:'var(--radius-lg)',padding:20,display:'flex',flexDirection:'column',gap:14,fontFamily:'var(--font-sans)',...style}}>
 <div style={{display:'flex',alignItems:'center',gap:8}}>
 <span style={{fontSize:11,fontWeight:600,letterSpacing:'0.06em',textTransform:'uppercase',color:'var(--accent)'}}>{label}</span>
 <span style={{marginLeft:'auto',fontFamily:'var(--font-mono)',fontSize:10.5,background:t.bg,color:t.fg,borderRadius:'var(--radius-control)',padding:'2px 8px'}}>{status}</span>
@@ -21,8 +21,8 @@ return <div style={{background:'#fff',border:'1px solid var(--border)',borderRad
 {children}
 {meta&&<span style={{fontFamily:'var(--font-mono)',fontSize:10.5,color:'var(--text-muted)'}}>{meta}</span>}
 {(primaryLabel||secondaryLabel)&&<div style={{display:'flex',flexDirection:'column',gap:8,borderTop:'1px solid var(--divider)',paddingTop:12}}>
-{primaryLabel&&<button onClick={onPrimary} style={{height:36,borderRadius:'var(--radius-control)',border:'none',background:'var(--ink)',color:'#fff',fontFamily:'var(--font-sans)',fontSize:13,fontWeight:600,cursor:'pointer'}}>{primaryLabel}</button>}
-{secondaryLabel&&<button onClick={onSecondary} style={{height:36,borderRadius:'var(--radius-control)',border:'1px solid var(--border-strong)',background:'#fff',color:'var(--ink)',fontFamily:'var(--font-sans)',fontSize:13,cursor:'pointer'}}>{secondaryLabel}</button>}
+{primaryLabel&&<button onClick={onPrimary} style={{height:36,borderRadius:'var(--radius-control)',border:'none',background:'var(--ink)',color:'var(--text-inverse)',fontFamily:'var(--font-sans)',fontSize:13,fontWeight:600,cursor:'pointer'}}>{primaryLabel}</button>}
+{secondaryLabel&&<button onClick={onSecondary} style={{height:36,borderRadius:'var(--radius-control)',border:'1px solid var(--border-strong)',background:'var(--surface-card)',color:'var(--ink)',fontFamily:'var(--font-sans)',fontSize:13,cursor:'pointer'}}>{secondaryLabel}</button>}
 </div>}
 </div>;
 }

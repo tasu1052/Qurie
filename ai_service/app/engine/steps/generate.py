@@ -44,7 +44,7 @@ def node_generate(state: PipelineState) -> PipelineState:
     )
     data = call_llm_json(
         config.GEN_MODEL, prompt, state["meter"], "GENERATE",
-        quiz_tool(count, state["primary_file"]),
+        quiz_tool(count, list(state["files"].keys())),
         max_tokens=config.max_tokens_for("GENERATE", count),
     )
     quizzes = data.get("quizzes") or []

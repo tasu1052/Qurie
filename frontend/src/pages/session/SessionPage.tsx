@@ -13,8 +13,10 @@ import {
   Headphones,
   Maximize2,
   Mic,
+  MicOff,
   MoreVertical,
   PhoneOff,
+  Phone,
   Play,
   Settings,
   Terminal,
@@ -33,6 +35,7 @@ import {
   useGetSessionProject,
   useMeOptional,
   useSessionSocket,
+  useSessionVoice,
   useUpdateSession,
   type ProjectImportResponse,
   type ProjectResponse,
@@ -170,8 +173,6 @@ export default function SessionPage() {
   const [endConfirmOpen, setEndConfirmOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [voiceJoined, setVoiceJoined] = useState(true);
-  const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
 
   const viewportWidth = useViewportWidth();
   const chrome = sessionChromeVisibility(viewportWidth);
@@ -266,12 +267,34 @@ export default function SessionPage() {
     });
   }, [hasSessionId, sessionId, sessionProjectQuery.data]);
 
-  /** 채팅 · 참여자 · 퀴즈 · 프로젝트 임포트 STOMP. 세션 id 없으면 연결하지 않는다. */
-  const chat = useSessionSocket(hasSessionId ? sessionId : null);
+  /** 채팅 · 참여자 · 퀴즈 · 프로젝트 · 음성 채널 STOMP. 세션 id 없으면 연결하지 않는다. */
+  const chat = useSessionSocket(hasSessionId ? sessionId : null, {
+    myUserId,
+    autoJoinVoice: false,
+  });
   const onlineUserIds = useMemo(
     () => chat.participants.map((p) => p.userId),
     [chat.participants],
   );
+  const voiceJoined = chat.voiceJoined;
+  const myVoice = chat.myVoice;
+
+  const voiceRtc = useSessionVoice({
+    enabled: voiceJoined,
+    myUserId,
+    peers: chat.voiceParticipants,
+    micMuted: myVoice?.micMuted ?? false,
+    deafened: myVoice?.deafened ?? false,
+    sendSignal: chat.sendVoiceSignal,
+    signalQueueRef: chat.voiceSignalQueueRef,
+    signalTick: chat.voiceSignalTick,
+  });
+
+  /** 마이크 권한 거부 시 채널에서 나가 유령 참여자로 남지 않게 한다. */
+  useEffect(() => {
+    if (voiceRtc.status !== 'error' || !voiceJoined) return;
+    chat.leaveVoice();
+  }, [voiceRtc.status, voiceJoined, chat.leaveVoice]);
 
   const leaveDestination = () => {
     // 퇴장 직전 커서 awareness를 비워 다른 참가자 화면에 잔상이 남지 않게 한다.
@@ -290,14 +313,12 @@ export default function SessionPage() {
     }
   };
 
-  const leaveVoiceChannel = () => {
-    if (!voiceJoined) {
-      setVoiceJoined(true);
-      setVoiceNotice('음성 채널에 다시 참여했습니다. (음성 API 연동 전 로컬 상태)');
-      return;
+  const toggleVoiceChannel = () => {
+    if (voiceJoined) {
+      chat.leaveVoice();
+    } else {
+      chat.joinVoice();
     }
-    setVoiceJoined(false);
-    setVoiceNotice('음성 채널에서 나갔습니다. 세션은 유지됩니다.');
   };
 
   const applyLanguageFromPath = (path: string) => {
@@ -628,6 +649,15 @@ export default function SessionPage() {
           onAction={() => setActionError(null)}
         />
       ) : null}
+      {voiceRtc.error ? (
+        <AlertBanner
+          tone="error"
+          title="음성 채널"
+          description={voiceRtc.error}
+          actionLabel="닫기"
+          onAction={() => voiceRtc.dismissError()}
+        />
+      ) : null}
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0, minWidth: 0 }}>
         {chrome.showLeft ? (
@@ -837,34 +867,114 @@ export default function SessionPage() {
                         width: 6,
                         height: 6,
                         borderRadius: '50%',
-                        background: 'var(--status-success)',
-                        animation: 'qurie-pulse 1.6s infinite',
+                        background: voiceJoined ? 'var(--status-success)' : 'var(--text-muted)',
+                        animation: voiceJoined ? 'qurie-pulse 1.6s infinite' : 'none',
                         flexShrink: 0,
                       }}
                     />
-                    음성{voiceJoined ? '' : ' · 나감'}
+                    음성
+                    {voiceJoined
+                      ? voiceRtc.status === 'starting'
+                        ? ' · 연결 중'
+                        : voiceRtc.status === 'live'
+                          ? ` · ${chat.voiceParticipants.length}명`
+                          : ` · ${chat.voiceParticipants.length}명`
+                      : ' · 나감'}
                   </span>
                   <span style={{ marginLeft: 'auto', display: 'flex', gap: 4, flexShrink: 0 }}>
-                    <RoundIcon bg="var(--accent)" color="var(--text-inverse)" title="마이크">
-                      <Mic size={12} />
+                    <RoundIcon
+                      bg={
+                        voiceJoined && !myVoice?.micMuted
+                          ? 'var(--accent)'
+                          : 'var(--surface-card)'
+                      }
+                      color={
+                        voiceJoined && !myVoice?.micMuted
+                          ? 'var(--text-inverse)'
+                          : myVoice?.micMuted
+                            ? 'var(--status-error)'
+                            : 'var(--text-secondary)'
+                      }
+                      title={
+                        !voiceJoined
+                          ? '음성 채널 참여 후 마이크를 사용할 수 있습니다'
+                          : myVoice?.micMuted
+                            ? '마이크 켜기'
+                            : '마이크 끄기'
+                      }
+                      onClick={() => {
+                        if (voiceJoined) chat.toggleMic();
+                      }}
+                    >
+                      {myVoice?.micMuted ? <MicOff size={12} /> : <Mic size={12} />}
                     </RoundIcon>
-                    <RoundIcon title="헤드셋">
+                    <RoundIcon
+                      bg={
+                        voiceJoined && myVoice?.deafened
+                          ? 'var(--status-error)'
+                          : 'var(--surface-card)'
+                      }
+                      color={
+                        voiceJoined && myVoice?.deafened
+                          ? 'var(--text-inverse)'
+                          : 'var(--text-secondary)'
+                      }
+                      title={
+                        !voiceJoined
+                          ? '음성 채널 참여 후 헤드셋을 사용할 수 있습니다'
+                          : myVoice?.deafened
+                            ? '헤드셋 켜기'
+                            : '헤드셋 끄기(청취 차단)'
+                      }
+                      onClick={() => {
+                        if (voiceJoined) chat.toggleDeafened();
+                      }}
+                    >
                       <Headphones size={12} />
                     </RoundIcon>
                     <RoundIcon
-                      title={voiceJoined ? '음성 채널 나가기' : '음성 채널 다시 참여'}
-                      color="var(--status-error)"
-                      onClick={leaveVoiceChannel}
+                      title={voiceJoined ? '음성 채널 나가기' : '음성 채널 참여'}
+                      color={voiceJoined ? 'var(--status-error)' : 'var(--status-success)'}
+                      onClick={toggleVoiceChannel}
                     >
-                      <PhoneOff size={12} />
+                      {voiceJoined ? <PhoneOff size={12} /> : <Phone size={12} />}
                     </RoundIcon>
                   </span>
                 </div>
-                {voiceNotice ? (
-                  <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                    {voiceNotice}
-                  </p>
-                ) : null}
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    color: 'var(--text-muted)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  음성 채널 · {chat.voiceParticipants.length}명
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 100, overflow: 'auto' }}>
+                  {chat.voiceParticipants.length === 0 ? (
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                      음성 채널에 아무도 없습니다.
+                    </span>
+                  ) : (
+                    chat.voiceParticipants.map((p) => (
+                      <PresenceRow
+                        key={`voice-${p.userId}`}
+                        color={p.userId === myUserId ? 'var(--status-warning)' : 'var(--accent)'}
+                        name={p.userId === myUserId ? `${p.name} (나)` : p.name}
+                        badge={[
+                          p.micMuted ? '음소거' : null,
+                          p.deafened ? '청취차단' : null,
+                          p.role !== 'STUDENT' ? p.role : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ') || undefined}
+                      />
+                    ))
+                  )}
+                </div>
                 <span
                   style={{
                     fontSize: 11,

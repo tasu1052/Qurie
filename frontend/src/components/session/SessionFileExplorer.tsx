@@ -10,13 +10,15 @@ type TreeNode = {
   children: TreeNode[];
 };
 
+export type FileExplorerSelectionMode = 'file' | 'fileOrDir';
+
 function fileIcon(path: string) {
   if (path.endsWith('.json')) return <FileJson size={13} />;
   if (path.endsWith('.md')) return <FileText size={13} />;
   return <FileCode size={13} />;
 }
 
-function buildFileTree(paths: string[]): TreeNode[] {
+export function buildFileTree(paths: string[]): TreeNode[] {
   const root: TreeNode[] = [];
 
   const ensureDir = (nodes: TreeNode[], name: string, dirPath: string): TreeNode => {
@@ -66,6 +68,7 @@ function TreeRows({
   depth,
   activePath,
   collapsed,
+  selectionMode,
   onToggle,
   onSelect,
 }: {
@@ -73,48 +76,91 @@ function TreeRows({
   depth: number;
   activePath: string | null;
   collapsed: Set<string>;
+  selectionMode: FileExplorerSelectionMode;
   onToggle: (path: string) => void;
-  onSelect: (path: string) => void;
+  onSelect: (path: string, kind: 'file' | 'dir') => void;
 }) {
   return (
     <>
       {nodes.map((node) => {
         if (node.kind === 'dir') {
           const open = !collapsed.has(node.path);
+          const active = selectionMode === 'fileOrDir' && activePath === node.path;
+          const padLeft = 8 + depth * 12;
+
           return (
             <div key={`d:${node.path}`}>
-              <button
-                type="button"
-                onClick={() => onToggle(node.path)}
+              <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 6,
-                  padding: '5px 8px',
-                  paddingLeft: 8 + depth * 12,
+                  gap: 2,
+                  paddingLeft: padLeft,
                   borderRadius: 6,
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
+                  background: active ? 'var(--accent-softer)' : 'transparent',
                   width: '100%',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 12.5,
-                  color: 'var(--text-secondary)',
-                  textAlign: 'left',
                 }}
               >
-                {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                <Folder size={13} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {node.name}
-                </span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => onToggle(node.path)}
+                  aria-label={open ? '폴더 접기' : '폴더 펼치기'}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 22,
+                    height: 26,
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    color: 'var(--text-secondary)',
+                    padding: 0,
+                    flexShrink: 0,
+                  }}
+                >
+                  {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectionMode === 'fileOrDir') {
+                      onSelect(node.path, 'dir');
+                    } else {
+                      onToggle(node.path);
+                    }
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '5px 8px 5px 0',
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    flex: 1,
+                    minWidth: 0,
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 12.5,
+                    fontWeight: active ? 600 : 400,
+                    color: active ? 'var(--accent)' : 'var(--text-secondary)',
+                    textAlign: 'left',
+                  }}
+                  title={node.path}
+                >
+                  <Folder size={13} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {node.name}
+                  </span>
+                </button>
+              </div>
               {open ? (
                 <TreeRows
                   nodes={node.children}
                   depth={depth + 1}
                   activePath={activePath}
                   collapsed={collapsed}
+                  selectionMode={selectionMode}
                   onToggle={onToggle}
                   onSelect={onSelect}
                 />
@@ -128,7 +174,7 @@ function TreeRows({
           <button
             key={`f:${node.path}`}
             type="button"
-            onClick={() => onSelect(node.path)}
+            onClick={() => onSelect(node.path, 'file')}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -162,11 +208,13 @@ function TreeRows({
 function FilesBody({
   projectId,
   activePath,
+  selectionMode,
   onSelect,
 }: {
   projectId: number;
   activePath: string | null;
-  onSelect: (path: string) => void;
+  selectionMode: FileExplorerSelectionMode;
+  onSelect: (path: string, kind: 'file' | 'dir') => void;
 }) {
   const { data: files } = useGetProjectFiles(projectId);
   const tree = useMemo(() => buildFileTree(files.map((f) => f.path)), [files]);
@@ -186,6 +234,7 @@ function FilesBody({
       depth={0}
       activePath={activePath}
       collapsed={collapsed}
+      selectionMode={selectionMode}
       onToggle={(path) => {
         setCollapsed((prev) => {
           const next = new Set(prev);
@@ -202,10 +251,17 @@ function FilesBody({
 type SessionFileExplorerProps = {
   projectId: number;
   activePath: string | null;
-  onSelect: (path: string) => void;
+  /** 기본 `file` — 세션 좌측 탐색기. `fileOrDir` — 퀴즈 출제 대상 선택. */
+  selectionMode?: FileExplorerSelectionMode;
+  onSelect: (path: string, kind?: 'file' | 'dir') => void;
 };
 
-export function SessionFileExplorer({ projectId, activePath, onSelect }: SessionFileExplorerProps) {
+export function SessionFileExplorer({
+  projectId,
+  activePath,
+  selectionMode = 'file',
+  onSelect,
+}: SessionFileExplorerProps) {
   return (
     <QueryAsyncBoundary
       suspenseFallback={
@@ -217,7 +273,12 @@ export function SessionFileExplorer({ projectId, activePath, onSelect }: Session
       }
       errorFallback={<RowErrorFallback title="파일 목록을 불러오지 못했습니다" />}
     >
-      <FilesBody projectId={projectId} activePath={activePath} onSelect={onSelect} />
+      <FilesBody
+        projectId={projectId}
+        activePath={activePath}
+        selectionMode={selectionMode}
+        onSelect={onSelect}
+      />
     </QueryAsyncBoundary>
   );
 }

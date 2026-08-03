@@ -241,7 +241,7 @@ export type {
   QuizSetSummaryResponse,
   QuizSatisfactionRequest,
 } from '../network/quiz';
-/** 세션 실시간(STOMP) — 채팅 · 참여자 명단 · 퀴즈 생성 알림을 한 연결에서 받는다. */
+/** 세션 실시간(STOMP) — 채팅 · 참여자 · 퀴즈/프로젝트 · 음성 채널을 한 연결에서 받는다. */
 export { useSessionSocket } from '../realtime/useSessionSocket';
 export type {
   QuizGenerationNotification,
@@ -249,6 +249,19 @@ export type {
   SessionParticipantEvent,
   SessionSocketStatus,
 } from '../realtime/useSessionSocket';
+export { useSessionVoice } from '../realtime/useSessionVoice';
+export type { SessionVoiceStatus } from '../realtime/useSessionVoice';
+
+export { useGetVoiceParticipants, useGetVoicePresence } from '../network/voice';
+export type {
+  VoiceParticipantResponse,
+  VoiceChannelEventResponse,
+  VoiceChannelEventType,
+  VoiceStateUpdateRequest,
+  VoiceSignalRequest,
+  VoiceSignalResponse,
+  VoiceSignalType,
+} from '../network/voice';
 
 export { useCreateUserReport, useGetUserSessionReports } from '../network/report';
 export type {

@@ -32,8 +32,15 @@ export const sessionDestinations = {
   participants: (sessionId: number) => `/topic/sessions/${sessionId}/participants`,
   quiz: (sessionId: number) => `/topic/sessions/${sessionId}/quiz`,
   project: (sessionId: number) => `/topic/sessions/${sessionId}/project`,
+  voice: (sessionId: number) => `/topic/sessions/${sessionId}/voice`,
+  voiceSignal: (sessionId: number, userId: number) =>
+    `/topic/sessions/${sessionId}/voice/signal/${userId}`,
   errors: '/user/queue/errors',
   enter: (sessionId: number) => `/app/sessions/${sessionId}/enter`,
   leave: (sessionId: number) => `/app/sessions/${sessionId}/leave`,
   send: (sessionId: number) => `/app/sessions/${sessionId}/messages`,
+  voiceJoin: (sessionId: number) => `/app/sessions/${sessionId}/voice/join`,
+  voiceLeave: (sessionId: number) => `/app/sessions/${sessionId}/voice/leave`,
+  voiceState: (sessionId: number) => `/app/sessions/${sessionId}/voice/state`,
+  voiceSignalSend: (sessionId: number) => `/app/sessions/${sessionId}/voice/signal`,
 } as const;
