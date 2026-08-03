@@ -21,10 +21,14 @@ import org.springframework.web.server.ResponseStatusException;
 import com.roma.qurie.quiz.ai.AiQuizStatusResponse;
 import com.roma.qurie.quiz.dto.QuizGenerateRequest;
 import com.roma.qurie.quiz.dto.QuizGenerateResponse;
+import com.roma.qurie.quiz.dto.QuizProgressResponse;
+import com.roma.qurie.quiz.dto.QuizProgressSubmitRequest;
+import com.roma.qurie.quiz.dto.QuizProgressSummaryResponse;
 import com.roma.qurie.quiz.dto.QuizQuestionsResponse;
 import com.roma.qurie.quiz.dto.QuizSatisfactionRequest;
 import com.roma.qurie.quiz.dto.QuizSetDetailResponse;
 import com.roma.qurie.quiz.dto.QuizSetSummaryResponse;
+import com.roma.qurie.quiz.service.QuizProgressService;
 import com.roma.qurie.quiz.service.QuizService;
 import com.roma.qurie.security.AuthUser;
 
@@ -36,6 +40,7 @@ import lombok.RequiredArgsConstructor;
 public class QuizController {
 
 	private final QuizService quizService;
+	private final QuizProgressService quizProgressService;
 
 	/** 비어있으면 콜백 인증을 검사하지 않는다 — 로컬 개발 편의용, 배포 값은 반드시 채운다. */
 	@Value("${app.ai.callback-secret:}")
@@ -92,6 +97,27 @@ public class QuizController {
 			@Valid @RequestBody QuizSatisfactionRequest request,
 			@AuthenticationPrincipal AuthUser requester) {
 		return quizService.submitSatisfaction(quizSetId, request, requester);
+	}
+
+	/**
+	 * 문항 응시 결과 제출(응시/스킵/타임아웃). 세션이 열린 반의 구성원 전용, 같은 문항은 한 번만 제출할 수 있다.
+	 */
+	@PostMapping("/{quizSetId}/questions/{quizId}/progress")
+	@ResponseStatus(HttpStatus.CREATED)
+	public QuizProgressResponse submitProgress(@PathVariable("quizSetId") Long quizSetId,
+			@PathVariable("quizId") Long quizId,
+			@Valid @RequestBody QuizProgressSubmitRequest request,
+			@AuthenticationPrincipal AuthUser requester) {
+		return quizProgressService.submit(quizSetId, quizId, requester, request);
+	}
+
+	/**
+	 * 본인의 응시 현황 조회 — 응시 후 결과 화면에 쓴다.
+	 */
+	@GetMapping("/{quizSetId}/progress")
+	public QuizProgressSummaryResponse getProgress(@PathVariable("quizSetId") Long quizSetId,
+			@AuthenticationPrincipal AuthUser requester) {
+		return quizProgressService.getSummary(quizSetId, requester);
 	}
 
 	/**
