@@ -1,3 +1,3 @@
 export * from './analytics-apis';
 
-export { useGetAnalyticsOverview } from './analytics-hooks';
+export { useGetAnalyticsOverview, useGetClassAnalytics } from './analytics-hooks';
