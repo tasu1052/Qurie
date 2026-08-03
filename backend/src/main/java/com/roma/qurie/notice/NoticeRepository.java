@@ -51,4 +51,52 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
             @Param("masterType") NoticeAuthorType masterType,
             @Param("managerType") NoticeAuthorType managerType,
             Pageable pageable);
+
+    /**
+     * 매니저·학생 오디언스: 기업 전체 + 내 트랙 + 내 반 CLASS 공지.
+     * classId 등호 필터만 쓰면 ENTERPRISE/TRACK(classId null)가 전부 빠진다.
+     */
+    @Query(
+            value =
+                    """
+                    select new com.roma.qurie.notice.dto.NoticeResponse(
+                            n.id, n.scope, n.trackId, n.classId,
+                            coalesce(track.name, target.name),
+                            n.title, n.body, n.pinned,
+                            coalesce(master.name, manager.name),
+                            n.createdAt)
+                    from Notice n
+                    left join Track track on track.id = n.trackId
+                    left join ClassEntity target on target.id = n.classId
+                    left join Master master on master.id = n.createdBy and n.createdByType = :masterType
+                    left join User manager on manager.id = n.createdBy and n.createdByType = :managerType
+                    where n.enterprise.id = :enterpriseId
+                        and (:scope is null or n.scope = :scope)
+                        and (
+                            n.scope = com.roma.qurie.notice.NoticeScope.ENTERPRISE
+                            or (n.scope = com.roma.qurie.notice.NoticeScope.TRACK and n.trackId = :trackId)
+                            or (n.scope = com.roma.qurie.notice.NoticeScope.CLASS and n.classId = :classId)
+                        )
+                    order by n.pinned desc, n.createdAt desc
+                    """,
+            countQuery =
+                    """
+                    select count(n.id)
+                    from Notice n
+                    where n.enterprise.id = :enterpriseId
+                        and (:scope is null or n.scope = :scope)
+                        and (
+                            n.scope = com.roma.qurie.notice.NoticeScope.ENTERPRISE
+                            or (n.scope = com.roma.qurie.notice.NoticeScope.TRACK and n.trackId = :trackId)
+                            or (n.scope = com.roma.qurie.notice.NoticeScope.CLASS and n.classId = :classId)
+                        )
+                    """)
+    Page<NoticeResponse> findAudienceNotices(
+            @Param("enterpriseId") Long enterpriseId,
+            @Param("scope") NoticeScope scope,
+            @Param("trackId") Long trackId,
+            @Param("classId") Long classId,
+            @Param("masterType") NoticeAuthorType masterType,
+            @Param("managerType") NoticeAuthorType managerType,
+            Pageable pageable);
 }

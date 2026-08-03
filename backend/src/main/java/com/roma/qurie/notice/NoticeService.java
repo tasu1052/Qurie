@@ -36,13 +36,22 @@ public class NoticeService {
     /**
      * 공지 목록을 조회하는 함수. 마스터 대시보드의 공지 카드도 size 로 상위 N개만 잘라 쓴다.
      *
-     * todo: 지금은 요청자의 기업 공지 전체를 돌려준다. 학생·매니저에게 "내 트랙·클래스 공지만" 보이게 하려면
-     *       소속을 알 수 있는 class_user 테이블이 필요하다.
+     * @param forAudience true 이면 매니저·학생용: 기업 전체 + 내 트랙 + 내 반 CLASS 만.
+     *                    classId 등호 필터만 쓰면 MASTER 가 올린 ENTERPRISE/TRACK 공지가 빠진다.
      */
     @Transactional(readOnly = true)
     public PageResponse<NoticeResponse> getNotices(
-            AuthUser requester, NoticeScope scope, Long trackId, Long classId, Pageable pageable) {
+            AuthUser requester,
+            NoticeScope scope,
+            Long trackId,
+            Long classId,
+            boolean forAudience,
+            Pageable pageable) {
         requireAuthenticated(requester);
+
+        if (forAudience) {
+            return PageResponse.from(findAudienceNotices(requester, scope, classId, pageable));
+        }
 
         Page<NoticeResponse> notices =
                 noticeRepository.findNotices(
@@ -55,6 +64,34 @@ public class NoticeService {
                         toPageRequest(pageable));
 
         return PageResponse.from(notices);
+    }
+
+    private Page<NoticeResponse> findAudienceNotices(
+            AuthUser requester, NoticeScope scope, Long classIdParam, Pageable pageable) {
+        Long classId = classIdParam != null ? classIdParam : requester.classId();
+        if (classId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "오디언스 조회에는 클래스 정보가 필요합니다.");
+        }
+
+        ClassEntity classEntity = classRepository.findById(classId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "클래스를 찾을 수 없습니다."));
+        if (!classEntity.getTrack().getEnterprise().getId().equals(requester.enterpriseId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "다른 기업의 클래스 공지는 조회할 수 없습니다.");
+        }
+        // 매니저·학생은 자기 반만. 마스터가 forAudience 로 조회할 일은 드물지만 기업 일치만 본다.
+        if (!isMaster(requester) && requester.classId() != null && !requester.classId().equals(classId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "담당 클래스 공지만 조회할 수 있습니다.");
+        }
+
+        Long trackId = classEntity.getTrack().getId();
+        return noticeRepository.findAudienceNotices(
+                requester.enterpriseId(),
+                scope,
+                trackId,
+                classId,
+                NoticeAuthorType.MASTER,
+                NoticeAuthorType.MANAGER,
+                toPageRequest(pageable));
     }
 
     /**

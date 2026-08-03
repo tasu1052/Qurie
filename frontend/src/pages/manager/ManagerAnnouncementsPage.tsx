@@ -148,6 +148,8 @@ function ManagerAnnouncementsBody({ classId }: { classId: number }) {
       size: 50,
       scope: scope === '전체' ? undefined : scope,
       classId,
+      // classId 등호만 쓰면 MASTER ENTERPRISE/TRACK 공지가 빠진다.
+      forAudience: true as const,
     }),
     [scope, classId],
   );

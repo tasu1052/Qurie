@@ -33,11 +33,8 @@ public class NoticeController {
     /**
      * 공지 목록 조회. 마스터 대시보드의 공지 카드는 size=5 로 상위 5건만 잘라 쓴다.
      *
-     * todo: 정렬은 고정 공지 우선 + 최신순으로 고정되어 있다. 공지사항 화면(1h)에서 다른 정렬이
-     *       필요해지면 sort 파라미터를 받도록 확장해야 한다.
-     * todo: 클래스 홈(1m)의 includeEnterprise=true(클래스 공지 + 기업 전체 공지 함께 조회)는 아직 없다.
-     *
-     * @param scope: ENTERPRISE / TRACK / CLASS. 없으면 전체
+     * @param scope ENTERPRISE / TRACK / CLASS. 없으면 전체(또는 오디언스 합집합)
+     * @param forAudience true 이면 기업 전체 + 내 트랙 + 내 반 CLASS (매니저·학생 홈/목록용)
      */
     @GetMapping
     public PageResponse<NoticeResponse> list(
@@ -45,8 +42,9 @@ public class NoticeController {
             @RequestParam(name = "scope", required = false) NoticeScope scope,
             @RequestParam(name = "trackId", required = false) Long trackId,
             @RequestParam(name = "classId", required = false) Long classId,
+            @RequestParam(name = "forAudience", defaultValue = "false") boolean forAudience,
             @PageableDefault(size = 20) Pageable pageable) {
-        return noticeService.getNotices(requester, scope, trackId, classId, pageable);
+        return noticeService.getNotices(requester, scope, trackId, classId, forAudience, pageable);
     }
 
     /** 공지사항 생성 (MASTER) */
