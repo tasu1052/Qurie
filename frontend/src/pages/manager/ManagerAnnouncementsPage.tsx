@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import { Pencil, Pin, Plus, Trash2 } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
@@ -370,6 +371,7 @@ function ManagerAnnouncementsBody({ classId }: { classId: number }) {
 
 function ManagerAnnouncementsGate() {
   const { data: me } = useMe();
+  const navigate = useNavigate();
   const [rowKey, setRowKey] = useState(0);
   const classId = me.classId;
 
@@ -378,6 +380,8 @@ function ManagerAnnouncementsGate() {
       <EmptyState
         message="담당 클래스가 없습니다"
         description="계정에 classId가 없어 공지를 작성·조회할 수 없습니다."
+        actionLabel="대시보드"
+        onAction={() => navigate('/manager')}
       />
     );
   }

@@ -197,6 +197,8 @@ export default function SessionPage() {
       projectId: remote.id,
       versionHash: remote.versionHash ?? '',
     };
+    // remote poll → local project binding (intentional sync from query)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- keep editor tree in sync with GET /projects/current
     setProjectRef((prev) => {
       if (prev?.projectId === next.projectId && prev.versionHash === next.versionHash) return prev;
       return next;
@@ -255,13 +257,14 @@ export default function SessionPage() {
     }
   };
 
-  /** 새로고침 후 활성 파일·확장자 언어를 복구하고, CRDT에 남은 문서는 경로 기준으로 언어를 맞춘다. */
+  /** 새로고침 후 활성 파일·확장자 언어를 복구한다. openFile 이 언어까지 세팅한다. */
   useEffect(() => {
     if (!hasSessionId || !projectRef || hydratedActiveFileRef.current) return;
     hydratedActiveFileRef.current = true;
     const path = activeFile ?? loadSessionActiveFile(sessionId);
     if (!path) return;
-    applyLanguageFromPath(path);
+    // hydrate once after project bind — openFile updates editor language/content
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot restore of last active file
     void openFile(projectRef.projectId, path);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 최초 프로젝트 바인딩 시에만 복구
   }, [hasSessionId, sessionId, projectRef?.projectId]);

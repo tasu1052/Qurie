@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { StudentShell, PageMain } from '../../components/layout/StudentShell';
 import {
   AlertBanner,
@@ -177,6 +178,7 @@ function SessionCard({
 }
 
 function StudentDashWithClass({ classId }: { classId: number }) {
+  const navigate = useNavigate();
   const { data: me } = useMe();
   const { data: myClasses } = useGetMyClasses();
   const { data: sessions } = useGetSessions(classId);
@@ -257,7 +259,12 @@ function StudentDashWithClass({ classId }: { classId: number }) {
           <QueryAsyncBoundary
             suspenseFallback={<Skeleton width="100%" height={260} radius={16} />}
             errorFallback={
-              <EmptyState message="그룹을 불러오지 못했습니다" description="잠시 후 다시 시도해 주세요." />
+              <EmptyState
+                message="그룹을 불러오지 못했습니다"
+                description="잠시 후 다시 시도해 주세요."
+                actionLabel="새로고침"
+                onAction={() => window.location.reload()}
+              />
             }
           >
             <MyGroupPanel groupId={myGroupId} onlineUserIds={onlineUserIds} />
@@ -274,6 +281,8 @@ function StudentDashWithClass({ classId }: { classId: number }) {
             <EmptyState
               message="배정된 그룹이 없습니다"
               description="강사가 그룹을 만들면 구성원과 접속 정보가 여기에 보여요."
+              actionLabel="마이페이지"
+              onAction={() => navigate('/app/me')}
             />
           </div>
         )}
@@ -306,6 +315,8 @@ function StudentDashWithClass({ classId }: { classId: number }) {
             <EmptyState
               message="입장할 세션이 없습니다"
               description="수업 공개 세션 또는 내 그룹 세션이 열리면 표시돼요."
+              actionLabel="종합 리포트"
+              onAction={() => navigate('/app/report')}
             />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -355,6 +366,7 @@ function StudentDashWithClass({ classId }: { classId: number }) {
 }
 
 function StudentDashBody() {
+  const navigate = useNavigate();
   const { data: me } = useMe();
   const { data: myClasses } = useGetMyClasses();
   const classId = me.classId ?? myClasses[0]?.id ?? null;
@@ -364,6 +376,8 @@ function StudentDashBody() {
       <EmptyState
         message="소속 클래스가 없습니다"
         description="클래스에 배정되면 세션과 대시보드가 표시돼요."
+        actionLabel="마이페이지"
+        onAction={() => navigate('/app/me')}
       />
     );
   }

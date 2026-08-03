@@ -40,12 +40,11 @@ export const useUpdateStudentComment = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({
-            commentId,
-            userId,
-            ...body
-        }: StudentCommentUpdateRequest & { commentId: number; userId: number }) =>
-            updateStudentComment(commentId, body),
+        mutationFn: (vars: StudentCommentUpdateRequest & { commentId: number; userId: number }) => {
+            const { commentId, userId, ...body } = vars;
+            void userId;
+            return updateStudentComment(commentId, body);
+        },
         onSuccess: (_, { userId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.comments.byUser(userId) });
         },
