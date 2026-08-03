@@ -58,19 +58,28 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            @Value("${springdoc.api-docs.enabled:true}") boolean apiDocsEnabled) throws Exception {
         http.cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(auth -> auth
-                        // sendError 로 만들어지는 모든 에러 응답(403/404/405...)은 /error 재디스패치를
-                        // 거쳐 본문이 채워진다. 이 디스패치를 막으면 에러가 전부 본문 없는 401로 둔갑한다.
-                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/invitations/*").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/quiz/*/callback").permitAll()
-                        .anyRequest().authenticated())
+                .authorizeHttpRequests(auth -> {
+                    // API 문서는 springdoc 활성화(로컬 기본 on, 운영은 SWAGGER_ENABLED=false 로 off)와
+                    // 함께 열고 닫는다 — 꺼진 운영에서는 화이트리스트도 남기지 않는다.
+                    if (apiDocsEnabled) {
+                        auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
+                    }
+                    auth
+                            // sendError 로 만들어지는 모든 에러 응답(403/404/405...)은 /error 재디스패치를
+                            // 거쳐 본문이 채워진다. 이 디스패치를 막으면 에러가 전부 본문 없는 401로 둔갑한다.
+                            .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                            .requestMatchers("/api/auth/**").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/invitations/*").permitAll()
+                            .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
+                            .requestMatchers(HttpMethod.POST, "/api/quiz/*/callback").permitAll()
+                            .anyRequest().authenticated();
+                })
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint()))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
