@@ -99,6 +99,14 @@ export const getGroupDetail = async (groupId: number): Promise<GroupDetailRespon
     return data;
 };
 
+/** 내가 속한 그룹(상세). 학생 대시보드용 — 반 전체 회원 API 대신 사용한다. */
+export const getMyGroups = async (classId: number): Promise<GroupDetailResponse[]> => {
+    const { data } = await axiosInstance.get<GroupDetailResponse[]>('/groups/mine', {
+        params: { classId },
+    });
+    return data;
+};
+
 export const getGroupCandidates = async (
     classId: number,
 ): Promise<GroupMemberCandidateResponse[]> => {

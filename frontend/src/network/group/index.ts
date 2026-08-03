@@ -10,6 +10,7 @@ export {
     useGetGroupCandidatesQuery,
     useGetGroupDetail,
     useGetGroups,
+    useGetMyGroups,
     useShuffleGroups,
     useUpdateGroup,
 } from './group-hooks';

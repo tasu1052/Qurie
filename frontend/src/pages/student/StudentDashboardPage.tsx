@@ -12,11 +12,11 @@ import {
 } from '../../ds';
 import {
   QueryAsyncBoundary,
-  useGetClassMembers,
-  useGetGroupDetail,
   useGetMyClasses,
+  useGetMyGroups,
   useGetSessions,
   useMe,
+  type GroupDetailResponse,
   type GroupMemberResponse,
   type SessionResponse,
 } from '../../data';
@@ -52,13 +52,12 @@ function openSessionInNewTab(
 }
 
 function MyGroupPanel({
-  groupId,
+  detail,
   onlineUserIds,
 }: {
-  groupId: number;
+  detail: GroupDetailResponse;
   onlineUserIds: Set<number>;
 }) {
-  const { data: detail } = useGetGroupDetail(groupId);
   const leader = detail.members.find((m) => m.role === 'LEADER');
 
   return (
@@ -182,15 +181,12 @@ function StudentDashWithClass({ classId }: { classId: number }) {
   const { data: me } = useMe();
   const { data: myClasses } = useGetMyClasses();
   const { data: sessions } = useGetSessions(classId);
-  const { data: membersPage } = useGetClassMembers(classId, { size: 200 });
+  const { data: myGroups } = useGetMyGroups(classId);
   const [popupBlockedSessionId, setPopupBlockedSessionId] = useState<number | null>(null);
 
   const className = myClasses.find((c) => c.id === classId)?.name ?? '내 클래스';
-  const meMember = useMemo(
-    () => membersPage.data.find((m) => m.userId === me.id) ?? null,
-    [membersPage.data, me.id],
-  );
-  const myGroupId = meMember?.groupId ?? null;
+  const myGroup = myGroups[0] ?? null;
+  const myGroupId = myGroup?.id ?? null;
 
   const activeSessions = useMemo(() => sessions.filter((s) => s.active), [sessions]);
   const joinableSessions = useMemo(
@@ -255,20 +251,8 @@ function StudentDashWithClass({ classId }: { classId: number }) {
       ) : null}
 
       <div className="qurie-master-split" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
-        {myGroupId != null ? (
-          <QueryAsyncBoundary
-            suspenseFallback={<Skeleton width="100%" height={260} radius={16} />}
-            errorFallback={
-              <EmptyState
-                message="그룹을 불러오지 못했습니다"
-                description="잠시 후 다시 시도해 주세요."
-                actionLabel="새로고침"
-                onAction={() => window.location.reload()}
-              />
-            }
-          >
-            <MyGroupPanel groupId={myGroupId} onlineUserIds={onlineUserIds} />
-          </QueryAsyncBoundary>
+        {myGroup != null ? (
+          <MyGroupPanel detail={myGroup} onlineUserIds={onlineUserIds} />
         ) : (
           <div
             style={{
