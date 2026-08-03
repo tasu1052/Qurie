@@ -21,6 +21,12 @@ import {
   loadSessionQuizSetId,
   saveSessionQuizSetId,
 } from './sessionProjectStorage';
+import {
+  pathsInQuizScope,
+  QuizSourcePickerModal,
+  sortQuizTargetFiles,
+  type QuizSourceSelection,
+} from './QuizSourcePickerModal';
 import { AlertBanner, AsyncJobPanel, Badge, Button, Input, Select } from '../../ds';
 
 type SessionQuizPanelProps = {
@@ -409,6 +415,8 @@ export function SessionQuizPanel({
   /** 이번 화면에서 방금 생성한 퀴즈셋. 서버/스토리지 복원값과 합쳐 active id 를 고른다. */
   const [createdQuizSetId, setCreatedQuizSetId] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [lastSource, setLastSource] = useState<QuizSourceSelection | null>(null);
   const [satisfactionRating, setSatisfactionRating] = useState(0);
   const [satisfactionComment, setSatisfactionComment] = useState('');
   /** 닫거나 제출한 퀴즈셋 — 같은 세트에 대해 다시 띄우지 않는다. */
@@ -475,7 +483,18 @@ export function SessionQuizPanel({
     !alreadyRated &&
     satisfactionDismissedFor !== activeQuizSetId;
 
-  const onGenerate = async () => {
+  const openSourcePicker = () => {
+    if (!isInstructor || projectId == null) return;
+    const n = Number(count);
+    if (!Number.isFinite(n) || n < 1 || n > 20) {
+      setFormError('문항 수는 1–20 사이여야 합니다.');
+      return;
+    }
+    setFormError(null);
+    setPickerOpen(true);
+  };
+
+  const onGenerateFromSource = async (selection: QuizSourceSelection) => {
     if (!isInstructor || projectId == null) return;
     const n = Number(count);
     if (!Number.isFinite(n) || n < 1 || n > 20) {
@@ -488,21 +507,24 @@ export function SessionQuizPanel({
       try {
         await refresh();
       } catch {
-        // refresh 실패해도 getMe/파일 요청의 axios interceptor 가 한 번 더 시도한다.
+        // refresh 실패해도 getMe/파일 요청에서 axios interceptor 가 한 번 더 시도한다.
       }
 
       const fileSummaries = await getProjectFiles(projectId);
-      const files: Record<string, string> = {};
-      // 동시 다발 GET 은 refresh 토큰 회전과 충돌하기 쉬워 순차로 읽는다.
-      for (const f of fileSummaries.slice(0, 40)) {
-        const body = await getProjectFileContent(projectId, f.path);
-        files[body.path] = body.content;
-      }
-      if (Object.keys(files).length === 0) {
-        setFormError('퀴즈 생성에 쓸 파일이 없습니다. 프로젝트를 먼저 임포트하세요.');
+      const allPaths = fileSummaries.map((f) => f.path);
+      const scopedPaths = sortQuizTargetFiles(pathsInQuizScope(allPaths, selection)).slice(0, 40);
+      if (scopedPaths.length === 0) {
+        setFormError('선택한 대상에 퀴즈 생성에 쓸 파일이 없습니다.');
         return;
       }
-      // Git versionHash 미구현 — 서버 @NotBlank/@Size(max=64) 만 만족하는 임의 값.
+
+      const files: Record<string, string> = {};
+      // 동시 다발 GET 은 refresh 토큰 회전과 충돌하기 쉬워 순차로 읽는다.
+      for (const path of scopedPaths) {
+        const body = await getProjectFileContent(projectId, path);
+        files[body.path] = body.content;
+      }
+
       const resolvedVersionHash = resolveQuizVersionHash(versionHash, projectId);
       generateQuiz.mutate(
         {
@@ -514,12 +536,15 @@ export function SessionQuizPanel({
           ratioHard: 1,
           userPrompt: userPrompt.trim() || undefined,
           versionHash: resolvedVersionHash,
+          targetFiles: scopedPaths,
           files,
         },
         {
           onSuccess: (res) => {
             setCreatedQuizSetId(res.quizSetId);
             saveSessionQuizSetId(sessionId, res.quizSetId);
+            setLastSource(selection);
+            setPickerOpen(false);
             setSatisfactionDismissedFor(null);
             setSatisfactionRating(0);
             setSatisfactionComment('');
@@ -661,9 +686,28 @@ export function SessionQuizPanel({
             />
           </label>
 
-          <Button variant="primary" disabled={!canGenerate} onClick={() => void onGenerate()}>
+          <Button variant="primary" disabled={!canGenerate} onClick={openSourcePicker}>
             {generateQuiz.isPending || generatingInFlight ? '생성 중…' : '퀴즈 생성'}
           </Button>
+          {lastSource ? (
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+              출제 대상:{' '}
+              {lastSource.kind === 'dir' ? `${lastSource.path}/` : lastSource.path}
+            </span>
+          ) : null}
+
+          {pickerOpen && projectId != null ? (
+            <QuizSourcePickerModal
+              open={pickerOpen}
+              projectId={projectId}
+              initialSelection={lastSource}
+              confirming={generateQuiz.isPending}
+              onClose={() => setPickerOpen(false)}
+              onConfirm={(selection) => {
+                void onGenerateFromSource(selection);
+              }}
+            />
+          ) : null}
         </>
       ) : null}
 

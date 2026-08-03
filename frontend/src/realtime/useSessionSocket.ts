@@ -7,6 +7,13 @@ import { useGetSessionPresence } from '../network/session';
 import type { ChatMessageResponse, SessionParticipantResponse } from '../network/session';
 import type { QuizSetStatus } from '../network/quiz';
 import { normalizeQuizSetStatus } from '../network/quiz';
+import { useGetVoicePresence } from '../network/voice';
+import type {
+  VoiceChannelEventResponse,
+  VoiceParticipantResponse,
+  VoiceSignalRequest,
+  VoiceSignalResponse,
+} from '../network/voice';
 import { createStompClient, sessionDestinations } from './stompClient';
 
 export type SessionSocketStatus = 'idle' | 'connecting' | 'connected' | 'disconnected';
@@ -42,6 +49,7 @@ interface ChatErrorPayload {
 }
 
 const EMPTY_PARTICIPANTS: SessionParticipantResponse[] = [];
+const EMPTY_VOICE: VoiceParticipantResponse[] = [];
 
 /**
  * 서버가 입장 전 전송을 막을 때 쓰는 문구. 백엔드가 에러 코드를 주지 않아 메시지로 판별한다 —
@@ -52,39 +60,63 @@ const ENTER_REQUIRED_HINT = '입장';
 interface UseSessionSocketOptions {
   /** 퀴즈 생성 완료/실패 푸시. 캐시 무효화는 훅이 이미 처리하므로 UI 알림용으로만 쓴다. */
   onQuizNotification?: (notification: QuizGenerationNotification) => void;
+  /** 음성 시그널(offer/answer/ICE) 개인 토픽 구독·본인 join 판별용 */
+  myUserId?: number | null;
+  /**
+   * 연결 직후 음성 채널에 자동 입장할지.
+   * WebRTC 마이크 권한은 사용자 제스처가 필요하므로 기본 false — UI 버튼으로 join.
+   */
+  autoJoinVoice?: boolean;
 }
 
 /**
- * 세션 하나에 대한 STOMP 연결. 채팅 메시지 · 참여자 명단 · 퀴즈 생성 알림을 한 연결에서 받는다.
+ * 세션 하나에 대한 STOMP 연결.
+ * 채팅 · 참여자 · 퀴즈/프로젝트 알림 · 음성 채널을 한 연결에서 처리한다.
  *
  * 백엔드 계약상 순서가 중요하다: CONNECT → SUBSCRIBE → `/app/.../enter` → 그 뒤에야 메시지 전송이 허용된다
  * (SessionParticipantService#verifyPresent). 재연결 때도 같은 순서를 다시 밟아야 하므로
- * 구독과 입장은 전부 onConnect 안에서 처리한다.
+ * 구독과 입장은 언제나 onConnect 안에서 처리한다.
  *
  * @param sessionId 숫자 세션 id. null 이면 연결하지 않는다(목업·비로그인 화면).
  */
 export function useSessionSocket(sessionId: number | null, options: UseSessionSocketOptions = {}) {
-  const { onQuizNotification } = options;
+  const { onQuizNotification, myUserId = null, autoJoinVoice = false } = options;
   const queryClient = useQueryClient();
 
   const [status, setStatus] = useState<SessionSocketStatus>(sessionId == null ? 'idle' : 'connecting');
   const [liveMessages, setLiveMessages] = useState<ChatMessageResponse[]>([]);
   /** null = 아직 participants 이벤트를 받지 못함 → REST 로 받은 명단을 보여준다. */
   const [socketParticipants, setSocketParticipants] = useState<SessionParticipantResponse[] | null>(null);
+  const [voiceParticipants, setVoiceParticipants] = useState<VoiceParticipantResponse[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastQuizNotification, setLastQuizNotification] = useState<QuizGenerationNotification | null>(null);
+  /** useSessionVoice 가 큐를 드레인할 때마다 올려 리렌더를 유도한다. */
+  const [voiceSignalTick, setVoiceSignalTick] = useState(0);
 
   const clientRef = useRef<Client | null>(null);
   /** 마지막으로 보낸 내용 — 입장 누락으로 거부됐을 때 한 번만 재전송한다. */
   const lastOutgoingRef = useRef<string | null>(null);
   const retriedRef = useRef(false);
   const onQuizRef = useRef(onQuizNotification);
+  const myUserIdRef = useRef(myUserId);
+  const autoJoinVoiceRef = useRef(autoJoinVoice);
+  /** WebRTC 시그널 유실 방지용 큐 — React state 배치에 의존하지 않는다. */
+  const voiceSignalQueueRef = useRef<VoiceSignalResponse[]>([]);
 
   useEffect(() => {
     onQuizRef.current = onQuizNotification;
   }, [onQuizNotification]);
 
+  useEffect(() => {
+    myUserIdRef.current = myUserId;
+  }, [myUserId]);
+
+  useEffect(() => {
+    autoJoinVoiceRef.current = autoJoinVoice;
+  }, [autoJoinVoice]);
+
   const presence = useGetSessionPresence(sessionId);
+  const voicePresence = useGetVoicePresence(sessionId);
 
   useEffect(() => {
     if (sessionId == null) {
@@ -131,6 +163,12 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
         queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(notification.projectId) });
       });
 
+      client.subscribe(sessionDestinations.voice(sessionId), (frame: IMessage) => {
+        const event = JSON.parse(frame.body) as VoiceChannelEventResponse;
+        setVoiceParticipants(event.participants);
+        queryClient.setQueryData(queryKeys.voice.participants(sessionId), event.participants);
+      });
+
       client.subscribe(sessionDestinations.errors, (frame: IMessage) => {
         const payload = JSON.parse(frame.body) as ChatErrorPayload;
         const pending = lastOutgoingRef.current;
@@ -147,6 +185,9 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
       });
 
       client.publish({ destination: sessionDestinations.enter(sessionId) });
+      if (autoJoinVoiceRef.current) {
+        client.publish({ destination: sessionDestinations.voiceJoin(sessionId) });
+      }
       setStatus('connected');
     };
 
@@ -167,6 +208,7 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
      */
     const unsubscribeLogout = onLogout(() => {
       if (client.connected) {
+        client.publish({ destination: sessionDestinations.voiceLeave(sessionId) });
         client.publish({ destination: sessionDestinations.leave(sessionId) });
       }
       void client.deactivate();
@@ -177,17 +219,37 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
     return () => {
       unsubscribeLogout();
       if (client.connected) {
+        client.publish({ destination: sessionDestinations.voiceLeave(sessionId) });
         client.publish({ destination: sessionDestinations.leave(sessionId) });
       }
       void client.deactivate();
       clientRef.current = null;
       retriedRef.current = false;
       lastOutgoingRef.current = null;
+      voiceSignalQueueRef.current = [];
       setLiveMessages([]);
       setSocketParticipants(null);
+      setVoiceParticipants(null);
+      setVoiceSignalTick(0);
       setStatus('connecting');
     };
   }, [sessionId, queryClient]);
+
+  /** me 가 CONNECT 이후에 로드돼도 개인 시그널 토픽을 놓치지 않도록 별도 구독한다. */
+  useEffect(() => {
+    const client = clientRef.current;
+    if (sessionId == null || myUserId == null || status !== 'connected' || !client?.connected) {
+      return;
+    }
+    const sub = client.subscribe(sessionDestinations.voiceSignal(sessionId, myUserId), (frame: IMessage) => {
+      const signal = JSON.parse(frame.body) as VoiceSignalResponse;
+      voiceSignalQueueRef.current.push(signal);
+      setVoiceSignalTick((n) => n + 1);
+    });
+    return () => {
+      sub.unsubscribe();
+    };
+  }, [sessionId, myUserId, status]);
 
   /**
    * 이 연결에서 받은 메시지만 보여준다 — 방을 나가면 화면에서 지워지는 것이 정책이라
@@ -201,6 +263,13 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
     }
     return [...byId.values()].sort((a, b) => a.id - b.id);
   }, [liveMessages]);
+
+  const resolvedVoice = voiceParticipants ?? voicePresence.data ?? EMPTY_VOICE;
+  const myVoice = useMemo(
+    () => (myUserId == null ? null : (resolvedVoice.find((p) => p.userId === myUserId) ?? null)),
+    [resolvedVoice, myUserId],
+  );
+  const voiceJoined = myVoice != null;
 
   const sendMessage = useCallback(
     (content: string) => {
@@ -225,6 +294,61 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
     [sessionId],
   );
 
+  const joinVoice = useCallback(() => {
+    const client = clientRef.current;
+    if (sessionId == null || !client?.connected) return false;
+    client.publish({ destination: sessionDestinations.voiceJoin(sessionId) });
+    return true;
+  }, [sessionId]);
+
+  const leaveVoice = useCallback(() => {
+    const client = clientRef.current;
+    if (sessionId == null || !client?.connected) return false;
+    client.publish({ destination: sessionDestinations.voiceLeave(sessionId) });
+    return true;
+  }, [sessionId]);
+
+  const updateVoiceState = useCallback(
+    (next: { micMuted: boolean; deafened: boolean }) => {
+      const client = clientRef.current;
+      if (sessionId == null || !client?.connected) return false;
+      client.publish({
+        destination: sessionDestinations.voiceState(sessionId),
+        body: JSON.stringify(next),
+      });
+      return true;
+    },
+    [sessionId],
+  );
+
+  const sendVoiceSignal = useCallback(
+    (request: VoiceSignalRequest) => {
+      const client = clientRef.current;
+      if (sessionId == null || !client?.connected) return false;
+      client.publish({
+        destination: sessionDestinations.voiceSignalSend(sessionId),
+        body: JSON.stringify(request),
+      });
+      return true;
+    },
+    [sessionId],
+  );
+
+  const toggleMic = useCallback(() => {
+    if (!myVoice) return false;
+    return updateVoiceState({ micMuted: !myVoice.micMuted, deafened: myVoice.deafened });
+  }, [myVoice, updateVoiceState]);
+
+  const toggleDeafened = useCallback(() => {
+    if (!myVoice) return false;
+    // 서버가 deafened → micMuted 를 강제하므로 UI도 같이 맞춘다.
+    const nextDeafened = !myVoice.deafened;
+    return updateVoiceState({
+      micMuted: nextDeafened ? true : myVoice.micMuted,
+      deafened: nextDeafened,
+    });
+  }, [myVoice, updateVoiceState]);
+
   const dismissError = useCallback(() => setError(null), []);
 
   return {
@@ -232,6 +356,17 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
     status: sessionId == null ? 'idle' : status,
     messages,
     participants: socketParticipants ?? presence.data ?? EMPTY_PARTICIPANTS,
+    voiceParticipants: resolvedVoice,
+    voiceJoined,
+    myVoice,
+    joinVoice,
+    leaveVoice,
+    toggleMic,
+    toggleDeafened,
+    updateVoiceState,
+    sendVoiceSignal,
+    voiceSignalQueueRef,
+    voiceSignalTick,
     error,
     dismissError,
     sendMessage,
