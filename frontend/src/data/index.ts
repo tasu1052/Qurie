@@ -153,6 +153,7 @@ export {
   useGetGroup,
   useGetGroupDetail,
   useGetGroupCandidates,
+  useGetGroupCandidatesQuery,
   useUpdateGroup,
   useEditGroup,
   useDuplicateGroup,

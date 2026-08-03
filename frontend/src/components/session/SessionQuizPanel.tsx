@@ -59,6 +59,17 @@ function apiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+/**
+ * 백엔드 QuizGenerateRequest.versionHash 는 @NotBlank @Size(max=64).
+ * Git 버전 해시는 미구현이므로, 비어 있으면 프로젝트 기준 임의 식별자를 넣는다.
+ */
+function resolveQuizVersionHash(versionHash: string | null | undefined, projectId: number): string {
+  const trimmed = versionHash?.trim() ?? '';
+  if (trimmed.length > 0) return trimmed.slice(0, 64);
+  const stamp = Date.now().toString(16);
+  return `local-${projectId}-${stamp}`.slice(0, 64);
+}
+
 function QuizMetaRow({
   difficulty,
   purpose,
@@ -250,36 +261,24 @@ export function SessionQuizPanel({
   const [mode, setMode] = useState<QuizGenerationMode>('PRACTICE');
   const [count, setCount] = useState('5');
   const [userPrompt, setUserPrompt] = useState('');
-  const [quizSetId, setQuizSetId] = useState<number | null>(() => loadSessionQuizSetId(sessionId));
+  /** 이번 화면에서 방금 생성한 퀴즈셋. 서버/스토리지 복원값과 합쳐 active id 를 고른다. */
+  const [createdQuizSetId, setCreatedQuizSetId] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [satisfactionOpen, setSatisfactionOpen] = useState(false);
   const [satisfactionRating, setSatisfactionRating] = useState(0);
   const [satisfactionComment, setSatisfactionComment] = useState('');
-  const [satisfactionDoneFor, setSatisfactionDoneFor] = useState<number | null>(null);
+  /** 모달을 닫거나 제출한 퀴즈셋 — 같은 세트에 대해 다시 띄우지 않는다. */
+  const [satisfactionDismissedFor, setSatisfactionDismissedFor] = useState<number | null>(null);
 
   const projectQuizSets = useQuizSetsByProject(projectId);
 
-  /** 서버 목록·sessionStorage·소켓 푸시 중 가장 최근 퀴즈셋을 고른다. */
-  useEffect(() => {
+  const activeQuizSetId = useMemo(() => {
     const cached = loadSessionQuizSetId(sessionId);
-    const latest = projectQuizSets.data?.[0];
-    const fromServer = latest?.quizSetId ?? null;
-    const candidates = [cached, fromServer, pushedQuizSetId].filter(
+    const fromServer = projectQuizSets.data?.[0]?.quizSetId ?? null;
+    const candidates = [cached, fromServer, pushedQuizSetId, createdQuizSetId].filter(
       (id): id is number => typeof id === 'number' && id > 0,
     );
-    if (candidates.length === 0) return;
-    const next = Math.max(...candidates);
-    setQuizSetId((prev) => {
-      if (prev === next) return prev;
-      saveSessionQuizSetId(sessionId, next);
-      return next;
-    });
-  }, [sessionId, projectQuizSets.data, pushedQuizSetId]);
-
-  const activeQuizSetId =
-    pushedQuizSetId != null && (quizSetId == null || pushedQuizSetId > quizSetId)
-      ? pushedQuizSetId
-      : quizSetId;
+    return candidates.length > 0 ? Math.max(...candidates) : null;
+  }, [sessionId, projectQuizSets.data, pushedQuizSetId, createdQuizSetId]);
 
   useEffect(() => {
     if (activeQuizSetId == null) return;
@@ -291,31 +290,25 @@ export function SessionQuizPanel({
   const poll = isInstructor ? managerPoll : studentPoll;
 
   const jobStatus = mapJobStatus(poll.data?.status);
-  const canGenerate =
-    isInstructor && projectId != null && versionHash != null && !generateQuiz.isPending;
+  const canGenerate = isInstructor && projectId != null && !generateQuiz.isPending;
 
   const summary = useMemo(() => poll.data ?? null, [poll.data]);
   const latestSummary = projectQuizSets.data?.[0] ?? null;
 
-  useEffect(() => {
-    if (!isInstructor || summary?.status !== 'COMPLETED' || activeQuizSetId == null) return;
-    if (satisfactionDoneFor === activeQuizSetId) return;
-    if (latestSummary?.quizSetId === activeQuizSetId && latestSummary.satisfactionRating != null) {
-      setSatisfactionDoneFor(activeQuizSetId);
-      return;
-    }
-    setSatisfactionOpen(true);
-  }, [
-    isInstructor,
-    summary?.status,
-    activeQuizSetId,
-    satisfactionDoneFor,
-    latestSummary?.quizSetId,
-    latestSummary?.satisfactionRating,
-  ]);
+  const alreadyRated =
+    activeQuizSetId != null &&
+    latestSummary?.quizSetId === activeQuizSetId &&
+    latestSummary.satisfactionRating != null;
+
+  const satisfactionOpen =
+    isInstructor &&
+    summary?.status === 'COMPLETED' &&
+    activeQuizSetId != null &&
+    !alreadyRated &&
+    satisfactionDismissedFor !== activeQuizSetId;
 
   const onGenerate = async () => {
-    if (!isInstructor || projectId == null || versionHash == null) return;
+    if (!isInstructor || projectId == null) return;
     const n = Number(count);
     if (!Number.isFinite(n) || n < 1 || n > 20) {
       setFormError('문항 수는 1–20 사이여야 합니다.');
@@ -341,6 +334,8 @@ export function SessionQuizPanel({
         setFormError('퀴즈 생성에 쓸 파일이 없습니다. 프로젝트를 먼저 임포트하세요.');
         return;
       }
+      // Git versionHash 미구현 — 서버 @NotBlank/@Size(max=64) 만 만족하는 임의 값.
+      const resolvedVersionHash = resolveQuizVersionHash(versionHash, projectId);
       generateQuiz.mutate(
         {
           projectId,
@@ -350,14 +345,14 @@ export function SessionQuizPanel({
           ratioNormal: 1,
           ratioHard: 1,
           userPrompt: userPrompt.trim() || undefined,
-          versionHash,
+          versionHash: resolvedVersionHash,
           files,
         },
         {
           onSuccess: (res) => {
-            setQuizSetId(res.quizSetId);
+            setCreatedQuizSetId(res.quizSetId);
             saveSessionQuizSetId(sessionId, res.quizSetId);
-            setSatisfactionDoneFor(null);
+            setSatisfactionDismissedFor(null);
           },
           onError: (err) => {
             setFormError(apiErrorMessage(err, '퀴즈 생성 요청에 실패했습니다.'));
@@ -367,6 +362,12 @@ export function SessionQuizPanel({
     } catch (err) {
       setFormError(apiErrorMessage(err, '프로젝트 파일을 불러오지 못했습니다.'));
     }
+  };
+
+  const dismissSatisfaction = () => {
+    if (activeQuizSetId != null) setSatisfactionDismissedFor(activeQuizSetId);
+    setSatisfactionComment('');
+    setSatisfactionRating(0);
   };
 
   const onSubmitSatisfaction = () => {
@@ -383,10 +384,7 @@ export function SessionQuizPanel({
       },
       {
         onSuccess: () => {
-          setSatisfactionDoneFor(activeQuizSetId);
-          setSatisfactionOpen(false);
-          setSatisfactionComment('');
-          setSatisfactionRating(0);
+          dismissSatisfaction();
         },
         onError: (err) => {
           setFormError(apiErrorMessage(err, '만족도 저장에 실패했습니다.'));
@@ -400,7 +398,7 @@ export function SessionQuizPanel({
     activeQuizSetId == null &&
     (projectQuizSets.isPending || projectQuizSets.isFetching);
 
-  if (activeQuizSetId == null && (projectId == null || versionHash == null) && !restoring) {
+  if (activeQuizSetId == null && projectId == null && !restoring) {
     return (
       <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>AI 퀴즈</span>
@@ -546,19 +544,13 @@ export function SessionQuizPanel({
 
       <Modal
         open={satisfactionOpen}
-        onClose={() => {
-          setSatisfactionOpen(false);
-          if (activeQuizSetId != null) setSatisfactionDoneFor(activeQuizSetId);
-        }}
+        onClose={dismissSatisfaction}
         title="퀴즈 만족도"
         description="생성된 퀴즈 품질을 평가해 주세요."
         primaryLabel={submitSatisfaction.isPending ? '저장 중…' : '제출'}
         secondaryLabel="나중에"
         onPrimary={onSubmitSatisfaction}
-        onSecondary={() => {
-          setSatisfactionOpen(false);
-          if (activeQuizSetId != null) setSatisfactionDoneFor(activeQuizSetId);
-        }}
+        onSecondary={dismissSatisfaction}
         width={420}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

@@ -47,10 +47,36 @@ public class GroupController {
         return groupService.getGroups(authUser, classId);
     }
 
+    /**
+     * 배정 후보 목록. 리터럴 경로를 `/{groupId}` 보다 앞에 둔다 —
+     * 뒤에 두면 groupId="candidates" 로 매칭되어 Long 변환 실패(400)가 난다.
+     */
+    @GetMapping("/candidates")
+    public List<GroupMemberCandidateResponse> candidates(
+            @AuthenticationPrincipal AuthUser authUser, @RequestParam("classId") Long classId) {
+        return groupService.getMemberCandidates(authUser, classId);
+    }
+
+    /**
+     * 랜덤 배정(셔플). 리터럴 경로를 path variable 보다 앞에 둔다.
+     */
+    @PostMapping("/shuffle")
+    public List<GroupDetailResponse> shuffle(@AuthenticationPrincipal AuthUser authUser,
+            @RequestParam("classId") Long classId, @Valid @RequestBody GroupShuffleRequest request) {
+        return groupService.shuffle(authUser, classId, request);
+    }
+
     /** 그룹 상세 조회 (MASTER, 소속 MANAGER·STUDENT) */
     @GetMapping("/{groupId}")
     public GroupResponse get(@AuthenticationPrincipal AuthUser authUser, @PathVariable("groupId") Long groupId) {
         return groupService.getGroup(authUser, groupId);
+    }
+
+    /** 그룹 상세 + 구성원 조회 (MASTER, 소속 MANAGER·STUDENT). 편집 화면의 초기 데이터 */
+    @GetMapping("/{groupId}/detail")
+    public GroupDetailResponse detail(
+            @AuthenticationPrincipal AuthUser authUser, @PathVariable("groupId") Long groupId) {
+        return groupService.getGroupDetail(authUser, groupId);
     }
 
     /** 그룹 수정 (MASTER, 담당 MANAGER) — PUT 전체 교체 */
@@ -66,20 +92,6 @@ public class GroupController {
             @AuthenticationPrincipal AuthUser authUser, @PathVariable("groupId") Long groupId) {
         groupService.delete(authUser, groupId);
         return ResponseEntity.noContent().build();
-    }
-
-    /** 그룹 상세 + 구성원 조회 (MASTER, 소속 MANAGER·STUDENT). 편집 화면의 초기 데이터 */
-    @GetMapping("/{groupId}/detail")
-    public GroupDetailResponse detail(
-            @AuthenticationPrincipal AuthUser authUser, @PathVariable("groupId") Long groupId) {
-        return groupService.getGroupDetail(authUser, groupId);
-    }
-
-    /** 배정 후보 목록. 반 인원 전체와 각자의 현재 그룹을 함께 돌려준다 */
-    @GetMapping("/candidates")
-    public List<GroupMemberCandidateResponse> candidates(
-            @AuthenticationPrincipal AuthUser authUser, @RequestParam("classId") Long classId) {
-        return groupService.getMemberCandidates(authUser, classId);
     }
 
     /** 그룹 편집 — 제목·설명·운영 기간·구성원을 한 번에 저장 (MASTER, 담당 MANAGER) */
@@ -98,15 +110,5 @@ public class GroupController {
         GroupDuplicateRequest body = request != null ? request : new GroupDuplicateRequest(null, null);
         GroupDetailResponse response = groupService.duplicate(authUser, groupId, body);
         return ResponseEntity.created(URI.create("/api/groups/" + response.id())).body(response);
-    }
-
-    /**
-     * 랜덤 배정(셔플) — 그룹 수만큼 그룹을 새로 만들어 반의 학생을 무작위로 나눠 담는다 (MASTER, 담당 MANAGER).
-     * 이미 배정된 인원이 있으면 409 를 돌려주며, 프론트가 경고 후 confirmed=true 로 재호출한다.
-     */
-    @PostMapping("/shuffle")
-    public List<GroupDetailResponse> shuffle(@AuthenticationPrincipal AuthUser authUser,
-            @RequestParam("classId") Long classId, @Valid @RequestBody GroupShuffleRequest request) {
-        return groupService.shuffle(authUser, classId, request);
     }
 }
