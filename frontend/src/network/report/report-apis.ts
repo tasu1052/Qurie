@@ -28,7 +28,7 @@ export const createUserReport = async (
     body: UserReportCreateRequest,
 ): Promise<UserReportCreateResponse> => {
     const { data } = await axiosInstance.post<UserReportCreateResponse>(
-        `/v1/users/${userId}/report-summary`,
+        `/users/${userId}/report-summary`,
         body,
     );
     return data;

@@ -49,10 +49,39 @@ export interface QuizItem {
 export interface QuizSetDetailResponse {
     quizSetId: number;
     status: QuizSetStatus;
+    generationStage: string | null;
     requestedCount: number;
     generatedCount: number;
     errorMessage: string | null;
     quizzes: QuizItem[];
+}
+
+export interface QuizQuestionChoiceItem {
+    idx: number;
+    content: string;
+}
+
+export interface QuizQuestionItem {
+    id: number;
+    type: QuizType;
+    difficulty: QuizDifficulty;
+    testedConcept: string;
+    question: string;
+    filePath: string;
+    lineStart: number | null;
+    lineEnd: number | null;
+    timeLimitSec: number;
+    orderNo: number;
+    choices: QuizQuestionChoiceItem[];
+}
+
+/** 학생 응시용 — 정답·해설 없음. */
+export interface QuizQuestionsResponse {
+    quizSetId: number;
+    status: QuizSetStatus;
+    generationStage: string | null;
+    requestedCount: number;
+    quizzes: QuizQuestionItem[];
 }
 
 export const generateQuiz = async (
@@ -67,5 +96,10 @@ export const generateQuiz = async (
 
 export const getQuizSet = async (quizSetId: number): Promise<QuizSetDetailResponse> => {
     const { data } = await axiosInstance.get<QuizSetDetailResponse>(`/quiz/${quizSetId}`);
+    return data;
+};
+
+export const getQuizQuestions = async (quizSetId: number): Promise<QuizQuestionsResponse> => {
+    const { data } = await axiosInstance.get<QuizQuestionsResponse>(`/quiz/${quizSetId}/questions`);
     return data;
 };

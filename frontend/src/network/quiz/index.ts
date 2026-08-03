@@ -1,3 +1,9 @@
 export * from './quiz-apis';
 
-export { useGenerateQuiz, useGetQuizSet, usePollQuizSet } from './quiz-hooks';
+export {
+    useGenerateQuiz,
+    useGetQuizQuestions,
+    useGetQuizSet,
+    usePollQuizQuestions,
+    usePollQuizSet,
+} from './quiz-hooks';
