@@ -52,8 +52,10 @@ export function useSessionVoice(options: UseSessionVoiceOptions) {
     signalTick,
   } = options;
 
-  const [status, setStatus] = useState<SessionVoiceStatus>('idle');
+  const [mediaStatus, setMediaStatus] = useState<'starting' | 'live' | 'error' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const channelActive = enabled && myUserId != null;
+  const status: SessionVoiceStatus = !channelActive ? 'idle' : (mediaStatus ?? 'starting');
 
   const localStreamRef = useRef<MediaStream | null>(null);
   const peersRef = useRef<Map<number, PeerSlot>>(new Map());
@@ -260,15 +262,14 @@ export function useSessionVoice(options: UseSessionVoiceOptions) {
     if (!enabled || myUserId == null) {
       closeAllPeers();
       stopLocalStream();
-      setStatus('idle');
       return;
     }
 
     let cancelled = false;
-    setStatus('starting');
-    setError(null);
 
     (async () => {
+      setMediaStatus('starting');
+      setError(null);
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -286,11 +287,11 @@ export function useSessionVoice(options: UseSessionVoiceOptions) {
           track.enabled = !micMutedRef.current;
         }
         localStreamRef.current = stream;
-        setStatus('live');
+        setMediaStatus('live');
       } catch (err) {
         if (cancelled) return;
         console.warn('[voice] getUserMedia failed', err);
-        setStatus('error');
+        setMediaStatus('error');
         setError('마이크 권한을 허용해야 음성 통화에 참여할 수 있습니다.');
         stopLocalStream();
       }

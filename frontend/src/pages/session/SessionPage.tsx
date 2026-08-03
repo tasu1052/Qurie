@@ -290,11 +290,13 @@ export default function SessionPage() {
     signalTick: chat.voiceSignalTick,
   });
 
+  const leaveVoice = chat.leaveVoice;
+
   /** 마이크 권한 거부 시 채널에서 나가 유령 참여자로 남지 않게 한다. */
   useEffect(() => {
     if (voiceRtc.status !== 'error' || !voiceJoined) return;
-    chat.leaveVoice();
-  }, [voiceRtc.status, voiceJoined, chat.leaveVoice]);
+    leaveVoice();
+  }, [voiceRtc.status, voiceJoined, leaveVoice]);
 
   const leaveDestination = () => {
     // 퇴장 직전 커서 awareness를 비워 다른 참가자 화면에 잔상이 남지 않게 한다.

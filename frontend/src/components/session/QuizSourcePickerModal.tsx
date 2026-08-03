@@ -1,14 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getProjectFiles } from '../../data';
 import { queryKeys } from '../../network/core/queryKeys';
 import { Modal } from '../../ds';
 import { SessionFileExplorer } from './SessionFileExplorer';
-
-export type QuizSourceSelection = {
-  path: string;
-  kind: 'file' | 'dir';
-};
+import {
+  pathsInQuizScope,
+  type QuizSourceSelection,
+} from './quizSourceScope';
 
 type QuizSourcePickerModalProps = {
   open: boolean;
@@ -19,50 +18,9 @@ type QuizSourcePickerModalProps = {
   onConfirm: (selection: QuizSourceSelection) => void;
 };
 
-/** 선택 경로에 포함되는 프로젝트 파일 목록. */
-export function pathsInQuizScope(allPaths: string[], selection: QuizSourceSelection): string[] {
-  if (selection.kind === 'file') {
-    return allPaths.filter((p) => p === selection.path);
-  }
-  const prefix = selection.path.endsWith('/') ? selection.path : `${selection.path}/`;
-  return allPaths.filter((p) => p === selection.path || p.startsWith(prefix));
-}
-
-const CODE_EXTS = [
-  '.ts',
-  '.tsx',
-  '.js',
-  '.jsx',
-  '.java',
-  '.py',
-  '.kt',
-  '.go',
-  '.c',
-  '.cpp',
-  '.h',
-  '.cs',
-  '.rs',
-  '.swift',
-];
-
-function isCodePath(path: string): boolean {
-  const lower = path.toLowerCase();
-  return CODE_EXTS.some((ext) => lower.endsWith(ext));
-}
-
-/** AI pick_primary 가 코드 파일을 먼저 고르도록 정렬. */
-export function sortQuizTargetFiles(paths: string[]): string[] {
-  return [...paths].sort((a, b) => {
-    const ac = isCodePath(a) ? 0 : 1;
-    const bc = isCodePath(b) ? 0 : 1;
-    if (ac !== bc) return ac - bc;
-    return a.localeCompare(b);
-  });
-}
-
 /**
  * 퀴즈 생성 전 출제 대상(파일 또는 폴더) 선택.
- * 세션 좌측과 같은 트리를 쓰고, 폴더는 chevron으로만 펼친다.
+ * open 될 때마다 Body 를 새로 마운트해 initialSelection 을 맞춘다(effect setState 회피).
  */
 export function QuizSourcePickerModal({
   open,
@@ -72,18 +30,31 @@ export function QuizSourcePickerModal({
   onClose,
   onConfirm,
 }: QuizSourcePickerModalProps) {
-  const [selection, setSelection] = useState<QuizSourceSelection | null>(initialSelection);
+  if (!open) return null;
+  return (
+    <QuizSourcePickerModalBody
+      key={`${initialSelection?.kind ?? 'none'}:${initialSelection?.path ?? ''}`}
+      projectId={projectId}
+      initialSelection={initialSelection}
+      confirming={confirming}
+      onClose={onClose}
+      onConfirm={onConfirm}
+    />
+  );
+}
 
-  useEffect(() => {
-    if (open) {
-      setSelection(initialSelection ?? null);
-    }
-  }, [open, initialSelection]);
+function QuizSourcePickerModalBody({
+  projectId,
+  initialSelection = null,
+  confirming = false,
+  onClose,
+  onConfirm,
+}: Omit<QuizSourcePickerModalProps, 'open'>) {
+  const [selection, setSelection] = useState<QuizSourceSelection | null>(initialSelection ?? null);
 
   const filesQuery = useQuery({
     queryKey: queryKeys.projects.files(projectId),
     queryFn: () => getProjectFiles(projectId),
-    enabled: open,
   });
 
   const allPaths = useMemo(
@@ -94,7 +65,6 @@ export function QuizSourcePickerModal({
   const scopedCount = useMemo(() => {
     if (!selection) return 0;
     if (!filesQuery.data) {
-      // 목록 로딩 중 — 파일 선택은 진행 가능, 폴더는 개수 확인 후
       return selection.kind === 'file' ? 1 : 0;
     }
     return pathsInQuizScope(allPaths, selection).length;
@@ -115,7 +85,7 @@ export function QuizSourcePickerModal({
 
   return (
     <Modal
-      open={open}
+      open
       title="출제 대상 선택"
       description="파일 또는 폴더를 하나 고르면 그 범위로 퀴즈를 생성합니다."
       width={480}

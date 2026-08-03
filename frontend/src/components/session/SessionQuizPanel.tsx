@@ -22,11 +22,13 @@ import {
   saveSessionQuizSetId,
 } from './sessionProjectStorage';
 import {
-  pathsInQuizScope,
   QuizSourcePickerModal,
+} from './QuizSourcePickerModal';
+import {
+  pathsInQuizScope,
   sortQuizTargetFiles,
   type QuizSourceSelection,
-} from './QuizSourcePickerModal';
+} from './quizSourceScope';
 import { AlertBanner, AsyncJobPanel, Badge, Button, Input, Select } from '../../ds';
 
 type SessionQuizPanelProps = {
