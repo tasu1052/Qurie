@@ -17,6 +17,7 @@ import com.roma.qurie.user.entity.User;
 import com.roma.qurie.user.entity.UserRole;
 import com.roma.qurie.user.repository.UserRepository;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,9 @@ class PasswordResetServiceTest {
     private PasswordResetTokenRepository passwordResetTokenRepository;
 
     @Mock
+    private RefreshTokenRepository refreshTokenRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @Mock
@@ -52,14 +56,16 @@ class PasswordResetServiceTest {
     @BeforeEach
     void setUp() {
         passwordResetService = new PasswordResetService(
-                masterRepository, userRepository, passwordResetTokenRepository, tokenProvider,
-                passwordEncoder, mailSender);
+                masterRepository, userRepository, passwordResetTokenRepository, refreshTokenRepository,
+                tokenProvider, passwordEncoder, mailSender);
     }
 
     @Test
     void requestReset_마스터_이메일이면_토큰을_발급하고_메일을_보낸다() {
         Master master = createMaster();
         when(masterRepository.findByEmail("master@test.com")).thenReturn(Optional.of(master));
+        when(passwordResetTokenRepository.findAllByMasterIdAndUsedFalseOrderByCreatedAtDesc(master.getId()))
+                .thenReturn(List.of());
 
         passwordResetService.requestReset("master@test.com");
 
@@ -76,6 +82,8 @@ class PasswordResetServiceTest {
         User user = createUser();
         when(masterRepository.findByEmail("manager@test.com")).thenReturn(Optional.empty());
         when(userRepository.findByEmail("manager@test.com")).thenReturn(Optional.of(user));
+        when(passwordResetTokenRepository.findAllByUserIdAndUsedFalseOrderByCreatedAtDesc(user.getId()))
+                .thenReturn(List.of());
 
         passwordResetService.requestReset("manager@test.com");
 
@@ -98,7 +106,40 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    void confirmReset_유효한_토큰이면_마스터_비밀번호를_변경하고_토큰을_소비한다() {
+    void requestReset_쿨다운_안에_재요청하면_새_토큰을_발급하지_않는다() {
+        Master master = createMaster();
+        PasswordResetToken recent = new PasswordResetToken(
+                master, tokenProvider.hash("previous-token"), LocalDateTime.now().plusMinutes(30));
+        ReflectionTestUtils.setField(recent, "createdAt", LocalDateTime.now());
+        when(masterRepository.findByEmail("master@test.com")).thenReturn(Optional.of(master));
+        when(passwordResetTokenRepository.findAllByMasterIdAndUsedFalseOrderByCreatedAtDesc(master.getId()))
+                .thenReturn(List.of(recent));
+
+        passwordResetService.requestReset("master@test.com");
+
+        verify(passwordResetTokenRepository, never()).save(any());
+        verify(mailSender, never()).send(any(), any());
+    }
+
+    @Test
+    void requestReset_쿨다운이_지났으면_이전_미사용_토큰을_무효화하고_새로_발급한다() {
+        Master master = createMaster();
+        PasswordResetToken old = new PasswordResetToken(
+                master, tokenProvider.hash("old-token"), LocalDateTime.now().plusMinutes(30));
+        ReflectionTestUtils.setField(old, "createdAt", LocalDateTime.now().minusMinutes(5));
+        when(masterRepository.findByEmail("master@test.com")).thenReturn(Optional.of(master));
+        when(passwordResetTokenRepository.findAllByMasterIdAndUsedFalseOrderByCreatedAtDesc(master.getId()))
+                .thenReturn(List.of(old));
+
+        passwordResetService.requestReset("master@test.com");
+
+        assertThat(old.isValid()).isFalse();
+        verify(passwordResetTokenRepository).save(any());
+        verify(mailSender).send(eq("master@test.com"), anyString());
+    }
+
+    @Test
+    void confirmReset_유효한_토큰이면_마스터_비밀번호를_변경하고_토큰을_소비하고_리프레시토큰을_폐기한다() {
         Master master = createMaster();
         String rawToken = "raw-token";
         PasswordResetToken token = new PasswordResetToken(
@@ -111,10 +152,12 @@ class PasswordResetServiceTest {
 
         assertThat(master.getPassword()).isEqualTo("encoded-new-password");
         assertThat(token.isValid()).isFalse();
+        verify(refreshTokenRepository).revokeAllByMasterId(master.getId());
+        verify(refreshTokenRepository, never()).revokeAllByUserId(any());
     }
 
     @Test
-    void confirmReset_유효한_토큰이면_매니저_학생_비밀번호를_변경한다() {
+    void confirmReset_유효한_토큰이면_매니저_학생_비밀번호를_변경하고_리프레시토큰을_폐기한다() {
         User user = createUser();
         String rawToken = "raw-token";
         PasswordResetToken token = new PasswordResetToken(
@@ -127,6 +170,8 @@ class PasswordResetServiceTest {
 
         assertThat(user.getPassword()).isEqualTo("encoded-new-password");
         assertThat(token.isValid()).isFalse();
+        verify(refreshTokenRepository).revokeAllByUserId(user.getId());
+        verify(refreshTokenRepository, never()).revokeAllByMasterId(any());
     }
 
     @Test
