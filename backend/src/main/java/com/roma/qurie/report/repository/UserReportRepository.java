@@ -5,9 +5,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Optional;
+
 public interface UserReportRepository extends JpaRepository<UserReport, Long> {
 
     boolean existsByOrdinaryUserIdAndClassId(Long ordinaryUserId, Long classId);
+
+    Optional<UserReport> findByOrdinaryUserIdAndClassId(Long ordinaryUserId, Long classId);
 
     /**
      * 반 단위 학습 지표. 리포트가 없으면 평균은 null 로 나오고 count 만 0 이다 —
