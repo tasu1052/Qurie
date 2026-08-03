@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Pin, Plus } from 'lucide-react';
-import { MasterShell, PageMain } from '../../components/layout/MasterShell';
+import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import {
   AlertBanner,
   Badge,
@@ -10,7 +10,7 @@ import {
   RowErrorFallback,
   Skeleton,
 } from '../../ds';
-import { QueryAsyncBoundary, useGetNotices, type NoticeResponse, type NoticeScope } from '../../data';
+import { QueryAsyncBoundary, useGetNotices, useMe, type NoticeResponse, type NoticeScope } from '../../data';
 
 type ScopeFilter = '전체' | 'ENTERPRISE' | 'TRACK' | 'CLASS';
 
@@ -35,52 +35,29 @@ function NoticeCard({ item }: { item: NoticeResponse }) {
     <div
       style={{
         background: 'var(--surface-card)',
-        border: `1px solid ${item.pinned ? 'var(--accent-soft)' : 'var(--border)'}`,
+        border: '1px solid var(--border)',
         borderRadius: 16,
         boxShadow: 'var(--shadow-card)',
-        padding: '20px 24px',
+        padding: 20,
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {item.pinned ? (
-          <>
-            <Pin size={14} strokeWidth={1.75} style={{ color: 'var(--accent)' }} />
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: 'var(--accent)',
-              }}
-            >
-              고정됨
-            </span>
-          </>
-        ) : null}
         <Badge status={item.pinned ? 'accent' : 'neutral'}>{scopeLabel(item.scope)}</Badge>
-        {item.targetName ? (
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{item.targetName}</span>
-        ) : null}
+        {item.pinned ? <Pin size={12} strokeWidth={1.75} color="var(--accent)" /> : null}
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
           {new Date(item.createdAt).toLocaleDateString('ko-KR')}
         </span>
       </div>
-      <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>{item.title}</h3>
-      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-        {item.body}
-      </p>
-      <div style={{ display: 'flex', gap: 14, fontSize: 12, color: 'var(--text-muted)' }}>
-        <span>작성: {item.authorName}</span>
-      </div>
+      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{item.title}</span>
+      <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{item.body}</p>
     </div>
   );
 }
 
-function AnnouncementsBody() {
+function ManagerAnnouncementsBody({ classId }: { classId?: number }) {
   const [scope, setScope] = useState<ScopeFilter>('전체');
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -90,8 +67,9 @@ function AnnouncementsBody() {
     () => ({
       size: 50,
       scope: scope === '전체' ? undefined : scope,
+      classId,
     }),
-    [scope],
+    [scope, classId],
   );
 
   const { data: noticesPage } = useGetNotices(filters);
@@ -103,7 +81,7 @@ function AnnouncementsBody() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>공지사항</h1>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            전체 · 트랙 · 클래스 단위로 발송된 공지를 확인하세요.
+            클래스에 노출된 공지를 확인하세요.
           </span>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
@@ -142,7 +120,7 @@ function AnnouncementsBody() {
       {notices.length === 0 ? (
         <EmptyState
           message="공지가 없습니다"
-          description="공지 작성 API가 아직 없어 조회만 가능합니다."
+          description="등록된 공지가 없습니다."
           actionLabel="전체 보기"
           onAction={() => setScope('전체')}
         />
@@ -181,7 +159,7 @@ function AnnouncementsBody() {
       <Modal
         open={open}
         title="공지 작성"
-        description="공지 생성 API가 아직 준비되지 않았습니다."
+        description="매니저 공지 작성은 마스터 권한이 필요할 수 있습니다."
         primaryLabel="닫기"
         onPrimary={() => setOpen(false)}
         onClose={() => setOpen(false)}
@@ -190,8 +168,8 @@ function AnnouncementsBody() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <AlertBanner
             tone="info"
-            title="백엔드 대기"
-            description="POST /notices 가 추가되면 이 폼으로 공지를 작성할 수 있습니다."
+            title="안내"
+            description="공지 생성은 마스터 콘솔에서 진행하는 것을 권장합니다."
           />
           <Input placeholder="제목" value={title} onChange={(e) => setTitle(e.target.value)} width="100%" />
           <Input placeholder="본문" value={body} onChange={(e) => setBody(e.target.value)} width="100%" />
@@ -201,26 +179,28 @@ function AnnouncementsBody() {
   );
 }
 
-export default function AnnouncementsPage() {
+function ManagerAnnouncementsGate() {
+  const { data: me } = useMe();
   const [rowKey, setRowKey] = useState(0);
-
   return (
-    <MasterShell activeKey="announcements" breadcrumbs={['SSAFY 서울캠퍼스', '공지사항']}>
+    <QueryAsyncBoundary
+      key={rowKey}
+      suspenseFallback={<ListSkeleton />}
+      errorFallback={
+        <RowErrorFallback onRetry={() => setRowKey((k) => k + 1)} title="공지를 불러오지 못했습니다" />
+      }
+    >
+      <ManagerAnnouncementsBody classId={me.classId ?? undefined} />
+    </QueryAsyncBoundary>
+  );
+}
+
+export default function ManagerAnnouncementsPage() {
+  return (
+    <ManagerShell activeKey="dashboard" breadcrumbs={['담당 클래스', '공지사항']}>
       <PageMain>
-        <QueryAsyncBoundary
-          key={rowKey}
-          suspenseFallback={<ListSkeleton />}
-          errorFallback={
-            <RowErrorFallback
-              onRetry={() => setRowKey((k) => k + 1)}
-              title="공지를 불러오지 못했습니다"
-              description="목록을 다시 불러와 주세요."
-            />
-          }
-        >
-          <AnnouncementsBody />
-        </QueryAsyncBoundary>
+        <ManagerAnnouncementsGate />
       </PageMain>
-    </MasterShell>
+    </ManagerShell>
   );
 }

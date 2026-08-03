@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AuthGate } from './components/auth/AuthGate';
 import { AdminGate } from './components/auth/AdminGate';
 import { LogoutSync } from './components/auth/LogoutSync';
@@ -13,13 +13,13 @@ import MasterDashboardPage from './pages/master/MasterDashboardPage';
 import TrackListPage from './pages/master/TrackListPage';
 import TrackDetailPage from './pages/master/TrackDetailPage';
 import ClassManagementPage from './pages/master/ClassManagementPage';
+import ClassDetailPage from './pages/master/ClassDetailPage';
 import MemberManagementPage from './pages/master/MemberManagementPage';
 import AnnouncementsPage from './pages/master/AnnouncementsPage';
-import TrackAnalyticsPage from './pages/master/TrackAnalyticsPage';
-import ClassAnalyticsDetailPage from './pages/master/ClassAnalyticsDetailPage';
 import MasterMyPage from './pages/master/MasterMyPage';
 import MasterSettingsPage from './pages/master/MasterSettingsPage';
 import ManagerDashboardPage from './pages/manager/ManagerDashboardPage';
+import ManagerAnnouncementsPage from './pages/manager/ManagerAnnouncementsPage';
 import StudentManagementPage from './pages/manager/StudentManagementPage';
 import StudentOverviewPage from './pages/manager/StudentOverviewPage';
 import SessionListPage from './pages/manager/SessionListPage';
@@ -52,6 +52,11 @@ function PlaceholderPage({ title }: { title: string }) {
   );
 }
 
+function RedirectClassAnalytics() {
+  const { classId } = useParams<{ classId: string }>();
+  return <Navigate to={classId ? `/master/classes/${classId}` : '/master/classes'} replace />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -73,10 +78,11 @@ export default function App() {
           <Route path="/master/tracks" element={<TrackListPage />} />
           <Route path="/master/tracks/:id" element={<TrackDetailPage />} />
           <Route path="/master/classes" element={<ClassManagementPage />} />
+          <Route path="/master/classes/:classId" element={<ClassDetailPage />} />
           <Route path="/master/members" element={<MemberManagementPage />} />
           <Route path="/master/announcements" element={<AnnouncementsPage />} />
-          <Route path="/master/analytics" element={<TrackAnalyticsPage />} />
-          <Route path="/master/analytics/:classId" element={<ClassAnalyticsDetailPage />} />
+          <Route path="/master/analytics" element={<Navigate to="/master/classes" replace />} />
+          <Route path="/master/analytics/:classId" element={<RedirectClassAnalytics />} />
           <Route path="/master/me" element={<MasterMyPage />} />
           <Route path="/master/settings" element={<MasterSettingsPage />} />
 
@@ -86,6 +92,7 @@ export default function App() {
           <Route path="/manager/sessions" element={<SessionListPage />} />
           <Route path="/manager/groups" element={<GroupListPage />} />
           <Route path="/manager/groups/:id" element={<GroupEditPage />} />
+          <Route path="/manager/announcements" element={<ManagerAnnouncementsPage />} />
           <Route path="/manager/me" element={<ManagerMyPage />} />
           <Route path="/manager/settings" element={<ManagerSettingsPage />} />
 

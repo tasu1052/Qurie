@@ -45,7 +45,7 @@ public class ProjectController {
         return ResponseEntity.created(URI.create("/api/projects/" + response.projectId())).body(response);
     }
 
-    /** Git 저장소 임포트. 공개 https 저장소만 지원한다 (세션 구성원) */
+    /** Git 저장소 임포트. 공개 https 저장소만 지원한다 (그룹 리더 / 반 공개는 강사) */
     @PostMapping("/import/git")
     public ResponseEntity<ProjectImportResponse> importGit(
             @AuthenticationPrincipal AuthUser requester,

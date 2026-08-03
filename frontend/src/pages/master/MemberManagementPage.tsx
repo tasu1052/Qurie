@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { isAxiosError } from 'axios';
+import { useSearchParams } from 'react-router-dom';
 import { Filter, Mail, Search, UserPlus } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import {
@@ -17,8 +18,10 @@ import {
 import {
   QueryAsyncBoundary,
   useCreateInvitation,
+  useGetClassMembers,
   useGetClasses,
   useGetUsers,
+  type ClassMemberResponse,
   type UserRole,
   type UserSummaryResponse,
 } from '../../data';
@@ -75,79 +78,104 @@ function roleBadge(role: UserRole) {
   return <Badge status="neutral">STUDENT</Badge>;
 }
 
-function MembersBody() {
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState<UserRole>('MANAGER');
-  const [classId, setClassId] = useState('');
-  const [query, setQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
-  const [inviteError, setInviteError] = useState<string | null>(null);
-  const [inviteOk, setInviteOk] = useState<string | null>(null);
+type MemberRow = {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  weeklySessionCount?: number;
+  lastSessionCreatedAt?: string | null;
+  groupName?: string | null;
+};
 
-  const filters = useMemo(
+function toRowFromUser(u: UserSummaryResponse): MemberRow {
+  return {
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    weeklySessionCount: u.weeklySessionCount,
+    lastSessionCreatedAt: u.lastSessionCreatedAt,
+  };
+}
+
+function toRowFromMember(m: ClassMemberResponse): MemberRow {
+  return {
+    id: m.userId,
+    name: m.name,
+    email: m.email,
+    role: m.role,
+    groupName: m.groupName,
+  };
+}
+
+function MembersChrome({
+  members,
+  totalCaption,
+  classFilter,
+  setClassFilter,
+  classOptions,
+  query,
+  setQuery,
+  roleFilter,
+  setRoleFilter,
+  onOpenInvite,
+  inviteOpen,
+  closeInvite,
+  onInvite,
+  inviteEmail,
+  setInviteEmail,
+  inviteRole,
+  setInviteRole,
+  inviteClassId,
+  setInviteClassId,
+  createPending,
+  inviteError,
+  inviteOk,
+  classes,
+}: {
+  members: MemberRow[];
+  totalCaption: number;
+  classFilter: string;
+  setClassFilter: (v: string) => void;
+  classOptions: { value: string; label: string }[];
+  query: string;
+  setQuery: (v: string) => void;
+  roleFilter: 'all' | UserRole;
+  setRoleFilter: (v: 'all' | UserRole) => void;
+  onOpenInvite: () => void;
+  inviteOpen: boolean;
+  closeInvite: () => void;
+  onInvite: () => void;
+  inviteEmail: string;
+  setInviteEmail: (v: string) => void;
+  inviteRole: UserRole;
+  setInviteRole: (v: UserRole) => void;
+  inviteClassId: string;
+  setInviteClassId: (v: string) => void;
+  createPending: boolean;
+  inviteError: string | null;
+  inviteOk: string | null;
+  classes: { id: number; name: string }[];
+}) {
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return members.filter((m) => {
+      if (roleFilter !== 'all' && m.role !== roleFilter) return false;
+      if (!q) return true;
+      return m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q);
+    });
+  }, [members, query, roleFilter]);
+
+  const counts = useMemo(
     () => ({
-      size: 50,
-      q: query.trim() || undefined,
-      role: roleFilter === 'all' ? undefined : roleFilter,
+      total: totalCaption,
+      managers: members.filter((u) => u.role === 'MANAGER').length,
+      students: members.filter((u) => u.role === 'STUDENT').length,
+      masters: members.filter((u) => u.role === 'MASTER').length,
     }),
-    [query, roleFilter],
+    [members, totalCaption],
   );
-
-  const { data: usersPage } = useGetUsers(filters);
-  const { data: classesPage } = useGetClasses({ size: 100 });
-  const createInvitation = useCreateInvitation();
-
-  const users = usersPage.data;
-  const classes = classesPage.data;
-
-  const counts = useMemo(() => {
-    const all = users;
-    return {
-      total: usersPage.meta.total,
-      managers: all.filter((u) => u.role === 'MANAGER').length,
-      students: all.filter((u) => u.role === 'STUDENT').length,
-      masters: all.filter((u) => u.role === 'MASTER').length,
-    };
-  }, [users, usersPage.meta.total]);
-
-  const onInvite = () => {
-    setInviteError(null);
-    setInviteOk(null);
-    const emails = email
-      .split(',')
-      .map((e) => e.trim())
-      .filter(Boolean);
-    if (emails.length === 0) {
-      setInviteError('이메일을 입력하세요.');
-      return;
-    }
-    const cid = Number(classId || classes[0]?.id);
-    if (!Number.isFinite(cid)) {
-      setInviteError('초대할 클래스를 선택하세요.');
-      return;
-    }
-    // 한 명씩 순차 초대
-    const first = emails[0];
-    createInvitation.mutate(
-      { email: first, classId: cid, role },
-      {
-        onSuccess: (res) => {
-          setInviteOk(
-            `${res.email}으로 초대장을 보냈습니다. 만료 ${new Date(res.expiresAt).toLocaleString('ko-KR')}`,
-          );
-          setEmail(emails.slice(1).join(', '));
-        },
-        onError: (err) => setInviteError(apiErrorMessage(err, '초대에 실패했습니다.')),
-      },
-    );
-  };
-
-  const closeInvite = () => {
-    setInviteOpen(false);
-    setInviteError(null);
-    setInviteOk(null);
-  };
 
   return (
     <>
@@ -158,17 +186,7 @@ function MembersBody() {
             소속 멤버를 조회하고 초대를 발송합니다.
           </span>
         </div>
-        <Button
-          variant="primary"
-          icon={<UserPlus size={15} strokeWidth={1.75} />}
-          onClick={() => {
-            setClassId(String(classes[0]?.id ?? ''));
-            setEmail('');
-            setInviteError(null);
-            setInviteOk(null);
-            setInviteOpen(true);
-          }}
-        >
+        <Button variant="primary" icon={<UserPlus size={15} strokeWidth={1.75} />} onClick={onOpenInvite}>
           멤버 초대
         </Button>
       </div>
@@ -180,7 +198,7 @@ function MembersBody() {
         <StatCard label="학생" value={String(counts.students)} caption="STUDENT" />
       </StatCardRow>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <Input
           placeholder="이름 · 이메일 검색…"
           icon={<Search size={14} strokeWidth={1.75} />}
@@ -198,9 +216,10 @@ function MembersBody() {
           value={roleFilter}
           onChange={(v) => setRoleFilter(v as typeof roleFilter)}
         />
+        <Select options={classOptions} value={classFilter} onChange={setClassFilter} />
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
           <Filter size={12} style={{ marginRight: 4 }} />
-          초대 목록/재발송 API는 아직 없습니다
+          {filtered.length}명 표시
         </span>
       </div>
 
@@ -216,7 +235,7 @@ function MembersBody() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '2fr 1.1fr 1.2fr 1fr',
+            gridTemplateColumns: classFilter === 'all' ? '2fr 1.1fr 1.2fr 1fr' : '2fr 1.1fr 1.2fr',
             padding: '12px 24px',
             borderBottom: '1px solid var(--divider)',
             fontSize: 11,
@@ -228,18 +247,24 @@ function MembersBody() {
         >
           <span>멤버</span>
           <span>역할</span>
-          <span>주간 세션</span>
-          <span style={{ textAlign: 'right' }}>최근 세션</span>
+          {classFilter === 'all' ? (
+            <>
+              <span>주간 세션</span>
+              <span style={{ textAlign: 'right' }}>최근 세션</span>
+            </>
+          ) : (
+            <span>그룹</span>
+          )}
         </div>
-        {users.length === 0 ? (
+        {filtered.length === 0 ? (
           <div style={{ padding: 24, fontSize: 13, color: 'var(--text-muted)' }}>회원이 없습니다.</div>
         ) : (
-          users.map((m: UserSummaryResponse) => (
+          filtered.map((m) => (
             <div
               key={m.id}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '2fr 1.1fr 1.2fr 1fr',
+                gridTemplateColumns: classFilter === 'all' ? '2fr 1.1fr 1.2fr 1fr' : '2fr 1.1fr 1.2fr',
                 padding: '13px 24px',
                 borderBottom: '1px solid var(--divider)',
                 fontSize: 13,
@@ -271,12 +296,18 @@ function MembersBody() {
                 </span>
               </span>
               <span style={{ display: 'inline-flex', justifySelf: 'start' }}>{roleBadge(m.role)}</span>
-              <span>{m.weeklySessionCount}</span>
-              <span style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
-                {m.lastSessionCreatedAt
-                  ? new Date(m.lastSessionCreatedAt).toLocaleDateString('ko-KR')
-                  : '—'}
-              </span>
+              {classFilter === 'all' ? (
+                <>
+                  <span>{m.weeklySessionCount ?? '—'}</span>
+                  <span style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
+                    {m.lastSessionCreatedAt
+                      ? new Date(m.lastSessionCreatedAt).toLocaleDateString('ko-KR')
+                      : '—'}
+                  </span>
+                </>
+              ) : (
+                <span style={{ color: 'var(--text-secondary)' }}>{m.groupName ?? '—'}</span>
+              )}
             </div>
           ))
         )}
@@ -286,9 +317,7 @@ function MembersBody() {
         open={inviteOpen}
         title="새 멤버 초대"
         description="이메일로 멤버를 초대합니다. 클래스가 필요합니다."
-        primaryLabel={
-          createInvitation.isPending ? '발송 중…' : inviteOk ? '추가로 발송' : '초대장 발송하기'
-        }
+        primaryLabel={createPending ? '발송 중…' : inviteOk ? '추가로 발송' : '초대장 발송하기'}
         secondaryLabel={inviteOk ? '닫기' : '취소'}
         onPrimary={onInvite}
         onSecondary={closeInvite}
@@ -297,16 +326,14 @@ function MembersBody() {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {inviteError ? <AlertBanner tone="error" title="초대 실패" description={inviteError} /> : null}
-          {inviteOk ? (
-            <AlertBanner tone="success" title="초대 발송 완료" description={inviteOk} />
-          ) : null}
+          {inviteOk ? <AlertBanner tone="success" title="초대 발송 완료" description={inviteOk} /> : null}
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>이메일 주소</span>
             <Input
               placeholder="name@ssafy.com"
               icon={<Mail size={15} strokeWidth={1.75} />}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
               width="100%"
             />
           </label>
@@ -317,21 +344,263 @@ function MembersBody() {
                 { value: 'MANAGER', label: '매니저 (MANAGER)' },
                 { value: 'STUDENT', label: '학생 (STUDENT)' },
               ]}
-              value={role}
-              onChange={(v) => setRole(v as UserRole)}
+              value={inviteRole}
+              onChange={(v) => setInviteRole(v as UserRole)}
             />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>클래스</span>
             <Select
               options={classes.map((c) => ({ value: String(c.id), label: c.name }))}
-              value={classId || String(classes[0]?.id ?? '')}
-              onChange={setClassId}
+              value={inviteClassId || String(classes[0]?.id ?? '')}
+              onChange={setInviteClassId}
             />
           </label>
         </div>
       </Modal>
     </>
+  );
+}
+
+function AllUsersBody({
+  classFilter,
+  setClassFilter,
+  classOptions,
+  classes,
+}: {
+  classFilter: string;
+  setClassFilter: (v: string) => void;
+  classOptions: { value: string; label: string }[];
+  classes: { id: number; name: string }[];
+}) {
+  const [query, setQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<UserRole>('MANAGER');
+  const [inviteClassId, setInviteClassId] = useState('');
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteOk, setInviteOk] = useState<string | null>(null);
+  const createInvitation = useCreateInvitation();
+
+  const filters = useMemo(
+    () => ({
+      size: 200,
+      q: query.trim() || undefined,
+      role: roleFilter === 'all' ? undefined : roleFilter,
+    }),
+    [query, roleFilter],
+  );
+  const { data: usersPage } = useGetUsers(filters);
+  const members = usersPage.data.map(toRowFromUser);
+
+  const onInvite = () => {
+    setInviteError(null);
+    setInviteOk(null);
+    const emails = inviteEmail
+      .split(',')
+      .map((e) => e.trim())
+      .filter(Boolean);
+    if (emails.length === 0) {
+      setInviteError('이메일을 입력하세요.');
+      return;
+    }
+    const cid = Number(inviteClassId || classes[0]?.id);
+    if (!Number.isFinite(cid)) {
+      setInviteError('초대할 클래스를 선택하세요.');
+      return;
+    }
+    createInvitation.mutate(
+      { email: emails[0], classId: cid, role: inviteRole },
+      {
+        onSuccess: (res) => {
+          setInviteOk(
+            `${res.email}으로 초대장을 보냈습니다. 만료 ${new Date(res.expiresAt).toLocaleString('ko-KR')}`,
+          );
+          setInviteEmail(emails.slice(1).join(', '));
+        },
+        onError: (err) => setInviteError(apiErrorMessage(err, '초대에 실패했습니다.')),
+      },
+    );
+  };
+
+  return (
+    <MembersChrome
+      members={members}
+      totalCaption={usersPage.meta.total}
+      classFilter={classFilter}
+      setClassFilter={setClassFilter}
+      classOptions={classOptions}
+      query={query}
+      setQuery={setQuery}
+      roleFilter={roleFilter}
+      setRoleFilter={setRoleFilter}
+      onOpenInvite={() => {
+        setInviteClassId(String(classes[0]?.id ?? ''));
+        setInviteEmail('');
+        setInviteError(null);
+        setInviteOk(null);
+        setInviteOpen(true);
+      }}
+      inviteOpen={inviteOpen}
+      closeInvite={() => {
+        setInviteOpen(false);
+        setInviteError(null);
+        setInviteOk(null);
+      }}
+      onInvite={onInvite}
+      inviteEmail={inviteEmail}
+      setInviteEmail={setInviteEmail}
+      inviteRole={inviteRole}
+      setInviteRole={setInviteRole}
+      inviteClassId={inviteClassId}
+      setInviteClassId={setInviteClassId}
+      createPending={createInvitation.isPending}
+      inviteError={inviteError}
+      inviteOk={inviteOk}
+      classes={classes}
+    />
+  );
+}
+
+function ClassMembersBody({
+  classId,
+  classFilter,
+  setClassFilter,
+  classOptions,
+  classes,
+}: {
+  classId: number;
+  classFilter: string;
+  setClassFilter: (v: string) => void;
+  classOptions: { value: string; label: string }[];
+  classes: { id: number; name: string }[];
+}) {
+  const [query, setQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<UserRole>('MANAGER');
+  const [inviteClassId, setInviteClassId] = useState(String(classId));
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteOk, setInviteOk] = useState<string | null>(null);
+  const createInvitation = useCreateInvitation();
+  const { data: membersPage } = useGetClassMembers(classId, { size: 200 });
+  const members = membersPage.data.map(toRowFromMember);
+
+  const onInvite = () => {
+    setInviteError(null);
+    setInviteOk(null);
+    const emails = inviteEmail
+      .split(',')
+      .map((e) => e.trim())
+      .filter(Boolean);
+    if (emails.length === 0) {
+      setInviteError('이메일을 입력하세요.');
+      return;
+    }
+    const cid = Number(inviteClassId || classId);
+    createInvitation.mutate(
+      { email: emails[0], classId: cid, role: inviteRole },
+      {
+        onSuccess: (res) => {
+          setInviteOk(
+            `${res.email}으로 초대장을 보냈습니다. 만료 ${new Date(res.expiresAt).toLocaleString('ko-KR')}`,
+          );
+          setInviteEmail(emails.slice(1).join(', '));
+        },
+        onError: (err) => setInviteError(apiErrorMessage(err, '초대에 실패했습니다.')),
+      },
+    );
+  };
+
+  return (
+    <MembersChrome
+      members={members}
+      totalCaption={membersPage.meta.total}
+      classFilter={classFilter}
+      setClassFilter={setClassFilter}
+      classOptions={classOptions}
+      query={query}
+      setQuery={setQuery}
+      roleFilter={roleFilter}
+      setRoleFilter={setRoleFilter}
+      onOpenInvite={() => {
+        setInviteClassId(String(classId));
+        setInviteEmail('');
+        setInviteError(null);
+        setInviteOk(null);
+        setInviteOpen(true);
+      }}
+      inviteOpen={inviteOpen}
+      closeInvite={() => {
+        setInviteOpen(false);
+        setInviteError(null);
+        setInviteOk(null);
+      }}
+      onInvite={onInvite}
+      inviteEmail={inviteEmail}
+      setInviteEmail={setInviteEmail}
+      inviteRole={inviteRole}
+      setInviteRole={setInviteRole}
+      inviteClassId={inviteClassId}
+      setInviteClassId={setInviteClassId}
+      createPending={createInvitation.isPending}
+      inviteError={inviteError}
+      inviteOk={inviteOk}
+      classes={classes}
+    />
+  );
+}
+
+function MembersGate() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { data: classesPage } = useGetClasses({ size: 100 });
+  const classes = classesPage.data;
+  const classOptions = useMemo(
+    () => [{ value: 'all', label: '전체 반' }, ...classes.map((c) => ({ value: String(c.id), label: c.name }))],
+    [classes],
+  );
+
+  const urlClass = searchParams.get('classId');
+  const classFilter =
+    urlClass && classes.some((c) => String(c.id) === urlClass) ? urlClass : urlClass === 'all' || !urlClass ? 'all' : 'all';
+
+  const setClassFilter = (v: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (v === 'all') next.delete('classId');
+    else next.set('classId', v);
+    setSearchParams(next, { replace: true });
+  };
+
+  // sync invalid classId out of URL
+  useEffect(() => {
+    if (urlClass && urlClass !== 'all' && !classes.some((c) => String(c.id) === urlClass)) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('classId');
+      setSearchParams(next, { replace: true });
+    }
+  }, [urlClass, classes, searchParams, setSearchParams]);
+
+  if (classFilter !== 'all') {
+    return (
+      <ClassMembersBody
+        classId={Number(classFilter)}
+        classFilter={classFilter}
+        setClassFilter={setClassFilter}
+        classOptions={classOptions}
+        classes={classes}
+      />
+    );
+  }
+
+  return (
+    <AllUsersBody
+      classFilter={classFilter}
+      setClassFilter={setClassFilter}
+      classOptions={classOptions}
+      classes={classes}
+    />
   );
 }
 
@@ -356,7 +625,7 @@ export default function MemberManagementPage() {
             />
           }
         >
-          <MembersBody />
+          <MembersGate />
         </QueryAsyncBoundary>
       </PageMain>
     </MasterShell>

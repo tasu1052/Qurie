@@ -366,7 +366,6 @@ function SceneReview() {
             height: r.h + 16,
             border: `2.5px solid ${ACCENT}`,
             borderRadius: 18,
-            boxShadow: '0 0 0 5px rgba(99,102,241,0.14)',
             opacity: ringOn,
           }}
         />

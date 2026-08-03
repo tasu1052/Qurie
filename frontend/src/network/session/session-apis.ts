@@ -7,6 +7,8 @@ export type { ChatMessageListParams };
 export interface SessionCreateRequest {
     classId: number;
     title: string;
+    /** 일반 세션 필수. classPublic:true 이면 보내지 않음 */
+    groupId?: number;
     /** 반 공개(수업) 세션. true 는 MANAGER 만 가능(403). 생략/false 는 일반 세션. */
     classPublic?: boolean;
 }
@@ -19,6 +21,7 @@ export interface SessionUpdateRequest {
 export interface SessionResponse {
     id: number;
     classId: number;
+    groupId: number | null;
     title: string;
     createdBy: number;
     active: boolean;
@@ -73,7 +76,7 @@ export const createSession = async (body: SessionCreateRequest): Promise<Session
     const { data } = await axiosInstance.post<SessionResponse>('/sessions', {
         classId: body.classId,
         title: body.title,
-        ...(body.classPublic !== undefined && { classPublic: body.classPublic }),
+        ...(body.classPublic ? { classPublic: true } : { groupId: body.groupId }),
     });
     return data;
 };

@@ -1,10 +1,11 @@
-import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../core/queryKeys';
 import {
     createProject,
     getProjectFileContent,
     getProjectFiles,
+    getSessionProject,
     importProjectGit,
     importProjectLocal,
     type ProjectCreateRequest,
@@ -19,6 +20,7 @@ export const useCreateProject = () => {
         mutationFn: (body: ProjectCreateRequest) => createProject(body),
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(data.sessionId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.projects.bySession(data.sessionId) });
         },
     });
 };
@@ -29,6 +31,7 @@ const invalidateAfterProjectImport = (
 ) => {
     queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(data.projectId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.projects.files(data.projectId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.projects.bySession(data.sessionId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(data.sessionId) });
 };
 
@@ -47,6 +50,16 @@ export const useImportProjectGit = () => {
     return useMutation({
         mutationFn: (body: ProjectImportGitRequest) => importProjectGit(body),
         onSuccess: (data) => invalidateAfterProjectImport(queryClient, data),
+    });
+};
+
+/** 세션 최신 프로젝트. 다른 참가자가 임포트한 경우도 폴링으로 맞춘다. */
+export const useGetSessionProject = (sessionId: number | null, opts?: { poll?: boolean }) => {
+    return useQuery({
+        queryKey: sessionId != null ? queryKeys.projects.bySession(sessionId) : ['projects', 'session', 'idle'],
+        queryFn: () => getSessionProject(sessionId as number),
+        enabled: sessionId != null,
+        refetchInterval: opts?.poll === false ? false : 5000,
     });
 };
 

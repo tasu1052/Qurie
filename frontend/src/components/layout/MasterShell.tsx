@@ -6,7 +6,7 @@ import {
   BookOpen,
   Users,
   Megaphone,
-  BarChart3,
+  UserRound,
   Settings,
 } from 'lucide-react';
 import { Button, Footer, Sidebar, Topbar } from '../../ds';
@@ -29,7 +29,7 @@ const masterNav = [
   { key: 'classes', label: '클래스 관리', path: '/master/classes', icon: <BookOpen {...iconProps} /> },
   { key: 'members', label: '회원 관리', path: '/master/members', icon: <Users {...iconProps} /> },
   { key: 'announcements', label: '공지사항', path: '/master/announcements', icon: <Megaphone {...iconProps} /> },
-  { key: 'analytics', label: '분석 리포트', path: '/master/analytics', icon: <BarChart3 {...iconProps} /> },
+  { key: 'me', label: '마이페이지', path: '/master/me', icon: <UserRound {...iconProps} /> },
   { key: 'settings', label: '설정', path: '/master/settings', icon: <Settings {...iconProps} /> },
 ];
 
@@ -99,11 +99,10 @@ export function PageMain({ children }: { children: ReactNode }) {
         maxWidth: 'var(--content-max)',
         marginInline: 'auto',
         padding: 'var(--content-pad)',
+        minWidth: 0,
         display: 'flex',
         flexDirection: 'column',
         gap: 24,
-        minWidth: 0,
-        minHeight: 0,
         boxSizing: 'border-box',
       }}
     >

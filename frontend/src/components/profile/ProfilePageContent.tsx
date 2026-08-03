@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera } from 'lucide-react';
 import { Badge, Button, RowSection, StatCard, StatCardRow } from '../../ds';
 import {
   useGetUserProfile,
@@ -16,7 +15,6 @@ export function ProfilePageContent() {
   const { data: profile } = useGetUserProfile(me.id);
   const updateProfile = useUpdateUserProfile();
   const logout = useLogout();
-  const [loginAlert, setLoginAlert] = useState(true);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(profile.name);
   const [pwOpen, setPwOpen] = useState(false);
@@ -80,42 +78,24 @@ export function ProfilePageContent() {
           gap: 20,
         }}
       >
-        <div style={{ position: 'relative' }}>
-          <span
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: '50%',
-              background: 'var(--tertiary-100)',
-              color: 'var(--quaternary-400)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 22,
-              fontWeight: 700,
-            }}
-          >
-            {initial}
-          </span>
-          <span
-            style={{
-              position: 'absolute',
-              right: -2,
-              bottom: -2,
-              width: 24,
-              height: 24,
-              borderRadius: '50%',
-              background: 'var(--ink)',
-              color: 'var(--text-inverse)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Camera size={12} strokeWidth={1.75} />
-          </span>
-        </div>
-        <div style={{ flex: 1 }}>
+        <span
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: '50%',
+            background: 'var(--tertiary-100)',
+            color: 'var(--quaternary-400)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 22,
+            fontWeight: 700,
+            flexShrink: 0,
+          }}
+        >
+          {initial}
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{profile.name}</h1>
             <Badge status="neutral">{profile.role}</Badge>
@@ -256,7 +236,7 @@ export function ProfilePageContent() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 600 }}>비밀번호</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>프로필 PATCH로 변경</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>현재 비밀번호 확인 후 변경</div>
             </div>
             <Button variant="secondary" size="sm" onClick={() => setPwOpen((v) => !v)}>
               {pwOpen ? '취소' : '변경'}
@@ -303,30 +283,6 @@ export function ProfilePageContent() {
               </Button>
             </div>
           ) : null}
-          <div
-            style={{
-              background: 'var(--status-warning-bg)',
-              borderRadius: 12,
-              padding: 12,
-              fontSize: 12.5,
-              color: 'var(--status-warning)',
-              lineHeight: 1.55,
-            }}
-          >
-            2FA가 아직 설정되지 않았습니다. 계정 보안을 위해 활성화를 권장합니다.
-          </div>
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            <span>로그인 알림</span>
-            <input type="checkbox" checked={loginAlert} onChange={(e) => setLoginAlert(e.target.checked)} />
-          </label>
         </div>
       </div>
     </RowSection>
