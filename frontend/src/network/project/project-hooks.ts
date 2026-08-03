@@ -53,13 +53,15 @@ export const useImportProjectGit = () => {
     });
 };
 
-/** 세션 최신 프로젝트. 다른 참가자가 임포트한 경우도 폴링으로 맞춘다. */
+/** 세션 최신 프로젝트. 다른 참가자가 임포트한 경우도 폴링·STOMP invalidate 로 맞춘다. */
 export const useGetSessionProject = (sessionId: number | null, opts?: { poll?: boolean }) => {
     return useQuery({
         queryKey: sessionId != null ? queryKeys.projects.bySession(sessionId) : ['projects', 'session', 'idle'],
         queryFn: () => getSessionProject(sessionId as number),
         enabled: sessionId != null,
-        refetchInterval: opts?.poll === false ? false : 5000,
+        staleTime: 0,
+        refetchOnWindowFocus: true,
+        refetchInterval: opts?.poll === false ? false : 3000,
     });
 };
 

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -20,6 +21,7 @@ import com.roma.qurie.project.dto.ProjectFileContentResponse;
 import com.roma.qurie.project.dto.ProjectFileSummaryResponse;
 import com.roma.qurie.project.dto.ProjectImportGitRequest;
 import com.roma.qurie.project.dto.ProjectImportLocalRequest;
+import com.roma.qurie.project.dto.ProjectImportNotification;
 import com.roma.qurie.project.dto.ProjectImportResponse;
 import com.roma.qurie.project.dto.ProjectResponse;
 import com.roma.qurie.security.AuthUser;
@@ -36,6 +38,7 @@ public class ProjectService {
     private final SessionParticipantService participantService;
     private final GitProjectReader gitProjectReader;
     private final TransactionTemplate transactionTemplate;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /* 프로젝트를 생성하는 함수 */
     @Transactional
@@ -112,9 +115,11 @@ public class ProjectService {
     private ProjectImportResponse store(Long sessionId, String sourcePath, Long importedBy,
             Map<String, String> files, List<SkippedFile> skipped) {
         String versionHash = versionHashOf(files);
+        int fileCount = files.size();
 
         Project saved = transactionTemplate.execute(status -> {
-            Project project = projectRepository.save(new Project(sessionId, sourcePath, importedBy));
+            Project project = projectRepository.save(
+                    new Project(sessionId, sourcePath, importedBy, versionHash, fileCount));
             List<ProjectFile> projectFiles = files.entrySet().stream()
                     .map(entry -> new ProjectFile(
                             project.getId(),
@@ -126,7 +131,11 @@ public class ProjectService {
             return project;
         });
 
-        return ProjectImportResponse.of(saved, files.size(), versionHash, skipped);
+        ProjectImportResponse response = ProjectImportResponse.of(saved, fileCount, versionHash, skipped);
+        messagingTemplate.convertAndSend(
+                "/topic/sessions/" + sessionId + "/project",
+                ProjectImportNotification.from(response));
+        return response;
     }
 
     /**

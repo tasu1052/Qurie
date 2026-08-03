@@ -31,6 +31,7 @@ export const sessionDestinations = {
   messages: (sessionId: number) => `/topic/sessions/${sessionId}/messages`,
   participants: (sessionId: number) => `/topic/sessions/${sessionId}/participants`,
   quiz: (sessionId: number) => `/topic/sessions/${sessionId}/quiz`,
+  project: (sessionId: number) => `/topic/sessions/${sessionId}/project`,
   errors: '/user/queue/errors',
   enter: (sessionId: number) => `/app/sessions/${sessionId}/enter`,
   leave: (sessionId: number) => `/app/sessions/${sessionId}/leave`,

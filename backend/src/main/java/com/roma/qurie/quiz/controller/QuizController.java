@@ -2,6 +2,8 @@ package com.roma.qurie.quiz.controller;
 
 import jakarta.validation.Valid;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,7 +22,9 @@ import com.roma.qurie.quiz.ai.AiQuizStatusResponse;
 import com.roma.qurie.quiz.dto.QuizGenerateRequest;
 import com.roma.qurie.quiz.dto.QuizGenerateResponse;
 import com.roma.qurie.quiz.dto.QuizQuestionsResponse;
+import com.roma.qurie.quiz.dto.QuizSatisfactionRequest;
 import com.roma.qurie.quiz.dto.QuizSetDetailResponse;
+import com.roma.qurie.quiz.dto.QuizSetSummaryResponse;
 import com.roma.qurie.quiz.service.QuizService;
 import com.roma.qurie.security.AuthUser;
 
@@ -49,11 +53,21 @@ public class QuizController {
 	public QuizGenerateResponse generateQuiz(@RequestParam("project") Long projectId,
 			@Valid @RequestBody QuizGenerateRequest request,
 			@AuthenticationPrincipal AuthUser requester) {
-		return quizService.requestQuizGeneration(projectId, request, requester.id());
+		return quizService.requestQuizGeneration(projectId, request, requester);
 	}
 
 	/**
-	 * 퀴즈셋 상태/결과 조회 — 정답·해설이 포함되므로 강사(MANAGER) 전용.
+	 * 프로젝트의 퀴즈셋 목록(최신순). 새로고침·재입장 시 생성 중/완료 퀴즈를 복원할 때 쓴다.
+	 */
+	@GetMapping(params = "project")
+	public List<QuizSetSummaryResponse> listByProject(
+			@RequestParam("project") Long projectId,
+			@AuthenticationPrincipal AuthUser requester) {
+		return quizService.listByProject(projectId, requester);
+	}
+
+	/**
+	 * 퀴즈셋 상태/결과 조회 — 정답·해설이 포함되므로 강사(MANAGER/MASTER) 전용.
 	 * 생성 중이면 AI 서버 상태를 확인해 완료 시 문항까지 저장해서 내려준다.
 	 */
 	@GetMapping("/{quizSetId}")
@@ -69,6 +83,15 @@ public class QuizController {
 	public QuizQuestionsResponse getQuizQuestions(@PathVariable("quizSetId") Long quizSetId,
 			@AuthenticationPrincipal AuthUser requester) {
 		return quizService.getQuizQuestions(quizSetId, requester);
+	}
+
+	/** 퀴즈 생성 완료 후 만족도(1–5). */
+	@PostMapping("/{quizSetId}/satisfaction")
+	public QuizSetSummaryResponse submitSatisfaction(
+			@PathVariable("quizSetId") Long quizSetId,
+			@Valid @RequestBody QuizSatisfactionRequest request,
+			@AuthenticationPrincipal AuthUser requester) {
+		return quizService.submitSatisfaction(quizSetId, request, requester);
 	}
 
 	/**

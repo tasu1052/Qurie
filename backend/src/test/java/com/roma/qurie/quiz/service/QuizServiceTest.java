@@ -85,6 +85,7 @@ class QuizServiceTest {
 
 	@Test
 	void requestQuizGenerationSendsCodeFilesToAiAndMarksGenerating() {
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
 		given(quizSetRepository.save(any(QuizSet.class))).willAnswer(invocation -> {
 			QuizSet saved = invocation.getArgument(0);
 			ReflectionTestUtils.setField(saved, "id", QUIZ_SET_ID);
@@ -94,7 +95,7 @@ class QuizServiceTest {
 				.willReturn(new AiQuizSetAccepted(AI_QUIZ_SET_ID, "1", "PENDING"));
 
 		QuizGenerateResponse response =
-				quizService.requestQuizGeneration(PROJECT_ID, generateRequest(), CREATED_BY);
+				quizService.requestQuizGeneration(PROJECT_ID, generateRequest(), MANAGER);
 
 		ArgumentCaptor<AiQuizCreateRequest> captor = ArgumentCaptor.forClass(AiQuizCreateRequest.class);
 		org.mockito.Mockito.verify(quizAiClient).createQuizSet(eq(PROJECT_ID), captor.capture());
@@ -111,12 +112,13 @@ class QuizServiceTest {
 
 	@Test
 	void requestQuizGenerationFailsTheSetWhenAiIsUnreachable() {
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
 		given(quizSetRepository.save(any(QuizSet.class))).willAnswer(invocation -> invocation.getArgument(0));
 		given(quizAiClient.createQuizSet(eq(PROJECT_ID), any(AiQuizCreateRequest.class)))
 				.willThrow(new QuizAiException("AI 퀴즈 생성 요청 실패: 연결 거부", null));
 
 		QuizGenerateResponse response =
-				quizService.requestQuizGeneration(PROJECT_ID, generateRequest(), CREATED_BY);
+				quizService.requestQuizGeneration(PROJECT_ID, generateRequest(), MANAGER);
 
 		assertThat(response.status()).isEqualTo(QuizSetStatus.FAILED);
 	}

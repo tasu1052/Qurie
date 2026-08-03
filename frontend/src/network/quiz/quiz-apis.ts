@@ -1,9 +1,11 @@
 import { axiosInstance } from '../core/axiosInstance';
+import { normalizeQuizQuestions, normalizeQuizSetDetail } from './quiz-normalize';
 
 export type QuizGenerationMode = 'ASSESSMENT' | 'PRACTICE';
 export type QuizType = 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_IN_BLANK';
 export type QuizPurpose = 'CONCEPTUAL' | 'MICRO';
 export type QuizDifficulty = 'EASY' | 'NORMAL' | 'HARD';
+/** 백엔드 COMPLETED ↔ AI READY. normalize 가 READY 를 COMPLETED 로 맞춘다. */
 export type QuizSetStatus = 'QUEUED' | 'GENERATING' | 'COMPLETED' | 'FAILED';
 
 export interface QuizGenerateRequest {
@@ -84,22 +86,63 @@ export interface QuizQuestionsResponse {
     quizzes: QuizQuestionItem[];
 }
 
+export interface QuizSetSummaryResponse {
+    quizSetId: number;
+    status: QuizSetStatus;
+    requestedCount: number;
+    generatedCount: number;
+    errorMessage: string | null;
+    satisfactionRating: number | null;
+}
+
+export interface QuizSatisfactionRequest {
+    rating: number;
+    comment?: string;
+}
+
 export const generateQuiz = async (
     projectId: number,
     body: QuizGenerateRequest,
 ): Promise<QuizGenerateResponse> => {
     const { data } = await axiosInstance.post<QuizGenerateResponse>('/quiz', body, {
         params: { project: projectId },
+        timeout: 45_000,
     });
-    return data;
+    return {
+        ...data,
+        status: data.status === ('READY' as QuizSetStatus) ? 'COMPLETED' : data.status,
+    };
+};
+
+export const listQuizSetsByProject = async (
+    projectId: number,
+): Promise<QuizSetSummaryResponse[]> => {
+    const { data } = await axiosInstance.get<QuizSetSummaryResponse[]>('/quiz', {
+        params: { project: projectId },
+    });
+    return (data ?? []).map((item) => ({
+        ...item,
+        status: item.status === ('READY' as QuizSetStatus) ? 'COMPLETED' : item.status,
+    }));
 };
 
 export const getQuizSet = async (quizSetId: number): Promise<QuizSetDetailResponse> => {
-    const { data } = await axiosInstance.get<QuizSetDetailResponse>(`/quiz/${quizSetId}`);
-    return data;
+    const { data } = await axiosInstance.get<unknown>(`/quiz/${quizSetId}`);
+    return normalizeQuizSetDetail(data);
 };
 
 export const getQuizQuestions = async (quizSetId: number): Promise<QuizQuestionsResponse> => {
-    const { data } = await axiosInstance.get<QuizQuestionsResponse>(`/quiz/${quizSetId}/questions`);
+    const { data } = await axiosInstance.get<unknown>(`/quiz/${quizSetId}/questions`);
+    return normalizeQuizQuestions(data);
+};
+
+export const submitQuizSatisfaction = async (
+    quizSetId: number,
+    body: QuizSatisfactionRequest,
+): Promise<QuizSetSummaryResponse> => {
+    const { data } = await axiosInstance.post<QuizSetSummaryResponse>(
+        `/quiz/${quizSetId}/satisfaction`,
+        body,
+    );
     return data;
 };

@@ -74,6 +74,13 @@ public class QuizSet extends BaseTimeEntity {
 	@Column(name = "created_by", nullable = false)
 	private Long createdBy;
 
+	/** 생성 완료 후 출제자 만족도(1–5). 미응답이면 null. */
+	@Column(name = "satisfaction_rating")
+	private Integer satisfactionRating;
+
+	@Column(name = "satisfaction_comment", length = 500)
+	private String satisfactionComment;
+
 	/**
 	 * todo: QuizChoice 쪽에 둘지, 양방향으로 둘지 고민 필요
 	 */
@@ -116,5 +123,10 @@ public class QuizSet extends BaseTimeEntity {
 	public void fail(String errorMessage) {
 		this.errorMessage = errorMessage;
 		this.status = QuizSetStatus.FAILED;
+	}
+
+	public void submitSatisfaction(int rating, String comment) {
+		this.satisfactionRating = rating;
+		this.satisfactionComment = comment;
 	}
 }

@@ -6,6 +6,7 @@ import { onLogout } from '../network/auth/logoutSignal';
 import { useGetSessionPresence } from '../network/session';
 import type { ChatMessageResponse, SessionParticipantResponse } from '../network/session';
 import type { QuizSetStatus } from '../network/quiz';
+import { normalizeQuizSetStatus } from '../network/quiz';
 import { createStompClient, sessionDestinations } from './stompClient';
 
 export type SessionSocketStatus = 'idle' | 'connecting' | 'connected' | 'disconnected';
@@ -25,6 +26,14 @@ export interface QuizGenerationNotification {
   status: QuizSetStatus;
   generatedCount: number;
   errorMessage: string | null;
+}
+
+/** `/topic/sessions/{id}/project` 이벤트. 임포트 직후 참가자 전원 트리를 맞출 때 쓴다. */
+export interface ProjectImportNotification {
+  projectId: number;
+  sessionId: number;
+  fileCount: number;
+  versionHash: string;
 }
 
 interface ChatErrorPayload {
@@ -101,11 +110,25 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
       });
 
       client.subscribe(sessionDestinations.quiz(sessionId), (frame: IMessage) => {
-        const notification = JSON.parse(frame.body) as QuizGenerationNotification;
+        const notification = JSON.parse(frame.body) as QuizGenerationNotification & {
+          status: string;
+        };
+        const normalized: QuizGenerationNotification = {
+          ...notification,
+          status: normalizeQuizSetStatus(notification.status),
+        };
         // 알림에는 문항이 없다. 캐시를 비워 화면이 실제 퀴즈셋을 다시 받게 한다.
-        queryClient.invalidateQueries({ queryKey: queryKeys.quiz.detail(notification.quizSetId) });
-        setLastQuizNotification(notification);
-        onQuizRef.current?.(notification);
+        queryClient.invalidateQueries({ queryKey: queryKeys.quiz.detail(normalized.quizSetId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.quiz.questions(normalized.quizSetId) });
+        setLastQuizNotification(normalized);
+        onQuizRef.current?.(normalized);
+      });
+
+      client.subscribe(sessionDestinations.project(sessionId), (frame: IMessage) => {
+        const notification = JSON.parse(frame.body) as ProjectImportNotification;
+        queryClient.invalidateQueries({ queryKey: queryKeys.projects.bySession(sessionId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.projects.files(notification.projectId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(notification.projectId) });
       });
 
       client.subscribe(sessionDestinations.errors, (frame: IMessage) => {
