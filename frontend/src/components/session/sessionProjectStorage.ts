@@ -47,6 +47,7 @@ export function saveSessionProject(sessionId: number, ref: SessionProjectRef): v
 export function clearSessionProject(sessionId: number): void {
   sessionStorage.removeItem(`${STORAGE_PREFIX}${sessionId}`);
   sessionStorage.removeItem(`${ACTIVE_FILE_PREFIX}${sessionId}`);
+  sessionStorage.removeItem(`${QUIZ_SET_PREFIX}${sessionId}`);
 }
 
 export function saveSessionActiveFile(sessionId: number, path: string): void {
@@ -62,4 +63,26 @@ export function loadSessionActiveFile(sessionId: number): string | null {
   } catch {
     return null;
   }
+}
+
+const QUIZ_SET_PREFIX = 'qurie:session-quiz-set:';
+
+/** 세션별 활성 퀴즈셋 id. 새로고침·재입장 시 생성 중/완료 상태를 이어가기 위함. */
+export function saveSessionQuizSetId(sessionId: number, quizSetId: number): void {
+  sessionStorage.setItem(`${QUIZ_SET_PREFIX}${sessionId}`, String(quizSetId));
+}
+
+export function loadSessionQuizSetId(sessionId: number): number | null {
+  try {
+    const raw = sessionStorage.getItem(`${QUIZ_SET_PREFIX}${sessionId}`);
+    if (!raw) return null;
+    const id = Number(raw);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearSessionQuizSetId(sessionId: number): void {
+  sessionStorage.removeItem(`${QUIZ_SET_PREFIX}${sessionId}`);
 }

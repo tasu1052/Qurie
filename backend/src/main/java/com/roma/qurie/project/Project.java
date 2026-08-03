@@ -38,6 +38,13 @@ public class Project {
     @Column(name = "imported_by", nullable = false)
     private Long importedBy;
 
+    /** 임포트 파일 내용 SHA-256. 퀴즈 version_hash · 참가자 동기화에 쓴다. */
+    @Column(name = "version_hash", length = 64)
+    private String versionHash;
+
+    @Column(name = "file_count")
+    private Integer fileCount;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -54,5 +61,17 @@ public class Project {
         this.sessionId = sessionId;
         this.path = path;
         this.importedBy = importedBy;
+    }
+
+    public Project(
+        Long sessionId,
+        String path,
+        Long importedBy,
+        String versionHash,
+        int fileCount
+    ) {
+        this(sessionId, path, importedBy);
+        this.versionHash = versionHash;
+        this.fileCount = fileCount;
     }
 }

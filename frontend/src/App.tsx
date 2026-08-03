@@ -28,29 +28,10 @@ import GroupListPage from './pages/manager/GroupListPage';
 import GroupEditPage from './pages/manager/GroupEditPage';
 import ManagerMyPage from './pages/manager/ManagerMyPage';
 import StudentDashboardPage from './pages/student/StudentDashboardPage';
-import ClassHomePage from './pages/student/ClassHomePage';
-import ClassLobbyPage from './pages/student/ClassLobbyPage';
 import MyPage from './pages/student/MyPage';
 import SessionPage from './pages/session/SessionPage';
+import SessionReportPage from './pages/session/SessionReportPage';
 import FinalReportPage from './pages/student/FinalReportPage';
-
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        fontFamily: 'var(--font-sans)',
-        color: 'var(--text-secondary)',
-        fontSize: 17,
-      }}
-    >
-      {title} — 준비 중
-    </div>
-  );
-}
 
 function RedirectClassAnalytics() {
   const { classId } = useParams<{ classId: string }>();
@@ -98,13 +79,13 @@ export default function App() {
           <Route path="/manager/settings" element={<Navigate to="/manager/me" replace />} />
 
           <Route path="/app" element={<StudentDashboardPage />} />
-          <Route path="/app/classes" element={<ClassHomePage />} />
-          <Route path="/app/classes/:id" element={<ClassLobbyPage />} />
+          <Route path="/app/classes" element={<Navigate to="/app" replace />} />
+          <Route path="/app/classes/:id" element={<Navigate to="/app" replace />} />
           <Route path="/app/me" element={<MyPage />} />
           <Route path="/app/report" element={<FinalReportPage />} />
 
           <Route path="/session/:id" element={<SessionPage />} />
-          <Route path="/session/:id/report" element={<PlaceholderPage title="세션 리포트" />} />
+          <Route path="/session/:id/report" element={<SessionReportPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

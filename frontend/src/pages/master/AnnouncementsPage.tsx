@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pin, Plus } from 'lucide-react';
+import { Pencil, Pin, Plus, Trash2 } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import {
   AlertBanner,
@@ -8,9 +8,20 @@ import {
   Input,
   Modal,
   RowErrorFallback,
+  Select,
   Skeleton,
 } from '../../ds';
-import { QueryAsyncBoundary, useGetNotices, type NoticeResponse, type NoticeScope } from '../../data';
+import {
+  QueryAsyncBoundary,
+  useCreateNotice,
+  useDeleteNotice,
+  useGetClasses,
+  useGetNotices,
+  useGetTracks,
+  useUpdateNotice,
+  type NoticeResponse,
+  type NoticeScope,
+} from '../../data';
 
 type ScopeFilter = '전체' | 'ENTERPRISE' | 'TRACK' | 'CLASS';
 
@@ -30,7 +41,17 @@ function scopeLabel(scope: NoticeScope): string {
   return '클래스';
 }
 
-function NoticeCard({ item }: { item: NoticeResponse }) {
+function NoticeCard({
+  item,
+  onDelete,
+  onEdit,
+  deleting,
+}: {
+  item: NoticeResponse;
+  onDelete: () => void;
+  onEdit: () => void;
+  deleting: boolean;
+}) {
   return (
     <div
       style={{
@@ -68,6 +89,39 @@ function NoticeCard({ item }: { item: NoticeResponse }) {
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
           {new Date(item.createdAt).toLocaleDateString('ko-KR')}
         </span>
+        <button
+          type="button"
+          title="수정"
+          aria-label="공지 수정"
+          onClick={onEdit}
+          style={{
+            border: 'none',
+            background: 'transparent',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            padding: 4,
+          }}
+        >
+          <Pencil size={14} strokeWidth={1.75} />
+        </button>
+        <button
+          type="button"
+          title="삭제"
+          aria-label="공지 삭제"
+          disabled={deleting}
+          onClick={onDelete}
+          style={{
+            border: 'none',
+            background: 'transparent',
+            color: 'var(--status-error)',
+            cursor: deleting ? 'wait' : 'pointer',
+            display: 'inline-flex',
+            padding: 4,
+          }}
+        >
+          <Trash2 size={14} strokeWidth={1.75} />
+        </button>
       </div>
       <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>{item.title}</h3>
       <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
@@ -83,8 +137,14 @@ function NoticeCard({ item }: { item: NoticeResponse }) {
 function AnnouncementsBody() {
   const [scope, setScope] = useState<ScopeFilter>('전체');
   const [open, setOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<NoticeResponse | null>(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [createScope, setCreateScope] = useState<NoticeScope>('ENTERPRISE');
+  const [trackId, setTrackId] = useState('');
+  const [classId, setClassId] = useState('');
+  const [pinned, setPinned] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const filters = useMemo(
     () => ({
@@ -95,7 +155,85 @@ function AnnouncementsBody() {
   );
 
   const { data: noticesPage } = useGetNotices(filters);
+  const { data: tracksPage } = useGetTracks({ size: 100 });
+  const { data: classesPage } = useGetClasses({ size: 100 });
+  const createNotice = useCreateNotice();
+  const updateNotice = useUpdateNotice();
+  const deleteNotice = useDeleteNotice();
   const notices = noticesPage.data;
+
+  const resetForm = () => {
+    setTitle('');
+    setBody('');
+    setCreateScope('ENTERPRISE');
+    setTrackId('');
+    setClassId('');
+    setPinned(false);
+    setError(null);
+    setEditTarget(null);
+  };
+
+  const openEdit = (item: NoticeResponse) => {
+    setEditTarget(item);
+    setTitle(item.title);
+    setBody(item.body);
+    setPinned(item.pinned);
+    setError(null);
+    setOpen(true);
+  };
+
+  const onCreate = () => {
+    if (!title.trim() || !body.trim()) {
+      setError('제목과 본문을 입력하세요.');
+      return;
+    }
+    if (editTarget) {
+      updateNotice.mutate(
+        {
+          noticeId: editTarget.id,
+          title: title.trim(),
+          body: body.trim(),
+          pinned,
+        },
+        {
+          onSuccess: () => {
+            setOpen(false);
+            resetForm();
+          },
+          onError: () => setError('공지 수정에 실패했습니다.'),
+        },
+      );
+      return;
+    }
+    if (createScope === 'TRACK' && !trackId) {
+      setError('트랙을 선택하세요.');
+      return;
+    }
+    if (createScope === 'CLASS' && !classId) {
+      setError('클래스를 선택하세요.');
+      return;
+    }
+    setError(null);
+    createNotice.mutate(
+      {
+        scope: createScope,
+        title: title.trim(),
+        body: body.trim(),
+        pinned,
+        trackId: createScope === 'TRACK' ? Number(trackId) : undefined,
+        classId: createScope === 'CLASS' ? Number(classId) : undefined,
+      },
+      {
+        onSuccess: () => {
+          setOpen(false);
+          resetForm();
+        },
+        onError: () => setError('공지 작성에 실패했습니다.'),
+      },
+    );
+  };
+
+  const saving = createNotice.isPending || updateNotice.isPending;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, position: 'relative' }}>
@@ -103,7 +241,7 @@ function AnnouncementsBody() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>공지사항</h1>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            전체 · 트랙 · 클래스 단위로 발송된 공지를 확인하세요.
+            전체 · 트랙 · 클래스 단위로 공지를 관리해요.
           </span>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
@@ -142,21 +280,33 @@ function AnnouncementsBody() {
       {notices.length === 0 ? (
         <EmptyState
           message="공지가 없습니다"
-          description="공지 작성 API가 아직 없어 조회만 가능합니다."
-          actionLabel="전체 보기"
-          onAction={() => setScope('전체')}
+          description="오른쪽 아래 + 버튼으로 새 공지를 작성할 수 있어요."
+          actionLabel="작성하기"
+          onAction={() => {
+            resetForm();
+            setOpen(true);
+          }}
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {notices.map((n) => (
-            <NoticeCard key={n.id} item={n} />
+            <NoticeCard
+              key={n.id}
+              item={n}
+              deleting={deleteNotice.isPending}
+              onEdit={() => openEdit(n)}
+              onDelete={() => deleteNotice.mutate(n.id)}
+            />
           ))}
         </div>
       )}
 
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          resetForm();
+          setOpen(true);
+        }}
         style={{
           position: 'fixed',
           right: 32,
@@ -180,21 +330,69 @@ function AnnouncementsBody() {
 
       <Modal
         open={open}
-        title="공지 작성"
-        description="공지 생성 API가 아직 준비되지 않았습니다."
-        primaryLabel="닫기"
-        onPrimary={() => setOpen(false)}
-        onClose={() => setOpen(false)}
-        width={480}
+        title={editTarget ? '공지 수정' : '공지 작성'}
+        description={
+          editTarget
+            ? '제목·본문·고정 여부를 수정해요.'
+            : '범위와 대상을 선택한 뒤 제목·본문을 입력해요.'
+        }
+        primaryLabel={saving ? '저장 중…' : editTarget ? '수정하기' : '작성하기'}
+        secondaryLabel="취소"
+        onPrimary={onCreate}
+        onSecondary={() => {
+          setOpen(false);
+          resetForm();
+        }}
+        onClose={() => {
+          setOpen(false);
+          resetForm();
+        }}
+        width={520}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <AlertBanner
-            tone="info"
-            title="백엔드 대기"
-            description="POST /notices 가 추가되면 이 폼으로 공지를 작성할 수 있습니다."
-          />
+          {error ? <AlertBanner tone="error" title="저장 실패" description={error} /> : null}
+          {!editTarget ? (
+            <>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>범위</span>
+                <Select
+                  options={[
+                    { value: 'ENTERPRISE', label: '전체 (ENTERPRISE)' },
+                    { value: 'TRACK', label: '트랙' },
+                    { value: 'CLASS', label: '클래스' },
+                  ]}
+                  value={createScope}
+                  onChange={(v) => setCreateScope(v as NoticeScope)}
+                />
+              </label>
+              {createScope === 'TRACK' ? (
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>트랙</span>
+                  <Select
+                    options={tracksPage.data.map((t) => ({ value: String(t.id), label: t.name }))}
+                    value={trackId}
+                    onChange={setTrackId}
+                  />
+                </label>
+              ) : null}
+              {createScope === 'CLASS' ? (
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>클래스</span>
+                  <Select
+                    options={classesPage.data.map((c) => ({ value: String(c.id), label: c.name }))}
+                    value={classId}
+                    onChange={setClassId}
+                  />
+                </label>
+              ) : null}
+            </>
+          ) : null}
           <Input placeholder="제목" value={title} onChange={(e) => setTitle(e.target.value)} width="100%" />
           <Input placeholder="본문" value={body} onChange={(e) => setBody(e.target.value)} width="100%" />
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+            <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
+            상단 고정
+          </label>
         </div>
       </Modal>
     </div>

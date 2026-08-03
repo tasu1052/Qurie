@@ -65,6 +65,8 @@ export function languageFromPath(path: string): string {
       return 'json';
     case 'md':
       return 'markdown';
+    case 'sql':
+      return 'sql';
     default:
       return 'typescript';
   }

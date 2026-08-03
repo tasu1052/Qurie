@@ -1,11 +1,15 @@
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { queryKeys } from '../core/queryKeys';
 import {
+    confirmPasswordReset,
     getMe,
     login,
     logout,
     refresh,
+    requestPasswordReset,
     type LoginRequest,
+    type PasswordResetConfirmRequest,
+    type PasswordResetRequest,
 } from './auth-apis';
 import { notifyLogout } from './logoutSignal';
 
@@ -60,5 +64,17 @@ export const useRefresh = () => {
         onSuccess: (data) => {
             queryClient.setQueryData(queryKeys.auth.me(), data);
         },
+    });
+};
+
+export const useRequestPasswordReset = () => {
+    return useMutation({
+        mutationFn: (body: PasswordResetRequest) => requestPasswordReset(body),
+    });
+};
+
+export const useConfirmPasswordReset = () => {
+    return useMutation({
+        mutationFn: (body: PasswordResetConfirmRequest) => confirmPasswordReset(body),
     });
 };

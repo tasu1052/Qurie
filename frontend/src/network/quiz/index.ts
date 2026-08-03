@@ -1,3 +1,12 @@
 export * from './quiz-apis';
+export { formatQuizSource, normalizeQuizSetStatus } from './quiz-normalize';
 
-export { useGenerateQuiz, useGetQuizSet, usePollQuizSet } from './quiz-hooks';
+export {
+    useGenerateQuiz,
+    useGetQuizQuestions,
+    useGetQuizSet,
+    usePollQuizQuestions,
+    usePollQuizSet,
+    useQuizSetsByProject,
+    useSubmitQuizSatisfaction,
+} from './quiz-hooks';

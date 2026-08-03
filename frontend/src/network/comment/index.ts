@@ -1,2 +1,8 @@
 export * from './comment-apis';
-export { useCreateStudentComment, useGetStudentComments } from './comment-hooks';
+
+export {
+    useCreateStudentComment,
+    useDeleteStudentComment,
+    useGetStudentComments,
+    useUpdateStudentComment,
+} from './comment-hooks';

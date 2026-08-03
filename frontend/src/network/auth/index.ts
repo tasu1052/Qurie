@@ -1,3 +1,11 @@
 export * from './auth-apis';
 
-export { useLogin, useLogout, useMe, useMeOptional, useRefresh } from './auth-hooks';
+export {
+    useConfirmPasswordReset,
+    useLogin,
+    useLogout,
+    useMe,
+    useMeOptional,
+    useRefresh,
+    useRequestPasswordReset,
+} from './auth-hooks';

@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { queryKeys } from '../core/queryKeys';
 import {
     createGroup,
@@ -50,6 +50,15 @@ export const useGetGroupDetail = (groupId: number) => {
     return useSuspenseQuery({
         queryKey: queryKeys.groups.detailFull(groupId),
         queryFn: () => getGroupDetail(groupId),
+    });
+};
+
+/** 편집 화면용 — suspense 없이 로드해 후보 API 실패가 상세 화면 전체를 막지 않게 한다. */
+export const useGetGroupCandidatesQuery = (classId: number) => {
+    return useQuery({
+        queryKey: queryKeys.groups.candidates(classId),
+        queryFn: () => getGroupCandidates(classId),
+        staleTime: 30_000,
     });
 };
 

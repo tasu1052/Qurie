@@ -24,6 +24,7 @@ import org.mockito.quality.Strictness;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
@@ -58,6 +59,9 @@ class ProjectServiceTest {
 
 	@Mock
 	private TransactionTemplate transactionTemplate;
+
+	@Mock
+	private SimpMessagingTemplate messagingTemplate;
 
 	@InjectMocks
 	private ProjectService projectService;
@@ -134,13 +138,13 @@ class ProjectServiceTest {
 
 	@Test
 	void importGitMergesReaderSkipsWithSanitizerSkipsAndStoresRepoUrl() {
-		given(gitProjectReader.readFiles("https://github.com/foo/bar.git", null, null))
+		given(gitProjectReader.readFiles("https://github.com/foo/bar.git", null, null, null))
 				.willReturn(new GitProjectReader.ReadResult(
 						Map.of("src/app.py", "print(1)", "dist/bundle.js", "x"),
 						List.of(new ImportedFileSanitizer.SkippedFile("logo.png", "바이너리 파일"))));
 
 		ProjectImportResponse response = projectService.importGit(student(), new ProjectImportGitRequest(
-				SESSION_ID, "https://github.com/foo/bar.git", null, null));
+				SESSION_ID, "https://github.com/foo/bar.git", null, null, null));
 
 		assertThat(response.fileCount()).isEqualTo(1);
 		assertThat(response.skippedFiles())
@@ -150,6 +154,20 @@ class ProjectServiceTest {
 		ArgumentCaptor<Project> captor = ArgumentCaptor.forClass(Project.class);
 		verify(projectRepository).save(captor.capture());
 		assertThat(captor.getValue().getPath()).isEqualTo("https://github.com/foo/bar.git");
+	}
+
+	@Test
+	void importGitForwardsPatToReaderWithoutStoringIt() {
+		given(gitProjectReader.readFiles("https://github.com/foo/private.git", "main", null, "glpat-secret"))
+				.willReturn(new GitProjectReader.ReadResult(Map.of("src/app.py", "print(1)"), List.of()));
+
+		projectService.importGit(student(), new ProjectImportGitRequest(
+				SESSION_ID, "https://github.com/foo/private.git", "main", null, "glpat-secret"));
+
+		ArgumentCaptor<Project> captor = ArgumentCaptor.forClass(Project.class);
+		verify(projectRepository).save(captor.capture());
+		// 저장되는 path 는 repo URL 그대로여야 하고, 토큰이 어디에도 섞여 들어가면 안 된다.
+		assertThat(captor.getValue().getPath()).isEqualTo("https://github.com/foo/private.git");
 	}
 
 	@Test

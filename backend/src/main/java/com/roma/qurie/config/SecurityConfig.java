@@ -1,17 +1,20 @@
 package com.roma.qurie.config;
 
 import com.roma.qurie.security.JwtAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -19,8 +22,24 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
- * 보안 설정. session 등 다른 도메인이 아직 인증을 다루지 않으므로 엔드포인트 접근 제어는
- * 여전히 전부 permitAll로 둔다 — 실제 보호가 필요한 첫 엔드포인트(초대 생성)를 만들 때 교체할 것.
+ * 보안 설정.
+ *
+ * URL 단위 인가는 "로그인이 되어 있는가"까지만 본다. "어떤 역할인가", "그 리소스의 소유자인가" 같은
+ * 세밀한 검증은 각 서비스가 계속 수동으로 한다(TrackService.requireMaster 등) — 반 소속처럼 리소스를
+ * 읽어야 판단할 수 있는 규칙이 많아, URL 패턴만으로는 흉내낼 수 없기 때문이다. 이 레이어가 막는 것은
+ * "그 수동 검사를 아예 빼먹은 엔드포인트가 전체 공개로 남는" 사고다 — permitAll 이 기본값이면 검사를
+ * 빼먹은 새 엔드포인트가 조용히 뚫린 채로 남지만, authenticated() 가 기본값이면 최소한 로그인은 강제된다.
+ *
+ * 화이트리스트(로그인 없이도 되는 요청):
+ * - /api/auth/**            : 로그인 자체, 토큰 갱신/로그아웃(만료된 쿠키로도 호출돼야 함), me(비로그인
+ *                              상태도 정상 응답 경로), 비밀번호 재설정(로그인 못 하는 사람이 부르는 경로)
+ * - GET /api/invitations/*  : 초대 링크로 여는 가입 화면 미리보기 — 아직 계정이 없는 사람이 부른다
+ * - POST /api/users         : 초대 기반 회원가입 — 역시 아직 계정이 없는 사람이 부른다
+ * - POST /api/quiz/{id}/callback : AI 서버가 부르는 서버 간 콜백. 쿠키가 아니라 별도 공유 비밀
+ *                              헤더(X-Ai-Callback-Secret)로 검증하므로 이 레이어에서는 막지 않는다
+ * - OPTIONS /**             : CORS 프리플라이트. 브라우저가 자격 증명 없이 보내므로 막으면
+ *                              크로스오리진 POST/PATCH/DELETE 가 전부 깨진다
+ *
  * JWT 인증 필터는 미리 체인에 연결해, 유효한 쿠키가 오면 SecurityContext에 인증 정보가 채워지게 한다.
  *
  * CSRF: JWT를 헤더가 아니라 httpOnly 쿠키로 내려주는 방식이라 원칙적으로 CSRF 노출이 있지만,
@@ -41,9 +60,26 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/invitations/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/quiz/*/callback").permitAll()
+                        .anyRequest().authenticated())
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint()))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
+    }
+
+    /*
+     * 로그인 안 된 요청이 authenticated() 에 막히면 여기로 온다. sendError로 서블릿 컨테이너의 에러
+     * 디스패치(BasicErrorController)를 그대로 태워, 기존에 ResponseStatusException(UNAUTHORIZED, ...)이
+     * 컨트롤러 안에서 던져졌을 때와 같은 응답 형식을 유지한다 — 이 레이어만 다른 모양의 401을 새로 만들지 않는다.
+     */
+    private AuthenticationEntryPoint authenticationEntryPoint() {
+        return (request, response, authException) ->
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "로그인이 필요합니다.");
     }
 
     @Bean

@@ -20,7 +20,9 @@ import com.roma.qurie.quiz.dto.QuizGenerateRequest;
 import com.roma.qurie.quiz.dto.QuizGenerateResponse;
 import com.roma.qurie.quiz.dto.QuizGenerationNotification;
 import com.roma.qurie.quiz.dto.QuizQuestionsResponse;
+import com.roma.qurie.quiz.dto.QuizSatisfactionRequest;
 import com.roma.qurie.quiz.dto.QuizSetDetailResponse;
+import com.roma.qurie.quiz.dto.QuizSetSummaryResponse;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.session.participant.SessionParticipantService;
 import com.roma.qurie.quiz.entity.Quiz;
@@ -43,6 +45,7 @@ public class QuizService {
 	/** todo: 문항 제한 시간 정책이 정해지면 요청/난이도별 값으로 교체. */
 	private static final int DEFAULT_TIME_LIMIT_SEC = 60;
 	private static final String MANAGER_ROLE = "MANAGER";
+	private static final String MASTER_ROLE = "MASTER";
 
 	private final QuizSetRepository quizSetRepository;
 	private final ProjectRepository projectRepository;
@@ -61,7 +64,14 @@ public class QuizService {
 	 * 일부러 @Transactional 을 걸지 않는다. AI 호출(최대 수 초)이 트랜잭션 안에 들어가면
 	 * 그 시간만큼 DB 커넥션을 점유하므로, 저장은 repository 의 자체 트랜잭션 두 번으로 나눈다.
 	 */
-	public QuizGenerateResponse requestQuizGeneration(Long projectId, QuizGenerateRequest request, Long createdBy) {
+	public QuizGenerateResponse requestQuizGeneration(
+			Long projectId, QuizGenerateRequest request, AuthUser requester) {
+		requireAuthenticated(requester);
+		Project project = projectRepository.findById(projectId)
+				.orElseThrow(() -> new ResponseStatusException(
+						HttpStatus.NOT_FOUND, "프로젝트를 찾을 수 없습니다: " + projectId));
+		verifyCanGenerate(project.getSessionId(), requester);
+
 		QuizSet quizSet = quizSetRepository.save(QuizSet.builder()
 				.projectId(projectId)
 				.versionHash(request.versionHash())
@@ -71,7 +81,7 @@ public class QuizService {
 				.ratioNormal(request.ratioNormal())
 				.ratioHard(request.ratioHard())
 				.userPrompt(request.userPrompt())
-				.createdBy(createdBy)
+				.createdBy(requester.id())
 				.build());
 
 		try {
@@ -87,13 +97,32 @@ public class QuizService {
 	}
 
 	/**
+	 * 프로젝트에 묶인 퀴즈셋 목록(최신순). 새로고침·재입장 시 생성 중/완료 상태를 복원하는 기준점이다.
+	 */
+	@Transactional(readOnly = true)
+	public List<QuizSetSummaryResponse> listByProject(Long projectId, AuthUser requester) {
+		requireAuthenticated(requester);
+		Project project = projectRepository.findById(projectId)
+				.orElseThrow(() -> new ResponseStatusException(
+						HttpStatus.NOT_FOUND, "프로젝트를 찾을 수 없습니다: " + projectId));
+		if (!MASTER_ROLE.equals(requester.role())) {
+			participantService.verifySessionClassMember(project.getSessionId(), requester);
+		}
+
+		return quizSetRepository.findByProjectIdOrderByIdDesc(projectId).stream()
+				.limit(20)
+				.map(QuizSetSummaryResponse::from)
+				.toList();
+	}
+
+	/**
 	 * 퀴즈셋 조회(정답 포함, 출제자 전용). 생성 중이면 AI 서버 상태를 함께 확인해서 완료(READY)면
 	 * 문항을 저장하고 COMPLETED 로 넘긴다 — 콜백이 오지 않았을 때(네트워크 문제 등)를 대비한 안전망이다.
 	 */
 	@Transactional
 	public QuizSetDetailResponse getQuizSet(Long quizSetId, AuthUser requester) {
 		QuizSet quizSet = findQuizSetOrThrow(quizSetId);
-		verifyManagerAccess(quizSet, requester);
+		verifyInstructorAccess(quizSet, requester);
 
 		String generationStage = syncFromAi(quizSet);
 
@@ -113,18 +142,48 @@ public class QuizService {
 		return QuizQuestionsResponse.from(quizSet, generationStage);
 	}
 
+	/** 생성 완료 퀴즈에 대한 출제자 만족도. */
+	@Transactional
+	public QuizSetSummaryResponse submitSatisfaction(
+			Long quizSetId, QuizSatisfactionRequest request, AuthUser requester) {
+		QuizSet quizSet = findQuizSetOrThrow(quizSetId);
+		verifyInstructorAccess(quizSet, requester);
+		if (quizSet.getStatus() != QuizSetStatus.COMPLETED) {
+			throw new ResponseStatusException(HttpStatus.CONFLICT, "완료된 퀴즈에만 만족도를 남길 수 있습니다.");
+		}
+		quizSet.submitSatisfaction(request.rating(), request.comment());
+		return QuizSetSummaryResponse.from(quizSet);
+	}
+
 	/**
-	 * 정답이 포함된 상세는 강사만 볼 수 있다. 세션 활성 여부는 보지 않는다 —
+	 * 정답이 포함된 상세는 강사/마스터만 볼 수 있다. 세션 활성 여부는 보지 않는다 —
 	 * 세션을 닫은 뒤에 결과를 검토하는 흐름을 막지 않기 위해서다.
 	 */
-	private void verifyManagerAccess(QuizSet quizSet, AuthUser requester) {
-		if (requester == null) {
-			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+	private void verifyInstructorAccess(QuizSet quizSet, AuthUser requester) {
+		requireAuthenticated(requester);
+		if (MASTER_ROLE.equals(requester.role())) {
+			return;
 		}
 		if (!MANAGER_ROLE.equals(requester.role())) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "정답이 포함된 퀴즈 상세는 강사만 볼 수 있습니다.");
 		}
 		participantService.verifySessionClassMember(sessionIdOf(quizSet), requester);
+	}
+
+	private void verifyCanGenerate(Long sessionId, AuthUser requester) {
+		if (MASTER_ROLE.equals(requester.role())) {
+			return;
+		}
+		if (!MANAGER_ROLE.equals(requester.role())) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "퀴즈 생성은 강사만 할 수 있습니다.");
+		}
+		participantService.verifySessionClassMember(sessionId, requester);
+	}
+
+	private void requireAuthenticated(AuthUser requester) {
+		if (requester == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
 	}
 
 	private Long sessionIdOf(QuizSet quizSet) {

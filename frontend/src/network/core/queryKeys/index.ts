@@ -10,6 +10,7 @@ import { quizKeys } from './quiz.keys';
 import { sessionKeys } from './session.keys';
 import { trackKeys } from './track.keys';
 import { userKeys } from './user.keys';
+import { voiceKeys } from './voice.keys';
 
 export const queryKeys = {
     analytics: analyticsKeys,
@@ -24,6 +25,7 @@ export const queryKeys = {
     sessions: sessionKeys,
     tracks: trackKeys,
     users: userKeys,
+    voice: voiceKeys,
 } as const;
 
 export {
@@ -39,4 +41,5 @@ export {
     sessionKeys,
     trackKeys,
     userKeys,
+    voiceKeys,
 };

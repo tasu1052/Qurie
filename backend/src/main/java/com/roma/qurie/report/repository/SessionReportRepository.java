@@ -1,5 +1,6 @@
 package com.roma.qurie.report.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,4 +12,6 @@ public interface SessionReportRepository extends JpaRepository<SessionReport, Lo
     boolean existsBySessionIdAndOrdinaryUserId(Long sessionId, Long ordinaryUserId);
 
     Optional<SessionReport> findBySessionIdAndOrdinaryUserId(Long sessionId, Long ordinaryUserId);
+
+    List<SessionReport> findByOrdinaryUserIdOrderByIssuedAtDesc(Long ordinaryUserId);
 }

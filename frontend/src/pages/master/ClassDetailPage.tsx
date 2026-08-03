@@ -4,14 +4,10 @@ import { isAxiosError } from 'axios';
 import { Users } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
-import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
 import {
   AlertBanner,
   Badge,
-  BarChart,
   Button,
-  ChartLegend,
-  LineChart,
   RowErrorFallback,
   Skeleton,
   StatCard,
@@ -19,9 +15,9 @@ import {
 } from '../../ds';
 import {
   QueryAsyncBoundary,
-  useClassAnalyticsRow,
   useDeleteClass,
   useGetClass,
+  useGetClassAnalytics,
   useGetClassMembers,
   useGetTracks,
   type ClassMemberResponse,
@@ -48,8 +44,6 @@ function roleBadge(role: UserRole) {
   if (role === 'MANAGER') return <Badge status="accent">MANAGER</Badge>;
   return <Badge status="neutral">STUDENT</Badge>;
 }
-
-const metricChips = ['정답률', '퀴즈 참여율', 'Streak 유지율', '세션 빈도', '평점'] as const;
 
 function DetailSkeleton() {
   return (
@@ -151,165 +145,41 @@ function MemberTable({ title, members }: { title: string; members: ClassMemberRe
   );
 }
 
-function ClassAnalyticsSection({ classId, className }: { classId: string; className: string }) {
-  const row = useClassAnalyticsRow(classId);
-  const [active, setActive] = useState<Set<string>>(new Set(['정답률', '퀴즈 참여율']));
+function formatRate(value: number | null): string {
+  if (value == null) return '—';
+  const pct = value <= 1 ? value * 100 : value;
+  return `${Math.round(pct)}%`;
+}
 
-  const toggle = (chip: string) => {
-    setActive((prev) => {
-      const next = new Set(prev);
-      if (next.has(chip)) next.delete(chip);
-      else next.add(chip);
-      return next;
-    });
-  };
+function formatMs(value: number | null): string {
+  if (value == null) return '—';
+  if (value < 1000) return `${value}ms`;
+  return `${(value / 1000).toFixed(1)}s`;
+}
+
+function ClassAnalyticsSection({ classId, className }: { classId: number; className: string }) {
+  const { data } = useGetClassAnalytics(classId);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
         <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>{className} — 클래스 분석</h2>
         <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-          지표를 선택해 세션별 추이를 비교하세요.
+          리포트가 쌓인 학생 {data.reportedStudentCount}명 기준으로 집계해요.
         </span>
       </div>
-      <MockRowBoundary
-        status={row.status}
-        skeleton={<Skeleton width="100%" height={240} radius={16} />}
-        onRetry={row.refetch}
-        emptyMessage="클래스 분석 데이터가 없습니다"
-      >
-        {row.data ? (
-          <>
-            <StatCardRow>
-              {row.data.kpis.map((item, i) => (
-                <StatCard key={i} {...item} />
-              ))}
-            </StatCardRow>
-            <div
-              style={{
-                background: 'var(--surface-card)',
-                border: '1px solid var(--border)',
-                borderRadius: 16,
-                boxShadow: 'var(--shadow-card)',
-                padding: 24,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 16,
-              }}
-            >
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {metricChips.map((chip) => {
-                  const on = active.has(chip);
-                  return (
-                    <button
-                      key={chip}
-                      type="button"
-                      onClick={() => toggle(chip)}
-                      style={{
-                        borderRadius: 999,
-                        padding: '6px 12px',
-                        fontSize: 12,
-                        fontWeight: on ? 600 : 400,
-                        cursor: 'pointer',
-                        fontFamily: 'var(--font-sans)',
-                        border: `1px solid ${on ? 'var(--accent)' : 'var(--border-strong)'}`,
-                        background: on ? 'var(--accent-softer)' : 'var(--surface-card)',
-                        color: on ? 'var(--accent)' : 'var(--text-secondary)',
-                      }}
-                    >
-                      {chip}
-                    </button>
-                  );
-                })}
-              </div>
-              <LineChart
-                series={row.data.series.filter((s) => active.has(s.name ?? ''))}
-                labels={row.data.labels}
-                height={220}
-                showDots
-              />
-              <ChartLegend
-                items={row.data.series
-                  .filter((s) => active.has(s.name ?? ''))
-                  .map((s) => ({ label: s.name ?? '', accent: s.accent }))}
-              />
-            </div>
-            <div className="qurie-master-split" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.4fr)' }}>
-              <div
-                style={{
-                  background: 'var(--surface-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 16,
-                  boxShadow: 'var(--shadow-card)',
-                  padding: 24,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 16,
-                  minWidth: 0,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  카테고리별 정답률
-                </span>
-                <BarChart data={row.data.categories} height={180} showValues />
-                <ChartLegend items={[{ label: '카테고리 정답률', accent: true }]} />
-              </div>
-              <div
-                style={{
-                  background: 'var(--surface-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 16,
-                  boxShadow: 'var(--shadow-card)',
-                  overflow: 'hidden',
-                  minWidth: 0,
-                }}
-              >
-                <div style={{ padding: '16px 20px 10px' }}>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
-                      color: 'var(--text-secondary)',
-                    }}
-                  >
-                    세션 요약
-                  </span>
-                </div>
-                {row.data.sessions.map((s) => (
-                  <div
-                    key={s.id}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1.5fr 0.8fr 0.8fr 0.7fr',
-                      padding: '12px 20px',
-                      borderTop: '1px solid var(--divider)',
-                      fontSize: 13,
-                      alignItems: 'center',
-                    }}
-                  >
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{s.session}</span>
-                    <span>{s.completion}</span>
-                    <span style={{ fontWeight: s.accuracyAccent ? 700 : 400, color: s.accuracyAccent ? 'var(--accent)' : undefined }}>
-                      {s.accuracy}
-                    </span>
-                    <span style={{ textAlign: 'right', fontWeight: 600 }}>{s.rating}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        ) : null}
-      </MockRowBoundary>
+      <StatCardRow>
+        <StatCard label="학생" value={String(data.studentCount)} />
+        <StatCard label="매니저" value={String(data.managerCount)} />
+        <StatCard label="그룹" value={String(data.groupCount)} />
+        <StatCard label="세션" value={`${data.activeSessionCount}/${data.sessionCount}`} caption="진행 중 / 전체" />
+      </StatCardRow>
+      <StatCardRow>
+        <StatCard label="평균 정답률" value={formatRate(data.avgAccuracy)} />
+        <StatCard label="평균 완료율" value={formatRate(data.avgCompletionRate)} />
+        <StatCard label="평균 소요" value={formatMs(data.avgElapsedMs)} />
+        <StatCard label="리포트 반영" value={`${data.reportedStudentCount}명`} />
+      </StatCardRow>
     </div>
   );
 }
@@ -375,7 +245,7 @@ function ClassDetailBody({ classId }: { classId: number }) {
         <MemberTable title="학생" members={students} />
       </div>
 
-      <ClassAnalyticsSection classId={String(classId)} className={cls.name} />
+      <ClassAnalyticsSection classId={classId} className={cls.name} />
 
       <ConfirmDeleteOverlay
         open={deleteOpen}

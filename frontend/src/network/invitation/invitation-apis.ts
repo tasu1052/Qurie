@@ -37,3 +37,39 @@ export const getInvitationPreview = async (token: string): Promise<InvitationPre
     const { data } = await axiosInstance.get<InvitationPreviewResponse>(`/invitations/${token}`);
     return data;
 };
+
+export interface BulkInvitationRowResult {
+    rowNumber: number;
+    email: string;
+    invited: boolean;
+    message: string | null;
+}
+
+export interface BulkInvitationResponse {
+    total: number;
+    invited: number;
+    failed: number;
+    results: BulkInvitationRowResult[];
+}
+
+export interface BulkInvitationParams {
+    file: File;
+    classId: number;
+    role: UserRole;
+}
+
+export const createBulkInvitations = async (
+    params: BulkInvitationParams,
+): Promise<BulkInvitationResponse> => {
+    const form = new FormData();
+    form.append('file', params.file);
+    const { data } = await axiosInstance.post<BulkInvitationResponse>(
+        '/invitations/bulk',
+        form,
+        {
+            params: { classId: params.classId, role: params.role },
+            headers: { 'Content-Type': 'multipart/form-data' },
+        },
+    );
+    return data;
+};

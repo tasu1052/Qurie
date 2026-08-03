@@ -7,6 +7,7 @@ export {
     useEditGroup,
     useGetGroup,
     useGetGroupCandidates,
+    useGetGroupCandidatesQuery,
     useGetGroupDetail,
     useGetGroups,
     useShuffleGroups,
