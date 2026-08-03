@@ -119,7 +119,7 @@ export function useSessionVoice(options: UseSessionVoiceOptions) {
     const pc = new RTCPeerConnection({ iceServers: resolveIceServers() });
     const audio = document.createElement('audio');
     audio.autoplay = true;
-    audio.playsInline = true;
+    audio.setAttribute('playsinline', '');
     audio.dataset.voicePeer = String(remoteUserId);
     audio.muted = deafenedRef.current;
     document.body.appendChild(audio);
