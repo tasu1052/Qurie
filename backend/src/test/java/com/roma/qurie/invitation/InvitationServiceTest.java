@@ -3,7 +3,6 @@ package com.roma.qurie.invitation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -93,7 +92,14 @@ class InvitationServiceTest {
 
 		assertThat(response.token()).isEqualTo(RAW_TOKEN);
 		assertThat(response.signUpUrl()).isEqualTo("http://localhost:5173/signup?token=raw-token");
-		verify(mailSender).send(saved, "http://localhost:5173/signup?token=raw-token");
+		// 발송은 비동기라 엔티티가 아니라 스냅샷을 넘긴다 — LAZY 인 classEntity 를 트랜잭션 안에서 읽어뒀는지 함께 확인한다.
+		ArgumentCaptor<InvitationMail> mailCaptor = ArgumentCaptor.forClass(InvitationMail.class);
+		verify(mailSender).send(mailCaptor.capture());
+		InvitationMail mail = mailCaptor.getValue();
+		assertThat(mail.email()).isEqualTo(INVITEE_EMAIL);
+		assertThat(mail.role()).isEqualTo(UserRole.MANAGER);
+		assertThat(mail.className()).isEqualTo(saved.getClassEntity().getName());
+		assertThat(mail.signUpUrl()).isEqualTo("http://localhost:5173/signup?token=raw-token");
 	}
 
 	@Test
@@ -104,7 +110,7 @@ class InvitationServiceTest {
 		assertThatThrownBy(() -> invitationService.create(master(ENTERPRISE_ID), request(UserRole.MANAGER)))
 				.isInstanceOf(ResponseStatusException.class);
 
-		verify(mailSender, never()).send(any(Invitation.class), anyString());
+		verify(mailSender, never()).send(any(InvitationMail.class));
 	}
 
 	@Test

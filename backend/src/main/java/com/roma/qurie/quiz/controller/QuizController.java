@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.roma.qurie.quiz.ai.AiQuizStatusResponse;
 import com.roma.qurie.quiz.dto.QuizGenerateRequest;
 import com.roma.qurie.quiz.dto.QuizGenerateResponse;
+import com.roma.qurie.quiz.dto.QuizQuestionsResponse;
 import com.roma.qurie.quiz.dto.QuizSetDetailResponse;
 import com.roma.qurie.quiz.service.QuizService;
 import com.roma.qurie.security.AuthUser;
@@ -52,12 +53,22 @@ public class QuizController {
 	}
 
 	/**
-	 * 퀴즈셋 상태/결과 조회. 생성 중이면 AI 서버 상태를 확인해 완료 시 문항까지 저장해서 내려준다.
-	 * 콜백이 정상 도착했다면 이미 끝난 상태를 그대로 반환한다.
+	 * 퀴즈셋 상태/결과 조회 — 정답·해설이 포함되므로 강사(MANAGER) 전용.
+	 * 생성 중이면 AI 서버 상태를 확인해 완료 시 문항까지 저장해서 내려준다.
 	 */
 	@GetMapping("/{quizSetId}")
-	public QuizSetDetailResponse getQuizSet(@PathVariable("quizSetId") Long quizSetId) {
-		return quizService.getQuizSet(quizSetId);
+	public QuizSetDetailResponse getQuizSet(@PathVariable("quizSetId") Long quizSetId,
+			@AuthenticationPrincipal AuthUser requester) {
+		return quizService.getQuizSet(quizSetId, requester);
+	}
+
+	/**
+	 * 학생 응시용 문항 조회 — 정답·해설 없이 문항과 보기만 내려간다. 세션이 열린 반의 구성원 전용.
+	 */
+	@GetMapping("/{quizSetId}/questions")
+	public QuizQuestionsResponse getQuizQuestions(@PathVariable("quizSetId") Long quizSetId,
+			@AuthenticationPrincipal AuthUser requester) {
+		return quizService.getQuizQuestions(quizSetId, requester);
 	}
 
 	/**

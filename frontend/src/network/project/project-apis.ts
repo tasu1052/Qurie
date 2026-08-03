@@ -57,13 +57,13 @@ export const createProject = async (body: ProjectCreateRequest): Promise<Project
     return data;
 };
 
-/** 세션에 연결된 최신 프로젝트. 없으면 null */
+/** 세션의 현재 프로젝트(가장 최근 임포트). 없으면 null */
 export const getSessionProject = async (sessionId: number): Promise<ProjectResponse | null> => {
-    const { data, status } = await axiosInstance.get<ProjectResponse | ''>('/projects', {
+    const { data, status } = await axiosInstance.get<ProjectResponse | ''>('/projects/current', {
         params: { sessionId },
-        validateStatus: (s) => (s >= 200 && s < 300) || s === 204,
+        validateStatus: (s) => (s >= 200 && s < 300) || s === 404,
     });
-    if (status === 204 || data == null || data === '') return null;
+    if (status === 404 || data == null || data === '') return null;
     return data as ProjectResponse;
 };
 

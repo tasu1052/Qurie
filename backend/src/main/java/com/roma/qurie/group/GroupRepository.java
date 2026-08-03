@@ -10,4 +10,6 @@ public interface GroupRepository extends JpaRepository<Group, Long> {
 
     /** 반의 그룹 목록. 화면이 그룹 A·B·C 순으로 보여주므로 이름순으로 고정한다. */
     List<Group> findAllByClassIdOrderByNameAsc(Long classId);
+
+    long countByClassId(Long classId);
 }

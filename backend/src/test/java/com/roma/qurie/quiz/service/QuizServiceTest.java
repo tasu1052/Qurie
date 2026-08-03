@@ -35,7 +35,10 @@ import com.roma.qurie.quiz.ai.QuizAiClient;
 import com.roma.qurie.quiz.ai.QuizAiException;
 import com.roma.qurie.quiz.dto.QuizGenerateRequest;
 import com.roma.qurie.quiz.dto.QuizGenerateResponse;
+import com.roma.qurie.quiz.dto.QuizQuestionsResponse;
 import com.roma.qurie.quiz.dto.QuizSetDetailResponse;
+import com.roma.qurie.security.AuthUser;
+import com.roma.qurie.session.participant.SessionParticipantService;
 import com.roma.qurie.quiz.entity.QuizDifficulty;
 import com.roma.qurie.quiz.entity.QuizGenerationMode;
 import com.roma.qurie.quiz.entity.QuizSet;
@@ -52,6 +55,10 @@ class QuizServiceTest {
 	private static final Long AI_QUIZ_SET_ID = 77L;
 	private static final Long CREATED_BY = 2L;
 	private static final String CALLBACK_BASE_URL = "http://backend.internal";
+	private static final AuthUser MANAGER =
+			new AuthUser(CREATED_BY, "MANAGER", 100L, "manager@qurie.com", "매니저", null);
+	private static final AuthUser STUDENT =
+			new AuthUser(7L, "STUDENT", 100L, "student@qurie.com", "학생", 5L);
 
 	@Mock
 	private QuizSetRepository quizSetRepository;
@@ -64,6 +71,9 @@ class QuizServiceTest {
 
 	@Mock
 	private SimpMessagingTemplate messagingTemplate;
+
+	@Mock
+	private SessionParticipantService participantService;
 
 	@InjectMocks
 	private QuizService quizService;
@@ -118,7 +128,7 @@ class QuizServiceTest {
 		given(quizAiClient.getStatus(AI_QUIZ_SET_ID)).willReturn(readyAiResponse());
 		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
 
-		QuizSetDetailResponse response = quizService.getQuizSet(QUIZ_SET_ID);
+		QuizSetDetailResponse response = quizService.getQuizSet(QUIZ_SET_ID, MANAGER);
 
 		assertThat(response.status()).isEqualTo(QuizSetStatus.COMPLETED);
 		assertThat(response.generatedCount()).isEqualTo(1);
@@ -138,10 +148,11 @@ class QuizServiceTest {
 	void getQuizSetFailsTheSetWhenAiReportsFailure() {
 		QuizSet quizSet = generatingQuizSet();
 		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(quizSet));
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
 		given(quizAiClient.getStatus(AI_QUIZ_SET_ID)).willReturn(new AiQuizStatusResponse(
-				"1", AI_QUIZ_SET_ID, AiQuizSetState.FAILED, List.of(), "LLM 호출 한도 초과"));
+				"1", AI_QUIZ_SET_ID, AiQuizSetState.FAILED, List.of(), "LLM 호출 한도 초과", null));
 
-		QuizSetDetailResponse response = quizService.getQuizSet(QUIZ_SET_ID);
+		QuizSetDetailResponse response = quizService.getQuizSet(QUIZ_SET_ID, MANAGER);
 
 		assertThat(response.status()).isEqualTo(QuizSetStatus.FAILED);
 		assertThat(response.errorMessage()).isEqualTo("LLM 호출 한도 초과");
@@ -151,10 +162,11 @@ class QuizServiceTest {
 	void getQuizSetKeepsGeneratingWhenAiIsStillWorking() {
 		QuizSet quizSet = generatingQuizSet();
 		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(quizSet));
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
 		given(quizAiClient.getStatus(AI_QUIZ_SET_ID)).willReturn(new AiQuizStatusResponse(
-				"1", AI_QUIZ_SET_ID, AiQuizSetState.GENERATING, List.of(), null));
+				"1", AI_QUIZ_SET_ID, AiQuizSetState.GENERATING, List.of(), null, null));
 
-		QuizSetDetailResponse response = quizService.getQuizSet(QUIZ_SET_ID);
+		QuizSetDetailResponse response = quizService.getQuizSet(QUIZ_SET_ID, MANAGER);
 
 		assertThat(response.status()).isEqualTo(QuizSetStatus.GENERATING);
 		assertThat(response.quizzes()).isEmpty();
@@ -164,10 +176,11 @@ class QuizServiceTest {
 	void getQuizSetKeepsCurrentStateWhenAiIsUnreachable() {
 		QuizSet quizSet = generatingQuizSet();
 		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(quizSet));
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
 		given(quizAiClient.getStatus(AI_QUIZ_SET_ID))
 				.willThrow(new QuizAiException("AI 퀴즈 상태 조회 실패: 연결 거부", null));
 
-		QuizSetDetailResponse response = quizService.getQuizSet(QUIZ_SET_ID);
+		QuizSetDetailResponse response = quizService.getQuizSet(QUIZ_SET_ID, MANAGER);
 
 		assertThat(response.status()).isEqualTo(QuizSetStatus.GENERATING);
 	}
@@ -176,10 +189,54 @@ class QuizServiceTest {
 	void getQuizSetThrowsNotFoundWhenQuizSetDoesNotExist() {
 		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.empty());
 
-		assertThatThrownBy(() -> quizService.getQuizSet(QUIZ_SET_ID))
+		assertThatThrownBy(() -> quizService.getQuizSet(QUIZ_SET_ID, MANAGER))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(QuizServiceTest::statusOf)
 				.isEqualTo(HttpStatus.NOT_FOUND);
+	}
+
+	@Test
+	void getQuizSetRejectsStudentBecauseAnswersAreIncluded() {
+		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(generatingQuizSet()));
+
+		assertThatThrownBy(() -> quizService.getQuizSet(QUIZ_SET_ID, STUDENT))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(QuizServiceTest::statusOf)
+				.isEqualTo(HttpStatus.FORBIDDEN);
+	}
+
+	@Test
+	void getQuizSetExposesLatestGenerationStageWhileGenerating() {
+		QuizSet quizSet = generatingQuizSet();
+		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(quizSet));
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
+		given(quizAiClient.getStatus(AI_QUIZ_SET_ID)).willReturn(new AiQuizStatusResponse(
+				"1", AI_QUIZ_SET_ID, AiQuizSetState.GENERATING, List.of(), null,
+				List.of(new AiQuizStatusResponse.AiLlmCall("GENERATE"),
+						new AiQuizStatusResponse.AiLlmCall("SOLVE"))));
+
+		QuizSetDetailResponse response = quizService.getQuizSet(QUIZ_SET_ID, MANAGER);
+
+		assertThat(response.status()).isEqualTo(QuizSetStatus.GENERATING);
+		assertThat(response.generationStage()).isEqualTo("SOLVE");
+	}
+
+	@Test
+	void getQuizQuestionsReturnsQuestionsWithoutAnswers() {
+		QuizSet quizSet = generatingQuizSet();
+		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(quizSet));
+		given(quizAiClient.getStatus(AI_QUIZ_SET_ID)).willReturn(readyAiResponse());
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
+
+		QuizQuestionsResponse response = quizService.getQuizQuestions(QUIZ_SET_ID, STUDENT);
+
+		org.mockito.Mockito.verify(participantService).verifySessionClassMember(SESSION_ID, STUDENT);
+		assertThat(response.status()).isEqualTo(QuizSetStatus.COMPLETED);
+		QuizQuestionsResponse.QuestionItem question = response.quizzes().get(0);
+		assertThat(question.question()).isEqualTo("이 코드에서 락 획득 순서는?");
+		assertThat(question.choices()).hasSize(4);
+		assertThat(question.choices().get(0).content()).isEqualTo("A");
+		// ChoiceItem/QuestionItem 에는 answer·explanation 필드 자체가 없다 — 컴파일 수준에서 보장된다.
 	}
 
 	@Test
@@ -215,7 +272,7 @@ class QuizServiceTest {
 		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(quizSet));
 
 		AiQuizStatusResponse mismatched = new AiQuizStatusResponse(
-				"1", AI_QUIZ_SET_ID + 1, AiQuizSetState.READY, List.of(), null);
+				"1", AI_QUIZ_SET_ID + 1, AiQuizSetState.READY, List.of(), null, null);
 
 		assertThatThrownBy(() -> quizService.handleCallback(QUIZ_SET_ID, mismatched))
 				.isInstanceOf(ResponseStatusException.class)
@@ -260,7 +317,7 @@ class QuizServiceTest {
 				List.of(new AiQuiz(
 						"MICRO", "NORMAL", "동시성 제어", "이 코드에서 락 획득 순서는?",
 						List.of("A", "B", "C", "D"), 2, "설명", "src/Main.java", 3, 9)),
-				null);
+				null, null);
 	}
 
 	private Project project() {
