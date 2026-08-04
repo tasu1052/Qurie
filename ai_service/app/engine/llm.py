@@ -169,6 +169,80 @@ def token_param_of(model: str) -> str:
     return "max_completion_tokens" if model.startswith(_REASONING_PREFIXES) else "max_tokens"
 
 
+# OpenAI strict json_schema 가 받지 않는 키워드. 남겨두면 400 이 난다.
+_STRICT_UNSUPPORTED = {
+    "minLength", "maxLength", "minItems", "maxItems",
+    "minimum", "maximum", "pattern", "format", "default",
+}
+
+
+def to_openai_strict(schema: dict) -> dict:
+    """JSON Schema 를 OpenAI strict 모드가 받는 부분집합으로 바꾼다.
+
+    strict 는 (1) 객체마다 additionalProperties=false, (2) 모든 속성이 required,
+    (3) 길이·범위 키워드 불가 를 요구한다. 우리 스키마는 이미 전부 required 라
+    ⑵는 그대로고, 나머지만 맞춰 준다.
+    """
+    if not isinstance(schema, dict):
+        return schema
+
+    out = {k: v for k, v in schema.items() if k not in _STRICT_UNSUPPORTED}
+    if "properties" in out:
+        out["properties"] = {k: to_openai_strict(v) for k, v in out["properties"].items()}
+        out["required"] = list(out["properties"])
+        out["additionalProperties"] = False
+    if "items" in out:
+        out["items"] = to_openai_strict(out["items"])
+    # enum 만 있고 type 이 없으면 strict 가 거부한다. 값에서 타입을 유추해 채운다.
+    if "enum" in out and "type" not in out:
+        kinds = sorted({
+            "null" if v is None else "integer" if isinstance(v, int) else "string"
+            for v in out["enum"]
+        })
+        out["type"] = kinds if len(kinds) > 1 else kinds[0]
+    return out
+
+
+def call_openai_schema(model: str, prompt: str, limit: int,
+                       tool: dict) -> tuple[dict, int, int, bool]:
+    """response_format=json_schema 로 형식을 강제하고 dict 로 받는다."""
+    kw = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        token_param_of(model): limit,
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": tool["name"],
+                "strict": True,
+                "schema": to_openai_strict(tool["input_schema"]),
+            },
+        },
+    }
+    if not model.startswith(_REASONING_PREFIXES):
+        kw["temperature"] = config.TEMPERATURE
+
+    try:
+        r = get_openai().chat.completions.create(**kw)
+    except Exception as e:
+        # json_schema 미지원 모델이면 텍스트로 받아 parse_json 이 방어한다.
+        # 모델명만 바꿔도 돌아가야 하므로 여기서 죽지 않는다.
+        if "json_schema" not in str(e) and "response_format" not in str(e):
+            raise
+        text, tin, tout, truncated = call_openai(model, prompt, limit)
+        return ({} if truncated else parse_json(text)), tin, tout, truncated
+
+    u = getattr(r, "usage", None)
+    truncated = r.choices[0].finish_reason == "length"
+    text = r.choices[0].message.content or ""
+    return (
+        {} if truncated else json.loads(text or "{}"),
+        getattr(u, "prompt_tokens", 0),
+        getattr(u, "completion_tokens", 0),
+        truncated,
+    )
+
+
 def call_openai(model: str, prompt: str, limit: int) -> tuple[str, int, int, bool]:
     kw = {
         "model": model,
@@ -240,14 +314,15 @@ def _mock_response(purpose: str, prompt: str = "") -> str:
     if purpose.upper() == "REPORT":
         return json.dumps({
             "comment": "[mock] 전반적으로 안정적인 결과입니다. 보완할 부분도 함께 정리했습니다.",
-            "strengths": ["[mock] 반복문 흐름 추적 문항을 모두 맞혔습니다."],
-            "improvements": ["[mock] 재귀 종료 조건 문항을 다시 확인해 보세요."],
+            "strengths": [
+                {"quiz_index": None,
+                 "text": "[mock] 반복문 흐름 추적 문항을 모두 맞혔습니다."},
+            ],
+            "improvements": [
+                {"quiz_index": 0,
+                 "text": "[mock] 재귀 종료 조건을 묻는 문항을 다시 확인해 보세요."},
+            ],
             "focus_concepts": ["mock"],
-            "wrong_notes": [{
-                "quiz_index": 0, "concept": "mock",
-                "why_wrong": "[mock] 고른 보기는 갱신 시점을 반대로 본 경우입니다.",
-                "key_point": "[mock] 재귀 호출이 끝난 뒤 캐시에 담깁니다.",
-            }],
         }, ensure_ascii=False)
     if purpose.upper() in ("SOLVE", "solve"):
         n = _parse_generate_meta(prompt)[0] if prompt else 3
@@ -300,21 +375,23 @@ def call_llm_json(model: str, prompt: str, meter: UsageMeter, purpose: str,
         meter.add(purpose, "MOCK", 0, 0, 0, True)
         return json.loads(_mock_response(purpose, prompt))
 
-    provider = provider_of(model)
-    if provider not in ("anthropic", "gemini"):
-        return parse_json(call_llm(model, prompt, meter, purpose, max_tokens))
-
     if not config.GMS_API_KEY:
         raise RuntimeError("GMS_API_KEY 없음 (또는 AI_MOCK=1)")
 
+    # provider 별로 형식 강제 수단이 다르다. 모델명만 바꿔도 스키마가 걸리도록
+    # 세 경로를 모두 둔다 — anthropic tool use / gemini response_json_schema /
+    # openai response_format=json_schema.
+    provider = provider_of(model)
     limit = max_tokens or config.MAX_TOKENS
     t0 = time.time()
     try:
         if provider == "anthropic":
             data, tin, tout, truncated = call_anthropic_tool(model, prompt, limit, tool)
-        else:
+        elif provider == "gemini":
             data, tin, tout, truncated = call_gemini_schema(
                 model, prompt, limit, tool["input_schema"])
+        else:
+            data, tin, tout, truncated = call_openai_schema(model, prompt, limit, tool)
     except Exception:
         meter.add(purpose, model, 0, 0, int((time.time() - t0) * 1000), False)
         raise

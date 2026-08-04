@@ -17,16 +17,51 @@ JUDGE_TOOL_NAME = "emit_scores"
 REPORT_TOOL_NAME = "emit_report"
 
 
-def report_tool(max_items: int = 4, max_notes: int = 6) -> dict:
+def _index_field(allowed: list[int] | None) -> dict:
+    """quiz_index 를 허용된 번호로 제한한다.
+
+    프롬프트로 "이 문항들에 대해 쓰세요"라고 지시해도 다른 문항을 쓰거나 번호를
+    빼먹는 일이 반복됐다. enum 으로 박으면 다른 값을 넣는 것 자체가 불가능하다.
+    대상이 없으면 null 만 허용해 특정 문항과 엮이지 않게 한다.
+    """
+    if not allowed:
+        return {"type": "null"}
+    return {"enum": list(allowed)}
+
+
+def _indexed_bullet(allowed: list[int] | None, max_len: int = 200) -> dict:
+    """{quiz_index, text} 항목.
+
+    번호를 자유 문장에 맡기면 엉뚱한 번호를 적고, 0-based 인덱스가 학생 화면에
+    그대로 노출된다. 번호는 필드로만 받는다.
+    """
+    return {
+        "type": "object",
+        "properties": {
+            "quiz_index": _index_field(allowed),
+            "text": {"type": "string", "minLength": 10, "maxLength": max_len},
+        },
+        "required": ["quiz_index", "text"],
+    }
+
+
+def _count_of(targets: list[int] | None, fallback: int) -> int:
+    """대상이 있으면 그 개수만, 없으면 기본 상한."""
+    return min(len(targets), fallback) if targets else fallback
+
+
+def report_tool(praise: list[int] | None = None,
+                improvement_targets: list[int] | None = None,
+                concepts: list[str] | None = None,
+                max_items: int = 4) -> dict:
     """학습 리포트 스키마.
 
     항목 수를 minItems/maxItems 로 묶는다. 열어두면 한두 개만 쓰거나 열 개를 쏟아내
     화면 분량이 매번 달라진다.
 
-    wrong_notes 는 오답 문항별 해설이다. quiz_index 로 원래 문항과 이어지므로
-    프론트가 "이 문제 다시 보기"까지 연결할 수 있다.
+    improvements 의 quiz_index 로 원래 문항과 이어지므로 프론트가
+    "이 문제 다시 보기"까지 연결할 수 있다.
     """
-    bullet = {"type": "string", "minLength": 10, "maxLength": 200}
     return {
         "name": REPORT_TOOL_NAME,
         "description": "학생 1명의 학습 리포트를 넘긴다. 이 도구로만 답하라.",
@@ -34,32 +69,24 @@ def report_tool(max_items: int = 4, max_notes: int = 6) -> dict:
             "type": "object",
             "properties": {
                 "comment": {"type": "string", "minLength": 30, "maxLength": 600},
+                # 대상이 정해져 있으면 그 개수만큼만 쓰게 한다.
                 "strengths": {
-                    "type": "array", "items": bullet, "minItems": 1, "maxItems": max_items},
+                    "type": "array", "items": _indexed_bullet(praise),
+                    "minItems": 1, "maxItems": _count_of(praise, max_items)},
+                # 진단 한 줄 + 행동 한 줄을 담는다. 오답노트를 없애고 여기로 합쳤다.
                 "improvements": {
-                    "type": "array", "items": bullet, "minItems": 1, "maxItems": max_items},
+                    "type": "array",
+                    "items": _indexed_bullet(improvement_targets, max_len=250),
+                    "minItems": 1, "maxItems": _count_of(improvement_targets, max_items)},
+                # 전부 나열하면 우선순위의 의미가 없어진다. 3개로 묶는다.
                 "focus_concepts": {
                     "type": "array",
-                    "items": {"type": "string", "maxLength": 60},
-                    "minItems": 1, "maxItems": max_items,
-                },
-                "wrong_notes": {
-                    "type": "array",
-                    "maxItems": max_notes,
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "quiz_index": {"type": "integer", "minimum": 0},
-                            "concept": {"type": "string", "maxLength": 60},
-                            "why_wrong": {"type": "string", "minLength": 20, "maxLength": 300},
-                            "key_point": {"type": "string", "minLength": 10, "maxLength": 200},
-                        },
-                        "required": ["quiz_index", "concept", "why_wrong", "key_point"],
-                    },
+                    "items": ({"enum": list(concepts)} if concepts
+                              else {"type": "string", "maxLength": 60}),
+                    "minItems": 1, "maxItems": 3,
                 },
             },
-            "required": ["comment", "strengths", "improvements",
-                         "focus_concepts", "wrong_notes"],
+            "required": ["comment", "strengths", "improvements", "focus_concepts"],
         },
     }
 
