@@ -51,22 +51,11 @@ export default function LandingPage() {
 
       {/* Hero — centered copy + animated product mock */}
       <section className="landing-hero">
-        <h1 className="landing-hero-title">
-          부트캠프·기업 교육을 위한
-          <br />
-          실시간 코딩 교육 플랫폼
-        </h1>
+        <h1 className="landing-hero-title">실시간 코딩 교육 플랫폼</h1>
         <p className="landing-hero-lead">
           Qurie는 기업·기관을 위한 실시간 코딩 교육 플랫폼이에요. 수업과 실습을 한곳에서 운영하고,
           AI가 만든 퀴즈와 학습 리포트로 구성원의 성장을 한눈에 볼 수 있어요.
         </p>
-        <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-          <Link to="/demo" style={{ textDecoration: 'none' }}>
-            <Button variant="primary" style={{ padding: '13px 24px', fontSize: 15 }}>
-              도입 문의하기 <span style={{ color: 'var(--primary-300)', fontWeight: 800 }}>&gt;</span>
-            </Button>
-          </Link>
-        </div>
 
         <div className="landing-hero-mock">
           <QurieHeroAnimation />
@@ -111,8 +100,8 @@ export default function LandingPage() {
             </span>
             <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>함께하는 실시간 코딩 수업</h3>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-              수업 시간에 실습 코드를 불러와 여러 명이 같은 화면에서 함께 수정해요.
-              변경 내용이 바로 반영되어 겹치지 않고 함께 작업할 수 있어요.
+              수업 시간에 실습 코드를 불러와, 여러 명이 같은 화면에서 함께 수정해요.
+              변경 내용이 바로 반영되어, 겹치지 않고 함께 작업할 수 있어요.
             </p>
             {[
               '같은 코드를 동시에 수정 · 누가 어디를 보고 있는지 표시',
@@ -246,7 +235,7 @@ export default function LandingPage() {
             }}
           >
             <div className="landing-quiz-pipeline">
-              {['수준 파악', '문제 만들기', '검토 · 난이도 맞추기'].map((label, i) => (
+              {['수준 파악', '문제 만들기', '검토'].map((label, i) => (
                 <span key={label} style={{ display: 'contents' }}>
                   <span
                     style={{
@@ -337,7 +326,7 @@ export default function LandingPage() {
             </span>
             <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>AI가 퀴즈를 만들어 줘요</h3>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-              방금 다룬 실습 내용을 바탕으로 AI가 퀴즈를 만들어요. 수준을 먼저 파악한 뒤, 문제를 다시 검토해
+              방금 다룬 실습 내용을 바탕으로, AI가 퀴즈를 만들어요. 수준을 먼저 파악한 뒤, 문제를 다시 검토해,
               쉬움 · 보통 · 어려움에 맞게 조정해 줘요.
             </p>
             {[
@@ -372,8 +361,8 @@ export default function LandingPage() {
             </span>
             <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>학습 리포트로 성과 확인</h3>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-              수업이 끝나면 구성원별 퀴즈 완료율·정답률·난이도·평점이 리포트로 정리돼요. 교육 관리자는 이 자료로
-              강사 평가와 운영 개선에 활용할 수 있어요.
+              수업이 끝나면, 구성원별 퀴즈 완료율 · 정답률 · 난이도 · 평점이 리포트로 정리돼요. 교육 관리자는
+              이 자료로 강사 평가와 운영 개선에 활용할 수 있어요.
             </p>
             {[
               '수업별 자동 집계 · 기록 보관',
@@ -421,8 +410,6 @@ export default function LandingPage() {
               <DonutChart
                 size={110}
                 thickness={14}
-                centerValue="어려움 40%"
-                centerLabel="난이도 비율"
                 segments={[
                   { label: '쉬움', value: 20 },
                   { label: '보통', value: 40, accent: true },
@@ -440,13 +427,6 @@ export default function LandingPage() {
         <p style={{ margin: 0, fontSize: 14, color: 'var(--grey-300)', maxWidth: 480 }}>
           도입 상담부터 강사 초대, 첫 수업 개설까지 하루면 충분해요. 조직에 맞는 운영 방식을 함께 찾아 드려요.
         </p>
-        <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
-          <Link to="/demo" style={{ textDecoration: 'none' }}>
-            <Button variant="accent" style={{ padding: '13px 24px', fontSize: 15 }}>
-              도입 문의하기
-            </Button>
-          </Link>
-        </div>
       </section>
 
       {/* Footer */}
@@ -459,7 +439,7 @@ export default function LandingPage() {
         <p style={{ margin: 0, fontSize: 12, lineHeight: 1.6, color: 'var(--text-muted)' }}>
           기업·기관을 위한 실시간 코딩 교육 & AI 퀴즈 플랫폼.
         </p>
-        <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>© 2026 Qurie · 현재 데모 버전</p>
+        <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>© 2026 Qurie</p>
       </footer>
     </div>
   );
