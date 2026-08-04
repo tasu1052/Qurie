@@ -215,3 +215,18 @@ body {
     gap: 8px !important;
   }
 }
+
+/* Dark mode — sidebar brand & tech stack icons (colored PNGs on dark surfaces) */
+[data-theme='dark'] .sidebar-logo {
+  filter: brightness(0) invert(1);
+  opacity: 0.95;
+}
+
+[data-theme='dark'] .tech-icon-wrap {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 65%, transparent);
+}
+
+[data-theme='dark'] .tech-icon {
+  filter: none;
+}
