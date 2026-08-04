@@ -30,4 +30,13 @@ public interface QuizProgressRepository extends JpaRepository<QuizProgress, Long
 			""")
 	List<QuizProgress> findAllWithQuizByQuizSetIdAndUserId(
 			@Param("quizSetId") Long quizSetId, @Param("userId") Long userId);
+
+	@Query("""
+			select qp from QuizProgress qp
+			join fetch qp.quiz q
+			left join fetch qp.chosenChoice
+			where q.quizSet.id = :quizSetId and qp.user.id = :userId and qp.isCorrect = false
+			""")
+	List<QuizProgress> findIncorrectWithQuizByQuizSetIdAndUserId(
+			@Param("quizSetId") Long quizSetId, @Param("userId") Long userId);
 }

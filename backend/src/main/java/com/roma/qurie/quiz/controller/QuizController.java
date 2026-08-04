@@ -21,6 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.roma.qurie.quiz.ai.AiQuizStatusResponse;
 import com.roma.qurie.quiz.dto.QuizGenerateRequest;
 import com.roma.qurie.quiz.dto.QuizGenerateResponse;
+import com.roma.qurie.quiz.dto.QuizIncorrectProgressResponse;
 import com.roma.qurie.quiz.dto.QuizProgressResponse;
 import com.roma.qurie.quiz.dto.QuizProgressSubmitRequest;
 import com.roma.qurie.quiz.dto.QuizProgressSummaryResponse;
@@ -118,6 +119,15 @@ public class QuizController {
 	public QuizProgressSummaryResponse getProgress(@PathVariable("quizSetId") Long quizSetId,
 			@AuthenticationPrincipal AuthUser requester) {
 		return quizProgressService.getSummary(quizSetId, requester);
+	}
+
+	/**
+	 * 본인의 오답만 조회 — 오답 복습 화면에 쓴다.
+	 */
+	@GetMapping("/{quizSetId}/progress/incorrect")
+	public QuizIncorrectProgressResponse getIncorrectProgress(@PathVariable("quizSetId") Long quizSetId,
+			@AuthenticationPrincipal AuthUser requester) {
+		return quizProgressService.getIncorrectSummary(quizSetId, requester);
 	}
 
 	/**
