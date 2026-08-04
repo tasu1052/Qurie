@@ -14,6 +14,7 @@ import {
 } from '../../ds';
 import {
   QueryAsyncBoundary,
+  useDownloadSessionReportPdf,
   useGetSessionReport,
   useMe,
   type SessionReportDetailResponse,
@@ -21,7 +22,7 @@ import {
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Download, TriangleAlert } from 'lucide-react';
 import { resolvePastSessionMock } from '../../mocks/pastLearning';
 
 function ReportSkeleton() {
@@ -114,6 +115,8 @@ function SessionReportBody({
 }) {
   const navigate = useNavigate();
   const pastMock = resolvePastSessionMock(sessionId);
+  const downloadPdf = useDownloadSessionReportPdf();
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const quizPath =
     userRole === 'STUDENT'
       ? `/app/quizzes/${pastMock.quizSetId}`
@@ -127,7 +130,7 @@ function SessionReportBody({
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <Button variant="ghost" size="sm" icon={<ArrowLeft size={14} />} onClick={() => navigate(backTo)}>
             목록으로
@@ -139,9 +142,31 @@ function SessionReportBody({
             {report.userName} 학생 결과입니다.
           </span>
         </div>
-        <Badge status="accent">SESSION</Badge>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Download size={14} strokeWidth={1.75} />}
+            disabled={downloadPdf.isPending}
+            onClick={() => {
+              setPdfError(null);
+              downloadPdf.mutate(
+                { sessionId: report.sessionId, userId: report.ordinaryUserId },
+                {
+                  onError: () => setPdfError('PDF 내보내기에 실패했습니다.'),
+                },
+              );
+            }}
+          >
+            {downloadPdf.isPending ? '내보내는 중…' : 'PDF로 내보내기'}
+          </Button>
+          <Badge status="accent">SESSION</Badge>
+        </div>
       </div>
 
+      {pdfError ? (
+        <span style={{ fontSize: 13, color: 'var(--status-error)' }}>{pdfError}</span>
+      ) : null}
       <div
         style={{
           background: 'var(--ink)',
@@ -505,7 +530,7 @@ export default function SessionReportPage() {
   const activeKey =
     me.role === 'STUDENT' ? 'report' : me.role === 'MANAGER' ? (userId != null ? 'students' : 'sessions') : 'dashboard';
   const breadcrumbs =
-    me.role === 'STUDENT' ? ['종합 리포트', '세션 리포트'] : ['세션', '세션 리포트'];
+    me.role === 'STUDENT' ? ['리포트', '세션 리포트'] : ['세션', '세션 리포트'];
 
   const wrap = (children: ReactNode) => {
     if (me.role === 'MANAGER') {

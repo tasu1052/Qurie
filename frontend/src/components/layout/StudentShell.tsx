@@ -23,7 +23,7 @@ type AppShellProps = {
 const studentNav = [
   { key: 'dashboard', label: '대시보드', path: '/app', icon: <LayoutDashboard {...iconProps} /> },
   { key: 'quizzes', label: '지난 퀴즈', path: '/app/quizzes', icon: <BookOpen {...iconProps} /> },
-  { key: 'report', label: '종합 리포트', path: '/app/report', icon: <FileText {...iconProps} /> },
+  { key: 'report', label: '리포트', path: '/app/report', icon: <FileText {...iconProps} /> },
   { key: 'me', label: '마이페이지', path: '/app/me', icon: <User {...iconProps} /> },
 ];
 

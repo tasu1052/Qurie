@@ -274,7 +274,7 @@ export type {
   VoiceSignalType,
 } from '../network/voice';
 
-export { useCreateUserReport, useGetUserReport, useGetUserSessionReports } from '../network/report';
+export { useCreateUserReport, useGetUserReport, useGetUserSessionReports, useDownloadUserReportPdf, useDownloadSessionReportPdf } from '../network/report';
 export type {
   UserReportCreateRequest,
   UserReportCreateResponse,

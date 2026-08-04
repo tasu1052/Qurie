@@ -250,7 +250,7 @@ function SessionReportTable({
   );
 }
 
-function FinalReportBody({ className }: { className: string }) {
+function FinalReportBody({ className, classId }: { className: string; classId: number | null }) {
   const navigate = useNavigate();
   const { data: me } = useMe();
   const { data: reports } = useGetUserSessionReports(me.id);
@@ -313,15 +313,44 @@ function FinalReportBody({ className }: { className: string }) {
 
   return (
     <>
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>종합 리포트</h1>
-          <Badge status="neutral">STUDENT</Badge>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>리포트</h1>
+            <Badge status="neutral">STUDENT</Badge>
+          </div>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            {me.name} · {className}
+          </span>
         </div>
-        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-          {me.name} · {className}
-        </span>
       </div>
+
+      {classId != null ? (
+        <div
+          style={{
+            background: 'var(--surface-card)',
+            border: '1px solid var(--border)',
+            borderRadius: 16,
+            boxShadow: 'var(--shadow-card)',
+            padding: '18px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>학기 전체 종합 리포트</span>
+            <span style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+              세션 리포트를 합산한 학기 요약을 확인하고 PDF로 내보낼 수 있어요.
+            </span>
+          </div>
+          <Button variant="primary" size="sm" onClick={() => navigate('/app/report/summary')}>
+            종합 리포트 열람
+          </Button>
+        </div>
+      ) : null}
 
       <StatCardRow>
         {kpis.map((item, i) => (
@@ -371,13 +400,13 @@ function FinalReportBody({ className }: { className: string }) {
 
 function FinalReportWithClass({ classId }: { classId: number }) {
   const { data: cls } = useGetClass(classId);
-  return <FinalReportBody className={cls.name} />;
+  return <FinalReportBody className={cls.name} classId={classId} />;
 }
 
 function FinalReportGate() {
   const { data: me } = useMe();
   if (me.classId == null || me.classId <= 0) {
-    return <FinalReportBody className="미배정" />;
+    return <FinalReportBody className="미배정" classId={null} />;
   }
   return <FinalReportWithClass classId={me.classId} />;
 }
@@ -386,7 +415,7 @@ export default function FinalReportPage() {
   const [rowKey, setRowKey] = useState(0);
 
   return (
-    <StudentShell activeKey="report" breadcrumbs={['종합 리포트']}>
+    <StudentShell activeKey="report" breadcrumbs={['리포트']}>
       <PageMain>
         <QueryAsyncBoundary
           key={rowKey}
@@ -394,7 +423,7 @@ export default function FinalReportPage() {
           errorFallback={
             <RowErrorFallback
               onRetry={() => setRowKey((k) => k + 1)}
-              title="종합 리포트를 불러오지 못했습니다"
+              title="리포트를 불러오지 못했습니다"
             />
           }
         >
