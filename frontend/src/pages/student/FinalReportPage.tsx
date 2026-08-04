@@ -190,7 +190,9 @@ function SemesterSummaryHero({
       ) : null}
       <div
         style={{
-          background: 'var(--ink)',
+          background: 'var(--hero-surface)',
+          color: 'var(--hero-fg)',
+          border: '1px solid var(--hero-border)',
           borderRadius: 16,
           padding: 28,
           display: 'flex',
@@ -202,7 +204,7 @@ function SemesterSummaryHero({
           style={{
             alignSelf: 'flex-start',
             background: 'var(--accent)',
-            color: 'var(--text-inverse)',
+            color: '#ffffff',
             borderRadius: 999,
             padding: '4px 14px',
             fontSize: 11,
@@ -212,13 +214,13 @@ function SemesterSummaryHero({
         >
           SEMESTER SUMMARY
         </span>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-inverse)', margin: 0 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--hero-fg)', margin: 0 }}>
           학기 전체 학습 요약
         </h2>
-        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.65, color: 'var(--grey-300)', maxWidth: 720 }}>
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.65, color: 'var(--hero-fg-muted)', maxWidth: 720 }}>
           {report.userName} · {className} · {report.sessionCount}개 세션 리포트 집계
         </p>
-        <span style={{ fontSize: 12.5, color: 'var(--text-inverse)' }}>발급 {issued}</span>
+        <span style={{ fontSize: 12.5, color: 'var(--hero-fg-muted)' }}>발급 {issued}</span>
       </div>
     </>
   );

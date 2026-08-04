@@ -102,8 +102,8 @@ export function ProfilePageContent() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28, maxWidth: 720 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+    <div className="qurie-profile-page">
+      <div className="qurie-profile-page__hero">
         <span
           style={{
             width: 56,

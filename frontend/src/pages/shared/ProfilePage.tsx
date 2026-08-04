@@ -6,12 +6,10 @@ import { QueryAsyncBoundary } from '../../data';
 
 function ProfileSkeleton() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <Skeleton width="100%" height={120} radius={16} />
-      <div className="qurie-app-split">
-        <Skeleton width="100%" height={220} radius={16} />
-        <Skeleton width="100%" height={220} radius={16} delay={0.06} />
-      </div>
+    <div className="qurie-profile-page">
+      <Skeleton width="100%" height={72} radius={12} />
+      <Skeleton width="100%" height={180} radius={12} delay={0.06} />
+      <Skeleton width="100%" height={140} radius={12} delay={0.12} />
     </div>
   );
 }

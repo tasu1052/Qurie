@@ -216,8 +216,9 @@ function StudentDashWithClass({ classId }: { classId: number }) {
     <>
       <div
         style={{
-          background: 'var(--ink)',
-          color: 'var(--text-inverse)',
+          background: 'var(--hero-surface)',
+          color: 'var(--hero-fg)',
+          border: '1px solid var(--hero-border)',
           borderRadius: 16,
           padding: 28,
           display: 'flex',
@@ -225,11 +226,11 @@ function StudentDashWithClass({ classId }: { classId: number }) {
           gap: 14,
         }}
       >
-        <span style={{ fontSize: 13, opacity: 0.72 }}>안녕하세요, {me.name}님</span>
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'var(--text-inverse)' }}>
+        <span style={{ fontSize: 13, color: 'var(--hero-fg-muted)' }}>안녕하세요, {me.name}님</span>
+        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'var(--hero-fg)' }}>
           {heroSession ? '클래스 세션이 진행 중입니다' : '진행 중인 클래스 세션이 없습니다'}
         </h1>
-        <span style={{ fontSize: 13, opacity: 0.72 }}>
+        <span style={{ fontSize: 13, color: 'var(--hero-fg-muted)' }}>
           {heroSession
             ? heroSession.title
             : `${className} · 강사가 세션을 열면 여기 표시돼요`}

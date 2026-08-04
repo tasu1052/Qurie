@@ -16,7 +16,6 @@ import {
   Modal,
   Pagination,
   RowErrorFallback,
-  RowSection,
   Skeleton,
 } from '../../ds';
 import {
@@ -145,7 +144,7 @@ function SessionTable({
   }
 
   return (
-    <RowSection style={{ gap: 24 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0, width: '100%' }}>
       <div className="qurie-table-card">
         <div className="qurie-table-scroll">
           <div style={{ minWidth: 720 }}>
@@ -184,7 +183,18 @@ function SessionTable({
                   }}
                 >
                   <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)', display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 12.5,
+                        color: 'var(--ink)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        flexWrap: 'wrap',
+                        wordBreak: 'break-word',
+                      }}
+                    >
                       {s.title}
                       {s.classPublic ? <Badge status="accent">수업</Badge> : null}
                       {!s.classPublic && groupLabel ? (
@@ -192,15 +202,22 @@ function SessionTable({
                       ) : null}
                     </span>
                   </span>
-                  <span style={{ color: 'var(--text-secondary)' }}>
+                  <span style={{ color: 'var(--text-secondary)', minWidth: 0, wordBreak: 'break-word' }}>
                     {formatSessionTime(s.createdAt)}
                   </span>
-                  {status === 'LIVE' ? (
-                    <LiveBadge />
-                  ) : (
-                    <Badge status="neutral">{status}</Badge>
-                  )}
-                  <span style={{ textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <span style={{ minWidth: 0 }}>
+                    {status === 'LIVE' ? <LiveBadge /> : <Badge status="neutral">{status}</Badge>}
+                  </span>
+                  <span
+                    style={{
+                      textAlign: 'right',
+                      display: 'flex',
+                      gap: 6,
+                      justifyContent: 'flex-end',
+                      flexWrap: 'wrap',
+                      minWidth: 0,
+                    }}
+                  >
                     <Button
                       variant="secondary"
                       size="sm"
@@ -211,11 +228,7 @@ function SessionTable({
                     >
                       {status === '종료' ? '리포트' : '입장'}
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onDelete(s)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => onDelete(s)}>
                       삭제
                     </Button>
                   </span>
@@ -224,17 +237,19 @@ function SessionTable({
             })}
           </div>
         </div>
+        {filtered.length > SESSION_PAGE_SIZE ? (
+          <div style={{ padding: '14px 24px', borderTop: '1px solid var(--divider)' }}>
+            <Pagination
+              page={safePage}
+              pageCount={pageCount}
+              pageSize={SESSION_PAGE_SIZE}
+              rangeLabel={`${rangeStart}–${rangeEnd} / ${filtered.length}개`}
+              onPage={onPage}
+            />
+          </div>
+        ) : null}
       </div>
-      {filtered.length > SESSION_PAGE_SIZE ? (
-        <Pagination
-          page={safePage}
-          pageCount={pageCount}
-          pageSize={SESSION_PAGE_SIZE}
-          rangeLabel={`${rangeStart}–${rangeEnd} / ${filtered.length}개`}
-          onPage={onPage}
-        />
-      ) : null}
-    </RowSection>
+    </div>
   );
 }
 
@@ -345,6 +360,7 @@ export default function SessionListPage() {
   return (
     <ManagerShell activeKey="sessions" breadcrumbs={['서울 1반', '세션']}>
       <PageMain>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0, width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>세션</h1>
@@ -555,6 +571,7 @@ export default function SessionListPage() {
           }}
           confirmLabel={deleteSession.isPending ? '삭제 중…' : '삭제'}
         />
+        </div>
       </PageMain>
     </ManagerShell>
   );
