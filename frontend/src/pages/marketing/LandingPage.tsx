@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BarChart3, Brain, Check, Users } from 'lucide-react';
 import { Button, DonutChart } from '../../ds';
@@ -6,10 +5,7 @@ import logoSrc from '../../ds/assets/logo.png';
 import { QurieHeroAnimation } from './hero/HeroAnimation';
 import { useMeOptional } from '../../data';
 import { homePathForRole } from '../../components/auth/roleRoutes';
-import { applyTheme, resolveInitialTheme } from '../../theme/theme';
-
-const mailDemo = 'mailto:contact@qurie.app?subject=Qurie%20데모%20요청';
-const mailConsult = 'mailto:contact@qurie.app?subject=Qurie%20도입%20문의';
+import { useMarketingLightTheme } from '../../hooks/useMarketingLightTheme';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -17,17 +13,7 @@ export default function LandingPage() {
   const user = meQuery.isSuccess ? meQuery.data : null;
 
   /** 엔터프라이즈 랜딩은 항상 라이트 모드로 보여 줘요. */
-  useEffect(() => {
-    const previous = document.documentElement.getAttribute('data-theme');
-    applyTheme('light');
-    return () => {
-      if (previous === 'light' || previous === 'dark') {
-        applyTheme(previous);
-      } else {
-        applyTheme(resolveInitialTheme());
-      }
-    };
-  }, []);
+  useMarketingLightTheme();
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--surface-card)', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
@@ -73,9 +59,9 @@ export default function LandingPage() {
               <Button variant="ghost">로그인</Button>
             </Link>
           )}
-          <a href={mailConsult} style={{ textDecoration: 'none' }}>
-            <Button variant="primary">도입 문의</Button>
-          </a>
+          <Link to="/demo" style={{ textDecoration: 'none' }}>
+            <Button variant="primary">데모 요청하기</Button>
+          </Link>
         </div>
       </header>
 
@@ -117,16 +103,11 @@ export default function LandingPage() {
           AI가 만든 퀴즈와 세션 리포트로 구성원의 성장을 숫자로 살펴볼 수 있어요.
         </p>
         <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-          <a href={mailDemo} style={{ textDecoration: 'none' }}>
+          <Link to="/demo" style={{ textDecoration: 'none' }}>
             <Button variant="primary" style={{ padding: '13px 24px', fontSize: 15 }}>
               데모 요청하기 <span style={{ color: 'var(--primary-300)', fontWeight: 800 }}>&gt;</span>
             </Button>
-          </a>
-          <a href={mailConsult} style={{ textDecoration: 'none' }}>
-            <Button variant="secondary" style={{ padding: '13px 24px', fontSize: 15 }}>
-              도입 문의
-            </Button>
-          </a>
+          </Link>
         </div>
 
         <div
@@ -524,25 +505,11 @@ export default function LandingPage() {
           함께 찾아 드려요.
         </p>
         <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
-          <a href={mailDemo} style={{ textDecoration: 'none' }}>
+          <Link to="/demo" style={{ textDecoration: 'none' }}>
             <Button variant="accent" style={{ padding: '13px 24px', fontSize: 15 }}>
               데모 요청하기
             </Button>
-          </a>
-          <a href={mailConsult} style={{ textDecoration: 'none' }}>
-            <Button
-              variant="secondary"
-              style={{
-                padding: '13px 24px',
-                fontSize: 15,
-                background: 'transparent',
-                color: '#fff',
-                borderColor: 'var(--grey-500)',
-              }}
-            >
-              전문가 상담 신청
-            </Button>
-          </a>
+          </Link>
         </div>
       </section>
 

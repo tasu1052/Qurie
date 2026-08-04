@@ -14,8 +14,6 @@ const SW = 1280;
 const SH = 720;
 const IMH = SW * (1024 / 1536);
 const IMG_TOP = -30;
-const FX = (f: number) => f * SW;
-const FY = (f: number) => f * IMH + IMG_TOP;
 
 const INK = '#111111';
 const ACCENT = '#6366F1';
@@ -26,39 +24,18 @@ const CTA_LABEL = '데모 요청하기';
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 const seg = (p: number, a: number, b: number) => clamp((p - a) / (b - a), 0, 1);
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 const Easing = {
   easeOutCubic: (t: number) => {
     const x = t - 1;
     return x * x * x + 1;
   },
-  easeInOutCubic: (t: number) =>
-    t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1,
 };
 
 const MOTION = {
   enter: (t: number) => Easing.easeOutCubic(clamp(t, 0, 1)),
-  glide: (t: number) => Easing.easeInOutCubic(clamp(t, 0, 1)),
   pop: (t: number) => Easing.easeOutCubic(clamp(t, 0, 1)),
 };
-
-type Rect = { x: number; y: number; w: number; h: number };
-const rect = (fx1: number, fy1: number, fx2: number, fy2: number): Rect => ({
-  x: FX(fx1),
-  y: FY(fy1),
-  w: FX(fx2) - FX(fx1),
-  h: FY(fy2) - FY(fy1),
-});
-const B1 = rect(0.578, 0.307, 0.812, 0.412);
-const B2 = rect(0.578, 0.424, 0.812, 0.539);
-const B3 = rect(0.578, 0.573, 0.741, 0.647);
-const rlerp = (a: Rect, b: Rect, t: number): Rect => ({
-  x: lerp(a.x, b.x, t),
-  y: lerp(a.y, b.y, t),
-  w: lerp(a.w, b.w, t),
-  h: lerp(a.h, b.h, t),
-});
 
 type Cam = { x: number; y: number; s: number };
 const STATIC_CAM: Cam = { x: 640, y: 360, s: 1 };
@@ -349,27 +326,10 @@ function SceneIntro() {
 
 function SceneReview() {
   const { progress: p } = useScene();
-  const m1 = MOTION.glide(seg(p, 0.3, 0.44));
-  const m2 = MOTION.glide(seg(p, 0.58, 0.72));
-  const r = m2 > 0 ? rlerp(B2, B3, m2) : rlerp(B1, B2, m1);
-  const ringOn = Math.min(seg(p, 0.05, 0.16), 1 - seg(p, 0.9, 0.98));
   const capOn = Math.min(seg(p, 0.06, 0.2), 1 - seg(p, 0.86, 0.96));
   return (
     <>
-      <Camera cam={STATIC_CAM}>
-        <div
-          style={{
-            position: 'absolute',
-            left: r.x - 8,
-            top: r.y - 8,
-            width: r.w + 16,
-            height: r.h + 16,
-            border: `2.5px solid ${ACCENT}`,
-            borderRadius: 18,
-            opacity: ringOn,
-          }}
-        />
-      </Camera>
+      <Camera cam={STATIC_CAM} />
       <Caption text="같은 코드를 보며 실시간으로 리뷰합니다" on={capOn} />
     </>
   );

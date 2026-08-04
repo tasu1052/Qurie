@@ -11,9 +11,12 @@
     <script>
       (function () {
         try {
+          var path = location.pathname || '/';
+          var marketing = path === '/' || path.indexOf('/demo') === 0;
           var stored = localStorage.getItem('theme') || localStorage.getItem('qurie.theme');
-          var theme =
-            stored === 'light' || stored === 'dark'
+          var theme = marketing
+            ? 'light'
+            : stored === 'light' || stored === 'dark'
               ? stored
               : window.matchMedia('(prefers-color-scheme: dark)').matches
                 ? 'dark'
