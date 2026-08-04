@@ -160,7 +160,7 @@ export default function SessionPage() {
   const [rightTab, setRightTab] = useState<RightTab>(initialRight);
   const [bottomTab, setBottomTab] = useState<BottomTab>('terminal');
   const [editorLanguage, setEditorLanguage] = useState<string>(() =>
-    initialActiveFile ? languageFromPath(initialActiveFile) : 'typescript',
+    initialActiveFile ? languageFromPath(initialActiveFile) : 'plaintext',
   );
   const [gitOpen, setGitOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -349,16 +349,27 @@ export default function SessionPage() {
   };
 
   /**
-   * 새로고침 후 활성 파일·확장자 언어를 복구한다.
+   * 새로고침·첫 입장 후 활성 파일·확장자 언어를 복구한다.
    * provider sync 이후에만 시딩해, 아직 방에 있는 사람들의 실시간 편집을 롤백하지 않는다.
+   * 저장된 파일이 없으면 목록의 첫 파일을 열고 확장자로 언어를 맞춘다.
    */
   useEffect(() => {
     if (!hasSessionId || !projectRef || !collabSynced || hydratedActiveFileRef.current) return;
     hydratedActiveFileRef.current = true;
     const path = activeFile ?? loadSessionActiveFile(sessionId);
-    if (!path) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot restore of last active file
-    void openFile(projectRef.projectId, path);
+    if (path) {
+      void openFile(projectRef.projectId, path);
+      return;
+    }
+    void (async () => {
+      try {
+        const files = await getProjectFiles(projectRef.projectId);
+        const first = [...files].map((f) => f.path).sort((a, b) => a.localeCompare(b))[0];
+        if (first) await openFile(projectRef.projectId, first);
+      } catch {
+        // 목록 실패해도 세션은 유지
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync 완료 후 1회만
   }, [hasSessionId, sessionId, projectRef?.projectId, collabSynced]);
 
@@ -955,26 +966,75 @@ export default function SessionPage() {
                 >
                   음성 채널 · {chat.voiceParticipants.length}명
                 </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 100, overflow: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflow: 'auto' }}>
                   {chat.voiceParticipants.length === 0 ? (
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                       음성 채널에 아무도 없습니다.
                     </span>
                   ) : (
-                    chat.voiceParticipants.map((p) => (
-                      <PresenceRow
-                        key={`voice-${p.userId}`}
-                        color={p.userId === myUserId ? 'var(--status-warning)' : 'var(--accent)'}
-                        name={p.userId === myUserId ? `${p.name} (나)` : p.name}
-                        badge={[
-                          p.micMuted ? '음소거' : null,
-                          p.deafened ? '청취차단' : null,
-                          p.role !== 'STUDENT' ? p.role : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ') || undefined}
-                      />
-                    ))
+                    chat.voiceParticipants.map((p) => {
+                      const isMe = p.userId === myUserId;
+                      const volume = voiceRtc.peerVolumes[p.userId] ?? 1;
+                      return (
+                        <div
+                          key={`voice-${p.userId}`}
+                          style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}
+                        >
+                          <PresenceRow
+                            color={isMe ? 'var(--status-warning)' : 'var(--accent)'}
+                            name={isMe ? `${p.name} (나)` : p.name}
+                            badge={[
+                              p.micMuted ? '음소거' : null,
+                              p.deafened ? '청취차단' : null,
+                              p.role !== 'STUDENT' ? p.role : null,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ') || undefined}
+                          />
+                          {!isMe ? (
+                            <label
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                paddingLeft: 16,
+                                minWidth: 0,
+                              }}
+                              title={`${p.name} 음량`}
+                            >
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  color: 'var(--text-muted)',
+                                  flexShrink: 0,
+                                  width: 28,
+                                }}
+                              >
+                                {Math.round(volume * 100)}%
+                              </span>
+                              <input
+                                type="range"
+                                min={0}
+                                max={100}
+                                step={1}
+                                value={Math.round(volume * 100)}
+                                disabled={!voiceJoined || voiceRtc.status !== 'live'}
+                                onChange={(e) => {
+                                  voiceRtc.setPeerVolume(p.userId, Number(e.target.value) / 100);
+                                }}
+                                style={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  accentColor: 'var(--accent)',
+                                  cursor: voiceJoined ? 'pointer' : 'not-allowed',
+                                }}
+                                aria-label={`${p.name} 수신 음량`}
+                              />
+                            </label>
+                          ) : null}
+                        </div>
+                      );
+                    })
                   )}
                 </div>
                 <span
