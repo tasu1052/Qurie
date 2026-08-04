@@ -22,7 +22,7 @@ import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Download, TriangleAlert } from 'lucide-react';
-import { resolvePastSessionMock } from '../../mocks/pastLearning';
+import { ApiIntegrationPanel } from '../../components/feedback/ApiIntegrationPanel';
 
 function ReportSkeleton() {
   return (
@@ -104,22 +104,25 @@ function conceptBars(stats: Record<string, unknown> | null) {
 function SessionReportBody({
   report,
   backTo,
-  sessionId,
   userRole,
 }: {
   report: SessionReportDetailResponse;
   backTo: string;
-  sessionId: number;
   userRole: string;
 }) {
   const navigate = useNavigate();
-  const pastMock = resolvePastSessionMock(sessionId);
   const downloadPdf = useDownloadSessionReportPdf();
   const [pdfError, setPdfError] = useState<string | null>(null);
   const quizPath =
-    userRole === 'STUDENT'
-      ? `/app/quizzes/${pastMock.quizSetId}`
-      : `/manager/quizzes/${pastMock.quizSetId}`;
+    report.quizSetId != null
+      ? userRole === 'STUDENT'
+        ? `/app/quizzes/${report.quizSetId}`
+        : `/manager/quizzes/${report.quizSetId}`
+      : null;
+  const aiStrengths = report.aiStrengths ?? [];
+  const aiImprovements = report.aiImprovements ?? [];
+  const hasAiBlock =
+    Boolean(report.aiComment?.trim()) || aiStrengths.length > 0 || aiImprovements.length > 0;
   const segments = useMemo(() => difficultySegments(report.difficultyRatio), [report.difficultyRatio]);
   const categories = useMemo(() => conceptBars(report.conceptStats), [report.conceptStats]);
   const hardSeg = segments.find((s) => s.label === 'HARD');
@@ -227,20 +230,20 @@ function SessionReportBody({
         />
       </StatCardRow>
 
-      <div
-        style={{
-          background: 'var(--surface-card)',
-          border: '1px solid var(--border)',
-          borderRadius: 16,
-          boxShadow: 'var(--shadow-card)',
-          padding: 24,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 14,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {hasAiBlock ? (
+        <div
+          style={{
+            background: 'var(--surface-card)',
+            border: '1px solid var(--border)',
+            borderRadius: 16,
+            boxShadow: 'var(--shadow-card)',
+            padding: 24,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 14,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <span
               style={{
                 fontSize: 11,
@@ -252,39 +255,56 @@ function SessionReportBody({
             >
               AI 리포트
             </span>
-            <Badge status="neutral">데모</Badge>
+            {quizPath ? (
+              <Button variant="secondary" size="sm" onClick={() => navigate(quizPath)}>
+                퀴즈 열람
+              </Button>
+            ) : null}
           </div>
-          <Button variant="secondary" size="sm" onClick={() => navigate(quizPath)}>
-            퀴즈 열람
-          </Button>
-        </div>
-        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--ink)', fontWeight: 600 }}>
-          {pastMock.reportHighlights.overall}
-        </p>
-        <div className="qurie-app-split" style={{ alignItems: 'start' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>강점</span>
-            {pastMock.reportHighlights.strengths.map((s) => (
-              <div key={s} style={{ display: 'flex', gap: 8 }}>
-                <CheckCircle2 size={14} style={{ color: 'var(--status-success)', flexShrink: 0, marginTop: 2 }} />
-                <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
+          {report.aiComment?.trim() ? (
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--ink)', fontWeight: 600 }}>
+              {report.aiComment}
+            </p>
+          ) : null}
+          {(aiStrengths.length > 0 || aiImprovements.length > 0) ? (
+            <div className="qurie-app-split" style={{ alignItems: 'start' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>강점</span>
+                {aiStrengths.length === 0 ? (
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</span>
+                ) : (
+                  aiStrengths.map((s) => (
+                    <div key={s} style={{ display: 'flex', gap: 8 }}>
+                      <CheckCircle2 size={14} style={{ color: 'var(--status-success)', flexShrink: 0, marginTop: 2 }} />
+                      <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
+                    </div>
+                  ))
+                )}
               </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>개선점</span>
-            {pastMock.reportHighlights.improvements.map((s) => (
-              <div key={s} style={{ display: 'flex', gap: 8 }}>
-                <TriangleAlert size={14} style={{ color: 'var(--status-warning)', flexShrink: 0, marginTop: 2 }} />
-                <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>개선점</span>
+                {aiImprovements.length === 0 ? (
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</span>
+                ) : (
+                  aiImprovements.map((s) => (
+                    <div key={s} style={{ display: 'flex', gap: 8 }}>
+                      <TriangleAlert size={14} style={{ color: 'var(--status-warning)', flexShrink: 0, marginTop: 2 }} />
+                      <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
+                    </div>
+                  ))
+                )}
               </div>
-            ))}
-          </div>
+            </div>
+          ) : null}
+          {report.managerComment?.trim() ? (
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
+              강사 코멘트: {report.managerComment}
+            </p>
+          ) : null}
         </div>
-        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
-          {pastMock.reportHighlights.nextSuggestion}
-        </p>
-      </div>
+      ) : (
+        <ApiIntegrationPanel groupId="sessionReportAi" variant="compact" title="AI 리포트 API" />
+      )}
 
       <div className="qurie-app-split">
         <div
@@ -500,7 +520,6 @@ function SessionReportLoader({
     <SessionReportBody
       report={report}
       backTo={backTo}
-      sessionId={sessionId}
       userRole={userRole}
     />
   );

@@ -2,12 +2,8 @@ import { useEffect, useState } from 'react';
 import { isAxiosError } from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Badge, Button, RowSection } from '../../ds';
-import {
-  useGetUserProfile,
-  useLogout,
-  useMe,
-  useUpdateUserProfile,
-} from '../../data';
+import { useLogout, useUpdateUserProfile } from '../../data';
+import { useAccountIdentity } from '../../hooks/useAccountIdentity';
 
 function passwordChangeError(error: unknown): string {
   if (isAxiosError(error)) {
@@ -41,22 +37,19 @@ function passwordChangeError(error: unknown): string {
 /** Shared profile body for student / master / manager my pages. */
 export function ProfilePageContent() {
   const navigate = useNavigate();
-  const { data: me } = useMe();
-  const { data: profile } = useGetUserProfile(me.id);
+  const account = useAccountIdentity();
   const updateProfile = useUpdateUserProfile();
   const logout = useLogout();
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(profile.name);
+  const [name, setName] = useState(account.name);
   const [pwOpen, setPwOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [pwError, setPwError] = useState<string | null>(null);
 
   useEffect(() => {
-    setName(profile.name);
-  }, [profile.name]);
-
-  const initial = (profile.name || '?').slice(0, 1);
+    setName(account.name);
+  }, [account.name]);
 
   const onLogout = () => {
     logout.mutate(undefined, {
@@ -66,7 +59,7 @@ export function ProfilePageContent() {
 
   const onSave = () => {
     updateProfile.mutate(
-      { userId: me.id, name },
+      { userId: account.id, name },
       {
         onSuccess: () => setEditing(false),
       },
@@ -81,7 +74,7 @@ export function ProfilePageContent() {
     }
     updateProfile.mutate(
       {
-        userId: me.id,
+        userId: account.id,
         currentPassword: currentPassword || undefined,
         newPassword,
       },
@@ -127,15 +120,15 @@ export function ProfilePageContent() {
             flexShrink: 0,
           }}
         >
-          {initial}
+          {account.initial}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{profile.name}</h1>
-            <Badge status="neutral">{profile.role}</Badge>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{account.name}</h1>
+            <Badge status="neutral">{account.role}</Badge>
           </div>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-            {profile.email}
+            {account.email}
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -175,9 +168,9 @@ export function ProfilePageContent() {
             계정 정보
           </span>
           {[
-            { label: '이름', value: editing ? undefined : profile.name },
-            { label: '이메일', value: profile.email },
-            { label: '시스템 역할', value: profile.role },
+            { label: '이름', value: editing ? undefined : account.name },
+            { label: '이메일', value: account.email },
+            { label: '시스템 역할', value: account.role },
           ].map((rowItem) => (
             <div
               key={rowItem.label}

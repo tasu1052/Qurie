@@ -1,20 +1,15 @@
 import { useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
-import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
+import { ApiIntegrationPanel } from '../../components/feedback/ApiIntegrationPanel';
 import {
   AlertBanner,
   Badge,
   Button,
-  ChartLegend,
-  DonutChart,
   EmptyState,
-  LineChart,
   Modal,
   RowErrorFallback,
   Skeleton,
-  StatCard,
-  StatCardRow,
 } from '../../ds';
 import {
   QueryAsyncBoundary,
@@ -25,28 +20,13 @@ import {
   useGetStudentComments,
   useGetUserProfile,
   useMe,
-  useStudentOverviewRow,
 } from '../../data';
 
 function OverviewSkeleton() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <Skeleton width="100%" height={90} radius={16} />
-      <StatCardRow>
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            style={{
-              background: 'var(--surface-card-solid)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--card-radius)',
-              padding: 'var(--stat-card-padding)',
-            }}
-          >
-            <Skeleton width="50%" height={14} delay={i * 0.08} />
-          </div>
-        ))}
-      </StatCardRow>
+      <Skeleton width="100%" height={120} radius={16} delay={0.06} />
     </div>
   );
 }
@@ -229,156 +209,6 @@ function InstructorCommentPanel({ userId, classId }: { userId: number; classId: 
   );
 }
 
-function AnalyticsMock({ userId }: { userId: number }) {
-  const row = useStudentOverviewRow(String(userId));
-
-  return (
-    <MockRowBoundary
-      status={row.status}
-      skeleton={<OverviewSkeleton />}
-      onRetry={row.refetch}
-      emptyMessage="학생 데이터가 없습니다"
-    >
-      {row.data && (
-        <>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: -8 }}>
-            API 미구현: 아래 지표는 mock 데이터이며 분석 API 연동 전까지 참고용으로만 표시합니다.
-          </div>
-          <StatCardRow>
-            {row.data.kpis.map((item, i) => (
-              <StatCard key={i} {...item} />
-            ))}
-          </StatCardRow>
-
-          <div className="qurie-app-split">
-            <div
-              style={{
-                background: 'var(--surface-card)',
-                border: '1px solid var(--border)',
-                borderRadius: 16,
-                boxShadow: 'var(--shadow-card)',
-                padding: 24,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 16,
-                minWidth: 0,
-              }}
-            >
-              <span
-                style={{
-                  alignSelf: 'flex-start',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                난이도별 정답 분포
-              </span>
-              <DonutChart
-                segments={row.data.difficulty}
-                size={180}
-                centerValue="84%"
-                centerLabel="평균"
-              />
-            </div>
-            <div
-              style={{
-                background: 'var(--surface-card)',
-                border: '1px solid var(--border)',
-                borderRadius: 16,
-                boxShadow: 'var(--shadow-card)',
-                padding: 24,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 16,
-                minWidth: 0,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                주간 참여 · 정답률
-              </span>
-              <LineChart series={row.data.weeklySeries} labels={row.data.weeklyLabels} height={180} />
-              <ChartLegend
-                items={row.data.weeklySeries.map((s) => ({ label: s.name ?? '', accent: s.accent }))}
-              />
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: 'var(--surface-card)',
-              border: '1px solid var(--border)',
-              borderRadius: 16,
-              boxShadow: 'var(--shadow-card)',
-              overflow: 'hidden',
-            }}
-          >
-            <div style={{ padding: '20px 24px 14px' }}>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                세션별 성과
-              </span>
-            </div>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '2fr 1fr 1fr 1fr',
-                padding: '10px 24px',
-                borderBottom: '1px solid var(--divider)',
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: 'var(--text-muted)',
-              }}
-            >
-              <span>세션</span>
-              <span>정답률</span>
-              <span>완료율</span>
-              <span>평점</span>
-            </div>
-            {row.data.sessions.map((s) => (
-              <div
-                key={s.id}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '2fr 1fr 1fr 1fr',
-                  padding: '13px 24px',
-                  borderBottom: '1px solid var(--divider)',
-                  fontSize: 13,
-                }}
-              >
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}>{s.session}</span>
-                <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{s.accuracy}</span>
-                <span>{s.completion}</span>
-                <span style={{ fontWeight: 600 }}>{s.rating}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </MockRowBoundary>
-  );
-}
-
 function StudentOverviewBody({
   userId,
   classId,
@@ -423,7 +253,7 @@ function StudentOverviewBody({
       />
       {reportMsg ? <AlertBanner tone="success" title="리포트 생성" description={reportMsg} /> : null}
       {reportError ? <AlertBanner tone="error" title="리포트 실패" description={reportError} /> : null}
-      <AnalyticsMock userId={userId} />
+      <ApiIntegrationPanel groupId="studentAnalytics" />
       {canManage ? <InstructorCommentPanel userId={userId} classId={classId} /> : null}
 
       <Modal

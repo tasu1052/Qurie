@@ -1,8 +1,15 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Badge, Button, EmptyState } from '../../ds';
-import { getPastQuizSetMock, type PastQuizItem } from '../../mocks/pastLearning';
+import { ApiIntegrationPanel } from '../../components/feedback/ApiIntegrationPanel';
+import { Badge, Button, EmptyState, RowErrorFallback, Skeleton } from '../../ds';
+import {
+  QueryAsyncBoundary,
+  useGetQuizProgress,
+  useGetQuizSet,
+  type QuizItem,
+  type QuizProgressItem,
+} from '../../data';
 import { PastQuizShell } from './pastQuizShell';
 import { SESSION_LIST_PAGE_TITLE, usePastQuizBasePath, type PastQuizBasePath } from './pastQuizPaths';
 
@@ -14,10 +21,21 @@ const filterChips: { key: FilterKey; label: string }[] = [
   { key: 'wrong', label: '틀린 문항' },
 ];
 
-function filterItems(items: PastQuizItem[], filter: FilterKey): PastQuizItem[] {
-  if (filter === 'correct') return items.filter((i) => i.isCorrect === true);
-  if (filter === 'wrong') return items.filter((i) => i.isCorrect === false);
-  return items;
+function correctChoiceIdx(item: QuizItem): number {
+  return item.choices.find((c) => c.answer)?.idx ?? 0;
+}
+
+function filterItems(
+  items: QuizItem[],
+  progressByQuizId: Map<number, QuizProgressItem>,
+  filter: FilterKey,
+): QuizItem[] {
+  if (filter === 'all') return items;
+  return items.filter((item) => {
+    const progress = progressByQuizId.get(item.id);
+    if (progress?.isCorrect == null) return false;
+    return filter === 'correct' ? progress.isCorrect === true : progress.isCorrect === false;
+  });
 }
 
 function ChoiceRow({
@@ -92,10 +110,21 @@ function ChoiceRow({
   );
 }
 
-function QuestionCard({ item }: { item: PastQuizItem }) {
-  const [pickedIdx, setPickedIdx] = useState<number | null>(null);
-  const showResult = pickedIdx != null;
-  const isCorrect = pickedIdx === item.correctIdx;
+function QuestionCard({
+  item,
+  progress,
+}: {
+  item: QuizItem;
+  progress?: QuizProgressItem;
+}) {
+  const correctIdx = correctChoiceIdx(item);
+  const savedChoice = progress?.chosenChoiceIdx ?? null;
+  const savedCorrect = progress?.isCorrect;
+  const [pickedIdx, setPickedIdx] = useState<number | null>(savedChoice);
+  const showResult = pickedIdx != null || savedChoice != null;
+  const userChoiceIdx = pickedIdx ?? savedChoice;
+  const isCorrect =
+    savedCorrect != null ? savedCorrect : userChoiceIdx != null ? userChoiceIdx === correctIdx : null;
 
   return (
     <div
@@ -113,13 +142,8 @@ function QuestionCard({ item }: { item: PastQuizItem }) {
         <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>
           Q{item.orderNo}
         </span>
-        {showResult ? (
-          <Badge status={isCorrect ? 'success' : 'error'}>{isCorrect ? '정답' : '오답'}</Badge>
-        ) : item.isCorrect === true ? (
-          <Badge status="success">정답</Badge>
-        ) : item.isCorrect === false ? (
-          <Badge status="error">오답</Badge>
-        ) : null}
+        {isCorrect === true ? <Badge status="success">정답</Badge> : null}
+        {isCorrect === false ? <Badge status="error">오답</Badge> : null}
       </div>
       <p style={{ margin: 0, fontSize: 14, fontWeight: 600, lineHeight: 1.5, color: 'var(--ink)' }}>
         {item.question}
@@ -142,54 +166,61 @@ function QuestionCard({ item }: { item: PastQuizItem }) {
           >
             <ChoiceRow
               choice={c}
-              correctIdx={item.correctIdx}
-              userChoiceIdx={pickedIdx}
+              correctIdx={correctIdx}
+              userChoiceIdx={userChoiceIdx}
               showResult={showResult}
             />
           </button>
         ))}
       </div>
-      {showResult ? (
+      {showResult && item.explanation ? (
         <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
-          {item.explanation}
+          {progress?.explanation?.trim() || item.explanation}
         </p>
       ) : null}
     </div>
   );
 }
 
-type PastQuizDetailPageProps = {
-  basePath?: PastQuizBasePath;
-};
+function QuizDetailSkeleton() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {[0, 1, 2].map((i) => (
+        <Skeleton key={i} width="100%" height={180} radius={16} delay={i * 0.06} />
+      ))}
+    </div>
+  );
+}
 
-export default function PastQuizDetailPage({ basePath: basePathProp }: PastQuizDetailPageProps) {
+function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: PastQuizBasePath }) {
   const navigate = useNavigate();
-  const { quizSetId: quizSetIdParam } = useParams<{ quizSetId: string }>();
-  const basePath = usePastQuizBasePath(basePathProp);
-  const quizSetId = Number(quizSetIdParam);
-  const quizSet = Number.isFinite(quizSetId) ? getPastQuizSetMock(quizSetId) : undefined;
-
+  const { data: quizSet } = useGetQuizSet(quizSetId);
+  const { data: progressSummary } = useGetQuizProgress(quizSetId);
   const [filter, setFilter] = useState<FilterKey>('all');
 
-  const displayItems = useMemo(() => {
-    if (!quizSet) return [];
-    return filterItems(quizSet.items, filter);
-  }, [quizSet, filter]);
+  const progressItems = progressSummary?.items ?? [];
+  const progressByQuizId = useMemo(() => {
+    const map = new Map<number, QuizProgressItem>();
+    for (const item of progressItems) {
+      map.set(item.quizId, item);
+    }
+    return map;
+  }, [progressItems]);
 
-  if (!quizSet) {
-    return (
-      <PastQuizShell basePath={basePath} breadcrumbs={[SESSION_LIST_PAGE_TITLE, '상세']}>
-        <EmptyState
-          message="퀴즈 세트를 찾을 수 없습니다"
-          actionLabel="목록으로"
-          onAction={() => navigate(`${basePath}/quizzes`)}
-        />
-      </PastQuizShell>
-    );
-  }
+  const items = useMemo(
+    () => [...quizSet.quizzes].sort((a, b) => a.orderNo - b.orderNo),
+    [quizSet.quizzes],
+  );
+
+  const displayItems = useMemo(
+    () => filterItems(items, progressByQuizId, filter),
+    [items, progressByQuizId, filter],
+  );
+
+  const correctCount = items.filter((item) => progressByQuizId.get(item.id)?.isCorrect === true).length;
 
   return (
-    <PastQuizShell basePath={basePath} breadcrumbs={[SESSION_LIST_PAGE_TITLE, quizSet.sessionTitle]}>
+    <>
       <div>
         <Button
           variant="ghost"
@@ -199,10 +230,11 @@ export default function PastQuizDetailPage({ basePath: basePathProp }: PastQuizD
         >
           목록으로
         </Button>
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: '8px 0 0' }}>{quizSet.sessionTitle}</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 700, margin: '8px 0 0' }}>
+          퀴즈 세트 #{quizSet.quizSetId}
+        </h1>
         <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-          {quizSet.scoreCorrect}/{quizSet.scoreTotal} 정답 ·{' '}
-          {new Date(quizSet.endedAt).toLocaleDateString('ko-KR')}
+          {correctCount}/{items.length} 정답 · 상태 {quizSet.status}
         </span>
       </div>
 
@@ -237,59 +269,65 @@ export default function PastQuizDetailPage({ basePath: basePathProp }: PastQuizD
           {displayItems.length === 0 ? (
             <EmptyState
               message="표시할 문항이 없습니다"
-              actionLabel="전체 보기"
-              onAction={() => setFilter('all')}
+              description={
+                filter !== 'all'
+                  ? '진행 기록이 없거나 해당 필터에 맞는 문항이 없어요.'
+                  : '퀴즈 문항이 아직 생성되지 않았어요.'
+              }
+              actionLabel={filter !== 'all' ? '전체 보기' : '목록으로'}
+              onAction={() => (filter !== 'all' ? setFilter('all') : navigate(`${basePath}/quizzes`))}
             />
           ) : (
-            displayItems.map((item) => <QuestionCard key={item.id} item={item} />)
+            displayItems.map((item) => (
+              <QuestionCard key={item.id} item={item} progress={progressByQuizId.get(item.id)} />
+            ))
           )}
         </div>
-
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            boxShadow: 'var(--shadow-card)',
-            padding: 20,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            minWidth: 0,
-            position: 'sticky',
-            top: 16,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              AI 오답 유형 분석
-            </span>
-            <Badge status="neutral">데모 · AI 연동 예정</Badge>
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {quizSet.wrongTypeTags.length === 0 ? (
-              <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>오답 유형 없음</span>
-            ) : (
-              quizSet.wrongTypeTags.map((tag) => (
-                <Badge key={tag} status="warning">
-                  {tag}
-                </Badge>
-              ))
-            )}
-          </div>
-          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-            {quizSet.aiWrongAnalysis}
-          </p>
-        </div>
+        <ApiIntegrationPanel groupId="pastQuizReview" variant="compact" title="AI 오답 분석 API" />
       </div>
+    </>
+  );
+}
+
+type PastQuizDetailPageProps = {
+  basePath?: PastQuizBasePath;
+};
+
+export default function PastQuizDetailPage({ basePath: basePathProp }: PastQuizDetailPageProps) {
+  const navigate = useNavigate();
+  const { quizSetId: quizSetIdParam } = useParams<{ quizSetId: string }>();
+  const basePath = usePastQuizBasePath(basePathProp);
+  const quizSetId = Number(quizSetIdParam);
+  const validId = Number.isFinite(quizSetId) && quizSetId > 0;
+  const [rowKey, setRowKey] = useState(0);
+
+  if (!validId) {
+    return (
+      <PastQuizShell basePath={basePath} breadcrumbs={[SESSION_LIST_PAGE_TITLE, '상세']}>
+        <EmptyState
+          message="퀴즈 세트를 찾을 수 없습니다"
+          actionLabel="목록으로"
+          onAction={() => navigate(`${basePath}/quizzes`)}
+        />
+      </PastQuizShell>
+    );
+  }
+
+  return (
+    <PastQuizShell basePath={basePath} breadcrumbs={[SESSION_LIST_PAGE_TITLE, `퀴즈 #${quizSetId}`]}>
+      <QueryAsyncBoundary
+        key={rowKey}
+        suspenseFallback={<QuizDetailSkeleton />}
+        errorFallback={
+          <RowErrorFallback
+            onRetry={() => setRowKey((k) => k + 1)}
+            title="퀴즈를 불러오지 못했습니다"
+            description="GET /quiz/{quizSetId} 또는 progress API를 확인해 주세요."
+          />
+        }
+      >
+        <QuizDetailBody quizSetId={quizSetId} basePath={basePath} />
+      </QueryAsyncBoundary>
     </PastQuizShell>
   );
 }
