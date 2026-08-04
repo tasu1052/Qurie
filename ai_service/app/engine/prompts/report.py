@@ -30,12 +30,19 @@ def _attempt_block(a: Attempt) -> str:
     answer = a.choices[a.answer_index] if a.answer_index < len(a.choices) else "?"
     mark = "정답" if a.is_correct else ("미응시" if a.chosen_index is None else "오답")
     where = f" (근거 {a.file_path} {a.line_start}~{a.line_end}줄)" if a.file_path else ""
-    return (
-        f"[{a.index}] {mark} · {a.difficulty} · 개념=\"{a.tested_concept}\"{where}\n"
-        f"  문항: {a.question}\n"
-        f"  정답: {a.answer_index}번 \"{answer}\" / {picked}\n"
-        f"  소요: {a.elapsed_ms // 1000}초"
-    )
+    lines = [
+        f"[{a.index}] {mark} · {a.difficulty} · 개념=\"{a.tested_concept}\"{where}",
+        f"  문항: {a.question}",
+        f"  정답: {a.answer_index}번 \"{answer}\" / {picked}",
+        f"  소요: {a.elapsed_ms // 1000}초",
+    ]
+    if a.cohort:
+        c = a.cohort
+        line = f"  반 평균: {c.attempted}명 중 {c.correct}명 정답 ({c.correct_rate:.1f}%)"
+        if c.choice_distribution:
+            line += " · 보기별 선택 " + str(c.choice_distribution)
+        lines.append(line)
+    return "\n".join(lines)
 
 
 def build_report_prompt(req: CreateReportRequest) -> str:
@@ -62,6 +69,11 @@ def build_report_prompt(req: CreateReportRequest) -> str:
 4. 응시 기록에 **없는 개념을 지어내지 마세요.** 등장한 개념은 다음뿐입니다: {", ".join(concepts) or "(없음)"}
 5. 미응시 문항은 오답과 구분하세요. 못 푼 것이 아니라 안 푼 것입니다.
 6. 모두 한국어 존댓말로 씁니다.
+7. **반 평균이 적힌 문항은 그 값에 따라 표현 강도를 조절하세요.** 같은 오답이라도 무게가 다릅니다.
+   - 반 정답률이 낮은 문항을 **맞혔으면** 강점으로 분명히 짚어 주세요.
+   - 반 정답률이 높은 문항을 **틀렸으면** 우선 확인 대상으로 앞에 두세요.
+   - 반 정답률이 낮은 문항을 **틀렸으면** 많은 학생이 어려워했다는 점을 함께 알려, 과하게 자책하지 않도록 하세요.
+   - 반 평균이 적히지 않은 문항은 반 평균을 언급하지 마세요. 없는 수치를 지어내면 안 됩니다.
 
 [항목별 지침]
 - comment: 3~5문장 총평. 잘한 점을 먼저, 보완점을 뒤에 둡니다.
