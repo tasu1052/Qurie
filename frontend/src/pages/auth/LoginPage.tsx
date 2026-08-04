@@ -100,7 +100,7 @@ export default function LoginPage() {
           <Input
             type="email"
             name="email"
-            autoComplete="email"
+            autoComplete="username"
             placeholder="name@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -153,7 +153,6 @@ export default function LoginPage() {
               type="button"
               onClick={() => {
                 setEmail(account.email);
-                setPassword('test1234');
                 setFormError(null);
               }}
               style={{

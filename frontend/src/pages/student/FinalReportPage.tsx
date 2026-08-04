@@ -15,13 +15,68 @@ import {
   QueryAsyncBoundary,
   useDownloadUserReportPdf,
   useGetClass,
+  useGetStudentComments,
   useGetUserReport,
   useGetUserSessionReports,
   useMe,
   type SessionReportSummaryResponse,
   type UserReportDetailResponse,
 } from '../../data';
-import { ApiIntegrationPanel } from '../../components/feedback/ApiIntegrationPanel';
+
+function InstructorCommentsSection({ userId, classId }: { userId: number; classId: number }) {
+  const comments = useGetStudentComments(userId, classId).data ?? [];
+
+  if (comments.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        background: 'var(--surface-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        boxShadow: 'var(--shadow-card)',
+        padding: 24,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        강사 코멘트
+      </span>
+      {comments.map((c) => (
+        <div
+          key={c.id}
+          style={{
+            borderRadius: 12,
+            border: '1px solid var(--border)',
+            background: 'var(--surface-sunken)',
+            padding: '12px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{c.authorName}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              {new Date(c.createdAt).toLocaleDateString('ko-KR')}
+            </span>
+          </div>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>{c.content}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function ReportSkeleton() {
   return (
@@ -410,7 +465,14 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
 
       <SimpleBars items={barItems} />
 
-      <ApiIntegrationPanel groupId="finalReportComments" />
+      {classId != null ? (
+        <QueryAsyncBoundary
+          suspenseFallback={<Skeleton width="100%" height={120} radius={16} />}
+          errorFallback={null}
+        >
+          <InstructorCommentsSection userId={me.id} classId={classId} />
+        </QueryAsyncBoundary>
+      ) : null}
 
       {reports.length > 0 ? (
         <div

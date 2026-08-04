@@ -86,6 +86,7 @@ export default function App() {
           <Route path="/manager/settings" element={<Navigate to="/manager/me" replace />} />
 
           <Route path="/app" element={<StudentDashboardPage />} />
+          <Route path="/app/announcements" element={<NoticesPage />} />
           <Route path="/app/announcements/:noticeId" element={<NoticeDetailPage />} />
           <Route path="/app/classes" element={<Navigate to="/app" replace />} />
           <Route path="/app/classes/:id" element={<Navigate to="/app" replace />} />

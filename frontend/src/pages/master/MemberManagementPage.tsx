@@ -14,8 +14,6 @@ import {
   RowErrorFallback,
   Select,
   Skeleton,
-  StatCard,
-  StatCardRow,
   UploadRow,
 } from '../../ds';
 import {
@@ -39,24 +37,6 @@ function apiErrorMessage(error: unknown, fallback: string): string {
     if (typeof message === 'string' && message.trim()) return message;
   }
   return fallback;
-}
-
-function KpiSkeleton() {
-  return (
-    <StatCardRow>
-      <div
-        style={{
-          background: 'var(--surface-card-solid)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--card-radius)',
-          padding: 'var(--stat-card-padding)',
-        }}
-      >
-        <Skeleton width="50%" height={14} />
-        <Skeleton width="30%" height={28} delay={0.04} style={{ marginTop: 12 }} />
-      </div>
-    </StatCardRow>
-  );
 }
 
 function TableSkeleton() {
@@ -266,10 +246,6 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
         </Button>
       </div>
 
-      <StatCardRow>
-        <StatCard label="매니저" value={String(usersPage.meta.total)} caption="MANAGER" accent />
-      </StatCardRow>
-
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <Input
           placeholder="이름 · 이메일 · 전화 · 지역 검색…"
@@ -414,14 +390,20 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
               disabled={!!bulkFile}
             />
           </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>클래스</span>
-            <Select
-              options={classes.map((c) => ({ value: String(c.id), label: c.name }))}
-              value={inviteClassId || String(classes[0]?.id ?? '')}
-              onChange={setInviteClassId}
-            />
-          </label>
+          {classes.length > 1 ? (
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>배정 클래스</span>
+              <Select
+                options={classes.map((c) => ({ value: String(c.id), label: c.name }))}
+                value={inviteClassId || String(classes[0]?.id ?? '')}
+                onChange={setInviteClassId}
+              />
+            </label>
+          ) : classes[0] ? (
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              배정 클래스: {classes[0].name}
+            </span>
+          ) : null}
           {bulkFile ? (
             <UploadRow name={bulkFile.name} percent={100} onCancel={() => setBulkFile(null)} />
           ) : (
@@ -452,12 +434,7 @@ export default function MemberManagementPage() {
       <PageMain>
         <QueryAsyncBoundary
           key={rowKey}
-          suspenseFallback={
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-              <KpiSkeleton />
-              <TableSkeleton />
-            </div>
-          }
+          suspenseFallback={<TableSkeleton />}
           errorFallback={
             <RowErrorFallback
               onRetry={() => setRowKey((k) => k + 1)}

@@ -15,7 +15,7 @@ import {
   useMe,
   type SessionResponse,
 } from '../../data';
-import { ApiIntegrationPanel } from '../../components/feedback/ApiIntegrationPanel';
+import { getSessionReport } from '../../network/session/session-apis';
 import { PastQuizShell } from './pastQuizShell';
 import { SESSION_LIST_PAGE_TITLE, usePastQuizBasePath, type PastQuizBasePath } from './pastQuizPaths';
 
@@ -90,6 +90,24 @@ function SessionListTable({
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
   }, [page, pageCount]);
+
+  const [quizLoadingId, setQuizLoadingId] = useState<number | null>(null);
+
+  const openPastQuiz = async (sessionId: number) => {
+    setQuizLoadingId(sessionId);
+    try {
+      const report = await getSessionReport(sessionId);
+      if (report.quizSetId != null) {
+        navigate(`${basePath}/quizzes/${report.quizSetId}`);
+        return;
+      }
+      navigate(`/session/${sessionId}/report`);
+    } catch {
+      navigate(`/session/${sessionId}/report`);
+    } finally {
+      setQuizLoadingId(null);
+    }
+  };
 
   if (filtered.length === 0) {
     return (
@@ -175,10 +193,10 @@ function SessionListTable({
                 <Button
                   variant="secondary"
                   size="sm"
-                  disabled={status !== '종료'}
-                  onClick={() => navigate(`/session/${s.id}/report`)}
+                  disabled={status !== '종료' || quizLoadingId === s.id}
+                  onClick={() => void openPastQuiz(s.id)}
                 >
-                  지난 퀴즈
+                  {quizLoadingId === s.id ? '열기…' : '지난 퀴즈'}
                 </Button>
                     <Button
                       variant="ghost"
@@ -255,8 +273,6 @@ export default function PastQuizListPage({ basePath: basePathProp }: PastQuizLis
           );
         })}
       </div>
-
-      <ApiIntegrationPanel groupId="pastQuizBySession" variant="compact" title="세션별 퀴즈 API" />
 
       {!hasValidClassId ? (
         <EmptyState

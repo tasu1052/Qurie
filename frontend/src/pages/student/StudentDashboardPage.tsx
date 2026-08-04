@@ -94,6 +94,23 @@ function MyGroupPanel({
           {detail.description || '설명이 없습니다.'}
         </p>
       </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr auto auto',
+          gap: 8,
+          padding: '6px 10px',
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+        }}
+      >
+        <span>구성원</span>
+        <span>역할</span>
+        <span>상태</span>
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', minHeight: 0, flex: 1 }}>
         {detail.members.map((m: GroupMemberResponse) => {
           const online = onlineUserIds.has(m.userId);
@@ -101,30 +118,23 @@ function MyGroupPanel({
             <div
               key={m.userId}
               style={{
-                display: 'flex',
+                display: 'grid',
+                gridTemplateColumns: '1fr auto auto',
+                gap: 8,
                 alignItems: 'center',
-                gap: 10,
                 padding: '8px 10px',
                 borderRadius: 10,
                 background: 'var(--surface-sunken)',
               }}
             >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: online ? 'var(--status-success)' : 'var(--border-strong)',
-                  flexShrink: 0,
-                }}
-                title={online ? '접속 중' : '오프라인'}
-              />
-              <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 0 }}>
                 {m.name}
               </span>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                 {m.role === 'LEADER' ? '리더' : '멤버'}
-                {online ? ' · 접속 중' : ''}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                {online ? '접속 중' : '오프라인'}
               </span>
             </div>
           );

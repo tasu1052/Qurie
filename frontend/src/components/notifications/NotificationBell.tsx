@@ -114,7 +114,10 @@ function NotificationBellInner({
   const rootRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
 
-  const { data } = useGetNotices({ size: 8 });
+  const { data } = useGetNotices({
+    size: 8,
+    forAudience: role === 'MASTER' ? undefined : true,
+  });
   const helpQuery = useGetClassHelpRequests(
     role === 'MANAGER' || role === 'MASTER' ? classId : null,
   );

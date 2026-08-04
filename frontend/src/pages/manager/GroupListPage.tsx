@@ -22,6 +22,7 @@ import {
   useDeleteGroup,
   useDuplicateGroup,
   useEditGroup,
+  useGetClassMembers,
   useGetGroupDetail,
   useGetGroups,
   useMe,
@@ -135,6 +136,11 @@ function ShuffleModal({
   onDone: () => void;
 }) {
   const { data: groups } = useGetGroups(classId);
+  const { data: membersPage } = useGetClassMembers(classId, { size: 200 });
+  const studentCount = useMemo(
+    () => membersPage.data.filter((m) => m.role === 'STUDENT').length,
+    [membersPage.data],
+  );
   const shuffleGroups = useShuffleGroups();
   const deleteGroup = useDeleteGroup();
   const editGroup = useEditGroup();
@@ -159,6 +165,12 @@ function ShuffleModal({
 
   const onShuffle = async () => {
     if (!Number.isFinite(count) || count < 1) return;
+    if (count > studentCount) {
+      setError(
+        `그룹 수(${count})가 학생 수(${studentCount})보다 많습니다. 그룹 수를 줄이거나 학생을 추가해 주세요.`,
+      );
+      return;
+    }
     if (!shuffleStartDate || !shuffleEndDate) {
       setError('시작일과 종료일을 선택하세요.');
       return;

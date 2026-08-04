@@ -31,7 +31,6 @@ import {
   useDeleteTrack,
   useGetClasses,
   useGetTrack,
-  useGetUsers,
   useUpdateTrack,
   type ClassResponse,
 } from '../../data';
@@ -157,7 +156,6 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
   const navigate = useNavigate();
   const { data: track } = useGetTrack(trackId);
   const { data: classesPage } = useGetClasses({ trackId, size: 100, sort: 'name,asc' });
-  const { data: managersPage } = useGetUsers({ role: 'MANAGER', size: 100 });
   const updateTrack = useUpdateTrack();
   const deleteTrack = useDeleteTrack();
 
@@ -187,9 +185,21 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const trackManagers = useMemo(() => {
+    const byId = new Map<number, { userId: number; name: string; email: string }>();
+    for (const q of memberQueries) {
+      for (const m of q.data?.data ?? []) {
+        if (!byId.has(m.userId)) {
+          byId.set(m.userId, { userId: m.userId, name: m.name, email: m.email });
+        }
+      }
+    }
+    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  }, [memberQueries]);
+
   const techKey = normalizeTech(track.tech);
   const techImage = techImg[techKey];
-  const managerCount = managersPage.meta.total;
+  const managerCount = trackManagers.length;
   const activeClassCount = classes.filter((c) => classStatus(c.endedAt).active).length;
   const trackStatusLabel =
     classes.length === 0 ? '대기' : activeClassCount > 0 ? '진행 중' : '종료';
@@ -619,11 +629,11 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
             >
               담당 매니저
             </span>
-            {managersPage.data.length === 0 ? (
+            {trackManagers.length === 0 ? (
               <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>등록된 매니저가 없습니다.</p>
             ) : (
-              managersPage.data.map((m) => (
-                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              trackManagers.map((m) => (
+                <div key={m.userId} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span
                     style={{
                       width: 30,

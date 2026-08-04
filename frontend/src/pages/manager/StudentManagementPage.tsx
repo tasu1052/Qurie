@@ -15,6 +15,7 @@ import {
   Pagination,
   RowErrorFallback,
   Skeleton,
+  SortableHeader,
   UploadRow,
 } from '../../ds';
 import {
@@ -28,8 +29,15 @@ import {
   type ClassMemberResponse,
   type GroupResponse,
 } from '../../data';
+import { getUserProfileExtras } from '../../utils/userProfileExtras';
 
 const MEMBERS_PAGE_SIZE = 20;
+
+type StudentSortKey = 'name' | 'group' | 'role';
+
+function studentRoleLabel(_role: ClassMemberResponse['role'], groupName: string | null): string {
+  return groupName ? '학생' : '미배정';
+}
 
 function apiErrorMessage(error: unknown, fallback: string): string {
   if (isAxiosError(error)) {
@@ -167,6 +175,10 @@ function MembersTable({
   const navigate = useNavigate();
   const debouncedQuery = useDebouncedValue(query, 300);
   const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<{ key: StudentSortKey; dir: 'asc' | 'desc' } | null>({
+    key: 'name',
+    dir: 'asc',
+  });
   const students = useMemo(() => members.filter((m) => m.role === 'STUDENT'), [members]);
   const filtered = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
@@ -175,10 +187,23 @@ function MembersTable({
       return m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q);
     });
   }, [students, debouncedQuery]);
-  const sorted = useMemo(
-    () => [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'ko')),
-    [filtered],
-  );
+  const sorted = useMemo(() => {
+    const key = sort?.key ?? 'name';
+    const dir = sort?.dir === 'desc' ? -1 : 1;
+    return [...filtered].sort((a, b) => {
+      if (key === 'group') {
+        const ga = a.groupName ?? '';
+        const gb = b.groupName ?? '';
+        return ga.localeCompare(gb, 'ko') * dir || a.name.localeCompare(b.name, 'ko');
+      }
+      if (key === 'role') {
+        const ra = studentRoleLabel(a.role, a.groupName);
+        const rb = studentRoleLabel(b.role, b.groupName);
+        return ra.localeCompare(rb, 'ko') * dir || a.name.localeCompare(b.name, 'ko');
+      }
+      return a.name.localeCompare(b.name, 'ko') * dir;
+    });
+  }, [filtered, sort]);
   const pageCount = Math.max(1, Math.ceil(sorted.length / MEMBERS_PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
   const pageItems = sorted.slice(
@@ -195,6 +220,16 @@ function MembersTable({
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
   }, [page, pageCount]);
+
+  const onSort = (next: { key: string; dir: 'asc' | 'desc' } | null) => {
+    if (!next) {
+      setSort(null);
+      return;
+    }
+    if (next.key === 'name' || next.key === 'group' || next.key === 'role') {
+      setSort({ key: next.key, dir: next.dir });
+    }
+  };
 
   return (
     <div className="qurie-table-card">
@@ -216,11 +251,11 @@ function MembersTable({
         />
       </div>
       <div className="qurie-table-scroll">
-        <div style={{ minWidth: 480 }}>
+        <div style={{ minWidth: 640 }}>
           <div
             className="qurie-table-grid"
             style={{
-              gridTemplateColumns: '1.8fr 1.2fr',
+              gridTemplateColumns: '1.6fr 0.7fr 1fr 1fr',
               padding: '10px 24px',
               borderBottom: '1px solid var(--divider)',
               fontSize: 11,
@@ -228,10 +263,13 @@ function MembersTable({
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
               color: 'var(--text-muted)',
+              alignItems: 'center',
             }}
           >
-            <span>학생</span>
-            <span>그룹</span>
+            <SortableHeader label="학생" sortKey="name" sort={sort} onSort={onSort} />
+            <SortableHeader label="역할" sortKey="role" sort={sort} onSort={onSort} />
+            <SortableHeader label="그룹" sortKey="group" sort={sort} onSort={onSort} />
+            <span>연락처</span>
           </div>
           {filtered.length === 0 ? (
             <div style={{ padding: 32 }}>
@@ -258,7 +296,7 @@ function MembersTable({
                 }
                 className="qurie-table-grid"
                 style={{
-                  gridTemplateColumns: '1.8fr 1.2fr',
+                  gridTemplateColumns: '1.6fr 0.7fr 1fr 1fr',
                   padding: '13px 24px',
                   borderBottom: '1px solid var(--divider)',
                   fontSize: 13,
@@ -281,7 +319,11 @@ function MembersTable({
                     {m.email}
                   </span>
                 </span>
+                <span style={{ color: 'var(--text-secondary)' }}>{studentRoleLabel(m.role, m.groupName)}</span>
                 <span style={{ color: 'var(--text-secondary)' }}>{m.groupName ?? '—'}</span>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  {getUserProfileExtras(m.email).phone ?? '—'}
+                </span>
               </div>
             ))
           )}
