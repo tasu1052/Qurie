@@ -3,6 +3,7 @@ import { AuthGate } from './components/auth/AuthGate';
 import { AdminGate } from './components/auth/AdminGate';
 import { LogoutSync } from './components/auth/LogoutSync';
 import LandingPage from './pages/marketing/LandingPage';
+import DemoRequestPage from './pages/marketing/DemoRequestPage';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
 import ResetPage from './pages/auth/ResetPage';
@@ -32,6 +33,7 @@ import MyPage from './pages/student/MyPage';
 import SessionPage from './pages/session/SessionPage';
 import SessionReportPage from './pages/session/SessionReportPage';
 import FinalReportPage from './pages/student/FinalReportPage';
+import UserReportSummaryPage from './pages/student/UserReportSummaryPage';
 import PastQuizListPage from './pages/learning/PastQuizListPage';
 import PastQuizDetailPage from './pages/learning/PastQuizDetailPage';
 import NoticeDetailPage from './pages/notices/NoticeDetailPage';
@@ -47,6 +49,7 @@ export default function App() {
       <LogoutSync />
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/demo" element={<DemoRequestPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/reset" element={<ResetPage />} />
@@ -94,6 +97,7 @@ export default function App() {
           <Route path="/app/quizzes" element={<PastQuizListPage />} />
           <Route path="/app/quizzes/:quizSetId" element={<PastQuizDetailPage />} />
           <Route path="/app/report" element={<FinalReportPage />} />
+          <Route path="/app/report/summary" element={<UserReportSummaryPage />} />
 
           <Route path="/session/:id" element={<SessionPage />} />
           <Route path="/session/:id/report" element={<SessionReportPage />} />

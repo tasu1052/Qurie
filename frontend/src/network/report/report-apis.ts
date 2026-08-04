@@ -74,3 +74,37 @@ export const getUserReport = async (
     );
     return data;
 };
+
+function triggerBlobDownload(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+/** GET /reports/users/{userId}/export?classId= — 학기(유저) 종합 리포트 PDF */
+export const downloadUserReportPdf = async (userId: number, classId: number): Promise<void> => {
+    const filename = `user-report-${userId}-class-${classId}.pdf`;
+    const { data } = await axiosInstance.get<Blob>(`/reports/users/${userId}/export`, {
+        params: { classId },
+        responseType: 'blob',
+        timeout: 60_000,
+    });
+    triggerBlobDownload(data, filename);
+};
+
+/** GET /reports/sessions/{sessionId}/export?userId= — 세션 리포트 PDF */
+export const downloadSessionReportPdf = async (
+    sessionId: number,
+    userId: number,
+): Promise<void> => {
+    const filename = `session-report-${sessionId}-user-${userId}.pdf`;
+    const { data } = await axiosInstance.get<Blob>(`/reports/sessions/${sessionId}/export`, {
+        params: { userId },
+        responseType: 'blob',
+        timeout: 60_000,
+    });
+    triggerBlobDownload(data, filename);
+};
