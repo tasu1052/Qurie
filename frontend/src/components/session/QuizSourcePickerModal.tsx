@@ -78,7 +78,7 @@ function QuizSourcePickerModalBody({
 
   const summary =
     selection == null
-      ? '파일 또는 폴더를 선택하세요.'
+      ? '파일을 선택하세요.'
       : selection.kind === 'file'
         ? `선택: ${selection.path}`
         : `선택: ${selection.path}/ · ${scopedCount}개 파일`;
@@ -87,7 +87,7 @@ function QuizSourcePickerModalBody({
     <Modal
       open
       title="출제 대상 선택"
-      description="파일 또는 폴더를 하나 고르면 그 범위로 퀴즈를 생성합니다."
+      description="파일을 하나 고르면 그 범위로 퀴즈를 생성합니다."
       width={480}
       secondaryLabel="취소"
       onSecondary={onClose}

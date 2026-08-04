@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { Plus, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -16,6 +16,7 @@ import {
   Modal,
   Pagination,
   RowErrorFallback,
+  Select,
   Skeleton,
 } from '../../ds';
 import {
@@ -251,6 +252,7 @@ function SessionTable({
 
 export default function SessionListPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: me } = useMe();
   const classId = me.classId;
   const hasValidClassId = typeof classId === 'number' && Number.isFinite(classId) && classId > 0;
@@ -335,6 +337,8 @@ export default function SessionListPage() {
           onSuccess: (created) => {
             setCreateOpen(false);
             resetCreateForm();
+            void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.list(classId) });
             setRowKey((k) => k + 1);
             openSessionInNewTab(created.id, created.title);
           },
@@ -506,32 +510,21 @@ export default function SessionListPage() {
             {!classPublic ? (
               <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>그룹</span>
-                <select
+                <Select
                   value={groupId === '' ? '' : String(groupId)}
-                  onChange={(e) => {
-                    const v = e.target.value;
+                  onChange={(v) => {
                     setGroupId(v === '' ? '' : Number(v));
                     setCreateError(null);
                   }}
-                  style={{
-                    width: '100%',
-                    height: 40,
-                    borderRadius: 10,
-                    border: '1px solid var(--border-strong)',
-                    background: 'var(--surface-card)',
-                    color: 'var(--ink)',
-                    padding: '0 12px',
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 13,
-                  }}
-                >
-                  <option value="">그룹을 선택하세요</option>
-                  {(groupsQuery.data ?? []).map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: '그룹을 선택하세요' },
+                    ...(groupsQuery.data ?? []).map((g) => ({
+                      value: String(g.id),
+                      label: g.name,
+                    })),
+                  ]}
+                  style={{ width: '100%' }}
+                />
                 <span style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
                   일반 세션은 그룹을 지정해야 만들 수 있어요. 해당 그룹 구성원만 입장할 수 있어요.
                 </span>
@@ -559,6 +552,8 @@ export default function SessionListPage() {
               { id: deleteTarget.id, classId: deleteTarget.classId },
               {
                 onSuccess: () => {
+                  void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
+                  void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.list(deleteTarget.classId) });
                   setRowKey((k) => k + 1);
                   setDeleteTarget(null);
                 },

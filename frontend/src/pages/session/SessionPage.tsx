@@ -18,13 +18,12 @@ import { AlertBanner, Button, LiveBadge, Modal } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
 import { CollabMonacoEditor } from '../../collab/CollabMonacoEditor';
 import { useCollabSession } from '../../collab/useCollabSession';
+import { getOrCreateFileYText } from '../../collab/fileYText';
 import {
   getProjectFileContent,
   getProjectFiles,
-  QueryAsyncBoundary,
   useAskSessionHelp,
-  useDeleteSession,
-  useGetSession,
+  useCreateSessionReport,
   useGetSessionProject,
   useMeOptional,
   useSessionSocket,
@@ -35,8 +34,7 @@ import {
 } from '../../data';
 import { queryKeys } from '../../network/core/queryKeys';
 import { getGroupDetail } from '../../network/group/group-apis';
-import { getSession } from '../../network/session/session-apis';
-import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
+import { getSession, getSessionReport } from '../../network/session/session-apis';
 import { ProjectImportPanel } from '../../components/session/ProjectImportPanel';
 import { SessionChatPanel } from '../../components/session/SessionChatPanel';
 import { SessionFileExplorer } from '../../components/session/SessionFileExplorer';
@@ -61,7 +59,7 @@ import {
 } from '../../components/session/sessionPanelLayout';
 import type * as Y from 'yjs';
 
-type LeftTab = 'explorer' | 'materials';
+type LeftTab = 'explorer';
 type RightTab = 'community' | 'quiz';
 
 /** 공유 Y.Text 가 비어 있을 때만 DB 스냅샷을 넣는다. 이미 원격 편집이 있으면 덮지 않는다. */
@@ -161,7 +159,6 @@ export default function SessionPage() {
   const [pendingImport, setPendingImport] = useState<ProjectImportResponse | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [endConfirmOpen, setEndConfirmOpen] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [helpNotice, setHelpNotice] = useState<string | null>(null);
 
@@ -183,8 +180,8 @@ export default function SessionPage() {
     [collabUserName, collabUserId],
   );
   const updateSession = useUpdateSession();
-  const deleteSession = useDeleteSession();
   const askHelp = useAskSessionHelp();
+  const createReport = useCreateSessionReport();
   const queryClient = useQueryClient();
   const sessionProjectQuery = useGetSessionProject(hasSessionId ? sessionId : null);
   const sessionMetaQuery = useQuery({
@@ -210,8 +207,20 @@ export default function SessionPage() {
     );
   }, [meQuery.data?.role, groupId, groupDetailQuery.data?.members, myUserId]);
 
+  const isGroupLeader = useMemo(() => {
+    if (meQuery.data?.role === 'MANAGER' || meQuery.data?.role === 'MASTER') return false;
+    if (groupId == null || myUserId == null) return false;
+    return (
+      groupDetailQuery.data?.members.some(
+        (m) => m.userId === myUserId && m.role === 'LEADER',
+      ) ?? false
+    );
+  }, [meQuery.data?.role, groupId, groupDetailQuery.data?.members, myUserId]);
+
   const isSessionManager =
     meQuery.data?.role === 'MANAGER' || meQuery.data?.role === 'MASTER';
+
+  const canGenerateQuiz = isSessionManager || isGroupLeader;
 
   const onAskHelp = () => {
     if (!hasSessionId) return;
@@ -231,10 +240,15 @@ export default function SessionPage() {
     !groupDetailQuery.data &&
     (groupDetailQuery.isPending || groupDetailQuery.isFetching);
 
-  const { ytext, provider, status: collabStatus, synced: collabSynced } = useCollabSession(
+  const { ydoc, provider, status: collabStatus, synced: collabSynced } = useCollabSession(
     hasSessionId ? String(sessionId) : 'demo',
     collabUser,
   );
+
+  const editorYText = useMemo(() => {
+    if (!activeFile) return null;
+    return getOrCreateFileYText(ydoc, activeFile);
+  }, [ydoc, activeFile]);
 
   /**
    * 트리 바인딩의 단일 소스: GET /projects/current (폴링·STOMP).
@@ -271,6 +285,12 @@ export default function SessionPage() {
       versionHash: remote.versionHash ?? '',
     });
   }, [hasSessionId, sessionId, sessionProjectQuery.data]);
+
+  useEffect(() => {
+    if (!importNotice) return;
+    const timer = window.setTimeout(() => setImportNotice(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [importNotice]);
 
   /** 채팅 · 참여자 · 퀴즈 · 프로젝트 · 음성 채널 STOMP. 세션 id 없으면 연결하지 않는다. */
   const chat = useSessionSocket(hasSessionId ? sessionId : null, {
@@ -337,19 +357,16 @@ export default function SessionPage() {
     path: string,
     options?: { replaceSharedDoc?: boolean },
   ) => {
-    const previousPath = activeFile;
     setActiveFile(path);
     applyLanguageFromPath(path);
     if (hasSessionId) saveSessionActiveFile(sessionId, path);
     try {
       const file = await getProjectFileContent(projectId, path);
-      const switchingFile = previousPath != null && previousPath !== path;
-      if (options?.replaceSharedDoc || switchingFile) {
-        // 임포트 확정·다른 파일 선택 시 에디터 내용을 교체한다.
-        replaceYText(ytext, file.content);
+      const fileYText = getOrCreateFileYText(ydoc, path);
+      if (options?.replaceSharedDoc) {
+        replaceYText(fileYText, file.content);
       } else {
-        // 같은 파일 hydrate: 방에 이미 편집본이 있으면 DB 원본으로 덮지 않는다.
-        seedYTextIfEmpty(ytext, file.content);
+        seedYTextIfEmpty(fileYText, file.content);
       }
     } catch {
       setImportNotice(`파일을 열지 못했습니다: ${path}`);
@@ -451,6 +468,12 @@ export default function SessionPage() {
       {
         onSuccess: () => {
           setEndConfirmOpen(false);
+          queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
+          if (sessionMetaQuery.data?.classId != null) {
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.sessions.list(sessionMetaQuery.data.classId),
+            });
+          }
           leaveDestination();
         },
         onError: (err) => {
@@ -458,6 +481,37 @@ export default function SessionPage() {
         },
       },
     );
+  };
+
+  const onCreateReport = () => {
+    if (!hasSessionId) return;
+    setActionError(null);
+    void (async () => {
+      try {
+        await getSessionReport(sessionId);
+        navigate(`/session/${sessionId}/report`);
+        return;
+      } catch {
+        // 리포트 없음 — 생성 후 이동
+      }
+      const students = chat.participants.filter((p) => p.role === 'STUDENT');
+      if (students.length === 0) {
+        setActionError('리포트를 생성할 학생이 없습니다.');
+        return;
+      }
+      const target = students[0];
+      createReport.mutate(
+        { sessionId, ordinaryUserId: target.userId },
+        {
+          onSuccess: () => {
+            navigate(`/session/${sessionId}/report?userId=${target.userId}`);
+          },
+          onError: (err) => {
+            setActionError(err instanceof Error ? err.message : '리포트 생성에 실패했습니다.');
+          },
+        },
+      );
+    })();
   };
 
   const tabBtn = (active: boolean): CSSProperties => ({
@@ -532,9 +586,10 @@ export default function SessionPage() {
             <Button
               variant="secondary"
               style={{ borderRadius: 999 }}
-              onClick={() => navigate(`/session/${sessionId}/report`)}
+              disabled={createReport.isPending}
+              onClick={onCreateReport}
             >
-              {chrome.compactHeader ? '리포트' : '리포트 생성'}
+              {createReport.isPending ? '생성 중…' : chrome.compactHeader ? '리포트' : '리포트 생성'}
             </Button>
           ) : null}
           {!chrome.narrowHeader ? (
@@ -587,24 +642,19 @@ export default function SessionPage() {
                   zIndex: 8,
                 }}
               >
-                <MenuAction
-                  label="세션 종료"
-                  disabled={!hasSessionId || updateSession.isPending}
-                  onClick={() => {
-                    setSettingsOpen(false);
-                    setEndConfirmOpen(true);
-                  }}
-                />
-                <MenuAction
-                  label="세션 삭제"
-                  danger
-                  disabled={!hasSessionId || deleteSession.isPending}
-                  onClick={() => {
-                    setSettingsOpen(false);
-                    setDeleteConfirmOpen(true);
-                  }}
-                />
-                <span style={{ height: 1, background: 'var(--divider)', margin: '4px 6px' }} />
+                {isSessionManager ? (
+                  <>
+                    <MenuAction
+                      label="세션 종료"
+                      disabled={!hasSessionId || updateSession.isPending}
+                      onClick={() => {
+                        setSettingsOpen(false);
+                        setEndConfirmOpen(true);
+                      }}
+                    />
+                    <span style={{ height: 1, background: 'var(--divider)', margin: '4px 6px' }} />
+                  </>
+                ) : null}
                 <MenuAction
                   label="나가기"
                   onClick={() => {
@@ -663,11 +713,8 @@ export default function SessionPage() {
               }}
             >
               <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-                <button type="button" style={tabBtn(leftTab === 'explorer')} onClick={() => setLeftTab('explorer')}>
+                <button type="button" style={tabBtn(true)} onClick={() => setLeftTab('explorer')}>
                   탐색기
-                </button>
-                <button type="button" style={tabBtn(leftTab === 'materials')} onClick={() => setLeftTab('materials')}>
-                  강의자료
                 </button>
               </div>
               <div
@@ -806,11 +853,7 @@ export default function SessionPage() {
                       />
                     )}
                   </>
-                ) : (
-                  <p style={{ margin: '8px 6px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                    API 미구현: 강의자료 패널 연동 전입니다.
-                  </p>
-                )}
+                ) : null}
               </div>
               <div
                 style={{
@@ -821,6 +864,9 @@ export default function SessionPage() {
                   flexDirection: 'column',
                   gap: 10,
                   flexShrink: 0,
+                  maxHeight: 280,
+                  overflow: 'auto',
+                  minHeight: 0,
                 }}
               >
                 <div
@@ -940,7 +986,7 @@ export default function SessionPage() {
                 >
                   음성 채널 · {chat.voiceParticipants.length}명
                 </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflow: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {chat.voiceParticipants.length === 0 ? (
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                       음성 채널에 아무도 없습니다.
@@ -1023,7 +1069,7 @@ export default function SessionPage() {
                 >
                   접속 중 · {chat.participants.length}명
                 </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 120, overflow: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {chat.participants.length === 0 ? (
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>아직 접속자가 없습니다.</span>
                   ) : (
@@ -1156,9 +1202,10 @@ export default function SessionPage() {
                   : '연결 끊김 — 변경 사항은 로컬에 보관되며 재연결 시 동기화됩니다.'}
               </div>
             ) : null}
-            {provider ? (
+            {provider && editorYText && activeFile ? (
               <CollabMonacoEditor
-                ytext={ytext}
+                key={activeFile}
+                ytext={editorYText}
                 provider={provider}
                 language={editorLanguage}
                 onlineUserIds={onlineUserIds}
@@ -1214,6 +1261,7 @@ export default function SessionPage() {
                   projectId={projectRef?.projectId ?? null}
                   versionHash={projectRef?.versionHash ?? null}
                   pushedQuizSetId={chat.lastQuizNotification?.quizSetId ?? null}
+                  canGenerateQuiz={canGenerateQuiz}
                 />
               )}
             </aside>
@@ -1299,96 +1347,7 @@ export default function SessionPage() {
           </div>
         ) : null}
       </Modal>
-
-      {hasSessionId ? (
-        <SessionDeleteGate
-          sessionId={sessionId}
-          open={deleteConfirmOpen}
-          onClose={() => setDeleteConfirmOpen(false)}
-          onError={setActionError}
-          onDeleted={leaveDestination}
-        />
-      ) : null}
     </div>
-  );
-}
-
-/** 삭제에 classId가 필요해 세션 detail을 읽은 뒤 ConfirmDeleteOverlay를 연다. */
-function SessionDeleteGate({
-  sessionId,
-  open,
-  onClose,
-  onError,
-  onDeleted,
-}: {
-  sessionId: number;
-  open: boolean;
-  onClose: () => void;
-  onError: (msg: string) => void;
-  onDeleted: () => void;
-}) {
-  if (!open) return null;
-  return (
-    <QueryAsyncBoundary
-      suspenseFallback={null}
-      errorFallback={
-        <ConfirmDeleteOverlay
-          open
-          title="세션 삭제"
-          description="세션 정보를 불러오지 못했습니다. 그래도 삭제할까요?"
-          confirmText="삭제"
-          onClose={onClose}
-          onConfirm={() => onError('세션 정보를 불러올 수 없어 삭제할 수 없습니다.')}
-        />
-      }
-    >
-      <SessionDeleteConfirm sessionId={sessionId} onClose={onClose} onError={onError} onDeleted={onDeleted} />
-    </QueryAsyncBoundary>
-  );
-}
-
-function SessionDeleteConfirm({
-  sessionId,
-  onClose,
-  onError,
-  onDeleted,
-}: {
-  sessionId: number;
-  onClose: () => void;
-  onError: (msg: string) => void;
-  onDeleted: () => void;
-}) {
-  const { data: session } = useGetSession(sessionId);
-  const deleteSession = useDeleteSession();
-
-  return (
-    <ConfirmDeleteOverlay
-      open
-      title="세션 삭제"
-      description={
-        <>
-          이 작업은 되돌릴 수 없습니다.
-          <br />
-          세션 `<code>{session.title}</code>` 을(를) 삭제합니다.
-        </>
-      }
-      confirmText={session.title}
-      onClose={onClose}
-      onConfirm={() => {
-        deleteSession.mutate(
-          { id: session.id, classId: session.classId },
-          {
-            onSuccess: () => {
-              clearSessionProject(sessionId);
-              onDeleted();
-            },
-            onError: (err) => {
-              onError(err instanceof Error ? err.message : '세션 삭제에 실패했습니다.');
-            },
-          },
-        );
-      }}
-    />
   );
 }
 
