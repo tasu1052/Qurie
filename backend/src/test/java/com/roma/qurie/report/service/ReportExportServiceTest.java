@@ -16,6 +16,7 @@ import com.roma.qurie.report.entity.SessionReport;
 import com.roma.qurie.report.entity.UserReport;
 import com.roma.qurie.report.repository.SessionReportRepository;
 import com.roma.qurie.report.repository.UserReportRepository;
+import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +33,10 @@ class ReportExportServiceTest {
 	private static final Long USER_ID = 7L;
 	private static final Long CLASS_ID = 3L;
 	private static final Long SESSION_ID = 11L;
+	private static final AuthUser SELF =
+			new AuthUser(USER_ID, "STUDENT", 100L, "student@qurie.com", "학생", CLASS_ID);
+	private static final AuthUser OTHER_STUDENT =
+			new AuthUser(20L, "STUDENT", 100L, "other@qurie.com", "다른 학생", CLASS_ID);
 
 	@Mock
 	private UserReportRepository userReportRepository;
@@ -55,7 +60,7 @@ class ReportExportServiceTest {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
 		given(pdfRenderer.render(anyString())).willReturn("%PDF-fake".getBytes());
 
-		byte[] pdf = reportExportService.exportUserReportPdf(USER_ID, CLASS_ID);
+		byte[] pdf = reportExportService.exportUserReportPdf(USER_ID, CLASS_ID, SELF);
 
 		assertThat(pdf).isEqualTo("%PDF-fake".getBytes());
 		ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
@@ -79,7 +84,7 @@ class ReportExportServiceTest {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
 		given(pdfRenderer.render(anyString())).willReturn(new byte[0]);
 
-		reportExportService.exportUserReportPdf(USER_ID, CLASS_ID);
+		reportExportService.exportUserReportPdf(USER_ID, CLASS_ID, SELF);
 
 		ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
 		verify(pdfRenderer).render(captor.capture());
@@ -93,7 +98,7 @@ class ReportExportServiceTest {
 		given(userReportRepository.findByOrdinaryUserIdAndClassId(USER_ID, CLASS_ID))
 				.willReturn(Optional.empty());
 
-		assertThatThrownBy(() -> reportExportService.exportUserReportPdf(USER_ID, CLASS_ID))
+		assertThatThrownBy(() -> reportExportService.exportUserReportPdf(USER_ID, CLASS_ID, SELF))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
 				.isEqualTo(HttpStatus.NOT_FOUND);
@@ -106,7 +111,7 @@ class ReportExportServiceTest {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
 		given(pdfRenderer.render(anyString())).willReturn("%PDF-fake".getBytes());
 
-		byte[] pdf = reportExportService.exportSessionReportPdf(SESSION_ID, USER_ID);
+		byte[] pdf = reportExportService.exportSessionReportPdf(SESSION_ID, USER_ID, SELF);
 
 		assertThat(pdf).isEqualTo("%PDF-fake".getBytes());
 		ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
@@ -124,10 +129,26 @@ class ReportExportServiceTest {
 		given(sessionReportRepository.findBySessionIdAndOrdinaryUserId(SESSION_ID, USER_ID))
 				.willReturn(Optional.empty());
 
-		assertThatThrownBy(() -> reportExportService.exportSessionReportPdf(SESSION_ID, USER_ID))
+		assertThatThrownBy(() -> reportExportService.exportSessionReportPdf(SESSION_ID, USER_ID, SELF))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
 				.isEqualTo(HttpStatus.NOT_FOUND);
+	}
+
+	@Test
+	void 다른_학생의_리포트를_내려받으면_403_예외를_던진다() {
+		assertThatThrownBy(() -> reportExportService.exportUserReportPdf(USER_ID, CLASS_ID, OTHER_STUDENT))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
+				.isEqualTo(HttpStatus.FORBIDDEN);
+	}
+
+	@Test
+	void 로그인하지_않으면_401_예외를_던진다() {
+		assertThatThrownBy(() -> reportExportService.exportSessionReportPdf(SESSION_ID, USER_ID, null))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
+				.isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
 
 	private SessionReport sessionReport() {

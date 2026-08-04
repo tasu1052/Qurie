@@ -1,5 +1,7 @@
 package com.roma.qurie.report.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -47,7 +49,7 @@ class ReportControllerTest {
 	@Test
 	void 사용자_리포트를_PDF_파일로_내려준다() throws Exception {
 		byte[] pdf = "%PDF-1.6 fake".getBytes();
-		given(reportExportService.exportUserReportPdf(USER_ID, CLASS_ID)).willReturn(pdf);
+		given(reportExportService.exportUserReportPdf(eq(USER_ID), eq(CLASS_ID), any(AuthUser.class))).willReturn(pdf);
 
 		mockMvc.perform(get("/api/reports/users/{userId}/export", USER_ID)
 						.param("classId", String.valueOf(CLASS_ID))
@@ -61,7 +63,7 @@ class ReportControllerTest {
 
 	@Test
 	void 발급된_리포트가_없으면_404를_반환한다() throws Exception {
-		given(reportExportService.exportUserReportPdf(USER_ID, CLASS_ID))
+		given(reportExportService.exportUserReportPdf(eq(USER_ID), eq(CLASS_ID), any(AuthUser.class)))
 				.willThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "발급된 최종 리포트가 없습니다."));
 
 		mockMvc.perform(get("/api/reports/users/{userId}/export", USER_ID)
@@ -79,7 +81,7 @@ class ReportControllerTest {
 	@Test
 	void 세션_리포트를_PDF_파일로_내려준다() throws Exception {
 		byte[] pdf = "%PDF-1.6 fake".getBytes();
-		given(reportExportService.exportSessionReportPdf(SESSION_ID, USER_ID)).willReturn(pdf);
+		given(reportExportService.exportSessionReportPdf(eq(SESSION_ID), eq(USER_ID), any(AuthUser.class))).willReturn(pdf);
 
 		mockMvc.perform(get("/api/reports/sessions/{sessionId}/export", SESSION_ID)
 						.param("userId", String.valueOf(USER_ID))
@@ -93,7 +95,7 @@ class ReportControllerTest {
 
 	@Test
 	void 발급된_세션_리포트가_없으면_404를_반환한다() throws Exception {
-		given(reportExportService.exportSessionReportPdf(SESSION_ID, USER_ID))
+		given(reportExportService.exportSessionReportPdf(eq(SESSION_ID), eq(USER_ID), any(AuthUser.class)))
 				.willThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "발급된 세션 리포트가 없습니다."));
 
 		mockMvc.perform(get("/api/reports/sessions/{sessionId}/export", SESSION_ID)

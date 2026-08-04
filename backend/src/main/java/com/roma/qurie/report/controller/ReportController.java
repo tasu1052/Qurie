@@ -4,6 +4,7 @@ import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.roma.qurie.report.service.ReportExportService;
+import com.roma.qurie.security.AuthUser;
 
 import lombok.RequiredArgsConstructor;
 
@@ -33,8 +35,9 @@ public class ReportController {
 	 */
 	@GetMapping("/users/{userId}/export")
 	public ResponseEntity<byte[]> exportUserReport(@PathVariable("userId") Long ordinaryUserId,
-			@RequestParam("classId") Long classId) {
-		byte[] pdf = reportExportService.exportUserReportPdf(ordinaryUserId, classId);
+			@RequestParam("classId") Long classId,
+			@AuthenticationPrincipal AuthUser requester) {
+		byte[] pdf = reportExportService.exportUserReportPdf(ordinaryUserId, classId, requester);
 
 		return pdfResponse(pdf, "user-report-" + ordinaryUserId + "-class-" + classId + ".pdf");
 	}
@@ -47,8 +50,9 @@ public class ReportController {
 	 */
 	@GetMapping("/sessions/{sessionId}/export")
 	public ResponseEntity<byte[]> exportSessionReport(@PathVariable("sessionId") Long sessionId,
-			@RequestParam("userId") Long ordinaryUserId) {
-		byte[] pdf = reportExportService.exportSessionReportPdf(sessionId, ordinaryUserId);
+			@RequestParam("userId") Long ordinaryUserId,
+			@AuthenticationPrincipal AuthUser requester) {
+		byte[] pdf = reportExportService.exportSessionReportPdf(sessionId, ordinaryUserId, requester);
 
 		return pdfResponse(pdf, "session-report-" + sessionId + "-user-" + ordinaryUserId + ".pdf");
 	}
