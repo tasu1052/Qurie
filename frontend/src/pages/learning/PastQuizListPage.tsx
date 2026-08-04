@@ -21,6 +21,11 @@ import { SESSION_LIST_PAGE_TITLE, usePastQuizBasePath, type PastQuizBasePath } f
 
 const PAGE_SIZE = 20;
 
+/** Two action buttons (지난 퀴즈 + 세션 리포트) need a wider action column than manager sessions. */
+const SESSION_TABLE_MIN_WIDTH = 960;
+const SESSION_TABLE_COLUMNS =
+  'minmax(160px, 2fr) minmax(120px, 1.2fr) minmax(88px, max-content) minmax(240px, max-content)';
+
 function sessionStatus(s: SessionResponse): 'LIVE' | '종료' {
   if (s.active) return 'LIVE';
   return '종료';
@@ -127,101 +132,104 @@ function SessionListTable({
   }
 
   return (
-    <>
-      <div className="qurie-table-card">
-        <div className="qurie-table-scroll">
-          <div style={{ minWidth: 720 }}>
-            <div
-              className="qurie-table-grid"
-              style={{
-                gridTemplateColumns: '2fr 1.2fr 0.8fr 1.4fr',
-                padding: '10px 24px',
-                borderBottom: '1px solid var(--divider)',
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: 'var(--text-muted)',
-              }}
-            >
-              <span>세션</span>
-              <span>시작</span>
-              <span>상태</span>
-              <span style={{ textAlign: 'right' }}>액션</span>
-            </div>
-            {pageItems.map((s) => {
-              const status = sessionStatus(s);
-              return (
-                <div
-                  key={s.id}
-                  className="qurie-table-grid"
-                  style={{
-                    gridTemplateColumns: '2fr 1.2fr 0.8fr 1.4fr',
-                    padding: '13px 24px',
-                    borderBottom: '1px solid var(--divider)',
-                    fontSize: 13,
-                    alignItems: 'center',
-                  }}
-                >
-                  <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: 12.5,
-                        color: 'var(--ink)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      {s.title}
-                  {s.classPublic ? <Badge status="accent">수업</Badge> : null}
-                </span>
-              </span>
-              <span style={{ color: 'var(--text-secondary)' }}>{formatSessionTime(s.createdAt)}</span>
-              {status === 'LIVE' ? <LiveBadge /> : <Badge status="neutral">종료</Badge>}
-              <span
+    <div className="qurie-table-card">
+      <div className="qurie-table-scroll">
+        <div
+          className="qurie-table-inner"
+          style={{
+            minWidth: SESSION_TABLE_MIN_WIDTH,
+            ['--qurie-table-min' as string]: `${SESSION_TABLE_MIN_WIDTH}px`,
+          }}
+        >
+          <div
+            className="qurie-table-grid"
+            style={{
+              gridTemplateColumns: SESSION_TABLE_COLUMNS,
+              padding: '10px 24px',
+              borderBottom: '1px solid var(--divider)',
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+            }}
+          >
+            <span>세션</span>
+            <span>시작</span>
+            <span>상태</span>
+            <span style={{ textAlign: 'right' }}>액션</span>
+          </div>
+          {pageItems.map((s) => {
+            const status = sessionStatus(s);
+            return (
+              <div
+                key={s.id}
+                className="qurie-table-grid"
                 style={{
-                  textAlign: 'right',
-                  display: 'flex',
-                  gap: 6,
-                  justifyContent: 'flex-end',
-                  flexWrap: 'wrap',
+                  gridTemplateColumns: SESSION_TABLE_COLUMNS,
+                  padding: '13px 24px',
+                  borderBottom: '1px solid var(--divider)',
+                  fontSize: 13,
+                  alignItems: 'center',
                 }}
               >
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={status !== '종료' || quizLoadingId === s.id}
-                  onClick={() => void openPastQuiz(s.id)}
-                >
-                  {quizLoadingId === s.id ? '열기…' : '지난 퀴즈'}
-                </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => navigate(`/session/${s.id}/report`)}
-                    >
-                      세션 리포트
-                    </Button>
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 12.5,
+                      color: 'var(--ink)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      flexWrap: 'wrap',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {s.title}
+                    {s.classPublic ? <Badge status="accent">수업</Badge> : null}
                   </span>
-                </div>
-              );
-            })}
-          </div>
+                </span>
+                <span style={{ color: 'var(--text-secondary)', minWidth: 0, wordBreak: 'break-word' }}>
+                  {formatSessionTime(s.createdAt)}
+                </span>
+                <span className="qurie-table-status">
+                  {status === 'LIVE' ? <LiveBadge /> : <Badge status="neutral">종료</Badge>}
+                </span>
+                <span className="qurie-table-actions">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={status !== '종료' || quizLoadingId === s.id}
+                    onClick={() => void openPastQuiz(s.id)}
+                  >
+                    {quizLoadingId === s.id ? '열기…' : '지난 퀴즈'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate(`/session/${s.id}/report`)}
+                  >
+                    세션 리포트
+                  </Button>
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
       {filtered.length > PAGE_SIZE ? (
-        <Pagination
-          page={safePage}
-          pageCount={pageCount}
-          pageSize={PAGE_SIZE}
-          rangeLabel={`${rangeStart}–${rangeEnd} / ${filtered.length}개`}
-          onPage={setPage}
-        />
+        <div style={{ padding: '14px 24px', borderTop: '1px solid var(--divider)' }}>
+          <Pagination
+            page={safePage}
+            pageCount={pageCount}
+            pageSize={PAGE_SIZE}
+            rangeLabel={`${rangeStart}–${rangeEnd} / ${filtered.length}개`}
+            onPage={setPage}
+          />
+        </div>
       ) : null}
-    </>
+    </div>
   );
 }
 
@@ -241,6 +249,7 @@ export default function PastQuizListPage({ basePath: basePathProp }: PastQuizLis
 
   return (
     <PastQuizShell basePath={basePath} breadcrumbs={[SESSION_LIST_PAGE_TITLE]}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0, width: '100%' }}>
       <div>
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{SESSION_LIST_PAGE_TITLE}</h1>
         <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
@@ -295,6 +304,7 @@ export default function PastQuizListPage({ basePath: basePathProp }: PastQuizLis
           <SessionListTable classId={classId} basePath={basePath} statusFilter={status} />
         </QueryAsyncBoundary>
       )}
+      </div>
     </PastQuizShell>
   );
 }
