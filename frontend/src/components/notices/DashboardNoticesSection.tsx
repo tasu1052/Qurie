@@ -14,11 +14,13 @@ function NoticesBody({
   classId,
   size = 5,
   compact = false,
+  maxHeight,
 }: {
   role: UserRole;
   classId?: number;
   size?: number;
   compact?: boolean;
+  maxHeight?: number;
 }) {
   const navigate = useNavigate();
   const openNotice = useOpenNoticeDetail();
@@ -43,8 +45,9 @@ function NoticesBody({
         flexDirection: 'column',
         gap: compact ? 8 : 12,
         minWidth: 0,
-        minHeight: compact ? 280 : undefined,
-        maxHeight: compact ? 320 : undefined,
+        minHeight: compact ? 280 : maxHeight ? maxHeight : undefined,
+        maxHeight: compact ? 320 : maxHeight,
+        height: maxHeight ? maxHeight : undefined,
         boxSizing: 'border-box',
       }}
     >
@@ -87,9 +90,9 @@ function NoticesBody({
             display: 'flex',
             flexDirection: 'column',
             gap: compact ? 6 : 0,
-            overflowY: compact ? 'auto' : undefined,
+            overflowY: compact || maxHeight ? 'auto' : undefined,
             minHeight: 0,
-            flex: compact ? 1 : undefined,
+            flex: compact || maxHeight ? 1 : undefined,
           }}
         >
           {notices.map((n) => (
@@ -144,20 +147,21 @@ type DashboardNoticesSectionProps = {
   classId?: number;
   size?: number;
   compact?: boolean;
+  maxHeight?: number;
 };
 
 /** Dashboard strip of recent notices (`GET /notices`). */
-export function DashboardNoticesSection({ role, classId, size, compact }: DashboardNoticesSectionProps) {
+export function DashboardNoticesSection({ role, classId, size, compact, maxHeight }: DashboardNoticesSectionProps) {
   return (
     <QueryAsyncBoundary
       suspenseFallback={
-        <Skeleton width="100%" height={compact ? 280 : 180} radius={16} />
+        <Skeleton width="100%" height={compact ? 280 : maxHeight ?? 180} radius={16} />
       }
       errorFallback={
         <RowErrorFallback title="공지를 불러오지 못했습니다" description="이 영역만 실패했습니다." />
       }
     >
-      <NoticesBody role={role} classId={classId} size={size} compact={compact} />
+      <NoticesBody role={role} classId={classId} size={size} compact={compact} maxHeight={maxHeight} />
     </QueryAsyncBoundary>
   );
 }

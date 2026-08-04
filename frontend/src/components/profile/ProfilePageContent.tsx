@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { isAxiosError } from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Badge, Button, RowSection } from '../../ds';
 import {
@@ -7,6 +8,35 @@ import {
   useMe,
   useUpdateUserProfile,
 } from '../../data';
+
+function passwordChangeError(error: unknown): string {
+  if (isAxiosError(error)) {
+    const status = error.response?.status;
+    const data = error.response?.data;
+    const message =
+      typeof data === 'object' && data !== null && 'message' in data
+        ? String((data as { message?: unknown }).message ?? '')
+        : '';
+    const lower = message.toLowerCase();
+    if (
+      status === 401 ||
+      lower.includes('current password') ||
+      lower.includes('현재 비밀번호') ||
+      lower.includes('incorrect password') ||
+      lower.includes('wrong password')
+    ) {
+      return '현재 비밀번호가 올바르지 않습니다.';
+    }
+    if (status === 400) {
+      if (lower.includes('password') || lower.includes('비밀번호')) {
+        return message.trim() || '비밀번호 형식을 확인해 주세요.';
+      }
+      return message.trim() || '입력값을 확인해 주세요.';
+    }
+    if (message.trim()) return message;
+  }
+  return '비밀번호 변경에 실패했습니다.';
+}
 
 /** Shared profile body for student / master / manager my pages. */
 export function ProfilePageContent() {
@@ -62,7 +92,7 @@ export function ProfilePageContent() {
           setNewPassword('');
         },
         onError: (err) => {
-          setPwError(err instanceof Error ? err.message : '비밀번호 변경에 실패했습니다.');
+          setPwError(passwordChangeError(err));
         },
       },
     );

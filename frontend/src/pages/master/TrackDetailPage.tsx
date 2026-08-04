@@ -361,7 +361,7 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
         />
       </StatCardRow>
 
-      <div className="qurie-master-split" style={{ gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)' }}>
+      <div className="qurie-app-split" style={{ gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
           <div
             style={{

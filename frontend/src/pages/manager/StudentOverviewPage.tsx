@@ -250,7 +250,7 @@ function AnalyticsMock({ userId }: { userId: number }) {
             ))}
           </StatCardRow>
 
-          <div className="qurie-master-split">
+          <div className="qurie-app-split">
             <div
               style={{
                 background: 'var(--surface-card)',

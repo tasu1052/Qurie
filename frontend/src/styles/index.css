@@ -14,8 +14,7 @@ body {
 }
 
 /* App content split — two-column layout, stacks on narrow viewports */
-.qurie-app-split,
-.qurie-master-split {
+.qurie-app-split {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
   gap: 24px;
@@ -23,8 +22,7 @@ body {
   width: 100%;
 }
 @media (max-width: 960px) {
-  .qurie-app-split,
-  .qurie-master-split {
+  .qurie-app-split {
     grid-template-columns: minmax(0, 1fr);
   }
 }

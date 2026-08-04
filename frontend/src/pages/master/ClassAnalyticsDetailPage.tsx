@@ -138,7 +138,7 @@ export default function ClassAnalyticsDetailPage() {
                 />
               </div>
 
-              <div className="qurie-master-split" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.6fr)' }}>
+              <div className="qurie-app-split" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.6fr)' }}>
                 <div
                   style={{
                     background: 'var(--surface-card)',
