@@ -17,11 +17,14 @@ JUDGE_TOOL_NAME = "emit_scores"
 REPORT_TOOL_NAME = "emit_report"
 
 
-def report_tool(max_items: int = 4) -> dict:
+def report_tool(max_items: int = 4, max_notes: int = 6) -> dict:
     """학습 리포트 스키마.
 
     항목 수를 minItems/maxItems 로 묶는다. 열어두면 한두 개만 쓰거나 열 개를 쏟아내
     화면 분량이 매번 달라진다.
+
+    wrong_notes 는 오답 문항별 해설이다. quiz_index 로 원래 문항과 이어지므로
+    프론트가 "이 문제 다시 보기"까지 연결할 수 있다.
     """
     bullet = {"type": "string", "minLength": 10, "maxLength": 200}
     return {
@@ -40,8 +43,23 @@ def report_tool(max_items: int = 4) -> dict:
                     "items": {"type": "string", "maxLength": 60},
                     "minItems": 1, "maxItems": max_items,
                 },
+                "wrong_notes": {
+                    "type": "array",
+                    "maxItems": max_notes,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "quiz_index": {"type": "integer", "minimum": 0},
+                            "concept": {"type": "string", "maxLength": 60},
+                            "why_wrong": {"type": "string", "minLength": 20, "maxLength": 300},
+                            "key_point": {"type": "string", "minLength": 10, "maxLength": 200},
+                        },
+                        "required": ["quiz_index", "concept", "why_wrong", "key_point"],
+                    },
+                },
             },
-            "required": ["comment", "strengths", "improvements", "focus_concepts"],
+            "required": ["comment", "strengths", "improvements",
+                         "focus_concepts", "wrong_notes"],
         },
     }
 

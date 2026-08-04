@@ -243,6 +243,11 @@ def _mock_response(purpose: str, prompt: str = "") -> str:
             "strengths": ["[mock] 반복문 흐름 추적 문항을 모두 맞혔습니다."],
             "improvements": ["[mock] 재귀 종료 조건 문항을 다시 확인해 보세요."],
             "focus_concepts": ["mock"],
+            "wrong_notes": [{
+                "quiz_index": 0, "concept": "mock",
+                "why_wrong": "[mock] 고른 보기는 갱신 시점을 반대로 본 경우입니다.",
+                "key_point": "[mock] 재귀 호출이 끝난 뒤 캐시에 담깁니다.",
+            }],
         }, ensure_ascii=False)
     if purpose.upper() in ("SOLVE", "solve"):
         n = _parse_generate_meta(prompt)[0] if prompt else 3

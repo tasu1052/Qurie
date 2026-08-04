@@ -5,7 +5,7 @@ from app.engine.llm import UsageMeter, call_llm_json
 from app.engine.prompts import build_report_prompt
 from app.engine.tools import report_tool
 from app.report.dto.request import CreateReportRequest
-from app.report.dto.response import ReportResponse
+from app.report.dto.response import ReportResponse, WrongNote
 
 
 class ReportService:
@@ -39,6 +39,9 @@ class ReportService:
         )
 
         known = {a.tested_concept for a in req.attempts if a.tested_concept}
+        wrong_indices = {a.index for a in req.attempts
+                         if a.chosen_index is not None and not a.is_correct}
+
         return ReportResponse(
             comment=data.get("comment", ""),
             strengths=list(data.get("strengths", [])),
@@ -46,4 +49,8 @@ class ReportService:
             # 응시 기록에 없는 개념은 버린다. 프롬프트로 막아도 새면 학생이 겪지 않은
             # 개념을 복습하라고 안내하게 된다.
             focus_concepts=[c for c in data.get("focus_concepts", []) if c in known],
+            # 맞힌 문항이나 미응시 문항에 오답 해설이 붙으면 학생이 혼란스럽다.
+            # 실제로 틀린 문항 번호만 남긴다.
+            wrong_notes=[WrongNote(**n) for n in data.get("wrong_notes", [])
+                         if n.get("quiz_index") in wrong_indices],
         )
