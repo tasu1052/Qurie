@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Badge, Button, RowSection, StatCard, StatCardRow } from '../../ds';
+import { Badge, Button, RowSection } from '../../ds';
 import {
   useGetUserProfile,
   useLogout,
@@ -117,17 +117,6 @@ export function ProfilePageContent() {
           </Button>
         </div>
       </div>
-
-      <StatCardRow>
-        <StatCard label="계정 ID" value={String(profile.userId)} caption="userId" />
-        <StatCard label="기업 ID" value={String(profile.enterpriseId)} caption="enterpriseId" />
-        <StatCard label="역할" value={profile.role} caption="system role" accent />
-        <StatCard
-          label="가입일"
-          value={new Date(profile.createdAt).toLocaleDateString('ko-KR')}
-          caption="createdAt"
-        />
-      </StatCardRow>
 
       <div className="qurie-app-split">
         <div
