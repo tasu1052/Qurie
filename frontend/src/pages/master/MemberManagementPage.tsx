@@ -30,6 +30,7 @@ import {
   REGION_OPTIONS,
   regionLabel,
 } from '../../utils/userProfileExtras';
+import { validateInviteFile } from '../../utils/validateInviteFile';
 
 function apiErrorMessage(error: unknown, fallback: string): string {
   if (isAxiosError(error)) {
@@ -185,6 +186,11 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
       setInviteError('업로드할 파일을 선택하세요.');
       return;
     }
+    const fileError = validateInviteFile(bulkFile);
+    if (fileError) {
+      setInviteError(fileError);
+      return;
+    }
     const cid = Number(inviteClassId || classes[0]?.id);
     if (!Number.isFinite(cid)) {
       setInviteError('초대할 클래스를 선택하세요.');
@@ -221,6 +227,15 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
         style={{ display: 'none' }}
         onChange={(e) => {
           const file = e.target.files?.[0] ?? null;
+          if (file) {
+            const err = validateInviteFile(file);
+            if (err) {
+              setInviteError(err);
+              setBulkFile(null);
+              e.target.value = '';
+              return;
+            }
+          }
           setBulkFile(file);
           setInviteEmail('');
           resetInviteMessages();

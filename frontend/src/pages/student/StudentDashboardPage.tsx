@@ -358,11 +358,13 @@ function StudentDashWithClass({ classId }: { classId: number }) {
             >
               학습자료
             </span>
-            <Badge status="neutral">준비 중</Badge>
           </div>
-          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-            학습자료 API가 준비되면 이 영역에 자료 목록이 표시돼요.
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55, flex: 1 }}>
+            강사가 세션에 업로드한 자료는 세션 화면에서 확인할 수 있어요.
           </p>
+          <Button variant="secondary" size="sm" onClick={() => navigate('/app/quizzes')}>
+            세션 목록
+          </Button>
         </div>
       </div>
     </>

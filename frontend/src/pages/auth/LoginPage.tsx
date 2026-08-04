@@ -124,7 +124,7 @@ export default function LoginPage() {
             <input type="checkbox" checked={saveEmail} onChange={(e) => setSaveEmail(e.target.checked)} />
             이메일 저장하기
           </label>
-          <Link to="/reset" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
+          <Link to="/find-password" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
             비밀번호 찾기
           </Link>
         </div>

@@ -270,7 +270,28 @@ export function MasterNoticesBody() {
             </>
           ) : null}
           <Input placeholder="제목" value={title} onChange={(e) => setTitle(e.target.value)} width="100%" />
-          <Input placeholder="본문" value={body} onChange={(e) => setBody(e.target.value)} width="100%" />
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>본문</span>
+            <textarea
+              placeholder="공지 내용을 입력하세요"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={6}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                borderRadius: 10,
+                border: '1px solid var(--border-strong)',
+                padding: '10px 12px',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                lineHeight: 1.55,
+                resize: 'vertical',
+                background: 'var(--surface-card)',
+                color: 'var(--ink)',
+              }}
+            />
+          </label>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
             <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
             상단 고정
@@ -280,6 +301,7 @@ export function MasterNoticesBody() {
 
       <ConfirmDeleteOverlay
         open={deleteTarget !== null}
+        closeOnConfirm={false}
         title="공지 삭제"
         description={
           deleteTarget
@@ -289,7 +311,10 @@ export function MasterNoticesBody() {
         confirmText={deleteTarget?.title ?? ''}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {
-          if (deleteTarget) deleteNotice.mutate(deleteTarget.id);
+          if (!deleteTarget) return;
+          deleteNotice.mutate(deleteTarget.id, {
+            onSuccess: () => setDeleteTarget(null),
+          });
         }}
       />
     </div>

@@ -1,4 +1,5 @@
 import { isAxiosError } from 'axios';
+import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Calendar, Copy, Plus, Search, Shuffle, Trash2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -30,6 +31,8 @@ import {
   type GroupDetailResponse,
   type GroupResponse,
 } from '../../data';
+import { queryKeys } from '../../network/core/queryKeys';
+import { getGroupCandidates } from '../../network/group/group-apis';
 
 function apiErrorMessage(error: unknown, fallback: string): string {
   if (isAxiosError(error)) {
@@ -510,6 +513,7 @@ export default function GroupListPage() {
   const classId = me.classId;
   const hasValidClassId = typeof classId === 'number' && Number.isFinite(classId) && classId > 0;
   const createGroup = useCreateGroup();
+  const editGroup = useEditGroup();
   const [status, setStatus] = useState('전체');
   const [query, setQuery] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
@@ -519,8 +523,16 @@ export default function GroupListPage() {
   const defaults = defaultDateInputs();
   const [startDate, setStartDate] = useState(defaults.startDate);
   const [endDate, setEndDate] = useState(defaults.endDate);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
   const [rowKey, setRowKey] = useState(0);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  const candidatesQuery = useQuery({
+    queryKey: hasValidClassId ? queryKeys.groups.candidates(classId) : ['groups', 'candidates', 'idle'],
+    queryFn: () => getGroupCandidates(classId as number),
+    enabled: createOpen && hasValidClassId,
+  });
+  const candidates = candidatesQuery.data ?? [];
 
   const refresh = () => setRowKey((k) => k + 1);
 
@@ -530,7 +542,14 @@ export default function GroupListPage() {
     const next = defaultDateInputs();
     setStartDate(next.startDate);
     setEndDate(next.endDate);
+    setSelectedMemberIds([]);
     setCreateError(null);
+  };
+
+  const toggleMember = (userId: number) => {
+    setSelectedMemberIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+    );
   };
 
   const onCreate = () => {
@@ -545,25 +564,29 @@ export default function GroupListPage() {
       return;
     }
     setCreateError(null);
-    createGroup.mutate(
-      {
-        classId,
-        name: groupName.trim(),
-        description: description.trim(),
-        startedAt: dateInputToLocalStart(startDate),
-        endedAt: dateInputToLocalEnd(endDate),
-      },
-      {
-        onSuccess: () => {
-          setCreateOpen(false);
-          resetCreateForm();
-          refresh();
-        },
-        onError: (err) => {
-          setCreateError(apiErrorMessage(err, '그룹 생성에 실패했습니다.'));
-        },
-      },
-    );
+    void (async () => {
+      try {
+        const created = await createGroup.mutateAsync({
+          classId,
+          name: groupName.trim(),
+          description: description.trim(),
+          startedAt: dateInputToLocalStart(startDate),
+          endedAt: dateInputToLocalEnd(endDate),
+        });
+        if (selectedMemberIds.length > 0) {
+          await editGroup.mutateAsync({
+            groupId: created.id,
+            memberIds: selectedMemberIds,
+            leaderId: selectedMemberIds[0],
+          });
+        }
+        setCreateOpen(false);
+        resetCreateForm();
+        refresh();
+      } catch (err) {
+        setCreateError(apiErrorMessage(err, '그룹 생성에 실패했습니다.'));
+      }
+    })();
   };
 
   return (
@@ -662,8 +685,8 @@ export default function GroupListPage() {
         <Modal
           open={createOpen}
           title="그룹 만들기"
-          description="이름과 설명을 입력하면 빈 멤버로 그룹이 생성됩니다. 멤버는 상세에서 배정하세요."
-          primaryLabel={createGroup.isPending ? '생성 중…' : '생성하기'}
+          description="이름·기간을 입력하고 배정할 학생을 선택하세요. 첫 번째 선택 학생이 리더로 지정됩니다."
+          primaryLabel={createGroup.isPending || editGroup.isPending ? '생성 중…' : '생성하기'}
           secondaryLabel="취소"
           onPrimary={onCreate}
           onSecondary={() => {
@@ -718,6 +741,57 @@ export default function GroupListPage() {
                 />
               </label>
             </div>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                멤버 배정 ({selectedMemberIds.length}명 선택)
+              </span>
+              <div
+                style={{
+                  maxHeight: 180,
+                  overflowY: 'auto',
+                  border: '1px solid var(--border)',
+                  borderRadius: 12,
+                  padding: 8,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                  background: 'var(--surface-sunken)',
+                }}
+              >
+                {candidatesQuery.isLoading ? (
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', padding: 8 }}>불러오는 중…</span>
+                ) : candidates.length === 0 ? (
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', padding: 8 }}>
+                    배정 가능한 학생이 없습니다.
+                  </span>
+                ) : (
+                  candidates.map((c) => (
+                    <label
+                      key={c.userId}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '6px 8px',
+                        borderRadius: 8,
+                        fontSize: 13,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedMemberIds.includes(c.userId)}
+                        onChange={() => toggleMember(c.userId)}
+                      />
+                      <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{c.name}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                        {c.email}
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </label>
           </div>
         </Modal>
 

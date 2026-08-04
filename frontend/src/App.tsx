@@ -49,6 +49,7 @@ export default function App() {
         <Route path="/demo" element={<DemoRequestPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/find-password" element={<ResetPage />} />
         <Route path="/reset" element={<ResetPage />} />
 
         <Route path="/admin/login" element={<AdminLoginPage />} />

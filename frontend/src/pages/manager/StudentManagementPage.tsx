@@ -30,6 +30,7 @@ import {
   type GroupResponse,
 } from '../../data';
 import { getUserProfileExtras } from '../../utils/userProfileExtras';
+import { validateInviteFile } from '../../utils/validateInviteFile';
 
 const MEMBERS_PAGE_SIZE = 20;
 
@@ -396,6 +397,11 @@ function StudentManagementBody({ classId }: { classId: number }) {
       setInviteError('업로드할 파일을 선택하세요.');
       return;
     }
+    const fileError = validateInviteFile(bulkFile);
+    if (fileError) {
+      setInviteError(fileError);
+      return;
+    }
     createBulk.mutate(
       { file: bulkFile, classId, role: 'STUDENT' },
       {
@@ -427,6 +433,15 @@ function StudentManagementBody({ classId }: { classId: number }) {
         style={{ display: 'none' }}
         onChange={(e) => {
           const file = e.target.files?.[0] ?? null;
+          if (file) {
+            const err = validateInviteFile(file);
+            if (err) {
+              setInviteError(err);
+              setBulkFile(null);
+              e.target.value = '';
+              return;
+            }
+          }
           setBulkFile(file);
           setInviteEmail('');
           resetInviteMessages();
