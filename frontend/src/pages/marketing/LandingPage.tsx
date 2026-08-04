@@ -11,13 +11,6 @@ import { applyTheme, resolveInitialTheme } from '../../theme/theme';
 const mailDemo = 'mailto:contact@qurie.app?subject=Qurie%20데모%20요청';
 const mailConsult = 'mailto:contact@qurie.app?subject=Qurie%20도입%20문의';
 
-const kpis = [
-  { value: '120+', label: '도입 기업 · 기관' },
-  { value: '1,800+', label: '운영 클래스' },
-  { value: '52,000+', label: 'AI 생성 퀴즈' },
-  { value: '87%', label: '퀴즈 평균 정답률', accent: true },
-];
-
 export default function LandingPage() {
   const navigate = useNavigate();
   const meQuery = useMeOptional();
@@ -153,34 +146,6 @@ export default function LandingPage() {
         >
           <QurieHeroAnimation />
         </div>
-      </section>
-
-      {/* KPI band */}
-      <section
-        style={{
-          background: 'var(--ink)',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          padding: '44px 64px',
-          gap: 24,
-          textAlign: 'center',
-        }}
-      >
-        {kpis.map((kpi) => (
-          <div key={kpi.label}>
-            <div
-              style={{
-                fontSize: 36,
-                fontWeight: 700,
-                color: kpi.accent ? 'var(--primary-300)' : '#fff',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              {kpi.value}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--grey-300)', marginTop: 4 }}>{kpi.label}</div>
-          </div>
-        ))}
       </section>
 
       {/* Features */}

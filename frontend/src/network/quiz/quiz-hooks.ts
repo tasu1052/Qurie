@@ -5,8 +5,10 @@ import {
     getQuizQuestions,
     getQuizSet,
     listQuizSetsByProject,
+    submitQuizProgress,
     submitQuizSatisfaction,
     type QuizGenerateRequest,
+    type QuizProgressSubmitRequest,
     type QuizSatisfactionRequest,
 } from './quiz-apis';
 
@@ -94,6 +96,24 @@ export const useSubmitQuizSatisfaction = () => {
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.quiz.detail(data.quizSetId) });
             queryClient.invalidateQueries({ queryKey: queryKeys.quiz.all });
+        },
+    });
+};
+
+export const useSubmitQuizProgress = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({
+            quizSetId,
+            quizId,
+            ...body
+        }: QuizProgressSubmitRequest & { quizSetId: number; quizId: number }) =>
+            submitQuizProgress(quizSetId, quizId, body),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.quiz.progress(variables.quizSetId),
+            });
         },
     });
 };

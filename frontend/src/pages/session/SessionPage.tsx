@@ -2,14 +2,10 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowDown,
-  ArrowUp,
-  Download,
+  FileCode,
   FilePlus,
-  FolderGit2,
   FolderPlus,
-  GitBranch,
-  GitCommitHorizontal,
+  HandHelping,
   Headphones,
   Maximize2,
   Mic,
@@ -17,7 +13,6 @@ import {
   MoreVertical,
   PhoneOff,
   Phone,
-  Play,
   Settings,
   Terminal,
   Trash2,
@@ -30,6 +25,7 @@ import {
   getProjectFileContent,
   getProjectFiles,
   QueryAsyncBoundary,
+  useAskSessionHelp,
   useDeleteSession,
   useGetSession,
   useGetSessionProject,
@@ -162,7 +158,6 @@ export default function SessionPage() {
   const [editorLanguage, setEditorLanguage] = useState<string>(() =>
     initialActiveFile ? languageFromPath(initialActiveFile) : 'plaintext',
   );
-  const [gitOpen, setGitOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeFile, setActiveFile] = useState<string | null>(initialActiveFile);
   /** 리더가 다시 가져오기 중일 때만 true — 서버 프로젝트가 있어도 ImportPanel 을 연다. */
@@ -173,6 +168,7 @@ export default function SessionPage() {
   const [endConfirmOpen, setEndConfirmOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [helpNotice, setHelpNotice] = useState<string | null>(null);
 
   const viewportWidth = useViewportWidth();
   const chrome = sessionChromeVisibility(viewportWidth);
@@ -195,6 +191,7 @@ export default function SessionPage() {
   );
   const updateSession = useUpdateSession();
   const deleteSession = useDeleteSession();
+  const askHelp = useAskSessionHelp();
   const queryClient = useQueryClient();
   const sessionProjectQuery = useGetSessionProject(hasSessionId ? sessionId : null);
   const sessionMetaQuery = useQuery({
@@ -219,6 +216,21 @@ export default function SessionPage() {
       ) ?? false
     );
   }, [meQuery.data?.role, groupId, groupDetailQuery.data?.members, myUserId]);
+
+  const isSessionManager =
+    meQuery.data?.role === 'MANAGER' || meQuery.data?.role === 'MASTER';
+
+  const onAskHelp = () => {
+    if (!hasSessionId) return;
+    askHelp.mutate(sessionId, {
+      onSuccess: () => {
+        setHelpNotice('강사님께 질문을 보냈어요. 곧 세션으로 오실 거예요.');
+      },
+      onError: () => {
+        setActionError('질문 요청에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      },
+    });
+  };
 
   const importRolePending =
     meQuery.data?.role !== 'MANAGER' &&
@@ -332,15 +344,18 @@ export default function SessionPage() {
     path: string,
     options?: { replaceSharedDoc?: boolean },
   ) => {
+    const previousPath = activeFile;
     setActiveFile(path);
     applyLanguageFromPath(path);
     if (hasSessionId) saveSessionActiveFile(sessionId, path);
     try {
       const file = await getProjectFileContent(projectId, path);
-      if (options?.replaceSharedDoc) {
+      const switchingFile = previousPath != null && previousPath !== path;
+      if (options?.replaceSharedDoc || switchingFile) {
+        // 임포트 확정·다른 파일 선택 시 에디터 내용을 교체한다.
         replaceYText(ytext, file.content);
       } else {
-        // 방에 이미 편집본이 있으면 DB 원본으로 덮지 않는다 (새로고침 hydrate 포함).
+        // 같은 파일 hydrate: 방에 이미 편집본이 있으면 DB 원본으로 덮지 않는다.
         seedYTextIfEmpty(ytext, file.content);
       }
     } catch {
@@ -520,76 +535,33 @@ export default function SessionPage() {
           )}
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          {!chrome.narrowHeader ? (
-            <div style={{ position: 'relative' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setGitOpen((v) => !v);
-                  setSettingsOpen(false);
-                }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 7,
-                  background: 'var(--surface-card)',
-                  color: 'var(--ink)',
-                  border: '1px solid var(--border-strong)',
-                  borderRadius: 999,
-                  padding: '8px 14px',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  fontFamily: 'var(--font-sans)',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  lineHeight: 1,
-                }}
-              >
-                <GitBranch size={14} />
-                {chrome.compactHeader ? null : 'Git'}
-                <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>▾</span>
-              </button>
-              {gitOpen ? (
-                <div
-                  style={{
-                    position: 'absolute',
-                    right: 0,
-                    top: 42,
-                    width: 230,
-                    background: 'var(--surface-modal)',
-                    border: '1px solid var(--border-strong)',
-                    borderRadius: 12,
-                    boxShadow: 'var(--shadow-modal)',
-                    padding: 6,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    zIndex: 7,
-                  }}
-                >
-                  <GitMenuItem icon={<GitCommitHorizontal size={14} />} label="Commit" hint="⌘⏎" />
-                  <GitMenuItem icon={<ArrowUp size={14} />} label="Push" hint="origin/main" />
-                  <GitMenuItem icon={<ArrowDown size={14} />} label="Pull" />
-                  <span style={{ height: 1, background: 'var(--divider)', margin: '4px 6px' }} />
-                  <GitMenuItem icon={<Download size={14} />} label="세션 내보내기" hint=".zip" />
-                </div>
-              ) : null}
-            </div>
+          {isSessionManager && hasSessionId && !chrome.narrowHeader ? (
+            <Button
+              variant="secondary"
+              style={{ borderRadius: 999 }}
+              onClick={() => navigate(`/session/${sessionId}/report`)}
+            >
+              {chrome.compactHeader ? '리포트' : '리포트 생성'}
+            </Button>
           ) : null}
-          {!chrome.compactHeader ? (
-            <Button variant="accent" icon={<Play size={14} />} style={{ borderRadius: 999 }}>
-              실행 및 제출
-            </Button>
-          ) : !chrome.narrowHeader ? (
-            <Button variant="accent" icon={<Play size={14} />} style={{ borderRadius: 999 }}>
-              실행
-            </Button>
+          {!chrome.narrowHeader ? (
+            <span title="강사님을 호출하는 기능이에요." style={{ display: 'inline-flex' }}>
+              <Button
+                variant="accent"
+                icon={<HandHelping size={14} />}
+                style={{ borderRadius: 999 }}
+                disabled={!hasSessionId || askHelp.isPending}
+                onClick={onAskHelp}
+              >
+                {chrome.compactHeader ? '질문' : '질문하기'}
+              </Button>
+            </span>
           ) : null}
           <div style={{ position: 'relative' }}>
             <button
               type="button"
               onClick={() => {
                 setSettingsOpen((v) => !v);
-                setGitOpen(false);
               }}
               title="세션 메뉴"
               style={{
@@ -660,6 +632,15 @@ export default function SessionPage() {
           description={actionError}
           actionLabel="닫기"
           onAction={() => setActionError(null)}
+        />
+      ) : null}
+      {helpNotice ? (
+        <AlertBanner
+          tone="success"
+          title="질문 요청"
+          description={helpNotice}
+          actionLabel="닫기"
+          onAction={() => setHelpNotice(null)}
         />
       ) : null}
       {voiceRtc.error ? (
@@ -966,7 +947,7 @@ export default function SessionPage() {
                 >
                   음성 채널 · {chat.voiceParticipants.length}명
                 </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflow: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: 160, overflow: 'auto' }}>
                   {chat.voiceParticipants.length === 0 ? (
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                       음성 채널에 아무도 없습니다.
@@ -1049,11 +1030,11 @@ export default function SessionPage() {
                 >
                   접속 중 · {chat.participants.length}명
                 </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 120, overflow: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, height: 120, overflow: 'auto' }}>
                   {chat.participants.length === 0 ? (
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>아직 접속자가 없습니다.</span>
                   ) : (
-                    chat.participants.slice(0, 8).map((p) => (
+                    chat.participants.map((p) => (
                       <PresenceRow
                         key={p.userId}
                         color={p.userId === myUserId ? 'var(--status-warning)' : 'var(--accent)'}
@@ -1092,7 +1073,7 @@ export default function SessionPage() {
               minWidth: 0,
             }}
           >
-            <FolderGit2 size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+            <FileCode size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
             {!chrome.narrowHeader ? (
               <span style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                 workspace
@@ -1370,7 +1351,6 @@ export default function SessionPage() {
         </span>
         {!chrome.narrowHeader ? (
           <span style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
-            <GitBranch size={11} />
             CRDT · {projectRef ? `#${projectRef.projectId}` : '—'}
           </span>
         ) : null}
@@ -1556,32 +1536,6 @@ function MenuAction({
     >
       {label}
     </button>
-  );
-}
-
-function GitMenuItem({ icon, label, hint }: { icon: ReactNode; label: string; hint?: string }) {
-  return (
-    <span
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 9,
-        padding: '8px 10px',
-        borderRadius: 8,
-        fontSize: 12.5,
-        fontWeight: 600,
-        color: 'var(--ink)',
-        cursor: 'pointer',
-      }}
-    >
-      <span style={{ color: 'var(--text-secondary)', display: 'inline-flex' }}>{icon}</span>
-      {label}
-      {hint ? (
-        <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
-          {hint}
-        </span>
-      ) : null}
-    </span>
   );
 }
 

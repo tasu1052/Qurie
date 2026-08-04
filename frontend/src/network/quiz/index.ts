@@ -8,5 +8,6 @@ export {
     usePollQuizQuestions,
     usePollQuizSet,
     useQuizSetsByProject,
+    useSubmitQuizProgress,
     useSubmitQuizSatisfaction,
 } from './quiz-hooks';

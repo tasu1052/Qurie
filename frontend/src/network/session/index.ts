@@ -11,4 +11,10 @@ export {
     useGetSessionReport,
     useGetSessions,
     useUpdateSession,
+    useAskSessionHelp,
+    useGetClassHelpRequests,
+    useDismissHelpRequest,
 } from './session-hooks';
+
+export type { HelpRequestResponse } from './help-apis';
+export { createSessionHelpRequest, getClassHelpRequests, dismissHelpRequest } from './help-apis';

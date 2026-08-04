@@ -15,6 +15,11 @@ import {
     type SessionReportCreateRequest,
     type SessionUpdateRequest,
 } from './session-apis';
+import {
+    createSessionHelpRequest,
+    dismissHelpRequest,
+    getClassHelpRequests,
+} from './help-apis';
 
 export const useCreateSession = () => {
     const queryClient = useQueryClient();
@@ -111,6 +116,32 @@ export const useDeleteSession = () => {
         onSuccess: (_, { id, classId }) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(id) });
             queryClient.invalidateQueries({ queryKey: queryKeys.sessions.list(classId) });
+        },
+    });
+};
+
+export const useAskSessionHelp = () => {
+    return useMutation({
+        mutationFn: (sessionId: number) => createSessionHelpRequest(sessionId),
+    });
+};
+
+export const useGetClassHelpRequests = (classId: number | null) => {
+    return useQuery({
+        queryKey: ['help-requests', classId ?? -1] as const,
+        queryFn: () => getClassHelpRequests(classId as number),
+        enabled: classId != null,
+        refetchInterval: 10_000,
+        staleTime: 5_000,
+    });
+};
+
+export const useDismissHelpRequest = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: number) => dismissHelpRequest(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['help-requests'] });
         },
     });
 };
