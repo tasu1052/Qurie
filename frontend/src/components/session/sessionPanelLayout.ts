@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Poin
 
 const LEFT_KEY = 'qurie:session-panel:left';
 const RIGHT_KEY = 'qurie:session-panel:right';
-const BOTTOM_KEY = 'qurie:session-panel:bottom';
 
 function readStored(key: string, fallback: number): number {
   try {
@@ -35,12 +34,11 @@ export function useViewportWidth() {
   return width;
 }
 
-/** Breakpoints: hide side/bottom chrome so the editor remains. */
+/** Breakpoints: hide side chrome so the editor remains. */
 export function sessionChromeVisibility(vw: number) {
   return {
     showRight: vw >= 1100,
     showLeft: vw >= 900,
-    showBottom: vw >= 720,
     compactHeader: vw < 980,
     narrowHeader: vw < 720,
   };
@@ -49,7 +47,6 @@ export function sessionChromeVisibility(vw: number) {
 export function useSessionPanelSizes() {
   const [leftWidth, setLeftWidthState] = useState(() => readStored(LEFT_KEY, 250));
   const [rightWidth, setRightWidthState] = useState(() => readStored(RIGHT_KEY, 320));
-  const [bottomHeight, setBottomHeightState] = useState(() => readStored(BOTTOM_KEY, 180));
 
   const setLeftWidth = useCallback((n: number) => {
     const next = Math.round(Math.min(420, Math.max(180, n)));
@@ -63,19 +60,11 @@ export function useSessionPanelSizes() {
     writeStored(RIGHT_KEY, next);
   }, []);
 
-  const setBottomHeight = useCallback((n: number) => {
-    const next = Math.round(Math.min(420, Math.max(100, n)));
-    setBottomHeightState(next);
-    writeStored(BOTTOM_KEY, next);
-  }, []);
-
   return {
     leftWidth,
     rightWidth,
-    bottomHeight,
     setLeftWidth,
     setRightWidth,
-    setBottomHeight,
   };
 }
 
