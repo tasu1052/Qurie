@@ -76,12 +76,6 @@ export function useCollabSession(
     const p = new WebsocketProvider(wsUrl, `qurie-session-${roomId}`, ydoc);
     providerRef.current = p;
 
-    p.awareness.setLocalStateField('user', {
-      name: user.name,
-      color: resolveCursorColor(ydoc.clientID),
-      id: user.id ?? null,
-    } satisfies CollabUser);
-
     const onStatus = ({ status: s }: { status: string }) => {
       setStatus(s === 'connected' ? 'connected' : s === 'connecting' ? 'connecting' : 'disconnected');
     };
@@ -121,7 +115,19 @@ export function useCollabSession(
       providerRef.current = null;
       setProvider(null);
     };
-  }, [roomId, ydoc, user.name, user.id]);
+    // user.name/id 변경 시 provider·ydoc 를 재생성하지 않는다 (새로고침 후 편집본 유실 방지).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- room 단위 1 provider
+  }, [roomId, ydoc]);
+
+  /** 로그인 정보가 늦게 오면 awareness 만 갱신한다. */
+  useEffect(() => {
+    if (!provider) return;
+    provider.awareness.setLocalStateField('user', {
+      name: user.name,
+      color: resolveCursorColor(ydoc.clientID),
+      id: user.id ?? null,
+    } satisfies CollabUser);
+  }, [provider, user.name, user.id, ydoc]);
 
   // syncTick 변경 시 provider.synced 를 재평가한다. provider 가 없으면 false.
   const synced = syncTick >= 0 && Boolean(provider?.synced);

@@ -255,6 +255,14 @@ export default function SessionPage() {
     return getOrCreateFileYText(ydoc, activeFile);
   }, [ydoc, activeFile]);
 
+  const editorContentStamp = editorYText?.length ?? 0;
+
+  /** ydoc 이 교체되면(과거 provider 재생성 등) 파일 hydrate 를 다시 시도한다. */
+  useEffect(() => {
+    hydratedActiveFileRef.current = false;
+    setActiveFileReady(false);
+  }, [ydoc]);
+
   /**
    * 트리 바인딩의 단일 소스: GET /projects/current (폴링·STOMP).
    * sessionStorage 는 첫 페치 전 깜빡임 완화용 fallback 만 쓴다.
@@ -389,25 +397,24 @@ export default function SessionPage() {
    */
   useEffect(() => {
     if (!hasSessionId || !projectRef || !collabSynced || hydratedActiveFileRef.current) return;
-    hydratedActiveFileRef.current = true;
     const path = activeFile ?? loadSessionActiveFile(sessionId);
     const projectId = projectRef.projectId;
-    // openFile 의 setState 가 effect 본문에서 동기 실행되지 않도록 microtask 로 미룬다.
     void (async () => {
-      if (path) {
-        await openFile(projectId, path);
-        return;
-      }
       try {
-        const files = await getProjectFiles(projectId);
-        const first = [...files].map((f) => f.path).sort((a, b) => a.localeCompare(b))[0];
-        if (first) await openFile(projectId, first);
+        if (path) {
+          await openFile(projectId, path);
+        } else {
+          const files = await getProjectFiles(projectId);
+          const first = [...files].map((f) => f.path).sort((a, b) => a.localeCompare(b))[0];
+          if (first) await openFile(projectId, first);
+        }
+        hydratedActiveFileRef.current = true;
       } catch {
-        // 목록 실패해도 세션은 유지
+        hydratedActiveFileRef.current = false;
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync 완료 후 1회만
-  }, [hasSessionId, sessionId, projectRef?.projectId, collabSynced]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync·ydoc·project 준비 후 hydrate
+  }, [hasSessionId, sessionId, projectRef?.projectId, collabSynced, ydoc]);
 
   const clearImportAutoOpen = useCallback(() => setImportAutoOpen(null), []);
 
@@ -1270,7 +1277,7 @@ export default function SessionPage() {
             ) : null}
             {provider && editorYText && activeFile && collabSynced && activeFileReady ? (
               <CollabMonacoEditor
-                key={activeFile}
+                key={`${activeFile}:${editorContentStamp}`}
                 ytext={editorYText}
                 provider={provider}
                 language={editorLanguage}
