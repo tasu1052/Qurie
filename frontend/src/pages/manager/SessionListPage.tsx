@@ -29,6 +29,7 @@ import {
 import { queryKeys } from '../../network/core/queryKeys';
 import { getGroups } from '../../network/group/group-apis';
 import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
+import { resolvePastSessionMock } from '../../mocks/pastLearning';
 
 function TableSkeleton() {
   return (
@@ -62,6 +63,7 @@ function SessionTable({
   onEmptyCreate,
   onEnter,
   onReport,
+  onQuiz,
   onDelete,
 }: {
   classId: number;
@@ -72,6 +74,7 @@ function SessionTable({
   onEmptyCreate: () => void;
   onEnter: (sessionId: number, title: string) => void;
   onReport: (sessionId: number) => void;
+  onQuiz: (quizSetId: number) => void;
   onDelete: (session: SessionResponse) => void;
 }) {
   const { data: sessions } = useGetSessions(classId);
@@ -127,6 +130,7 @@ function SessionTable({
         </div>
         {filtered.map((s) => {
           const status = sessionStatus(s);
+          const pastMock = status === '종료' ? resolvePastSessionMock(s.id) : null;
           return (
             <div
               key={s.id}
@@ -139,11 +143,26 @@ function SessionTable({
                 alignItems: 'center',
               }}
             >
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)', display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                {s.title}
-                {s.classPublic ? <Badge status="accent">수업</Badge> : null}
-                {!s.classPublic && s.groupId != null ? (
-                  <Badge status="neutral">그룹 #{s.groupId}</Badge>
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)', display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {s.title}
+                  {s.classPublic ? <Badge status="accent">수업</Badge> : null}
+                  {!s.classPublic && s.groupId != null ? (
+                    <Badge status="neutral">그룹 #{s.groupId}</Badge>
+                  ) : null}
+                </span>
+                {pastMock ? (
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--text-muted)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {pastMock.aiSummary}
+                  </span>
                 ) : null}
               </span>
               <span style={{ color: 'var(--text-secondary)' }}>
@@ -166,6 +185,11 @@ function SessionTable({
                 >
                   {status === '종료' ? '리포트' : status === 'LIVE' ? '입장' : '편집'}
                 </Button>
+                {status === '종료' && pastMock ? (
+                  <Button variant="ghost" size="sm" onClick={() => onQuiz(pastMock.quizSetId)}>
+                    퀴즈
+                  </Button>
+                ) : null}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -355,6 +379,7 @@ export default function SessionListPage() {
               onEmptyCreate={() => setCreateOpen(true)}
               onEnter={openSessionInNewTab}
               onReport={(sessionId) => navigate(`/session/${sessionId}/report`)}
+              onQuiz={(quizSetId) => navigate(`/manager/quizzes/${quizSetId}`)}
               onDelete={setDeleteTarget}
             />
           </QueryAsyncBoundary>
