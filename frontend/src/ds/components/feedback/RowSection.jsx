@@ -30,13 +30,13 @@ return <div aria-hidden="true" style={{display:'grid',gridTemplateColumns:'repea
 }
 /** Error fallback for a row: scoped to this row, never the page. */
 export function RowErrorFallback({title='이 영역을 불러오지 못했습니다',description='이 행만 실패했습니다. 나머지 영역은 정상적으로 표시됩니다.',requestId=null,onRetry,style={}}){
-return <div role="alert" style={{background:'#fff',border:'1px solid var(--border)',borderRadius:'var(--radius-lg)',padding:'28px 24px',display:'flex',alignItems:'center',gap:16,fontFamily:'var(--font-sans)',...style}}>
+return <div role="alert" style={{background:'var(--surface-card)',border:'1px solid var(--border)',borderRadius:'var(--radius-lg)',padding:'28px 24px',display:'flex',alignItems:'center',gap:16,fontFamily:'var(--font-sans)',...style}}>
 <span style={{width:36,height:36,borderRadius:'50%',background:'var(--status-error-bg)',color:'var(--status-error)',display:'inline-flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>!</span>
 <div style={{display:'flex',flexDirection:'column',gap:3}}>
 <span style={{fontSize:14,fontWeight:600,color:'var(--ink)'}}>{title}</span>
 <span style={{fontSize:12,color:'var(--text-secondary)'}}>{description}</span>
 {requestId&&<span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text-muted)'}}>request_id: {requestId}</span>}
 </div>
-<button onClick={onRetry} style={{marginLeft:'auto',height:32,padding:'0 16px',borderRadius:'var(--radius-control)',border:'1px solid var(--border-strong)',background:'#fff',fontFamily:'var(--font-sans)',fontSize:12,color:'var(--ink)',cursor:'pointer'}}>이 행만 다시 시도</button>
+<button onClick={onRetry} style={{marginLeft:'auto',height:32,padding:'0 16px',borderRadius:'var(--radius-control)',border:'1px solid var(--border-strong)',background:'var(--surface-card-solid)',fontFamily:'var(--font-sans)',fontSize:12,color:'var(--ink)',cursor:'pointer'}}>이 행만 다시 시도</button>
 </div>;
 }

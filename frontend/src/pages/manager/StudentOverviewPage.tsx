@@ -471,7 +471,41 @@ function StudentOverviewGate() {
     );
   }
 
-  return <StudentOverviewBody userId={userId} classId={classId} canManage={canManage} />;
+  return (
+    <StudentMembershipGate userId={userId} classId={classId} canManage={canManage} />
+  );
+}
+
+function StudentMembershipGate({
+  userId,
+  classId,
+  canManage,
+}: {
+  userId: number;
+  classId: number;
+  canManage: boolean;
+}) {
+  const navigate = useNavigate();
+  const { data: membersPage } = useGetClassMembers(classId, { size: 100 });
+  const member = useMemo(
+    () => membersPage.data.find((m) => m.userId === userId && m.role === 'STUDENT') ?? null,
+    [membersPage.data, userId],
+  );
+
+  if (!member) {
+    return (
+      <EmptyState
+        message="학생을 찾을 수 없습니다"
+        description="담당 클래스에 해당 학생이 없거나 목록에서 제외되었습니다."
+        actionLabel="학생 관리"
+        onAction={() => navigate('/manager/students')}
+      />
+    );
+  }
+
+  return (
+    <StudentOverviewBody userId={userId} classId={classId} canManage={canManage} />
+  );
 }
 
 export default function StudentOverviewPage() {

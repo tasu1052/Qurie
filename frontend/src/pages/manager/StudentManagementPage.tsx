@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
-import { ChevronRight, Mail, Search, UserPlus } from 'lucide-react';
+import { ChevronRight, Mail, Search, UserPlus, Users } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
@@ -12,6 +12,7 @@ import {
   FileDropzone,
   Input,
   Modal,
+  Pagination,
   RowErrorFallback,
   Skeleton,
   UploadRow,
@@ -28,10 +29,18 @@ import {
   type GroupResponse,
 } from '../../data';
 
+const MEMBERS_PAGE_SIZE = 20;
+
 function apiErrorMessage(error: unknown, fallback: string): string {
   if (isAxiosError(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) return message;
+    const data = error.response?.data;
+    if (typeof data === 'object' && data !== null) {
+      const message = (data as { message?: unknown }).message;
+      if (typeof message === 'string' && message.trim()) return message;
+    }
+    if (typeof error.message === 'string' && error.message.trim() && error.message !== 'Network Error') {
+      return error.message;
+    }
   }
   return fallback;
 }
@@ -157,6 +166,7 @@ function MembersTable({
 }) {
   const navigate = useNavigate();
   const debouncedQuery = useDebouncedValue(query, 300);
+  const [page, setPage] = useState(1);
   const students = useMemo(() => members.filter((m) => m.role === 'STUDENT'), [members]);
   const filtered = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
@@ -165,6 +175,26 @@ function MembersTable({
       return m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q);
     });
   }, [students, debouncedQuery]);
+  const sorted = useMemo(
+    () => [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+    [filtered],
+  );
+  const pageCount = Math.max(1, Math.ceil(sorted.length / MEMBERS_PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageItems = sorted.slice(
+    (safePage - 1) * MEMBERS_PAGE_SIZE,
+    safePage * MEMBERS_PAGE_SIZE,
+  );
+  const rangeStart = sorted.length === 0 ? 0 : (safePage - 1) * MEMBERS_PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safePage * MEMBERS_PAGE_SIZE, sorted.length);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedQuery]);
+
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
 
   return (
     <div
@@ -224,46 +254,60 @@ function MembersTable({
         />
         </div>
       ) : (
-        filtered.map((m) => (
-          <div
-            key={m.userId}
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate(`/manager/students/detail/${m.userId}`)}
-            onKeyDown={(e) =>
-              e.key === 'Enter' && navigate(`/manager/students/detail/${m.userId}`)
-            }
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1.8fr 1.2fr',
-              padding: '13px 24px',
-              borderBottom: '1px solid var(--divider)',
-              fontSize: 13,
-              alignItems: 'center',
-              cursor: 'pointer',
-            }}
-          >
-            <span style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 12,
-                  color: 'var(--text-muted)',
-                }}
-              >
-                {m.email}
+        <>
+          {pageItems.map((m) => (
+            <div
+              key={m.userId}
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(`/manager/students/detail/${m.userId}`)}
+              onKeyDown={(e) =>
+                e.key === 'Enter' && navigate(`/manager/students/detail/${m.userId}`)
+              }
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1.8fr 1.2fr',
+                padding: '13px 24px',
+                borderBottom: '1px solid var(--divider)',
+                fontSize: 13,
+                alignItems: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <span style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 12,
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  {m.email}
+                </span>
               </span>
-            </span>
-            <span style={{ color: 'var(--text-secondary)' }}>{m.groupName ?? '—'}</span>
-          </div>
-        ))
+              <span style={{ color: 'var(--text-secondary)' }}>{m.groupName ?? '—'}</span>
+            </div>
+          ))}
+          {sorted.length > MEMBERS_PAGE_SIZE ? (
+            <div style={{ padding: '14px 24px', borderTop: '1px solid var(--divider)' }}>
+              <Pagination
+                page={safePage}
+                pageCount={pageCount}
+                pageSize={MEMBERS_PAGE_SIZE}
+                rangeLabel={`${rangeStart}–${rangeEnd} / ${sorted.length}명`}
+                onPage={setPage}
+              />
+            </div>
+          ) : null}
+        </>
       )}
     </div>
   );
 }
 
 function StudentManagementBody({ classId }: { classId: number }) {
+  const navigate = useNavigate();
   const { data: cls } = useGetClass(classId);
   const { data: membersPage } = useGetClassMembers(classId, { size: 100 });
   const [query, setQuery] = useState('');
@@ -358,18 +402,27 @@ function StudentManagementBody({ classId }: { classId: number }) {
             {cls.name} · 학생 {studentCount}명
           </span>
         </div>
-        <Button
-          variant="primary"
-          icon={<UserPlus size={15} strokeWidth={1.75} />}
-          onClick={() => {
-            setInviteEmail('');
-            setBulkFile(null);
-            resetInviteMessages();
-            setInviteOpen(true);
-          }}
-        >
-          학생 초대
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Button
+            variant="secondary"
+            icon={<Users size={15} strokeWidth={1.75} />}
+            onClick={() => navigate('/manager/groups')}
+          >
+            그룹 관리
+          </Button>
+          <Button
+            variant="primary"
+            icon={<UserPlus size={15} strokeWidth={1.75} />}
+            onClick={() => {
+              setInviteEmail('');
+              setBulkFile(null);
+              resetInviteMessages();
+              setInviteOpen(true);
+            }}
+          >
+            학생 초대
+          </Button>
+        </div>
       </div>
 
       <div
@@ -407,19 +460,6 @@ function StudentManagementBody({ classId }: { classId: number }) {
           >
             <GroupsSidePanel classId={classId} />
           </QueryAsyncBoundary>
-          <div
-            style={{
-              background: 'var(--accent-softer)',
-              border: '1px solid var(--accent-soft)',
-              borderRadius: 12,
-              padding: 14,
-              fontSize: 12.5,
-              lineHeight: 1.6,
-              color: 'var(--text-body)',
-            }}
-          >
-            엑셀·CSV로 학생을 일괄 초대할 수 있어요. 이메일 열이 포함된 파일을 사용하세요.
-          </div>
         </div>
       </div>
 
@@ -443,7 +483,7 @@ function StudentManagementBody({ classId }: { classId: number }) {
         width={520}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {inviteError ? <AlertBanner tone="error" title="초대 실패" description={inviteError} /> : null}
+          {inviteError ? <AlertBanner tone="error" title={inviteError} /> : null}
           {inviteOk ? <AlertBanner tone="success" title="초대 발송 완료" description={inviteOk} /> : null}
           {bulkSummary ? (
             <AlertBanner tone="success" title="일괄 초대 결과" description={bulkSummary} />
