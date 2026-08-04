@@ -86,14 +86,14 @@ def node_refine(state: PipelineState) -> PipelineState:
         q for q in state.get("quizzes", []) if q.get("status") != "APPROVED"
     ]
 
+    # 탈락 사유는 user_prompt 에 섞지 않는다. 그쪽은 USER_HINT(untrusted) 블록으로
+    # 들어가서 "무시해도 되는 힌트"로 라벨링되고, 사용자 입력과 뒤엉켜 누적된다.
     critiques = [
         q.get("reject_reason") or ""
         for q in state.get("quizzes", [])
         if q.get("status") == "REJECTED"
     ]
-    extra = "이전 실패 사유(반복 금지): " + " | ".join(c for c in critiques if c)[:500]
-    prev = state.get("user_prompt") or ""
-    state["user_prompt"] = (prev + "\n" + extra).strip()
+    state["retry_notes"] = " | ".join(c for c in critiques if c)[:500]
     state["retry_count"] = state.get("retry_count", 0) + 1
     return state
 
