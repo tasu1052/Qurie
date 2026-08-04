@@ -10,12 +10,9 @@ import {
   Maximize2,
   Mic,
   MicOff,
-  MoreVertical,
   PhoneOff,
   Phone,
   Settings,
-  Terminal,
-  Trash2,
 } from 'lucide-react';
 import { AlertBanner, Button, LiveBadge, Modal } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
@@ -66,7 +63,6 @@ import type * as Y from 'yjs';
 
 type LeftTab = 'explorer' | 'materials';
 type RightTab = 'community' | 'quiz';
-type BottomTab = 'terminal' | 'debug' | 'output';
 
 /** 공유 Y.Text 가 비어 있을 때만 DB 스냅샷을 넣는다. 이미 원격 편집이 있으면 덮지 않는다. */
 function seedYTextIfEmpty(ytext: Y.Text, content: string): boolean {
@@ -154,7 +150,6 @@ export default function SessionPage() {
   const initialActiveFile = hasSessionId ? loadSessionActiveFile(sessionId) : null;
   const [leftTab, setLeftTab] = useState<LeftTab>('explorer');
   const [rightTab, setRightTab] = useState<RightTab>(initialRight);
-  const [bottomTab, setBottomTab] = useState<BottomTab>('terminal');
   const [editorLanguage, setEditorLanguage] = useState<string>(() =>
     initialActiveFile ? languageFromPath(initialActiveFile) : 'plaintext',
   );
@@ -172,11 +167,9 @@ export default function SessionPage() {
 
   const viewportWidth = useViewportWidth();
   const chrome = sessionChromeVisibility(viewportWidth);
-  const { leftWidth, rightWidth, bottomHeight, setLeftWidth, setRightWidth, setBottomHeight } =
-    useSessionPanelSizes();
+  const { leftWidth, rightWidth, setLeftWidth, setRightWidth } = useSessionPanelSizes();
   const leftDrag = usePointerDrag('x', leftWidth, setLeftWidth, 1);
   const rightDrag = usePointerDrag('x', rightWidth, setRightWidth, -1);
-  const bottomDrag = usePointerDrag('y', bottomHeight, setBottomHeight, 1);
 
   const meQuery = useMeOptional();
   const myUserId = meQuery.data?.id ?? null;
@@ -372,15 +365,17 @@ export default function SessionPage() {
     if (!hasSessionId || !projectRef || !collabSynced || hydratedActiveFileRef.current) return;
     hydratedActiveFileRef.current = true;
     const path = activeFile ?? loadSessionActiveFile(sessionId);
-    if (path) {
-      void openFile(projectRef.projectId, path);
-      return;
-    }
+    const projectId = projectRef.projectId;
+    // openFile 의 setState 가 effect 본문에서 동기 실행되지 않도록 microtask 로 미룬다.
     void (async () => {
+      if (path) {
+        await openFile(projectId, path);
+        return;
+      }
       try {
-        const files = await getProjectFiles(projectRef.projectId);
+        const files = await getProjectFiles(projectId);
         const first = [...files].map((f) => f.path).sort((a, b) => a.localeCompare(b))[0];
-        if (first) await openFile(projectRef.projectId, first);
+        if (first) await openFile(projectId, first);
       } catch {
         // 목록 실패해도 세션은 유지
       }
@@ -484,8 +479,6 @@ export default function SessionPage() {
     whiteSpace: 'nowrap',
     minWidth: 0,
   });
-
-  const explorerProjectId = pendingImport?.projectId ?? projectRef?.projectId ?? null;
 
   const toggleBrowserFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -947,7 +940,7 @@ export default function SessionPage() {
                 >
                   음성 채널 · {chat.voiceParticipants.length}명
                 </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: 160, overflow: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflow: 'auto' }}>
                   {chat.voiceParticipants.length === 0 ? (
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                       음성 채널에 아무도 없습니다.
@@ -1030,7 +1023,7 @@ export default function SessionPage() {
                 >
                   접속 중 · {chat.participants.length}명
                 </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, height: 120, overflow: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 120, overflow: 'auto' }}>
                   {chat.participants.length === 0 ? (
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>아직 접속자가 없습니다.</span>
                   ) : (
@@ -1174,107 +1167,6 @@ export default function SessionPage() {
               <div style={{ flex: 1 }} />
             )}
           </div>
-
-          {chrome.showBottom ? (
-            <>
-              <div
-                role="separator"
-                aria-orientation="horizontal"
-                aria-label="터미널 높이 조절"
-                onPointerDown={bottomDrag.onPointerDown}
-                onPointerMove={bottomDrag.onPointerMove}
-                onPointerUp={bottomDrag.onPointerUp}
-                onPointerCancel={bottomDrag.onPointerUp}
-                style={resizeHandleStyle('horizontal', bottomDrag.dragging)}
-              />
-              <div
-                style={{
-                  height: bottomHeight,
-                  minHeight: bottomHeight,
-                  maxHeight: bottomHeight,
-                  background: 'var(--surface-card)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  flexShrink: 0,
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '0 12px',
-                    height: 36,
-                    borderBottom: '1px solid var(--divider)',
-                    overflow: 'auto',
-                    flexShrink: 0,
-                  }}
-                >
-                  <BottomTabButton
-                    active={bottomTab === 'terminal'}
-                    onClick={() => setBottomTab('terminal')}
-                    icon={<Terminal size={13} />}
-                  >
-                    터미널
-                  </BottomTabButton>
-                  <button
-                    type="button"
-                    onClick={() => setBottomTab('debug')}
-                    style={{
-                      fontSize: 12,
-                      color: bottomTab === 'debug' ? 'var(--ink)' : 'var(--text-muted)',
-                      border: 'none',
-                      background: 'none',
-                      cursor: 'pointer',
-                      fontFamily: 'var(--font-sans)',
-                      whiteSpace: 'nowrap',
-                      lineHeight: 1,
-                    }}
-                  >
-                    디버그
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBottomTab('output')}
-                    style={{
-                      fontSize: 12,
-                      color: bottomTab === 'output' ? 'var(--ink)' : 'var(--text-muted)',
-                      border: 'none',
-                      background: 'none',
-                      cursor: 'pointer',
-                      fontFamily: 'var(--font-sans)',
-                      whiteSpace: 'nowrap',
-                      lineHeight: 1,
-                    }}
-                  >
-                    출력
-                  </button>
-                  <span style={{ marginLeft: 'auto', display: 'flex', gap: 12, color: 'var(--text-muted)' }}>
-                    <Trash2 size={13} />
-                    <MoreVertical size={13} />
-                  </span>
-                </div>
-                <div
-                  style={{
-                    flex: 1,
-                    padding: '12px 16px',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 12,
-                    lineHeight: 1.8,
-                    color: 'var(--text-body)',
-                    overflow: 'auto',
-                    minHeight: 0,
-                  }}
-                >
-                  <div>
-                    <span style={{ color: 'var(--text-muted)' }}>ready</span> · project{' '}
-                    {explorerProjectId != null ? `#${explorerProjectId}` : '—'}
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : null}
         </div>
 
         {chrome.showRight ? (
@@ -1601,46 +1493,6 @@ function RoundIcon({
         padding: 0,
       }}
     >
-      {children}
-    </button>
-  );
-}
-
-function BottomTabButton({
-  active,
-  onClick,
-  icon,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        fontSize: 12,
-        fontWeight: active ? 600 : 400,
-        color: active ? 'var(--ink)' : 'var(--text-muted)',
-        border: 'none',
-        background: 'none',
-        borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
-        height: '100%',
-        paddingTop: 2,
-        cursor: 'pointer',
-        fontFamily: 'var(--font-sans)',
-        whiteSpace: 'nowrap',
-        lineHeight: 1,
-        flexShrink: 0,
-      }}
-    >
-      {icon}
       {children}
     </button>
   );

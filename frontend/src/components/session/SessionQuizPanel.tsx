@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { isAxiosError } from 'axios';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import {
   formatQuizSource,
   getProjectFileContent,
@@ -200,6 +200,241 @@ function CircularLoader({ size = 22 }: { size?: number }) {
   );
 }
 
+function QuizEmptyState({
+  title = '아직 퀴즈가 생성되지 않았어요',
+  description,
+}: {
+  title?: string;
+  description?: string;
+}) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        padding: '32px 16px',
+        borderRadius: 12,
+        border: '2px dashed var(--border-strong)',
+        background: 'var(--status-accent-bg)',
+        textAlign: 'center',
+      }}
+    >
+      <Sparkles
+        size={28}
+        strokeWidth={1.75}
+        color="var(--accent)"
+        style={{ animation: 'qurie-float 2.4s ease-in-out infinite' }}
+      />
+      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.4 }}>
+        {title}
+      </span>
+      {description ? (
+        <span style={{ fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.55, maxWidth: 280 }}>
+          {description}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function QuizGeneratingBanner({
+  done,
+  total,
+}: {
+  done?: number | null;
+  total?: number | null;
+}) {
+  const hasProgress = done != null && total != null && total > 0;
+  const pct = hasProgress ? Math.min(100, Math.round((done / total) * 100)) : null;
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        padding: '14px 16px',
+        borderRadius: 12,
+        border: '1px solid var(--accent-strong)',
+        background: 'var(--status-accent-bg)',
+        boxShadow: 'var(--shadow-card)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <CircularLoader size={32} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>퀴즈 생성 중</span>
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+            {hasProgress
+              ? `${done}/${total}문항 준비됨 · 생성이 끝나면 자동으로 표시돼요`
+              : 'AI가 문항을 만들고 있어요. 잠시만 기다려 주세요.'}
+          </span>
+        </div>
+      </div>
+      <div
+        style={{
+          height: 8,
+          borderRadius: 999,
+          background: 'var(--surface-sunken)',
+          overflow: 'hidden',
+          position: 'relative',
+        }}
+      >
+        {hasProgress ? (
+          <div
+            style={{
+              width: `${pct}%`,
+              height: '100%',
+              background: 'var(--accent)',
+              borderRadius: 999,
+              transition: 'width 320ms ease-out',
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: '32%',
+              height: '100%',
+              background: 'var(--accent)',
+              borderRadius: 999,
+              animation: 'qurie-progress 1.5s ease-in-out infinite',
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+const CONFETTI_COLORS = [
+  'var(--accent)',
+  'var(--status-success)',
+  'var(--status-warning)',
+  'var(--status-error)',
+  'var(--chart-accent)',
+  'var(--accent-strong)',
+];
+
+function ConfettiBurst() {
+  const pieces = useMemo(
+    () =>
+      Array.from({ length: 28 }, (_, i) => ({
+        id: i,
+        left: `${(i * 17 + 7) % 100}%`,
+        delay: `${(i % 7) * 0.08}s`,
+        duration: `${1.6 + (i % 5) * 0.15}s`,
+        dx: `${((i % 11) - 5) * 18}px`,
+        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+        size: 6 + (i % 3) * 2,
+      })),
+    [],
+  );
+
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: 'absolute',
+        inset: 0,
+        pointerEvents: 'none',
+        overflow: 'hidden',
+      }}
+    >
+      {pieces.map((p) => (
+        <span
+          key={p.id}
+          style={
+            {
+              '--dx': p.dx,
+              position: 'absolute',
+              left: p.left,
+              top: -8,
+              width: p.size,
+              height: p.size,
+              borderRadius: p.id % 2 === 0 ? 2 : '50%',
+              background: p.color,
+              animation: `qurie-confetti-fall ${p.duration} ease-out ${p.delay} forwards`,
+            } as CSSProperties
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
+function QuizCompleteScreen({
+  correct,
+  total,
+  onReview,
+}: {
+  correct: number;
+  total: number;
+  onReview: () => void;
+}) {
+  return (
+    <div
+      style={{
+        position: 'relative',
+        marginTop: 12,
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        padding: '36px 20px 28px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 8,
+        minHeight: 260,
+        overflow: 'hidden',
+        background: 'var(--status-success-bg)',
+      }}
+    >
+      <ConfettiBurst />
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 8,
+          animation: 'qurie-pop-in 0.45s ease-out',
+        }}
+      >
+        <span
+          style={{
+            fontSize: 44,
+            fontWeight: 700,
+            color: 'var(--ink)',
+            lineHeight: 1,
+            letterSpacing: '-0.02em',
+          }}
+        >
+          {correct}/{total}
+        </span>
+        <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)' }}>퀴즈 완료</span>
+        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--status-success)' }}>
+          수고했어요!
+        </span>
+        <span style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 2 }}>
+          정답 {correct}개 · 전체 {total}문항
+        </span>
+        <Button variant="ghost" size="sm" onClick={onReview} style={{ marginTop: 10 }}>
+          문항 다시 보기
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function SingleQuizPlayer({
   quizzes,
   requestedCount,
@@ -213,6 +448,10 @@ function SingleQuizPlayer({
   warnMessage,
   onNotReady,
   onClearWarn,
+  showComplete,
+  completeCorrect,
+  completeTotal,
+  onReviewFromComplete,
 }: {
   quizzes: PlayableQuiz[];
   requestedCount: number;
@@ -226,14 +465,15 @@ function SingleQuizPlayer({
   warnMessage: string | null;
   onNotReady: () => void;
   onClearWarn: () => void;
+  showComplete: boolean;
+  completeCorrect: number;
+  completeTotal: number;
+  onReviewFromComplete: () => void;
 }) {
   const totalSlots = Math.max(requestedCount, quizzes.length, 1);
   const [index, setIndex] = useState(0);
   const [hovered, setHovered] = useState(false);
-
-  useEffect(() => {
-    if (index >= totalSlots) setIndex(Math.max(0, totalSlots - 1));
-  }, [index, totalSlots]);
+  const currentIndex = Math.min(index, Math.max(0, totalSlots - 1));
 
   // 건너뛰기 성공 시 다음 준비된 문항으로 이동
   useEffect(() => {
@@ -248,8 +488,8 @@ function SingleQuizPlayer({
     return () => window.removeEventListener('qurie-quiz-advance', onAdvance);
   }, [quizzes.length]);
 
-  const ready = index < quizzes.length;
-  const q = ready ? quizzes[index] : null;
+  const ready = currentIndex < quizzes.length;
+  const q = ready ? quizzes[currentIndex] : null;
   const selected = q != null ? answers[q.id] : undefined;
   const hasSelection = selected != null;
   const result = q != null ? results[q.id] : undefined;
@@ -266,6 +506,18 @@ function SingleQuizPlayer({
     onClearWarn();
     setIndex(next);
   };
+
+  if (showComplete) {
+    return (
+      <QuizCompleteScreen
+        correct={completeCorrect}
+        total={completeTotal}
+        onReview={onReviewFromComplete}
+      />
+    );
+  }
+
+  const hasNextReady = currentIndex < quizzes.length - 1;
 
   return (
     <div
@@ -286,7 +538,7 @@ function SingleQuizPlayer({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
-            {index + 1} / {totalSlots}
+            {currentIndex + 1} / {totalSlots}
           </span>
           <div
             style={{
@@ -299,7 +551,7 @@ function SingleQuizPlayer({
           >
             <div
               style={{
-                width: `${Math.round(((index + 1) / totalSlots) * 100)}%`,
+                width: `${Math.round(((currentIndex + 1) / totalSlots) * 100)}%`,
                 height: '100%',
                 background: 'var(--accent)',
                 borderRadius: 999,
@@ -320,23 +572,30 @@ function SingleQuizPlayer({
         ) : null}
 
         {!ready || q == null ? (
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 10,
-              padding: '28px 8px',
-              color: 'var(--text-muted)',
-              fontSize: 13,
-              textAlign: 'center',
-            }}
-          >
-            {generating ? <CircularLoader size={28} /> : null}
-            아직 퀴즈가 생성되지 않았어요
-          </div>
+          generating ? (
+            <div
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 12,
+                padding: '28px 8px',
+                textAlign: 'center',
+              }}
+            >
+              <CircularLoader size={28} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                문항을 준비하는 중이에요
+              </span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                생성이 완료되면 이 자리에 문항이 나타나요
+              </span>
+            </div>
+          ) : (
+            <QuizEmptyState />
+          )
         ) : (
           <>
             <QuizMetaRow
@@ -458,16 +717,22 @@ function SingleQuizPlayer({
                   {submitting ? '제출 중…' : '제출'}
                 </Button>
               </div>
+            ) : hasNextReady ? (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+                <Button variant="primary" size="sm" onClick={() => tryGo(currentIndex + 1)}>
+                  다음 문항
+                </Button>
+              </div>
             ) : null}
           </>
         )}
       </div>
 
-      {hovered && index > 0 ? (
+      {hovered && currentIndex > 0 ? (
         <button
           type="button"
           aria-label="이전 문항"
-          onClick={() => tryGo(index - 1)}
+          onClick={() => tryGo(currentIndex - 1)}
           style={{
             position: 'absolute',
             left: -6,
@@ -490,11 +755,11 @@ function SingleQuizPlayer({
           <ChevronLeft size={16} />
         </button>
       ) : null}
-      {hovered && index < totalSlots - 1 ? (
+      {hovered && currentIndex < totalSlots - 1 ? (
         <button
           type="button"
           aria-label="다음 문항"
-          onClick={() => tryGo(index + 1)}
+          onClick={() => tryGo(currentIndex + 1)}
           style={{
             position: 'absolute',
             right: -6,
@@ -526,11 +791,11 @@ function SingleQuizPlayer({
             aria-label={`${i + 1}번 문항`}
             onClick={() => tryGo(i)}
             style={{
-              width: i === index ? 18 : 8,
+              width: i === currentIndex ? 18 : 8,
               height: 8,
               borderRadius: 999,
               border: 'none',
-              background: i === index ? 'var(--accent)' : i < quizzes.length ? 'var(--border-strong)' : 'var(--border)',
+              background: i === currentIndex ? 'var(--accent)' : i < quizzes.length ? 'var(--border-strong)' : 'var(--border)',
               cursor: 'pointer',
               transition: 'width 160ms ease, background 160ms ease',
               padding: 0,
@@ -648,6 +913,7 @@ export function SessionQuizPanel({
   const [answersBySet, setAnswersBySet] = useState<Record<number, Record<number, number>>>({});
   const [resultsBySet, setResultsBySet] = useState<Record<number, Record<number, QuizResult>>>({});
   const [startedAtBySet, setStartedAtBySet] = useState<Record<number, Record<number, string>>>({});
+  const [reviewingCompleteFor, setReviewingCompleteFor] = useState<number | null>(null);
 
   const projectQuizSets = useQuizSetsByProject(projectId);
 
@@ -666,7 +932,10 @@ export function SessionQuizPanel({
   }, [sessionId, activeQuizSetId]);
 
   const answers = activeQuizSetId != null ? (answersBySet[activeQuizSetId] ?? {}) : {};
-  const results = activeQuizSetId != null ? (resultsBySet[activeQuizSetId] ?? {}) : {};
+  const results = useMemo(
+    () => (activeQuizSetId != null ? (resultsBySet[activeQuizSetId] ?? {}) : {}),
+    [activeQuizSetId, resultsBySet],
+  );
   const startedAts = activeQuizSetId != null ? (startedAtBySet[activeQuizSetId] ?? {}) : {};
 
   const managerPoll = usePollQuizSet(isInstructor ? activeQuizSetId : null);
@@ -692,6 +961,14 @@ export function SessionQuizPanel({
     playableQuizzes.length > 0 &&
     summary?.status === 'COMPLETED' &&
     playableQuizzes.every((q) => results[q.id] != null);
+
+  const correctCount = useMemo(
+    () => Object.values(results).filter((r) => r.isCorrect === true).length,
+    [results],
+  );
+
+  const showCompleteScreen =
+    allHandled && activeQuizSetId != null && reviewingCompleteFor !== activeQuizSetId;
 
   const alreadyRated =
     activeQuizSetId != null &&
@@ -781,6 +1058,7 @@ export function SessionQuizPanel({
             setSatisfactionDismissedFor(null);
             setSatisfactionRating(0);
             setSatisfactionComment('');
+            setReviewingCompleteFor(null);
           },
           onError: (err) => {
             setFormError(apiErrorMessage(err, '퀴즈 생성 요청에 실패했습니다.'));
@@ -934,24 +1212,24 @@ export function SessionQuizPanel({
 
   if (activeQuizSetId == null && projectId == null && !restoring) {
     return (
-      <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>AI 퀴즈</span>
-        <span style={{ fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.55 }}>
-          {isInstructor
-            ? '프로젝트를 임포트한 뒤 퀴즈를 생성할 수 있습니다.'
-            : '아직 퀴즈가 생성되지 않았어요'}
-        </span>
+        <QuizEmptyState
+          description={
+            isInstructor
+              ? '프로젝트를 임포트한 뒤 퀴즈를 생성할 수 있습니다.'
+              : '강사가 퀴즈를 생성하면 여기에 표시됩니다.'
+          }
+        />
       </div>
     );
   }
 
   if (!isInstructor && activeQuizSetId == null && !restoring) {
     return (
-      <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>AI 퀴즈</span>
-        <span style={{ fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.55 }}>
-          아직 퀴즈가 생성되지 않았어요
-        </span>
+        <QuizEmptyState description="강사가 퀴즈를 생성하면 여기에 표시됩니다." />
       </div>
     );
   }
@@ -1007,6 +1285,10 @@ export function SessionQuizPanel({
           actionLabel="닫기"
           onAction={() => setFormError(null)}
         />
+      ) : null}
+
+      {isInstructor && (generateQuiz.isPending || generatingInFlight || generating) ? (
+        <QuizGeneratingBanner done={generatedCount} total={requestedCount} />
       ) : null}
 
       {isInstructor ? (
@@ -1137,11 +1419,15 @@ export function SessionQuizPanel({
               warnMessage={navWarn}
               onNotReady={() => setNavWarn('아직 퀴즈가 생성되지 않았어요')}
               onClearWarn={() => setNavWarn(null)}
+              showComplete={showCompleteScreen}
+              completeCorrect={correctCount}
+              completeTotal={playableQuizzes.length}
+              onReviewFromComplete={() => {
+                if (activeQuizSetId != null) setReviewingCompleteFor(activeQuizSetId);
+              }}
             />
           ) : !generating && summary?.status === 'COMPLETED' && playableQuizzes.length === 0 ? (
-            <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
-              아직 퀴즈가 생성되지 않았어요
-            </span>
+            <QuizEmptyState description="생성은 완료됐지만 표시할 문항이 없습니다." />
           ) : null}
         </AsyncJobPanel>
       ) : null}
