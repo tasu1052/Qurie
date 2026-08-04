@@ -47,6 +47,14 @@ public class NoticeController {
         return noticeService.getNotices(requester, scope, trackId, classId, forAudience, pageable);
     }
 
+    /** 공지 단건 조회 — 상세 열람. 목록과 같은 NoticeResponse(작성자·대상명 포함). */
+    @GetMapping("/{noticeId}")
+    public NoticeResponse get(
+            @AuthenticationPrincipal AuthUser requester,
+            @PathVariable("noticeId") Long noticeId) {
+        return noticeService.getNotice(requester, noticeId);
+    }
+
     /** 공지사항 생성 (MASTER) */
     @PostMapping
     public ResponseEntity<NoticeDetailResponse> create(

@@ -55,6 +55,11 @@ export const getNotices = async (
     return data;
 };
 
+export const getNotice = async (noticeId: number): Promise<NoticeResponse> => {
+    const { data } = await axiosInstance.get<NoticeResponse>(`/notices/${noticeId}`);
+    return data;
+};
+
 export const createNotice = async (body: NoticeCreateRequest): Promise<NoticeDetailResponse> => {
     const { data } = await axiosInstance.post<NoticeDetailResponse>('/notices', body);
     return data;

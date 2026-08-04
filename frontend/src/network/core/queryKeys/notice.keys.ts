@@ -13,4 +13,5 @@ export type NoticeListFilters = ListParams & {
 export const noticeKeys = {
     all: ['notices'] as const,
     list: (filters: NoticeListFilters = {}) => [...noticeKeys.all, 'list', filters] as const,
+    detail: (noticeId: number) => [...noticeKeys.all, 'detail', noticeId] as const,
 };

@@ -186,7 +186,7 @@ export type {
   BulkInvitationResponse,
   BulkInvitationRowResult,
 } from '../network/invitation';
-export { useGetNotices, useCreateNotice, useUpdateNotice, useDeleteNotice } from '../network/notice';
+export { useGetNotices, useGetNotice, useCreateNotice, useUpdateNotice, useDeleteNotice } from '../network/notice';
 export type {
   NoticeResponse,
   NoticeScope,

@@ -1,6 +1,7 @@
 package com.roma.qurie.notice;
 
 import com.roma.qurie.notice.dto.NoticeResponse;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,6 +9,29 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface NoticeRepository extends JpaRepository<Notice, Long> {
+
+    /** 상세 열람용. 목록과 같은 조인으로 targetName·authorName 을 채운다. */
+    @Query(
+            """
+            select new com.roma.qurie.notice.dto.NoticeResponse(
+                    n.id, n.scope, n.trackId, n.classId,
+                    coalesce(track.name, target.name),
+                    n.title, n.body, n.pinned,
+                    coalesce(master.name, manager.name),
+                    n.createdAt)
+            from Notice n
+            left join Track track on track.id = n.trackId
+            left join ClassEntity target on target.id = n.classId
+            left join Master master on master.id = n.createdBy and n.createdByType = :masterType
+            left join User manager on manager.id = n.createdBy and n.createdByType = :managerType
+            where n.id = :noticeId
+                and n.enterprise.id = :enterpriseId
+            """)
+    Optional<NoticeResponse> findNoticeResponseById(
+            @Param("noticeId") Long noticeId,
+            @Param("enterpriseId") Long enterpriseId,
+            @Param("masterType") NoticeAuthorType masterType,
+            @Param("managerType") NoticeAuthorType managerType);
 
     /*
      * 대상명(트랙명·클래스명)과 작성자명을 한 번에 채운다. track_id / class_id 는 scope 에 따라 하나만 채워지고

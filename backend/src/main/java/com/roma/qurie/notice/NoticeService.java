@@ -95,6 +95,49 @@ public class NoticeService {
     }
 
     /**
+     * 공지 단건 조회. 마스터는 기업 내 전부, 매니저·학생은 오디언스(전체·내 트랙·내 반)만.
+     * 권한 밖이면 존재 여부를 숨기기 위해 404.
+     */
+    @Transactional(readOnly = true)
+    public NoticeResponse getNotice(AuthUser requester, Long noticeId) {
+        requireAuthenticated(requester);
+        NoticeResponse notice = noticeRepository
+                .findNoticeResponseById(
+                        noticeId,
+                        requester.enterpriseId(),
+                        NoticeAuthorType.MASTER,
+                        NoticeAuthorType.MANAGER)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "공지사항을 찾을 수 없습니다."));
+
+        if (isMaster(requester)) {
+            return notice;
+        }
+        if (!isAudienceVisible(requester, notice)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "공지사항을 찾을 수 없습니다.");
+        }
+        return notice;
+    }
+
+    /** 매니저·학생 홈/알림에서 보이는 범위와 동일. */
+    private boolean isAudienceVisible(AuthUser requester, NoticeResponse notice) {
+        Long classId = requester.classId();
+        if (classId == null) {
+            return false;
+        }
+        ClassEntity classEntity = classRepository.findById(classId).orElse(null);
+        if (classEntity == null
+                || !classEntity.getTrack().getEnterprise().getId().equals(requester.enterpriseId())) {
+            return false;
+        }
+        Long trackId = classEntity.getTrack().getId();
+        return switch (notice.scope()) {
+            case ENTERPRISE -> true;
+            case TRACK -> trackId.equals(notice.trackId());
+            case CLASS -> classId.equals(notice.classId());
+        };
+    }
+
+    /**
      * 공지사항 생성.
      * 마스터는 ENTERPRISE·TRACK·CLASS 범위로 작성하고,
      * 매니저는 자기 반(CLASS) 공지만 작성할 수 있다.

@@ -4,6 +4,7 @@ import type { NoticeListFilters } from '../core/queryKeys/notice.keys';
 import {
     createNotice,
     deleteNotice,
+    getNotice,
     getNotices,
     updateNotice,
     type NoticeCreateRequest,
@@ -14,6 +15,13 @@ export const useGetNotices = (filters: NoticeListFilters = {}) => {
     return useSuspenseQuery({
         queryKey: queryKeys.notices.list(filters),
         queryFn: () => getNotices(filters),
+    });
+};
+
+export const useGetNotice = (noticeId: number) => {
+    return useSuspenseQuery({
+        queryKey: queryKeys.notices.detail(noticeId),
+        queryFn: () => getNotice(noticeId),
     });
 };
 
@@ -34,8 +42,9 @@ export const useUpdateNotice = () => {
     return useMutation({
         mutationFn: ({ noticeId, ...body }: NoticeUpdateRequest & { noticeId: number }) =>
             updateNotice(noticeId, body),
-        onSuccess: () => {
+        onSuccess: (_data, vars) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.notices.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.notices.detail(vars.noticeId) });
         },
     });
 };
