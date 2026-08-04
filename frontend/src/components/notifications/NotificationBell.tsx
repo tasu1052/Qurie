@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import {
@@ -14,6 +14,26 @@ import {
 import { Skeleton } from '../../ds';
 
 const READ_KEY = 'qurie-notice-read-ids';
+
+/** 뒤 화면은 강하게 뭉개고, 패널 본문은 읽히게 높은 불투명도 유지 */
+const panelShellStyle: CSSProperties = {
+  position: 'absolute',
+  right: 0,
+  top: 'calc(100% + 8px)',
+  width: 340,
+  maxHeight: 420,
+  overflow: 'auto',
+  background: 'var(--surface-modal)',
+  border: '1px solid var(--border-strong)',
+  borderRadius: 12,
+  boxShadow: 'var(--shadow-modal)',
+  zIndex: 800,
+  display: 'flex',
+  flexDirection: 'column',
+  backdropFilter: 'blur(48px) saturate(1.45)',
+  WebkitBackdropFilter: 'blur(48px) saturate(1.45)',
+  color: 'var(--ink)',
+};
 
 function readIds(): Set<number> {
   try {
@@ -78,6 +98,7 @@ function HelpRequestRows({
             display: 'flex',
             flexDirection: 'column',
             gap: 8,
+            background: 'var(--surface-modal)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -167,25 +188,7 @@ function BellPanel({
   }, [notices]);
 
   return (
-    <div
-      role="dialog"
-      aria-label="알림"
-      style={{
-        position: 'absolute',
-        right: 0,
-        top: 'calc(100% + 8px)',
-        width: 340,
-        maxHeight: 420,
-        overflow: 'auto',
-        background: 'var(--surface-card)',
-        border: '1px solid var(--border)',
-        borderRadius: 12,
-        boxShadow: 'var(--shadow-modal)',
-        zIndex: 800,
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
+    <div role="dialog" aria-label="알림" style={panelShellStyle}>
       <div
         style={{
           display: 'flex',
@@ -193,6 +196,10 @@ function BellPanel({
           justifyContent: 'space-between',
           padding: '12px 14px',
           borderBottom: '1px solid var(--divider)',
+          background: 'var(--surface-modal)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 1,
         }}
       >
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>알림</span>
@@ -247,6 +254,7 @@ function BellPanel({
               display: 'flex',
               flexDirection: 'column',
               gap: 4,
+              background: 'var(--surface-modal)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -400,40 +408,12 @@ export function NotificationBell({ role }: NotificationBellProps) {
         <div id={panelId}>
           <QueryAsyncBoundary
             suspenseFallback={
-              <div
-                style={{
-                  position: 'absolute',
-                  right: 0,
-                  top: 'calc(100% + 8px)',
-                  width: 340,
-                  padding: 16,
-                  background: 'var(--surface-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 12,
-                  boxShadow: 'var(--shadow-modal)',
-                  zIndex: 800,
-                }}
-              >
+              <div style={{ ...panelShellStyle, padding: 16, overflow: 'hidden' }}>
                 <Skeleton width="100%" height={80} radius={8} />
               </div>
             }
             errorFallback={
-              <div
-                style={{
-                  position: 'absolute',
-                  right: 0,
-                  top: 'calc(100% + 8px)',
-                  width: 340,
-                  padding: 16,
-                  background: 'var(--surface-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 12,
-                  boxShadow: 'var(--shadow-modal)',
-                  zIndex: 800,
-                  fontSize: 13,
-                  color: 'var(--text-muted)',
-                }}
-              >
+              <div style={{ ...panelShellStyle, padding: 16, fontSize: 13, color: 'var(--text-muted)' }}>
                 알림을 불러오지 못했습니다.
               </div>
             }

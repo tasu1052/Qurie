@@ -32,6 +32,9 @@ import MyPage from './pages/student/MyPage';
 import SessionPage from './pages/session/SessionPage';
 import SessionReportPage from './pages/session/SessionReportPage';
 import FinalReportPage from './pages/student/FinalReportPage';
+import StudentSessionsPage from './pages/student/StudentSessionsPage';
+import PastQuizListPage from './pages/learning/PastQuizListPage';
+import PastQuizDetailPage from './pages/learning/PastQuizDetailPage';
 
 function RedirectClassAnalytics() {
   const { classId } = useParams<{ classId: string }>();
@@ -72,6 +75,8 @@ export default function App() {
           <Route path="/manager/students/detail/:userId" element={<StudentOverviewPage />} />
           <Route path="/manager/students/:id" element={<RedirectLegacyStudentDetail />} />
           <Route path="/manager/sessions" element={<SessionListPage />} />
+          <Route path="/manager/quizzes" element={<PastQuizListPage />} />
+          <Route path="/manager/quizzes/:quizSetId" element={<PastQuizDetailPage />} />
           <Route path="/manager/groups" element={<GroupListPage />} />
           <Route path="/manager/groups/:id" element={<GroupEditPage />} />
           <Route path="/manager/announcements" element={<ManagerAnnouncementsPage />} />
@@ -82,6 +87,9 @@ export default function App() {
           <Route path="/app/classes" element={<Navigate to="/app" replace />} />
           <Route path="/app/classes/:id" element={<Navigate to="/app" replace />} />
           <Route path="/app/me" element={<MyPage />} />
+          <Route path="/app/sessions" element={<StudentSessionsPage />} />
+          <Route path="/app/quizzes" element={<PastQuizListPage />} />
+          <Route path="/app/quizzes/:quizSetId" element={<PastQuizDetailPage />} />
           <Route path="/app/report" element={<FinalReportPage />} />
 
           <Route path="/session/:id" element={<SessionPage />} />

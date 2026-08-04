@@ -167,6 +167,24 @@ export interface QuizProgressResponse {
     correctChoiceIdx: number | null;
 }
 
+export interface QuizProgressItem {
+    quizId: number;
+    status: QuizProgressStatus;
+    chosenChoiceIdx: number | null;
+    isCorrect: boolean | null;
+    elapsedMs: number;
+    explanation: string | null;
+    correctChoiceIdx: number | null;
+}
+
+export interface QuizProgressSummaryResponse {
+    quizSetId: number;
+    totalCount: number;
+    attemptedCount: number;
+    correctCount: number;
+    items: QuizProgressItem[];
+}
+
 export const submitQuizProgress = async (
     quizSetId: number,
     quizId: number,
@@ -177,4 +195,24 @@ export const submitQuizProgress = async (
         body,
     );
     return data;
+};
+
+export const getQuizProgress = async (
+    quizSetId: number,
+): Promise<QuizProgressSummaryResponse> => {
+    const { data } = await axiosInstance.get<QuizProgressSummaryResponse>(
+        `/quiz/${quizSetId}/progress`,
+    );
+    return {
+        ...data,
+        items: (data.items ?? []).map((item) => ({
+            quizId: item.quizId,
+            status: item.status,
+            chosenChoiceIdx: item.chosenChoiceIdx ?? null,
+            isCorrect: item.isCorrect ?? null,
+            elapsedMs: item.elapsedMs ?? 0,
+            explanation: item.explanation ?? null,
+            correctChoiceIdx: item.correctChoiceIdx ?? null,
+        })),
+    };
 };
