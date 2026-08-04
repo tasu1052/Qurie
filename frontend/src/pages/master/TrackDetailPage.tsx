@@ -63,7 +63,7 @@ function classStatus(endedAt: string | null): { active: boolean; label: string }
   if (endedAt && new Date(endedAt).getTime() < Date.now()) {
     return { active: false, label: '종료' };
   }
-  return { active: true, label: '진행 중' };
+  return { active: true, label: '운영' };
 }
 
 function formatDate(iso: string): string {
@@ -354,7 +354,7 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
           caption={totalStudents != null ? '클래스 합산' : '집계 중'}
         />
         <StatCard
-          label="진행 중"
+          label="활성 클래스"
           value={String(activeClassCount)}
           caption={`전체 ${classes.length}개 중`}
           accent={activeClassCount > 0}
@@ -539,7 +539,24 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>주의가 필요한 클래스</span>
             </div>
             {alerts.length === 0 ? (
-              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>현재 주의가 필요한 클래스가 없습니다.</p>
+              <div
+                style={{
+                  borderRadius: 12,
+                  border: '1px dashed var(--border-strong)',
+                  background: 'var(--surface-sunken)',
+                  padding: '16px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}
+              >
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  확인할 항목 없음
+                </span>
+                <span style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--text-muted)' }}>
+                  종료 임박·정원 미설정 등 주의가 필요한 클래스가 없습니다.
+                </span>
+              </div>
             ) : (
               alerts.map((a) => (
                 <div

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { ConfirmDeleteOverlay } from '../overlays/ConfirmDeleteOverlay';
 import { AlertBanner, Badge, Button, EmptyState, Input, Modal } from '../../ds';
@@ -13,7 +13,9 @@ import {
 import { useOpenNoticeDetail } from '../../hooks/useOpenNoticeDetail';
 import {
   apiErrorMessage,
+  NOTICE_LIST_PAGE_SIZE,
   NoticeCard,
+  NoticesPagination,
   ScopeFilterTabs,
   type ScopeFilter,
 } from './noticesShared';
@@ -22,6 +24,7 @@ export function ManagerNoticesBody({ classId }: { classId: number }) {
   const openNotice = useOpenNoticeDetail();
   const { data: cls } = useGetClass(classId);
   const [scope, setScope] = useState<ScopeFilter>('CLASS');
+  const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<NoticeResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<NoticeResponse | null>(null);
@@ -32,19 +35,25 @@ export function ManagerNoticesBody({ classId }: { classId: number }) {
 
   const filters = useMemo(
     () => ({
-      size: 50,
+      page,
+      size: NOTICE_LIST_PAGE_SIZE,
       scope: scope === '전체' ? undefined : scope,
       classId,
       forAudience: true as const,
     }),
-    [scope, classId],
+    [scope, classId, page],
   );
+
+  useEffect(() => {
+    setPage(1);
+  }, [scope]);
 
   const { data: noticesPage } = useGetNotices(filters);
   const createNotice = useCreateNotice();
   const updateNotice = useUpdateNotice();
   const deleteNotice = useDeleteNotice();
   const notices = noticesPage.data;
+  const totalNotices = noticesPage.meta.total;
   const saving = createNotice.isPending || updateNotice.isPending;
 
   const resetForm = () => {
@@ -139,9 +148,9 @@ export function ManagerNoticesBody({ classId }: { classId: number }) {
         scope={scope}
         onChange={setScope}
         options={[
-          { key: 'CLASS', label: '클래스' },
-          { key: 'TRACK', label: '트랙' },
           { key: '전체', label: '전체' },
+          { key: 'TRACK', label: '트랙' },
+          { key: 'CLASS', label: '클래스' },
         ]}
       />
 
@@ -168,6 +177,7 @@ export function ManagerNoticesBody({ classId }: { classId: number }) {
               />
             );
           })}
+          <NoticesPagination page={page} total={totalNotices} onPage={setPage} />
         </div>
       )}
 

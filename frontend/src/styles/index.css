@@ -131,6 +131,14 @@ body {
 }
 
 /* App shell — mobile drawer sidebar (master / manager / student) */
+.qurie-app-shell__main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
 .qurie-app-shell__sidebar {
   flex-shrink: 0;
 }
@@ -160,6 +168,11 @@ body {
 }
 
 /* Topbar — responsive breadcrumbs & account chip */
+.qurie-topbar {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
 .qurie-topbar__menu {
   display: inline-flex;
   align-items: center;
@@ -201,4 +214,19 @@ body {
   .qurie-topbar__actions {
     gap: 8px !important;
   }
+}
+
+/* Dark mode — sidebar brand & tech stack icons (colored PNGs on dark surfaces) */
+[data-theme='dark'] .sidebar-logo {
+  filter: brightness(0) invert(1);
+  opacity: 0.95;
+}
+
+[data-theme='dark'] .tech-icon-wrap {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 65%, transparent);
+}
+
+[data-theme='dark'] .tech-icon {
+  filter: none;
 }

@@ -14,7 +14,9 @@ import {
 } from '../../data';
 import { useOpenNoticeDetail } from '../../hooks/useOpenNoticeDetail';
 import {
+  NOTICE_LIST_PAGE_SIZE,
   NoticeCard,
+  NoticesPagination,
   ScopeFilterTabs,
   type ScopeFilter,
 } from './noticesShared';
@@ -22,6 +24,7 @@ import {
 export function MasterNoticesBody() {
   const openNotice = useOpenNoticeDetail();
   const [scope, setScope] = useState<ScopeFilter>('전체');
+  const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<NoticeResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<NoticeResponse | null>(null);
@@ -35,11 +38,16 @@ export function MasterNoticesBody() {
 
   const filters = useMemo(
     () => ({
-      size: 50,
+      page,
+      size: NOTICE_LIST_PAGE_SIZE,
       scope: scope === '전체' ? undefined : scope,
     }),
-    [scope],
+    [scope, page],
   );
+
+  useEffect(() => {
+    setPage(1);
+  }, [scope]);
 
   const { data: noticesPage } = useGetNotices(filters);
   const { data: tracksPage } = useGetTracks({ size: 100 });
@@ -48,6 +56,7 @@ export function MasterNoticesBody() {
   const updateNotice = useUpdateNotice();
   const deleteNotice = useDeleteNotice();
   const notices = noticesPage.data;
+  const totalNotices = noticesPage.meta.total;
   const tracks = tracksPage.data;
   const firstTrackId = tracks[0] ? String(tracks[0].id) : '';
 
@@ -142,7 +151,7 @@ export function MasterNoticesBody() {
           scope={scope}
           onChange={setScope}
           options={[
-            { key: '전체', label: '전체' },
+            { key: '전체', label: '모든 범위' },
             { key: 'TRACK', label: '트랙' },
             { key: 'CLASS', label: '클래스' },
           ]}
@@ -171,6 +180,7 @@ export function MasterNoticesBody() {
               onDelete={() => setDeleteTarget(n)}
             />
           ))}
+          <NoticesPagination page={page} total={totalNotices} onPage={setPage} />
         </div>
       )}
 

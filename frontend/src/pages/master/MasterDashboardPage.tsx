@@ -26,10 +26,10 @@ function toTrackCard(t: TrackSummaryResponse): TrackCard {
     tech: normalizeTech(t.tech),
     status: 'active',
     statusLabel: '활성',
-    meta: t.description || `${t.classCount}개 클래스`,
-    metricValue: String(t.classCount),
-    metricLabel: '클래스',
-    accentMetric: t.classCount > 0,
+    meta: `클래스 ${t.classCount}`,
+    metricValue: '',
+    metricLabel: '',
+    accentMetric: false,
   };
 }
 
@@ -114,26 +114,25 @@ function TrackCardItem({ track, onClick }: { track: TrackCard; onClick: () => vo
           style={{ objectFit: 'contain' }}
         />
       </span>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{track.name}</span>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <span
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: 'var(--ink)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {track.name}
+          </span>
           <Badge status={active ? 'success' : 'neutral'}>{track.statusLabel}</Badge>
         </div>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{track.meta}</span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-        <span
-          style={{
-            fontSize: 14,
-            fontWeight: 700,
-            color: track.accentMetric ? 'var(--accent)' : 'var(--ink)',
-          }}
-        >
-          {track.metricValue}
-        </span>
-        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{track.metricLabel}</span>
-      </div>
-      <Chevron size={12} color="var(--accent)" />
+      <Chevron size={12} color="var(--accent)" style={{ flexShrink: 0 }} />
     </div>
   );
 }

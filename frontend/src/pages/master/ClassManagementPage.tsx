@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import { Grid2x2, PlayCircle, Plus, Search, Users } from 'lucide-react';
@@ -102,6 +102,15 @@ function ClassCardView({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
       style={{
         background: 'var(--surface-card)',
         border: '1px solid var(--border)',
@@ -112,6 +121,9 @@ function ClassCardView({
         flexDirection: 'column',
         gap: 14,
         position: 'relative',
+        cursor: 'pointer',
+        textAlign: 'left',
+        fontFamily: 'var(--font-sans)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -150,24 +162,13 @@ function ClassCardView({
           <Grid2x2 size={13} strokeWidth={1.75} />—
         </span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 'auto' }}>
-        <button
-          type="button"
-          onClick={onOpen}
-          style={{
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            fontSize: 13,
-            fontWeight: 600,
-            color: 'var(--accent)',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-sans)',
-          }}
+      <div style={{ display: 'flex', alignItems: 'center', marginTop: 'auto' }}>
+        <div
+          data-class-card-menu=""
+          style={{ marginLeft: 'auto', position: 'relative' }}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
         >
-          {active ? '클래스 보기' : '상세 보기'} <span style={{ fontWeight: 800 }}>&gt;</span>
-        </button>
-        <div style={{ marginLeft: 'auto', position: 'relative' }}>
           <button
             type="button"
             onClick={() => setOpenMenuId(menuOpen ? null : item.id)}
@@ -181,7 +182,7 @@ function ClassCardView({
               fontWeight: 600,
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
-              padding: 0,
+              padding: '4px 0',
             }}
           >
             설정
@@ -245,6 +246,18 @@ function ClassListBody() {
   const [deleteTarget, setDeleteTarget] = useState<ClassResponse | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (openMenuId == null) return;
+    const onDoc = (e: MouseEvent) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('[data-class-card-menu]')) return;
+      setOpenMenuId(null);
+    };
+    document.addEventListener('click', onDoc);
+    return () => document.removeEventListener('click', onDoc);
+  }, [openMenuId]);
 
   const { data: tracksPage } = useGetTracks({ size: 100 });
   const tracks = tracksPage.data;
