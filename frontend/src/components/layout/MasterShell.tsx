@@ -47,7 +47,15 @@ export function MasterShell({ activeKey, breadcrumbs, children }: AppShellProps)
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-app)', fontFamily: 'var(--font-sans)' }}>
+    <div
+      style={{
+        display: 'flex',
+        height: '100dvh',
+        overflow: 'hidden',
+        background: 'var(--bg-app)',
+        fontFamily: 'var(--font-sans)',
+      }}
+    >
       <Sidebar
         items={items}
         activeKey={activeKey}
@@ -66,8 +74,9 @@ export function MasterShell({ activeKey, breadcrumbs, children }: AppShellProps)
           />
         }
       />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
         <Topbar
+          style={{ flexShrink: 0 }}
           breadcrumbs={breadcrumbs}
           userName={user.name}
           userRole={user.role}
@@ -98,6 +107,9 @@ export function PageMain({ children }: { children: ReactNode }) {
         marginInline: 'auto',
         padding: 'var(--content-pad)',
         minWidth: 0,
+        minHeight: 0,
+        overflowY: 'auto',
+        scrollbarGutter: 'stable',
         display: 'flex',
         flexDirection: 'column',
         gap: 24,
