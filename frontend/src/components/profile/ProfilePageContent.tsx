@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge, Button, RowSection, StatCard, StatCardRow } from '../../ds';
 import {
@@ -21,6 +21,10 @@ export function ProfilePageContent() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [pwError, setPwError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setName(profile.name);
+  }, [profile.name]);
 
   const initial = (profile.name || '?').slice(0, 1);
 

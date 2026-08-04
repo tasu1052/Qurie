@@ -52,7 +52,7 @@ function NoticesBody({
             color: 'var(--text-secondary)',
           }}
         >
-          최근 공지
+          공지
         </span>
         {path ? (
           <button
@@ -104,19 +104,6 @@ function NoticesBody({
               </span>
             </div>
             <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{n.title}</span>
-            <span
-              style={{
-                fontSize: 12.5,
-                color: 'var(--text-secondary)',
-                lineHeight: 1.5,
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-              }}
-            >
-              {n.body}
-            </span>
           </button>
         ))
       )}

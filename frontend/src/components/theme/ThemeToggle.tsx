@@ -58,7 +58,9 @@ export function ThemeToggle({
     persistTheme(next ? 'dark' : 'light');
   };
 
-  const dims = size === 'sm' ? { w: 36, h: 20, t: 16 } : { w: 44, h: 24, t: 20 };
+  const dims = size === 'sm' ? { w: 36, h: 20 } : { w: 44, h: 24 };
+  const inset = 2;
+  const thumb = dims.h - inset * 2;
 
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, width: '100%', justifyContent: 'space-between', ...style }}>
@@ -78,6 +80,9 @@ export function ThemeToggle({
           position: 'relative',
           cursor: 'pointer',
           padding: 0,
+          boxSizing: 'border-box',
+          display: 'inline-flex',
+          alignItems: 'center',
           transition: 'background 180ms ease-out,border-color 180ms ease-out',
           flexShrink: 0,
         }}
@@ -85,13 +90,14 @@ export function ThemeToggle({
         <span
           style={{
             position: 'absolute',
-            top: 2,
-            left: on ? dims.w - dims.t - 2 : 2,
-            width: dims.t,
-            height: dims.t,
+            top: '50%',
+            left: on ? dims.w - thumb - inset : inset,
+            width: thumb,
+            height: thumb,
             borderRadius: '50%',
             background: 'var(--text-inverse)',
             boxShadow: 'var(--shadow-card)',
+            transform: 'translateY(-50%)',
             transition: 'left 180ms cubic-bezier(.22,1,.36,1)',
           }}
         />

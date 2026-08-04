@@ -14,31 +14,18 @@ import {
 import { useOpenNoticeDetail } from '../../hooks/useOpenNoticeDetail';
 import { Skeleton } from '../../ds';
 
-const READ_KEY = 'qurie-notice-read-ids';
+const READ_KEY_PREFIX = 'qurie-notice-read-ids';
 
-/** 뒤 화면은 강하게 뭉개고, 패널 본문은 읽히게 높은 불투명도 유지 */
-const panelShellStyle: CSSProperties = {
-  position: 'absolute',
-  right: 0,
-  top: 'calc(100% + 8px)',
-  width: 340,
-  maxHeight: 420,
-  overflow: 'auto',
-  background: 'var(--surface-modal)',
-  border: '1px solid var(--border-strong)',
-  borderRadius: 12,
-  boxShadow: 'var(--shadow-modal)',
-  zIndex: 800,
-  display: 'flex',
-  flexDirection: 'column',
-  backdropFilter: 'blur(48px) saturate(1.45)',
-  WebkitBackdropFilter: 'blur(48px) saturate(1.45)',
-  color: 'var(--ink)',
-};
+function readKeyForUser(userId: number | undefined): string | null {
+  if (userId == null) return null;
+  return `${READ_KEY_PREFIX}-${userId}`;
+}
 
-function readIds(): Set<number> {
+function readIds(userId: number | undefined): Set<number> {
+  const key = readKeyForUser(userId);
+  if (!key) return new Set();
   try {
-    const raw = localStorage.getItem(READ_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return new Set();
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return new Set();
@@ -48,9 +35,28 @@ function readIds(): Set<number> {
   }
 }
 
-function writeIds(ids: Set<number>) {
-  localStorage.setItem(READ_KEY, JSON.stringify([...ids]));
+function writeIds(userId: number | undefined, ids: Set<number>) {
+  const key = readKeyForUser(userId);
+  if (!key) return;
+  localStorage.setItem(key, JSON.stringify([...ids]));
 }
+/** 뒤 화면은 강하게 뭉개고, 패널 본문은 읽히게 높은 불투명도 유지 */
+const panelShellStyle: CSSProperties = {
+  position: 'absolute',
+  right: 0,
+  top: 'calc(100% + 8px)',
+  width: 340,
+  maxHeight: 420,
+  overflow: 'auto',
+  background: 'var(--surface-card)',
+  border: '1px solid var(--border-strong)',
+  borderRadius: 12,
+  boxShadow: 'var(--shadow-modal)',
+  zIndex: 800,
+  display: 'flex',
+  flexDirection: 'column',
+  color: 'var(--ink)',
+};
 
 function scopeLabel(scope: NoticeResponse['scope']): string {
   if (scope === 'ENTERPRISE') return '전체';
@@ -176,10 +182,12 @@ function HelpRequestRows({
 function BellPanel({
   role,
   classId,
+  userId,
   onClose,
 }: {
   role: UserRole;
   classId: number | null;
+  userId: number | undefined;
   onClose: () => void;
 }) {
   const openNotice = useOpenNoticeDetail();
@@ -192,10 +200,10 @@ function BellPanel({
 
   useEffect(() => {
     if (notices.length === 0) return;
-    const ids = readIds();
+    const ids = readIds(userId);
     for (const n of notices) ids.add(n.id);
-    writeIds(ids);
-  }, [notices]);
+    writeIds(userId, ids);
+  }, [notices, userId]);
 
   return (
     <div role="dialog" aria-label="알림" style={panelShellStyle}>
@@ -203,7 +211,7 @@ function BellPanel({
         style={{
           padding: '12px 14px',
           borderBottom: '1px solid var(--divider)',
-          background: 'var(--surface-modal)',
+          background: 'var(--surface-card)',
           position: 'sticky',
           top: 0,
           zIndex: 1,
@@ -325,17 +333,19 @@ function UnreadBadge({
   version,
   classId,
   role,
+  userId,
 }: {
   version: number;
   classId: number | null;
   role: UserRole;
+  userId: number | undefined;
 }) {
   const { data } = useGetNotices({ size: 8 });
   const helpQuery = useGetClassHelpRequests(
     role === 'MANAGER' || role === 'MASTER' ? classId : null,
   );
   void version;
-  const unreadNotices = data.data.filter((n) => !readIds().has(n.id)).length;
+  const unreadNotices = data.data.filter((n) => !readIds(userId).has(n.id)).length;
   const helpCount = helpQuery.data?.length ?? 0;
   const unread = unreadNotices + helpCount;
   if (unread <= 0) return null;
@@ -377,6 +387,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
   const panelId = useId();
   const meQuery = useMeOptional();
   const classId = meQuery.data?.classId ?? null;
+  const userId = meQuery.data?.id;
 
   const close = () => {
     setOpen(false);
@@ -425,7 +436,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
       >
         <Bell size={17} strokeWidth={1.75} />
         <QueryAsyncBoundary suspenseFallback={null} errorFallback={null}>
-          <UnreadBadge version={readVersion} classId={classId} role={role} />
+          <UnreadBadge version={readVersion} classId={classId} role={role} userId={userId} />
         </QueryAsyncBoundary>
       </button>
       {open ? (
@@ -442,7 +453,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
               </div>
             }
           >
-            <BellPanel role={role} classId={classId} onClose={close} />
+            <BellPanel role={role} classId={classId} userId={userId} onClose={close} />
           </QueryAsyncBoundary>
         </div>
       ) : null}

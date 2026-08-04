@@ -25,8 +25,8 @@ function toTrackCard(t: TrackSummaryResponse): TrackCard {
     name: t.name,
     tech: normalizeTech(t.tech),
     status: 'active',
-    statusLabel: '진행 중',
-    meta: t.description || `클래스 ${t.classCount}`,
+    statusLabel: '활성',
+    meta: t.description || `${t.classCount}개 클래스`,
     metricValue: String(t.classCount),
     metricLabel: '클래스',
     accentMetric: t.classCount > 0,
@@ -109,6 +109,7 @@ function TrackCardItem({ track, onClick }: { track: TrackCard; onClick: () => vo
           width={22}
           height={22}
           alt={track.tech}
+          className="tech-icon"
           style={{ objectFit: 'contain' }}
         />
       </span>
@@ -167,10 +168,7 @@ function TracksAndManagers({ onOpenTrack }: { onOpenTrack: (id: string) => void 
               color: 'var(--text-secondary)',
             }}
           >
-            트랙 현황
-          </span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            카드를 클릭하면 트랙 상세로 이동합니다
+            트랙 목록
           </span>
         </div>
         {tracks.length === 0 ? (
@@ -205,7 +203,7 @@ function TracksAndManagers({ onOpenTrack }: { onOpenTrack: (id: string) => void 
                 color: 'var(--text-secondary)',
               }}
             >
-              매니저 액티비티
+              매니저 목록
             </span>
           </div>
           {managers.length === 0 ? (
@@ -265,7 +263,7 @@ export default function MasterDashboardPage() {
           errorFallback={
             <RowErrorFallback
               onRetry={() => setTracksKey((k) => k + 1)}
-              title="트랙 현황을 불러오지 못했습니다"
+              title="트랙 목록을 불러오지 못했습니다"
             />
           }
         >
