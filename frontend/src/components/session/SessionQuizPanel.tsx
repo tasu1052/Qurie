@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { isAxiosError } from 'axios';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   formatQuizSource,
   getProjectFileContent,
@@ -9,6 +10,7 @@ import {
   usePollQuizQuestions,
   usePollQuizSet,
   useQuizSetsByProject,
+  useSubmitQuizProgress,
   useSubmitQuizSatisfaction,
   type QuizGenerationMode,
   type QuizItem,
@@ -53,6 +55,13 @@ type PlayableQuiz = {
   lineStart: number | null;
   lineEnd: number | null;
   choices: PlayableChoice[];
+};
+
+type QuizResult = {
+  isCorrect: boolean | null;
+  explanation: string | null;
+  correctChoiceIdx: number | null;
+  status: 'ATTEMPTED' | 'SKIPPED';
 };
 
 function mapJobStatus(
@@ -173,46 +182,163 @@ function QuizMetaRow({
   );
 }
 
-function PlayableQuizList({
+function CircularLoader({ size = 22 }: { size?: number }) {
+  return (
+    <span
+      aria-label="퀴즈 생성 중"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        border: '2px solid var(--border)',
+        borderTopColor: 'var(--accent)',
+        display: 'inline-block',
+        animation: 'qurie-spin 0.8s linear infinite',
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
+function SingleQuizPlayer({
   quizzes,
+  requestedCount,
+  generating,
   answers,
-  onSelect,
-  canCheckAnswer,
-  revealedIds,
-  onReveal,
-  accuracyByQuiz,
-  onAccuracy,
+  onToggleChoice,
+  results,
+  onSubmit,
+  onSkip,
+  submitting,
+  warnMessage,
+  onNotReady,
+  onClearWarn,
 }: {
   quizzes: PlayableQuiz[];
+  requestedCount: number;
+  generating: boolean;
   answers: Record<number, number>;
-  onSelect: (quizId: number, choiceIdx: number) => void;
-  /** 강사만 true — 학생과 같은 풀이 UI + 문항별 정답 확인 */
-  canCheckAnswer: boolean;
-  revealedIds: Record<number, boolean>;
-  onReveal: (quizId: number) => void;
-  /** 로컬 전용 예/아니오 피드백 (서버 미연동) */
-  accuracyByQuiz: Record<number, boolean>;
-  onAccuracy: (quizId: number, accurate: boolean) => void;
+  onToggleChoice: (quizId: number, choiceIdx: number) => void;
+  results: Record<number, QuizResult>;
+  onSubmit: (quiz: PlayableQuiz) => void;
+  onSkip: (quiz: PlayableQuiz) => void;
+  submitting: boolean;
+  warnMessage: string | null;
+  onNotReady: () => void;
+  onClearWarn: () => void;
 }) {
+  const totalSlots = Math.max(requestedCount, quizzes.length, 1);
+  const [index, setIndex] = useState(0);
+  const [hovered, setHovered] = useState(false);
+
+  useEffect(() => {
+    if (index >= totalSlots) setIndex(Math.max(0, totalSlots - 1));
+  }, [index, totalSlots]);
+
+  // 건너뛰기 성공 시 다음 준비된 문항으로 이동
+  useEffect(() => {
+    const onAdvance = () => {
+      setIndex((cur) => {
+        const next = cur + 1;
+        if (next < quizzes.length) return next;
+        return cur;
+      });
+    };
+    window.addEventListener('qurie-quiz-advance', onAdvance);
+    return () => window.removeEventListener('qurie-quiz-advance', onAdvance);
+  }, [quizzes.length]);
+
+  const ready = index < quizzes.length;
+  const q = ready ? quizzes[index] : null;
+  const selected = q != null ? answers[q.id] : undefined;
+  const hasSelection = selected != null;
+  const result = q != null ? results[q.id] : undefined;
+  const revealed = result?.status === 'ATTEMPTED';
+  const skipped = result?.status === 'SKIPPED';
+  const locked = revealed || skipped;
+
+  const tryGo = (next: number) => {
+    if (next < 0 || next >= totalSlots) return;
+    if (next >= quizzes.length) {
+      onNotReady();
+      return;
+    }
+    onClearWarn();
+    setIndex(next);
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
-      {quizzes.map((q) => {
-        const revealed = Boolean(revealedIds[q.id]);
-        const feedback = Object.prototype.hasOwnProperty.call(accuracyByQuiz, q.id)
-          ? accuracyByQuiz[q.id]
-          : undefined;
-        return (
+    <div
+      style={{ position: 'relative', marginTop: 12 }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div
+        style={{
+          border: '1px solid var(--border)',
+          borderRadius: 12,
+          padding: 14,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+          minHeight: 220,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
+            {index + 1} / {totalSlots}
+          </span>
           <div
-            key={q.id}
             style={{
-              border: '1px solid var(--border)',
-              borderRadius: 12,
-              padding: 12,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
+              flex: 1,
+              height: 6,
+              borderRadius: 999,
+              background: 'var(--surface-sunken)',
+              overflow: 'hidden',
             }}
           >
+            <div
+              style={{
+                width: `${Math.round(((index + 1) / totalSlots) * 100)}%`,
+                height: '100%',
+                background: 'var(--accent)',
+                borderRadius: 999,
+                transition: 'width 220ms ease-out',
+              }}
+            />
+          </div>
+          {generating ? <CircularLoader /> : null}
+        </div>
+
+        {warnMessage ? (
+          <AlertBanner
+            tone="warning"
+            title={warnMessage}
+            actionLabel="확인"
+            onAction={onClearWarn}
+          />
+        ) : null}
+
+        {!ready || q == null ? (
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              padding: '28px 8px',
+              color: 'var(--text-muted)',
+              fontSize: 13,
+              textAlign: 'center',
+            }}
+          >
+            {generating ? <CircularLoader size={28} /> : null}
+            아직 퀴즈가 생성되지 않았어요
+          </div>
+        ) : (
+          <>
             <QuizMetaRow
               type={q.type}
               difficulty={q.difficulty}
@@ -228,94 +354,190 @@ function PlayableQuizList({
             {q.choices.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {q.choices.map((c) => {
-                  const selected = answers[q.id] === c.idx;
-                  const isCorrect = Boolean(c.answer);
-                  const showResult = revealed && c.answer != null;
+                  const isSelected = selected === c.idx;
+                  const isCorrectChoice =
+                    revealed &&
+                    (c.answer === true ||
+                      (result?.correctChoiceIdx != null && result.correctChoiceIdx === c.idx));
+                  const isWrongSelected =
+                    revealed && isSelected && result?.isCorrect === false;
                   return (
                     <button
                       key={c.idx}
                       type="button"
-                      onClick={() => onSelect(q.id, c.idx)}
-                      disabled={revealed}
+                      onClick={() => {
+                        if (locked) return;
+                        onToggleChoice(q.id, c.idx);
+                      }}
+                      disabled={locked}
                       style={{
                         textAlign: 'left',
                         fontSize: 12.5,
-                        color: showResult && isCorrect ? 'var(--status-success)' : 'var(--ink)',
-                        fontWeight: showResult && isCorrect ? 600 : 400,
+                        color: isCorrectChoice
+                          ? 'var(--status-success)'
+                          : isWrongSelected
+                            ? 'var(--status-error)'
+                            : 'var(--ink)',
+                        fontWeight: isCorrectChoice || isSelected ? 600 : 400,
                         lineHeight: 1.45,
                         padding: '8px 10px',
                         borderRadius: 8,
-                        border:
-                          showResult && isCorrect
-                            ? '1px solid var(--status-success)'
-                            : selected
+                        border: isCorrectChoice
+                          ? '1px solid var(--status-success)'
+                          : isWrongSelected
+                            ? '1px solid var(--status-error)'
+                            : isSelected
                               ? '1px solid var(--accent-strong)'
                               : '1px solid var(--border)',
-                        background:
-                          showResult && isCorrect
-                            ? 'var(--status-success-bg)'
-                            : selected
+                        background: isCorrectChoice
+                          ? 'var(--status-success-bg)'
+                          : isWrongSelected
+                            ? 'var(--status-error-bg)'
+                            : isSelected
                               ? 'var(--status-accent-bg)'
                               : 'var(--surface-sunken)',
-                        cursor: revealed ? 'default' : 'pointer',
+                        cursor: locked ? 'default' : 'pointer',
                         fontFamily: 'var(--font-sans)',
                       }}
                     >
                       {c.idx + 1}. {c.content}
-                      {showResult && isCorrect ? <span style={{ marginLeft: 6 }}>정답</span> : null}
+                      {isCorrectChoice ? <span style={{ marginLeft: 6 }}>정답</span> : null}
                     </button>
                   );
                 })}
               </div>
             ) : null}
 
-            {canCheckAnswer && !revealed ? (
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <Button variant="secondary" size="sm" onClick={() => onReveal(q.id)}>
-                  정답 확인
-                </Button>
-              </div>
-            ) : null}
-
-            {canCheckAnswer && revealed ? (
+            {revealed ? (
               <div
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 8,
-                  paddingTop: 4,
+                  gap: 6,
+                  paddingTop: 6,
                   borderTop: '1px solid var(--border)',
                 }}
               >
-                {q.explanation ? (
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: result?.isCorrect ? 'var(--status-success)' : 'var(--status-error)',
+                  }}
+                >
+                  {result?.isCorrect ? '정답이에요' : '오답이에요'}
+                </span>
+                {result?.explanation ? (
                   <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                    해설 · {q.explanation}
+                    AI 해설 · {result.explanation}
                   </span>
                 ) : null}
-                {feedback === undefined ? (
-                  <>
-                    <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)' }}>
-                      문제가 정확한가요?
-                    </span>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <Button variant="primary" size="sm" onClick={() => onAccuracy(q.id, true)}>
-                        예
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => onAccuracy(q.id, false)}>
-                        아니오
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                    피드백 · {feedback ? '정확함' : '부정확함'}
-                  </span>
-                )}
               </div>
             ) : null}
-          </div>
-        );
-      })}
+
+            {skipped ? (
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>이 문항은 건너뛰었어요.</span>
+            ) : null}
+
+            {!locked ? (
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={hasSelection || submitting}
+                  onClick={() => onSkip(q)}
+                >
+                  건너뛰기
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={!hasSelection || submitting}
+                  onClick={() => onSubmit(q)}
+                >
+                  {submitting ? '제출 중…' : '제출'}
+                </Button>
+              </div>
+            ) : null}
+          </>
+        )}
+      </div>
+
+      {hovered && index > 0 ? (
+        <button
+          type="button"
+          aria-label="이전 문항"
+          onClick={() => tryGo(index - 1)}
+          style={{
+            position: 'absolute',
+            left: -6,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            border: '1px solid var(--border-strong)',
+            background: 'var(--surface-modal)',
+            boxShadow: 'var(--shadow-card)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: 'var(--ink)',
+            zIndex: 2,
+          }}
+        >
+          <ChevronLeft size={16} />
+        </button>
+      ) : null}
+      {hovered && index < totalSlots - 1 ? (
+        <button
+          type="button"
+          aria-label="다음 문항"
+          onClick={() => tryGo(index + 1)}
+          style={{
+            position: 'absolute',
+            right: -6,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            border: '1px solid var(--border-strong)',
+            background: 'var(--surface-modal)',
+            boxShadow: 'var(--shadow-card)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: 'var(--ink)',
+            zIndex: 2,
+          }}
+        >
+          <ChevronRight size={16} />
+        </button>
+      ) : null}
+
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 10 }}>
+        {Array.from({ length: totalSlots }, (_, i) => (
+          <button
+            key={i}
+            type="button"
+            aria-label={`${i + 1}번 문항`}
+            onClick={() => tryGo(i)}
+            style={{
+              width: i === index ? 18 : 8,
+              height: 8,
+              borderRadius: 999,
+              border: 'none',
+              background: i === index ? 'var(--accent)' : i < quizzes.length ? 'var(--border-strong)' : 'var(--border)',
+              cursor: 'pointer',
+              transition: 'width 160ms ease, background 160ms ease',
+              padding: 0,
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -411,24 +633,21 @@ export function SessionQuizPanel({
 
   const generateQuiz = useGenerateQuiz();
   const submitSatisfaction = useSubmitQuizSatisfaction();
+  const submitProgress = useSubmitQuizProgress();
   const [mode, setMode] = useState<QuizGenerationMode>('PRACTICE');
   const [count, setCount] = useState('5');
   const [userPrompt, setUserPrompt] = useState('');
-  /** 이번 화면에서 방금 생성한 퀴즈셋. 서버/스토리지 복원값과 합쳐 active id 를 고른다. */
   const [createdQuizSetId, setCreatedQuizSetId] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [navWarn, setNavWarn] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [lastSource, setLastSource] = useState<QuizSourceSelection | null>(null);
   const [satisfactionRating, setSatisfactionRating] = useState(0);
   const [satisfactionComment, setSatisfactionComment] = useState('');
-  /** 닫거나 제출한 퀴즈셋 — 같은 세트에 대해 다시 띄우지 않는다. */
   const [satisfactionDismissedFor, setSatisfactionDismissedFor] = useState<number | null>(null);
-  /** 퀴즈셋별 선택 답안 — 세트 바뀌면 키만 달라져 자동 리셋 */
   const [answersBySet, setAnswersBySet] = useState<Record<number, Record<number, number>>>({});
-  /** 퀴즈셋별 · 문항별 정답 확인 여부 */
-  const [revealedBySet, setRevealedBySet] = useState<Record<number, Record<number, boolean>>>({});
-  /** 퀴즈셋별 · 문항별 정확도 피드백 (UI 전용, 서버 미저장) */
-  const [accuracyBySet, setAccuracyBySet] = useState<Record<number, Record<number, boolean>>>({});
+  const [resultsBySet, setResultsBySet] = useState<Record<number, Record<number, QuizResult>>>({});
+  const [startedAtBySet, setStartedAtBySet] = useState<Record<number, Record<number, string>>>({});
 
   const projectQuizSets = useQuizSetsByProject(projectId);
 
@@ -447,8 +666,8 @@ export function SessionQuizPanel({
   }, [sessionId, activeQuizSetId]);
 
   const answers = activeQuizSetId != null ? (answersBySet[activeQuizSetId] ?? {}) : {};
-  const revealedIds = activeQuizSetId != null ? (revealedBySet[activeQuizSetId] ?? {}) : {};
-  const accuracyByQuiz = activeQuizSetId != null ? (accuracyBySet[activeQuizSetId] ?? {}) : {};
+  const results = activeQuizSetId != null ? (resultsBySet[activeQuizSetId] ?? {}) : {};
+  const startedAts = activeQuizSetId != null ? (startedAtBySet[activeQuizSetId] ?? {}) : {};
 
   const managerPoll = usePollQuizSet(isInstructor ? activeQuizSetId : null);
   const studentPoll = usePollQuizQuestions(!isInstructor ? activeQuizSetId : null);
@@ -469,8 +688,10 @@ export function SessionQuizPanel({
     [summary],
   );
 
-  const allAnswered =
-    playableQuizzes.length > 0 && playableQuizzes.every((q) => answers[q.id] != null);
+  const allHandled =
+    playableQuizzes.length > 0 &&
+    summary?.status === 'COMPLETED' &&
+    playableQuizzes.every((q) => results[q.id] != null);
 
   const alreadyRated =
     activeQuizSetId != null &&
@@ -480,10 +701,22 @@ export function SessionQuizPanel({
   const satisfactionVisible =
     isInstructor &&
     summary?.status === 'COMPLETED' &&
-    allAnswered &&
+    allHandled &&
     activeQuizSetId != null &&
     !alreadyRated &&
     satisfactionDismissedFor !== activeQuizSetId;
+
+  const ensureStarted = (quizId: number) => {
+    if (activeQuizSetId == null) return new Date().toISOString();
+    const existing = startedAts[quizId];
+    if (existing) return existing;
+    const now = new Date().toISOString();
+    setStartedAtBySet((prev) => ({
+      ...prev,
+      [activeQuizSetId]: { ...(prev[activeQuizSetId] ?? {}), [quizId]: now },
+    }));
+    return now;
+  };
 
   const openSourcePicker = () => {
     if (!isInstructor || projectId == null) return;
@@ -505,11 +738,10 @@ export function SessionQuizPanel({
     }
     setFormError(null);
     try {
-      // 새로고침 직후 access 만료면 파일 병렬 GET 이 401 경합을 일으킨다 — 먼저 갱신한다.
       try {
         await refresh();
       } catch {
-        // refresh 실패해도 getMe/파일 요청에서 axios interceptor 가 한 번 더 시도한다.
+        // refresh 실패해도 이후 요청에서 interceptor 가 재시도한다.
       }
 
       const fileSummaries = await getProjectFiles(projectId);
@@ -521,7 +753,6 @@ export function SessionQuizPanel({
       }
 
       const files: Record<string, string> = {};
-      // 동시 다발 GET 은 refresh 토큰 회전과 충돌하기 쉬워 순차로 읽는다.
       for (const path of scopedPaths) {
         const body = await getProjectFileContent(projectId, path);
         files[body.path] = body.content;
@@ -590,6 +821,112 @@ export function SessionQuizPanel({
     );
   };
 
+  const gradeLocally = (quiz: PlayableQuiz, choiceIdx: number): QuizResult => {
+    const correct = quiz.choices.find((c) => c.answer === true);
+    const isCorrect = correct != null ? correct.idx === choiceIdx : null;
+    return {
+      status: 'ATTEMPTED',
+      isCorrect,
+      explanation: quiz.explanation ?? null,
+      correctChoiceIdx: correct?.idx ?? null,
+    };
+  };
+
+  const onSubmitQuiz = (quiz: PlayableQuiz) => {
+    if (activeQuizSetId == null) return;
+    const choiceIdx = answers[quiz.id];
+    if (choiceIdx == null) return;
+    const startedAt = ensureStarted(quiz.id);
+    const finishedAt = new Date().toISOString();
+
+    // 강사는 이미 정답·해설을 갖고 있어 로컬 채점. 학생은 progress API.
+    if (isInstructor && quiz.choices.some((c) => c.answer != null)) {
+      setResultsBySet((prev) => ({
+        ...prev,
+        [activeQuizSetId]: {
+          ...(prev[activeQuizSetId] ?? {}),
+          [quiz.id]: gradeLocally(quiz, choiceIdx),
+        },
+      }));
+      return;
+    }
+
+    submitProgress.mutate(
+      {
+        quizSetId: activeQuizSetId,
+        quizId: quiz.id,
+        status: 'ATTEMPTED',
+        chosenChoiceIdx: choiceIdx,
+        startedAt,
+        finishedAt,
+      },
+      {
+        onSuccess: (res) => {
+          setResultsBySet((prev) => ({
+            ...prev,
+            [activeQuizSetId]: {
+              ...(prev[activeQuizSetId] ?? {}),
+              [quiz.id]: {
+                status: 'ATTEMPTED',
+                isCorrect: res.isCorrect,
+                explanation: res.explanation,
+                correctChoiceIdx: res.correctChoiceIdx,
+              },
+            },
+          }));
+        },
+        onError: (err) => {
+          setFormError(apiErrorMessage(err, '제출에 실패했습니다.'));
+        },
+      },
+    );
+  };
+
+  const onSkipQuiz = (quiz: PlayableQuiz) => {
+    if (activeQuizSetId == null) return;
+    if (answers[quiz.id] != null) return;
+    const startedAt = ensureStarted(quiz.id);
+    const finishedAt = new Date().toISOString();
+
+    const markSkipped = () => {
+      setResultsBySet((prev) => ({
+        ...prev,
+        [activeQuizSetId]: {
+          ...(prev[activeQuizSetId] ?? {}),
+          [quiz.id]: {
+            status: 'SKIPPED',
+            isCorrect: null,
+            explanation: null,
+            correctChoiceIdx: null,
+          },
+        },
+      }));
+      window.dispatchEvent(new CustomEvent('qurie-quiz-advance'));
+    };
+
+    if (isInstructor) {
+      markSkipped();
+      return;
+    }
+
+    submitProgress.mutate(
+      {
+        quizSetId: activeQuizSetId,
+        quizId: quiz.id,
+        status: 'SKIPPED',
+        chosenChoiceIdx: null,
+        startedAt,
+        finishedAt,
+      },
+      {
+        onSuccess: () => markSkipped(),
+        onError: (err) => {
+          setFormError(apiErrorMessage(err, '건너뛰기에 실패했습니다.'));
+        },
+      },
+    );
+  };
+
   const restoring =
     projectId != null &&
     activeQuizSetId == null &&
@@ -602,7 +939,18 @@ export function SessionQuizPanel({
         <span style={{ fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.55 }}>
           {isInstructor
             ? '프로젝트를 임포트한 뒤 퀴즈를 생성할 수 있습니다.'
-            : '강사가 퀴즈를 생성하면 여기에 나타나요.'}
+            : '아직 퀴즈가 생성되지 않았어요'}
+        </span>
+      </div>
+    );
+  }
+
+  if (!isInstructor && activeQuizSetId == null && !restoring) {
+    return (
+      <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>AI 퀴즈</span>
+        <span style={{ fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.55 }}>
+          아직 퀴즈가 생성되지 않았어요
         </span>
       </div>
     );
@@ -631,7 +979,11 @@ export function SessionQuizPanel({
         (latestSummary.status === 'QUEUED' || latestSummary.status === 'GENERATING') &&
         summary == null));
 
-  const showQuizList = playableQuizzes.length > 0;
+  const showQuizPlayer = playableQuizzes.length > 0 || showGeneratingPlaceholder;
+  const generating =
+    summary?.status === 'QUEUED' ||
+    summary?.status === 'GENERATING' ||
+    Boolean(showGeneratingPlaceholder && summary?.status !== 'COMPLETED');
 
   return (
     <div
@@ -754,39 +1106,42 @@ export function SessionQuizPanel({
           errorMessage={errorMessage ?? latestSummary?.errorMessage ?? undefined}
           meta={
             isInstructor
-              ? `GET /quiz?project · #${activeQuizSetId} 복원 · 소켓 알림 시 갱신`
-              : `GET /quiz/${activeQuizSetId}/questions · 정답·해설 제외`
+              ? `GET /quiz?project · #${activeQuizSetId}`
+              : `GET /quiz/${activeQuizSetId}/questions`
           }
         >
-          {showQuizList ? (
-            <PlayableQuizList
+          {showQuizPlayer ? (
+            <SingleQuizPlayer
               quizzes={playableQuizzes}
+              requestedCount={requestedCount ?? playableQuizzes.length}
+              generating={generating}
               answers={answers}
-              onSelect={(quizId, choiceIdx) => {
+              onToggleChoice={(quizId, choiceIdx) => {
                 if (activeQuizSetId == null) return;
-                setAnswersBySet((prev) => ({
-                  ...prev,
-                  [activeQuizSetId]: { ...(prev[activeQuizSetId] ?? {}), [quizId]: choiceIdx },
-                }));
+                ensureStarted(quizId);
+                setAnswersBySet((prev) => {
+                  const cur = prev[activeQuizSetId] ?? {};
+                  const next = { ...cur };
+                  if (next[quizId] === choiceIdx) {
+                    delete next[quizId];
+                  } else {
+                    next[quizId] = choiceIdx;
+                  }
+                  return { ...prev, [activeQuizSetId]: next };
+                });
               }}
-              canCheckAnswer={isInstructor && isManagerSummary(summary!)}
-              revealedIds={revealedIds}
-              onReveal={(quizId) => {
-                if (activeQuizSetId == null) return;
-                setRevealedBySet((prev) => ({
-                  ...prev,
-                  [activeQuizSetId]: { ...(prev[activeQuizSetId] ?? {}), [quizId]: true },
-                }));
-              }}
-              accuracyByQuiz={accuracyByQuiz}
-              onAccuracy={(quizId, accurate) => {
-                if (activeQuizSetId == null) return;
-                setAccuracyBySet((prev) => ({
-                  ...prev,
-                  [activeQuizSetId]: { ...(prev[activeQuizSetId] ?? {}), [quizId]: accurate },
-                }));
-              }}
+              results={results}
+              onSubmit={onSubmitQuiz}
+              onSkip={onSkipQuiz}
+              submitting={submitProgress.isPending}
+              warnMessage={navWarn}
+              onNotReady={() => setNavWarn('아직 퀴즈가 생성되지 않았어요')}
+              onClearWarn={() => setNavWarn(null)}
             />
+          ) : !generating && summary?.status === 'COMPLETED' && playableQuizzes.length === 0 ? (
+            <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
+              아직 퀴즈가 생성되지 않았어요
+            </span>
           ) : null}
         </AsyncJobPanel>
       ) : null}

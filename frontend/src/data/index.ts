@@ -105,6 +105,9 @@ export {
   useGetSessionReport,
   useUpdateSession,
   useDeleteSession,
+  useAskSessionHelp,
+  useGetClassHelpRequests,
+  useDismissHelpRequest,
 } from '../network/session';
 export type {
   SessionCreateRequest,
@@ -116,6 +119,7 @@ export type {
   SessionReportCreateRequest,
   SessionReportCreateResponse,
   SessionReportDetailResponse,
+  HelpRequestResponse,
 } from '../network/session';
 export {
   useGetMyClasses,
@@ -220,6 +224,7 @@ export {
   useGetQuizQuestions,
   usePollQuizQuestions,
   useQuizSetsByProject,
+  useSubmitQuizProgress,
   useSubmitQuizSatisfaction,
   formatQuizSource,
   normalizeQuizSetStatus,
@@ -240,6 +245,9 @@ export type {
   QuizSetStatus,
   QuizSetSummaryResponse,
   QuizSatisfactionRequest,
+  QuizProgressSubmitRequest,
+  QuizProgressResponse,
+  QuizProgressStatus,
 } from '../network/quiz';
 /** 세션 실시간(STOMP) — 채팅 · 참여자 · 퀴즈/프로젝트 · 음성 채널을 한 연결에서 받는다. */
 export { useSessionSocket } from '../realtime/useSessionSocket';

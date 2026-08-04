@@ -1,7 +1,16 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
-import { QueryAsyncBoundary, useGetNotices, type NoticeResponse, type UserRole } from '../../data';
+import {
+  QueryAsyncBoundary,
+  useDismissHelpRequest,
+  useGetClassHelpRequests,
+  useGetNotices,
+  useMeOptional,
+  type HelpRequestResponse,
+  type NoticeResponse,
+  type UserRole,
+} from '../../data';
 import { Skeleton } from '../../ds';
 
 const READ_KEY = 'qurie-notice-read-ids';
@@ -34,16 +43,120 @@ function allNoticesPath(role: UserRole): string | null {
   return null;
 }
 
+function HelpRequestRows({
+  requests,
+  onClose,
+}: {
+  requests: HelpRequestResponse[];
+  onClose: () => void;
+}) {
+  const navigate = useNavigate();
+  const dismiss = useDismissHelpRequest();
+
+  if (requests.length === 0) return null;
+
+  return (
+    <>
+      <div
+        style={{
+          padding: '10px 14px 6px',
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          color: 'var(--accent)',
+        }}
+      >
+        질문 요청
+      </div>
+      {requests.map((req) => (
+        <div
+          key={`help-${req.id}`}
+          style={{
+            padding: '12px 14px',
+            borderBottom: '1px solid var(--divider)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--status-warning)' }}>호출</span>
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>
+              {new Date(req.createdAt).toLocaleTimeString('ko-KR', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+            {req.fromName}님이 도움이 필요해요
+          </span>
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+            세션 · {req.sessionTitle || `#${req.sessionId}`}
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => {
+                dismiss.mutate(req.id);
+                onClose();
+                navigate(`/session/${req.sessionId}`);
+              }}
+              style={{
+                border: 'none',
+                background: 'var(--accent)',
+                color: 'var(--text-inverse)',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                borderRadius: 8,
+                padding: '6px 10px',
+              }}
+            >
+              세션으로 이동
+            </button>
+            <button
+              type="button"
+              onClick={() => dismiss.mutate(req.id)}
+              style={{
+                border: '1px solid var(--border)',
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                borderRadius: 8,
+                padding: '6px 10px',
+              }}
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 function BellPanel({
   role,
+  classId,
   onClose,
 }: {
   role: UserRole;
+  classId: number | null;
   onClose: () => void;
 }) {
   const navigate = useNavigate();
   const { data } = useGetNotices({ size: 8 });
+  const helpQuery = useGetClassHelpRequests(
+    role === 'MANAGER' || role === 'MASTER' ? classId : null,
+  );
   const notices = data.data;
+  const helpRequests = helpQuery.data ?? [];
   const morePath = allNoticesPath(role);
 
   useEffect(() => {
@@ -82,7 +195,7 @@ function BellPanel({
           borderBottom: '1px solid var(--divider)',
         }}
       >
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>알림 · 공지</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>알림</span>
         {morePath ? (
           <button
             type="button"
@@ -101,12 +214,29 @@ function BellPanel({
               padding: 0,
             }}
           >
-            전체 보기
+            공지 전체
           </button>
         ) : null}
       </div>
+
+      <HelpRequestRows requests={helpRequests} onClose={onClose} />
+
+      <div
+        style={{
+          padding: '10px 14px 6px',
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+        }}
+      >
+        공지
+      </div>
       {notices.length === 0 ? (
-        <div style={{ padding: 20, fontSize: 13, color: 'var(--text-muted)' }}>새 공지가 없습니다.</div>
+        <div style={{ padding: '8px 20px 20px', fontSize: 13, color: 'var(--text-muted)' }}>
+          {helpRequests.length === 0 ? '새 알림이 없습니다.' : '새 공지가 없습니다.'}
+        </div>
       ) : (
         notices.map((n) => (
           <div
@@ -159,10 +289,23 @@ function BellPanel({
   );
 }
 
-function UnreadBadge({ version }: { version: number }) {
+function UnreadBadge({
+  version,
+  classId,
+  role,
+}: {
+  version: number;
+  classId: number | null;
+  role: UserRole;
+}) {
   const { data } = useGetNotices({ size: 8 });
+  const helpQuery = useGetClassHelpRequests(
+    role === 'MANAGER' || role === 'MASTER' ? classId : null,
+  );
   void version;
-  const unread = data.data.filter((n) => !readIds().has(n.id)).length;
+  const unreadNotices = data.data.filter((n) => !readIds().has(n.id)).length;
+  const helpCount = helpQuery.data?.length ?? 0;
+  const unread = unreadNotices + helpCount;
   if (unread <= 0) return null;
   return (
     <span
@@ -194,12 +337,14 @@ type NotificationBellProps = {
   role: UserRole;
 };
 
-/** Topbar bell: recent notices as in-app notifications (no dedicated notification API yet). */
+/** Topbar bell: notices + manager help-request alerts. */
 export function NotificationBell({ role }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const [readVersion, setReadVersion] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
+  const meQuery = useMeOptional();
+  const classId = meQuery.data?.classId ?? null;
 
   const close = () => {
     setOpen(false);
@@ -248,7 +393,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
       >
         <Bell size={17} strokeWidth={1.75} />
         <QueryAsyncBoundary suspenseFallback={null} errorFallback={null}>
-          <UnreadBadge version={readVersion} />
+          <UnreadBadge version={readVersion} classId={classId} role={role} />
         </QueryAsyncBoundary>
       </button>
       {open ? (
@@ -293,7 +438,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
               </div>
             }
           >
-            <BellPanel role={role} onClose={close} />
+            <BellPanel role={role} classId={classId} onClose={close} />
           </QueryAsyncBoundary>
         </div>
       ) : null}

@@ -146,3 +146,35 @@ export const submitQuizSatisfaction = async (
     );
     return data;
 };
+
+export type QuizProgressStatus = 'ATTEMPTED' | 'SKIPPED' | 'TIMEOUT';
+
+export interface QuizProgressSubmitRequest {
+    status: QuizProgressStatus;
+    chosenChoiceIdx?: number | null;
+    startedAt: string;
+    finishedAt: string;
+}
+
+export interface QuizProgressResponse {
+    id: number;
+    quizId: number;
+    status: QuizProgressStatus;
+    chosenChoiceIdx: number | null;
+    isCorrect: boolean | null;
+    elapsedMs: number;
+    explanation: string | null;
+    correctChoiceIdx: number | null;
+}
+
+export const submitQuizProgress = async (
+    quizSetId: number,
+    quizId: number,
+    body: QuizProgressSubmitRequest,
+): Promise<QuizProgressResponse> => {
+    const { data } = await axiosInstance.post<QuizProgressResponse>(
+        `/quiz/${quizSetId}/questions/${quizId}/progress`,
+        body,
+    );
+    return data;
+};
