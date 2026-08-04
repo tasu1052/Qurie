@@ -219,7 +219,7 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
         : '초대장 발송하기';
 
   return (
-    <>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0, width: '100%' }}>
       <input
         ref={fileInputRef}
         type="file"
@@ -279,7 +279,7 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
 
       <div className="qurie-table-card">
         <div className="qurie-table-scroll">
-          <div style={{ minWidth: 800 }}>
+          <div style={{ minWidth: 720 }}>
             <div
               className="qurie-table-grid"
               style={{
@@ -333,41 +333,40 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
                       {(m.name || '?').slice(0, 1)}
                     </span>
                     <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                      <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
+                      <span style={{ fontWeight: 600, color: 'var(--ink)', wordBreak: 'break-word' }}>{m.name}</span>
                       <span
                         style={{
                           fontFamily: 'var(--font-mono)',
                           fontSize: 12,
                           color: 'var(--text-muted)',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
+                          wordBreak: 'break-all',
                         }}
                       >
                         {m.email}
                       </span>
                     </span>
                   </span>
-                  <span style={{ display: 'inline-flex', justifySelf: 'start' }}>{roleBadge(m.role)}</span>
-                  <span>{m.phone}</span>
-                  <span>{m.region}</span>
-                  <span>{m.gender}</span>
+                  <span style={{ display: 'inline-flex', justifySelf: 'start', minWidth: 0 }}>{roleBadge(m.role)}</span>
+                  <span style={{ minWidth: 0, wordBreak: 'break-word' }}>{m.phone}</span>
+                  <span style={{ minWidth: 0, wordBreak: 'break-word' }}>{m.region}</span>
+                  <span style={{ minWidth: 0 }}>{m.gender}</span>
                 </div>
               ))
             )}
           </div>
         </div>
+        {filtered.length > MANAGER_PAGE_SIZE ? (
+          <div style={{ padding: '14px 24px', borderTop: '1px solid var(--divider)' }}>
+            <Pagination
+              page={safePage}
+              pageCount={pageCount}
+              pageSize={MANAGER_PAGE_SIZE}
+              rangeLabel={`${rangeStart}–${rangeEnd} / ${filtered.length}명`}
+              onPage={setPage}
+            />
+          </div>
+        ) : null}
       </div>
-
-      {filtered.length > MANAGER_PAGE_SIZE ? (
-        <Pagination
-          page={safePage}
-          pageCount={pageCount}
-          pageSize={MANAGER_PAGE_SIZE}
-          rangeLabel={`${rangeStart}–${rangeEnd} / ${filtered.length}명`}
-          onPage={setPage}
-        />
-      ) : null}
 
       <Modal
         open={inviteOpen}
@@ -432,7 +431,7 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
           )}
         </div>
       </Modal>
-    </>
+    </div>
   );
 }
 
