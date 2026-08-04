@@ -197,16 +197,7 @@ function MembersTable({
   }, [page, pageCount]);
 
   return (
-    <div
-      style={{
-        background: 'var(--surface-card)',
-        border: '1px solid var(--border)',
-        borderRadius: 16,
-        boxShadow: 'var(--shadow-card)',
-        overflow: 'hidden',
-        minWidth: 0,
-      }}
-    >
+    <div className="qurie-table-card">
       <div
         style={{
           display: 'flex',
@@ -224,84 +215,89 @@ function MembersTable({
           width={220}
         />
       </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1.8fr 1.2fr',
-          padding: '10px 24px',
-          borderBottom: '1px solid var(--divider)',
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-          color: 'var(--text-muted)',
-        }}
-      >
-        <span>학생</span>
-        <span>그룹</span>
-      </div>
-      {filtered.length === 0 ? (
-        <div style={{ padding: 32 }}>
-        <EmptyState
-          message={students.length === 0 ? '학생이 없습니다' : '검색 결과가 없습니다'}
-          description={
-            students.length === 0
-              ? '클래스에 배정된 학생이 없습니다.'
-              : '이름·이메일을 바꿔 검색해 보세요.'
-          }
-          actionLabel="그룹 관리"
-          onAction={() => navigate('/manager/groups')}
-        />
-        </div>
-      ) : (
-        <>
-          {pageItems.map((m) => (
-            <div
-              key={m.userId}
-              role="button"
-              tabIndex={0}
-              onClick={() => navigate(`/manager/students/detail/${m.userId}`)}
-              onKeyDown={(e) =>
-                e.key === 'Enter' && navigate(`/manager/students/detail/${m.userId}`)
-              }
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1.8fr 1.2fr',
-                padding: '13px 24px',
-                borderBottom: '1px solid var(--divider)',
-                fontSize: 13,
-                alignItems: 'center',
-                cursor: 'pointer',
-              }}
-            >
-              <span style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 12,
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  {m.email}
-                </span>
-              </span>
-              <span style={{ color: 'var(--text-secondary)' }}>{m.groupName ?? '—'}</span>
-            </div>
-          ))}
-          {sorted.length > MEMBERS_PAGE_SIZE ? (
-            <div style={{ padding: '14px 24px', borderTop: '1px solid var(--divider)' }}>
-              <Pagination
-                page={safePage}
-                pageCount={pageCount}
-                pageSize={MEMBERS_PAGE_SIZE}
-                rangeLabel={`${rangeStart}–${rangeEnd} / ${sorted.length}명`}
-                onPage={setPage}
+      <div className="qurie-table-scroll">
+        <div style={{ minWidth: 480 }}>
+          <div
+            className="qurie-table-grid"
+            style={{
+              gridTemplateColumns: '1.8fr 1.2fr',
+              padding: '10px 24px',
+              borderBottom: '1px solid var(--divider)',
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+            }}
+          >
+            <span>학생</span>
+            <span>그룹</span>
+          </div>
+          {filtered.length === 0 ? (
+            <div style={{ padding: 32 }}>
+              <EmptyState
+                message={students.length === 0 ? '학생이 없습니다' : '검색 결과가 없습니다'}
+                description={
+                  students.length === 0
+                    ? '클래스에 배정된 학생이 없습니다.'
+                    : '이름·이메일을 바꿔 검색해 보세요.'
+                }
+                actionLabel="그룹 관리"
+                onAction={() => navigate('/manager/groups')}
               />
             </div>
-          ) : null}
-        </>
-      )}
+          ) : (
+            pageItems.map((m) => (
+              <div
+                key={m.userId}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/manager/students/detail/${m.userId}`)}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' && navigate(`/manager/students/detail/${m.userId}`)
+                }
+                className="qurie-table-grid"
+                style={{
+                  gridTemplateColumns: '1.8fr 1.2fr',
+                  padding: '13px 24px',
+                  borderBottom: '1px solid var(--divider)',
+                  fontSize: 13,
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                  <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 12,
+                      color: 'var(--text-muted)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {m.email}
+                  </span>
+                </span>
+                <span style={{ color: 'var(--text-secondary)' }}>{m.groupName ?? '—'}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+      {sorted.length > MEMBERS_PAGE_SIZE ? (
+        <div style={{ padding: '14px 24px', borderTop: '1px solid var(--divider)' }}>
+          <Pagination
+            page={safePage}
+            pageCount={pageCount}
+            pageSize={MEMBERS_PAGE_SIZE}
+            rangeLabel={`${rangeStart}–${rangeEnd} / ${sorted.length}명`}
+            onPage={setPage}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

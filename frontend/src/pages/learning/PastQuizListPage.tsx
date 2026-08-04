@@ -110,93 +110,97 @@ function SessionListTable({
 
   return (
     <>
-      <div
-        style={{
-          background: 'var(--surface-card)',
-          border: '1px solid var(--border)',
-          borderRadius: 16,
-          boxShadow: 'var(--shadow-card)',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '2fr 1.2fr 0.8fr 1.4fr',
-            padding: '10px 24px',
-            borderBottom: '1px solid var(--divider)',
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-          }}
-        >
-          <span>세션</span>
-          <span>시작</span>
-          <span>상태</span>
-          <span style={{ textAlign: 'right' }}>액션</span>
-        </div>
-        {pageItems.map((s) => {
-          const status = sessionStatus(s);
-          const quizMock = getPastQuizSetBySessionId(s.id);
-          return (
+      <div className="qurie-table-card">
+        <div className="qurie-table-scroll">
+          <div style={{ minWidth: 720 }}>
             <div
-              key={s.id}
+              className="qurie-table-grid"
               style={{
-                display: 'grid',
                 gridTemplateColumns: '2fr 1.2fr 0.8fr 1.4fr',
-                padding: '13px 24px',
+                padding: '10px 24px',
                 borderBottom: '1px solid var(--divider)',
-                fontSize: 13,
-                alignItems: 'center',
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
               }}
             >
-              <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 12.5,
-                    color: 'var(--ink)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  {s.title}
-                  {s.classPublic ? <Badge status="accent">수업</Badge> : null}
-                </span>
-                {quizMock ? (
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    퀴즈 {quizMock.scoreCorrect}/{quizMock.scoreTotal}
-                  </span>
-                ) : null}
-              </span>
-              <span style={{ color: 'var(--text-secondary)' }}>{formatSessionTime(s.createdAt)}</span>
-              {status === 'LIVE' ? <LiveBadge /> : <Badge status="neutral">종료</Badge>}
-              <span style={{ textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={!quizMock}
-                  onClick={() => {
-                    if (quizMock) navigate(`${basePath}/quizzes/${quizMock.quizSetId}`);
-                  }}
-                >
-                  지난 퀴즈
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate(`/session/${s.id}/report`)}
-                >
-                  세션 리포트
-                </Button>
-              </span>
+              <span>세션</span>
+              <span>시작</span>
+              <span>상태</span>
+              <span style={{ textAlign: 'right' }}>액션</span>
             </div>
-          );
-        })}
+            {pageItems.map((s) => {
+              const status = sessionStatus(s);
+              const quizMock = getPastQuizSetBySessionId(s.id);
+              return (
+                <div
+                  key={s.id}
+                  className="qurie-table-grid"
+                  style={{
+                    gridTemplateColumns: '2fr 1.2fr 0.8fr 1.4fr',
+                    padding: '13px 24px',
+                    borderBottom: '1px solid var(--divider)',
+                    fontSize: 13,
+                    alignItems: 'center',
+                  }}
+                >
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 12.5,
+                        color: 'var(--ink)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      {s.title}
+                      {s.classPublic ? <Badge status="accent">수업</Badge> : null}
+                    </span>
+                    {quizMock ? (
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        퀴즈 {quizMock.scoreCorrect}/{quizMock.scoreTotal}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{formatSessionTime(s.createdAt)}</span>
+                  {status === 'LIVE' ? <LiveBadge /> : <Badge status="neutral">종료</Badge>}
+                  <span
+                    style={{
+                      textAlign: 'right',
+                      display: 'flex',
+                      gap: 6,
+                      justifyContent: 'flex-end',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={!quizMock}
+                      onClick={() => {
+                        if (quizMock) navigate(`${basePath}/quizzes/${quizMock.quizSetId}`);
+                      }}
+                    >
+                      지난 퀴즈
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate(`/session/${s.id}/report`)}
+                    >
+                      세션 리포트
+                    </Button>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
       {filtered.length > PAGE_SIZE ? (
         <Pagination

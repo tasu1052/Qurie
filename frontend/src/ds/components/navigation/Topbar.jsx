@@ -9,6 +9,7 @@ export function Topbar({
   actions=null,
   userName='관리자',
   userRole=null,
+  userEmail=null,
   searchIcon=null,
   hideSearch=false,
   onUserClick,
@@ -39,7 +40,7 @@ return <header className={`qurie-topbar${className?` ${className}`:''}`} style={
 <span className="qurie-topbar__avatar" style={{width:28,height:28,borderRadius:'50%',background:'var(--accent-soft)',color:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,flexShrink:0}}>{(userName||'?').slice(0,1)}</span>
 <div className="qurie-topbar__user-text" style={{display:'flex',flexDirection:'column',lineHeight:1.2,minWidth:0}}>
 <span style={{fontSize:13,fontWeight:600,color:'var(--ink)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{userName}</span>
-{userRole&&<span className="qurie-topbar__user-role" style={{fontSize:10,color:'var(--text-muted)',letterSpacing:'var(--ls-caps)'}}>{userRole}</span>}
+{(userEmail||userRole)&&<span className="qurie-topbar__user-role" style={{fontSize:11,color:'var(--text-muted)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{userEmail||userRole}</span>}
 </div>
 </div>
 </div>

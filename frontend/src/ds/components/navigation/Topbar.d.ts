@@ -6,6 +6,8 @@ export interface TopbarProps {
   actions?: React.ReactNode;
   userName?: string;
   userRole?: string | null;
+  /** Secondary line under name (preferred over userRole when set). */
+  userEmail?: string | null;
   searchIcon?: React.ReactNode;
   /** When true, hides the ⌘K search input. */
   hideSearch?: boolean;

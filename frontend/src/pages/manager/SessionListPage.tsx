@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { Plus, Search } from 'lucide-react';
@@ -80,6 +80,8 @@ function sessionStatus(s: SessionResponse): 'LIVE' | '종료' {
   return '종료';
 }
 
+const SESSION_PAGE_SIZE = 20;
+
 function SessionTable({
   classId,
   statusFilter,
@@ -121,6 +123,19 @@ function SessionTable({
     return true;
   });
 
+  const pageCount = Math.max(1, Math.ceil(filtered.length / SESSION_PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageItems = filtered.slice(
+    (safePage - 1) * SESSION_PAGE_SIZE,
+    safePage * SESSION_PAGE_SIZE,
+  );
+  const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * SESSION_PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safePage * SESSION_PAGE_SIZE, filtered.length);
+
+  useEffect(() => {
+    if (page > pageCount) onPage(pageCount);
+  }, [page, pageCount, onPage]);
+
   if (filtered.length === 0) {
     return (
       <EmptyState
@@ -133,115 +148,113 @@ function SessionTable({
 
   return (
     <RowSection style={{ gap: 24 }}>
-      <div
-        style={{
-          background: 'var(--surface-card)',
-          border: '1px solid var(--border)',
-          borderRadius: 16,
-          boxShadow: 'var(--shadow-card)',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '2fr 1.2fr 0.8fr 1.2fr',
-            padding: '10px 24px',
-            borderBottom: '1px solid var(--divider)',
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-          }}
-        >
-          <span>세션</span>
-          <span>시작</span>
-          <span>상태</span>
-          <span style={{ textAlign: 'right' }}>액션</span>
-        </div>
-        {filtered.map((s) => {
-          const status = sessionStatus(s);
-          const pastMock = status === '종료' ? resolvePastSessionMock(s.id) : null;
-          const groupLabel =
-            s.groupId != null ? groupNameById.get(s.groupId) ?? `그룹 #${s.groupId}` : null;
-          return (
+      <div className="qurie-table-card">
+        <div className="qurie-table-scroll">
+          <div style={{ minWidth: 720 }}>
             <div
-              key={s.id}
+              className="qurie-table-grid"
               style={{
-                display: 'grid',
-                gridTemplateColumns: '2fr 1.2fr 0.8fr 1.2fr',
-                padding: '13px 24px',
+                gridTemplateColumns: '2fr 1.2fr 0.8fr 1.4fr',
+                padding: '10px 24px',
                 borderBottom: '1px solid var(--divider)',
-                fontSize: 13,
-                alignItems: 'center',
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
               }}
             >
-              <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)', display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  {s.title}
-                  {s.classPublic ? <Badge status="accent">수업</Badge> : null}
-                  {!s.classPublic && groupLabel ? (
-                    <Badge status="neutral">{groupLabel}</Badge>
-                  ) : null}
-                </span>
-                {pastMock ? (
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: 'var(--text-muted)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {pastMock.aiSummary}
-                  </span>
-                ) : null}
-              </span>
-              <span style={{ color: 'var(--text-secondary)' }}>
-                {formatSessionTime(s.createdAt)}
-              </span>
-              {status === 'LIVE' ? (
-                <LiveBadge />
-              ) : (
-                <Badge status="neutral">{status}</Badge>
-              )}
-              <span style={{ textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    if (status === '종료') onReport(s.id);
-                    else onEnter(s.id, s.title);
+              <span>세션</span>
+              <span>시작</span>
+              <span>상태</span>
+              <span style={{ textAlign: 'right' }}>액션</span>
+            </div>
+            {pageItems.map((s) => {
+              const status = sessionStatus(s);
+              const pastMock = status === '종료' ? resolvePastSessionMock(s.id) : null;
+              const groupLabel =
+                s.groupId != null ? groupNameById.get(s.groupId) ?? `그룹 #${s.groupId}` : null;
+              return (
+                <div
+                  key={s.id}
+                  className="qurie-table-grid"
+                  style={{
+                    gridTemplateColumns: '2fr 1.2fr 0.8fr 1.4fr',
+                    padding: '13px 24px',
+                    borderBottom: '1px solid var(--divider)',
+                    fontSize: 13,
+                    alignItems: 'center',
                   }}
                 >
-                  {status === '종료' ? '리포트' : '입장'}
-                </Button>
-                {status === '종료' && pastMock ? (
-                  <Button variant="ghost" size="sm" onClick={() => onQuiz(pastMock.quizSetId)}>
-                    퀴즈
-                  </Button>
-                ) : null}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDelete(s)}
-                >
-                  삭제
-                </Button>
-              </span>
-            </div>
-          );
-        })}
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)', display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      {s.title}
+                      {s.classPublic ? <Badge status="accent">수업</Badge> : null}
+                      {!s.classPublic && groupLabel ? (
+                        <Badge status="neutral">{groupLabel}</Badge>
+                      ) : null}
+                    </span>
+                    {pastMock ? (
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: 'var(--text-muted)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {pastMock.aiSummary}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    {formatSessionTime(s.createdAt)}
+                  </span>
+                  {status === 'LIVE' ? (
+                    <LiveBadge />
+                  ) : (
+                    <Badge status="neutral">{status}</Badge>
+                  )}
+                  <span style={{ textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        if (status === '종료') onReport(s.id);
+                        else onEnter(s.id, s.title);
+                      }}
+                    >
+                      {status === '종료' ? '리포트' : '입장'}
+                    </Button>
+                    {status === '종료' && pastMock ? (
+                      <Button variant="ghost" size="sm" onClick={() => onQuiz(pastMock.quizSetId)}>
+                        퀴즈
+                      </Button>
+                    ) : null}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onDelete(s)}
+                    >
+                      삭제
+                    </Button>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
-      <Pagination
-        page={page}
-        pageCount={1}
-        pageSize={10}
-        rangeLabel={`1–${filtered.length} / ${filtered.length}개`}
-        onPage={onPage}
-      />
+      {filtered.length > SESSION_PAGE_SIZE ? (
+        <Pagination
+          page={safePage}
+          pageCount={pageCount}
+          pageSize={SESSION_PAGE_SIZE}
+          rangeLabel={`${rangeStart}–${rangeEnd} / ${filtered.length}개`}
+          onPage={onPage}
+        />
+      ) : null}
     </RowSection>
   );
 }
@@ -272,6 +285,10 @@ export default function SessionListPage() {
   });
 
   const chips = ['전체', '진행', '종료'];
+
+  useEffect(() => {
+    setPage(1);
+  }, [status, query]);
 
   const openSessionInNewTab = (sessionId: number, title?: string) => {
     if (title) saveSessionTitle(sessionId, title);

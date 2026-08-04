@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { isAxiosError } from 'axios';
 import { Filter, Mail, Search, UserPlus } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
@@ -10,6 +10,7 @@ import {
   FileDropzone,
   Input,
   Modal,
+  Pagination,
   RowErrorFallback,
   Select,
   Skeleton,
@@ -106,10 +107,13 @@ function toManagerRow(u: UserSummaryResponse): ManagerRow {
 
 const regionOptions = REGION_OPTIONS.map((r) => ({ value: r.value, label: r.label }));
 
+const MANAGER_PAGE_SIZE = 20;
+
 function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query, 300);
   const [regionFilter, setRegionFilter] = useState('all');
+  const [page, setPage] = useState(1);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteClassId, setInviteClassId] = useState('');
@@ -140,6 +144,25 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
       );
     });
   }, [managers, debouncedQuery, regionFilter]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / MANAGER_PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageItems = filtered.slice(
+    (safePage - 1) * MANAGER_PAGE_SIZE,
+    safePage * MANAGER_PAGE_SIZE,
+  );
+  const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * MANAGER_PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safePage * MANAGER_PAGE_SIZE, filtered.length);
+  const loadedCount = managers.length;
+  const totalCount = usersPage.meta.total;
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedQuery, regionFilter]);
+
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
 
   const resetInviteMessages = () => {
     setInviteError(null);
@@ -259,84 +282,101 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
           <Filter size={12} style={{ marginRight: 4 }} />
           {filtered.length}명 표시
+          {totalCount > loadedCount ? ` · 총 ${totalCount}명 중 ${loadedCount}명 로드됨` : null}
         </span>
       </div>
 
-      <div
-        style={{
-          background: 'var(--surface-card)',
-          border: '1px solid var(--border)',
-          borderRadius: 16,
-          boxShadow: 'var(--shadow-card)',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr',
-            padding: '12px 24px',
-            borderBottom: '1px solid var(--divider)',
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-          }}
-        >
-          <span>매니저</span>
-          <span>역할</span>
-          <span>전화번호</span>
-          <span>지역</span>
-          <span>성별</span>
-        </div>
-        {filtered.length === 0 ? (
-          <div style={{ padding: 24, fontSize: 13, color: 'var(--text-muted)' }}>매니저가 없습니다.</div>
-        ) : (
-          filtered.map((m) => (
+      <div className="qurie-table-card">
+        <div className="qurie-table-scroll">
+          <div style={{ minWidth: 800 }}>
             <div
-              key={m.id}
+              className="qurie-table-grid"
               style={{
-                display: 'grid',
                 gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr',
-                padding: '13px 24px',
+                padding: '12px 24px',
                 borderBottom: '1px solid var(--divider)',
-                fontSize: 13,
-                alignItems: 'center',
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span
+              <span>매니저</span>
+              <span>역할</span>
+              <span>전화번호</span>
+              <span>지역</span>
+              <span>성별</span>
+            </div>
+            {filtered.length === 0 ? (
+              <div style={{ padding: 24, fontSize: 13, color: 'var(--text-muted)' }}>매니저가 없습니다.</div>
+            ) : (
+              pageItems.map((m) => (
+                <div
+                  key={m.id}
+                  className="qurie-table-grid"
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: '50%',
-                    background: 'var(--accent-soft)',
-                    color: 'var(--accent)',
-                    display: 'inline-flex',
+                    gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr',
+                    padding: '13px 24px',
+                    borderBottom: '1px solid var(--divider)',
+                    fontSize: 13,
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 12,
-                    fontWeight: 700,
                   }}
                 >
-                  {(m.name || '?').slice(0, 1)}
-                </span>
-                <span style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
-                    {m.email}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                    <span
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        background: 'var(--accent-soft)',
+                        color: 'var(--accent)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {(m.name || '?').slice(0, 1)}
+                    </span>
+                    <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                      <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 12,
+                          color: 'var(--text-muted)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {m.email}
+                      </span>
+                    </span>
                   </span>
-                </span>
-              </span>
-              <span style={{ display: 'inline-flex', justifySelf: 'start' }}>{roleBadge(m.role)}</span>
-              <span>{m.phone}</span>
-              <span>{m.region}</span>
-              <span>{m.gender}</span>
-            </div>
-          ))
-        )}
+                  <span style={{ display: 'inline-flex', justifySelf: 'start' }}>{roleBadge(m.role)}</span>
+                  <span>{m.phone}</span>
+                  <span>{m.region}</span>
+                  <span>{m.gender}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
+
+      {filtered.length > MANAGER_PAGE_SIZE ? (
+        <Pagination
+          page={safePage}
+          pageCount={pageCount}
+          pageSize={MANAGER_PAGE_SIZE}
+          rangeLabel={`${rangeStart}–${rangeEnd} / ${filtered.length}명`}
+          onPage={setPage}
+        />
+      ) : null}
 
       <Modal
         open={inviteOpen}

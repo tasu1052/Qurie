@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { Sidebar, Topbar } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
-import { useMe } from '../../data';
+import { useAccountIdentity } from '../../hooks/useAccountIdentity';
 import type { UserRole } from '../../network/core/types';
 import { NotificationBell } from '../notifications/NotificationBell';
 import { shellConfigByRole } from './shellConfig';
@@ -38,7 +38,7 @@ function useIsMobile(breakpoint = MOBILE_BREAKPOINT) {
 export function AppShell({ role, activeKey, breadcrumbs, children }: AppShellProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { data: user } = useMe();
+  const account = useAccountIdentity();
   const config = shellConfigByRole[role];
   const isMobile = useIsMobile();
   const [navOpen, setNavOpen] = useState(false);
@@ -96,7 +96,7 @@ export function AppShell({ role, activeKey, breadcrumbs, children }: AppShellPro
           logoSrc={logoSrc}
           onSelect={onNavSelect}
           footer={
-            <SidebarAccountFooter name={user.name} email={user.email} onProfileClick={goMe} />
+            <SidebarAccountFooter name={account.name} email={account.email} onProfileClick={goMe} />
           }
         />
       </div>
@@ -104,8 +104,8 @@ export function AppShell({ role, activeKey, breadcrumbs, children }: AppShellPro
         <Topbar
           style={{ flexShrink: 0, width: '100%' }}
           breadcrumbs={breadcrumbs}
-          userName={user.name}
-          userRole={user.role}
+          userName={account.name}
+          userEmail={account.email}
           hideSearch
           onUserClick={goMe}
           leading={
@@ -121,7 +121,7 @@ export function AppShell({ role, activeKey, breadcrumbs, children }: AppShellPro
               </button>
             ) : null
           }
-          actions={<NotificationBell role={user.role} />}
+          actions={<NotificationBell role={account.role} />}
         />
         {children}
       </div>
