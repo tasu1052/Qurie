@@ -16,6 +16,8 @@ interface PeerSlot {
   pendingCandidates: RTCIceCandidateInit[];
 }
 
+const DEFAULT_PEER_VOLUME = 1;
+
 export interface UseSessionVoiceOptions {
   /** 음성 채널에 들어와 있을 때만 true */
   enabled: boolean;
@@ -54,11 +56,14 @@ export function useSessionVoice(options: UseSessionVoiceOptions) {
 
   const [mediaStatus, setMediaStatus] = useState<'starting' | 'live' | 'error' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** 원격 참여자별 수신 음량 0~1 (UI 슬라이더) */
+  const [peerVolumes, setPeerVolumes] = useState<Record<number, number>>({});
   const channelActive = enabled && myUserId != null;
   const status: SessionVoiceStatus = !channelActive ? 'idle' : (mediaStatus ?? 'starting');
 
   const localStreamRef = useRef<MediaStream | null>(null);
   const peersRef = useRef<Map<number, PeerSlot>>(new Map());
+  const volumesRef = useRef<Map<number, number>>(new Map());
   const sendSignalRef = useRef(sendSignal);
   const myUserIdRef = useRef(myUserId);
   const deafenedRef = useRef(deafened);
@@ -122,6 +127,7 @@ export function useSessionVoice(options: UseSessionVoiceOptions) {
     audio.setAttribute('playsinline', '');
     audio.dataset.voicePeer = String(remoteUserId);
     audio.muted = deafenedRef.current;
+    audio.volume = volumesRef.current.get(remoteUserId) ?? DEFAULT_PEER_VOLUME;
     document.body.appendChild(audio);
 
     const slot: PeerSlot = {
@@ -353,9 +359,21 @@ export function useSessionVoice(options: UseSessionVoiceOptions) {
     }
   }, [deafened]);
 
+  const setPeerVolume = (userId: number, volume: number) => {
+    const next = Math.min(1, Math.max(0, volume));
+    volumesRef.current.set(userId, next);
+    setPeerVolumes((prev) => (prev[userId] === next ? prev : { ...prev, [userId]: next }));
+    const slot = peersRef.current.get(userId);
+    if (slot) {
+      slot.audio.volume = next;
+    }
+  };
+
   return {
     status,
     error,
     dismissError: () => setError(null),
+    peerVolumes,
+    setPeerVolume,
   };
 }

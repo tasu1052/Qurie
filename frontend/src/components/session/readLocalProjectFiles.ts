@@ -68,6 +68,6 @@ export function languageFromPath(path: string): string {
     case 'sql':
       return 'sql';
     default:
-      return 'typescript';
+      return 'plaintext';
   }
 }
