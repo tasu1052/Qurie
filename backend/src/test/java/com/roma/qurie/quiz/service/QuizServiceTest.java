@@ -22,6 +22,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.roma.qurie.project.Project;
@@ -44,6 +47,7 @@ import com.roma.qurie.quiz.entity.QuizGenerationMode;
 import com.roma.qurie.quiz.entity.QuizSet;
 import com.roma.qurie.quiz.entity.QuizSetStatus;
 import com.roma.qurie.quiz.entity.QuizType;
+import com.roma.qurie.quiz.repository.QuizProgressRepository;
 import com.roma.qurie.quiz.repository.QuizSetRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -62,6 +66,12 @@ class QuizServiceTest {
 
 	@Mock
 	private QuizSetRepository quizSetRepository;
+
+	@Mock
+	private QuizProgressRepository quizProgressRepository;
+
+	@Mock
+	private TransactionTemplate transactionTemplate;
 
 	@Mock
 	private ProjectRepository projectRepository;
@@ -84,6 +94,12 @@ class QuizServiceTest {
 		org.mockito.Mockito.lenient()
 				.when(quizSetRepository.existsByProjectIdAndStatusIn(any(), any()))
 				.thenReturn(false);
+		org.mockito.Mockito.lenient()
+				.when(transactionTemplate.execute(any()))
+				.thenAnswer(invocation -> {
+					TransactionCallback<?> callback = invocation.getArgument(0);
+					return callback.doInTransaction(org.mockito.Mockito.mock(TransactionStatus.class));
+				});
 	}
 
 	@Test
@@ -124,6 +140,23 @@ class QuizServiceTest {
 				quizService.requestQuizGeneration(PROJECT_ID, generateRequest(), MANAGER);
 
 		assertThat(response.status()).isEqualTo(QuizSetStatus.FAILED);
+	}
+
+	@Test
+	void requestQuizGenerationWipesPreviousSetsAndProgress() {
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
+		List<QuizSet> previousSets = List.of(generatingQuizSet());
+		given(quizSetRepository.findByProjectIdOrderByIdDesc(PROJECT_ID)).willReturn(previousSets);
+		given(quizSetRepository.save(any(QuizSet.class))).willAnswer(invocation -> invocation.getArgument(0));
+		given(quizAiClient.createQuizSet(eq(PROJECT_ID), any(AiQuizCreateRequest.class)))
+				.willReturn(new AiQuizSetAccepted(AI_QUIZ_SET_ID, "1", "PENDING"));
+
+		quizService.requestQuizGeneration(PROJECT_ID, generateRequest(), MANAGER);
+
+		// 응시 기록이 문항 FK 에 물려 있으므로 반드시 퀴즈셋 삭제보다 먼저 지워야 한다.
+		org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(quizProgressRepository, quizSetRepository);
+		inOrder.verify(quizProgressRepository).deleteAllByQuizSetProjectId(PROJECT_ID);
+		inOrder.verify(quizSetRepository).deleteAll(previousSets);
 	}
 
 	@Test
