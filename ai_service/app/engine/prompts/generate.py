@@ -96,7 +96,7 @@ def build_generate_prompt(
 
 {hint}
 [출력]
-emit_quizzes 도구로만 답하세요. quizzes 배열 길이는 정확히 {requested_count}개.
+지정된 출력 형식에 맞춰서만 답하세요. quizzes 배열 길이는 정확히 {requested_count}개.
 예시 (MICRO는 값을 채우고, CONCEPTUAL은 null):
   {{"purpose":"MICRO","difficulty":"NORMAL","tested_concept":"","question":"","choices":["","","",""],"answer_index":0,"explanation":"","file_path":"{primary_file}","line_start":1,"line_end":3}}
   {{"purpose":"CONCEPTUAL","difficulty":"EASY","tested_concept":"","question":"","choices":["","","",""],"answer_index":0,"explanation":"","file_path":null,"line_start":null,"line_end":null}}
