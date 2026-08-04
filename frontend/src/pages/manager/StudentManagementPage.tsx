@@ -252,7 +252,7 @@ function MembersTable({
         />
       </div>
       <div className="qurie-table-scroll">
-        <div style={{ minWidth: 640 }}>
+        <div style={{ minWidth: 640 }} className="qurie-table-inner">
           <div
             className="qurie-table-grid"
             style={{
