@@ -78,16 +78,7 @@ function DetailSkeleton() {
 
 function MemberList({ members }: { members: ClassMemberResponse[] }) {
   return (
-    <div
-      style={{
-        background: 'var(--surface-card-solid)',
-        border: '1px solid var(--border)',
-        borderRadius: 16,
-        boxShadow: 'var(--shadow-card)',
-        overflow: 'hidden',
-        minWidth: 0,
-      }}
-    >
+    <div className="qurie-table-card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 12px' }}>
         <span
           style={{
@@ -105,11 +96,11 @@ function MemberList({ members }: { members: ClassMemberResponse[] }) {
       {members.length === 0 ? (
         <p style={{ margin: '0 20px 20px', fontSize: 13, color: 'var(--text-muted)' }}>등록된 멤버가 없습니다.</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <div style={{ minWidth: 480 }}>
+        <div className="qurie-table-scroll">
+          <div style={{ minWidth: 720 }}>
             <div
+              className="qurie-table-grid"
               style={{
-                display: 'grid',
                 gridTemplateColumns: MEMBER_GRID,
                 padding: '10px 20px',
                 borderBottom: '1px solid var(--divider)',
@@ -125,44 +116,44 @@ function MemberList({ members }: { members: ClassMemberResponse[] }) {
               <span>전화번호</span>
               <span>그룹</span>
             </div>
-            <div style={{ maxHeight: 360, overflowY: 'auto' }}>
-              {members.map((m) => {
-                const phone = getUserProfileExtras(m.email).phone;
-                return (
-                  <div
-                    key={m.userId}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: MEMBER_GRID,
-                      padding: '12px 20px',
-                      borderBottom: '1px solid var(--divider)',
-                      fontSize: 13,
-                      alignItems: 'center',
-                      gap: 8,
-                    }}
-                  >
-                    <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                      <span style={{ fontWeight: 600, color: 'var(--ink)', wordBreak: 'break-word' }}>{m.name}</span>
-                      <span
-                        style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: 12,
-                          color: 'var(--text-muted)',
-                          wordBreak: 'break-all',
-                        }}
-                      >
-                        {m.email}
-                      </span>
+            {members.map((m) => {
+              const phone = getUserProfileExtras(m.email).phone;
+              return (
+                <div
+                  key={m.userId}
+                  className="qurie-table-grid"
+                  style={{
+                    gridTemplateColumns: MEMBER_GRID,
+                    padding: '12px 20px',
+                    borderBottom: '1px solid var(--divider)',
+                    fontSize: 13,
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                    <span style={{ fontWeight: 600, color: 'var(--ink)', wordBreak: 'break-word' }}>{m.name}</span>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 12,
+                        color: 'var(--text-muted)',
+                        wordBreak: 'break-all',
+                      }}
+                    >
+                      {m.email}
                     </span>
-                    <span style={{ minWidth: 0 }}>{roleBadge(m.role)}</span>
-                    <span style={{ color: 'var(--text-secondary)', minWidth: 0 }}>{phone || '—'}</span>
-                    <span style={{ color: 'var(--text-secondary)', minWidth: 0, wordBreak: 'break-word' }}>
-                      {m.groupName ?? '—'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+                  </span>
+                  <span style={{ minWidth: 0 }}>{roleBadge(m.role)}</span>
+                  <span style={{ color: 'var(--text-secondary)', minWidth: 0, wordBreak: 'break-word' }}>
+                    {phone || '—'}
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)', minWidth: 0, wordBreak: 'break-word' }}>
+                    {m.groupName ?? '—'}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -285,7 +276,7 @@ function ClassDetailBody({ classId }: { classId: number }) {
   };
 
   return (
-    <>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0, width: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
@@ -356,7 +347,7 @@ function ClassDetailBody({ classId }: { classId: number }) {
         onConfirm={onConfirmDelete}
       />
       {deleteError ? <AlertBanner tone="error" title="삭제 실패" description={deleteError} /> : null}
-    </>
+    </div>
   );
 }
 
