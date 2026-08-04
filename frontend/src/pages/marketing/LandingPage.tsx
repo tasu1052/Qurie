@@ -42,8 +42,8 @@ export default function LandingPage() {
           )}
           <Link to="/demo" style={{ textDecoration: 'none' }}>
             <Button variant="primary">
-              <span className="landing-header-demo-full">데모 요청하기</span>
-              <span className="landing-header-demo-short">데모</span>
+              <span className="landing-header-demo-full">도입 문의</span>
+              <span className="landing-header-demo-short">문의</span>
             </Button>
           </Link>
         </div>
@@ -52,18 +52,18 @@ export default function LandingPage() {
       {/* Hero — centered copy + animated product mock */}
       <section className="landing-hero">
         <h1 className="landing-hero-title">
-          AI 시대, 부트캠프를 위한
+          부트캠프·기업 교육을 위한
           <br />
-          최적의 코드 교육 솔루션
+          실시간 코딩 교육 플랫폼
         </h1>
         <p className="landing-hero-lead">
-          Qurie는 기업·기관을 위한 실시간 협업 코드 학습 플랫폼이에요. 클래스와 세션 단위로 학습을 운영하고,
-          AI가 만든 퀴즈와 세션 리포트로 구성원의 성장을 숫자로 살펴볼 수 있어요.
+          Qurie는 기업·기관을 위한 실시간 코딩 교육 플랫폼이에요. 수업과 실습을 한곳에서 운영하고,
+          AI가 만든 퀴즈와 학습 리포트로 구성원의 성장을 한눈에 볼 수 있어요.
         </p>
         <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
           <Link to="/demo" style={{ textDecoration: 'none' }}>
             <Button variant="primary" style={{ padding: '13px 24px', fontSize: 15 }}>
-              데모 요청하기 <span style={{ color: 'var(--primary-300)', fontWeight: 800 }}>&gt;</span>
+              도입 문의하기 <span style={{ color: 'var(--primary-300)', fontWeight: 800 }}>&gt;</span>
             </Button>
           </Link>
         </div>
@@ -85,10 +85,10 @@ export default function LandingPage() {
               color: 'var(--accent)',
             }}
           >
-            Core features
+            주요 기능
           </span>
           <h2 style={{ fontWeight: 700, color: 'var(--ink)', margin: 0 }}>
-            학습 관리부터 트랙 운영까지, 하나의 흐름으로
+            수업 준비부터 과정 운영까지, 하나의 흐름으로
           </h2>
         </div>
 
@@ -109,15 +109,15 @@ export default function LandingPage() {
             >
               <Users size={20} strokeWidth={1.75} />
             </span>
-            <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>실시간 협업 세션</h3>
+            <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>함께하는 실시간 코딩 수업</h3>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-              클래스 안에서 세션을 열고, 프로젝트 코드를 불러와 여러 명이 동시에 편집해요.
-              변경 내용이 바로바로 맞춰져서 충돌 없이 함께 작업할 수 있어요.
+              수업 시간에 실습 코드를 불러와 여러 명이 같은 화면에서 함께 수정해요.
+              변경 내용이 바로 반영되어 겹치지 않고 함께 작업할 수 있어요.
             </p>
             {[
-              '동시 편집 · 원격 커서 · 접속자 표시',
-              '세션 안 실시간 채팅과 터미널 공유',
-              '그룹 리더와 참가자 단위로 학습을 운영',
+              '같은 코드를 동시에 수정 · 누가 어디를 보고 있는지 표시',
+              '수업 중 실시간 채팅과 실행 화면 공유',
+              '팀별·개인별로 수업을 나눠 운영',
             ].map((item) => (
               <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-body)' }}>
                 <Check size={14} style={{ color: 'var(--status-success)' }} />
@@ -140,9 +140,9 @@ export default function LandingPage() {
           >
             <div className="landing-session-header" style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
               <span style={{ fontSize: 10, letterSpacing: '0.06em', color: 'var(--grey-300)', textTransform: 'uppercase' }}>
-                session
+                실습 중
               </span>
-              <span style={{ color: 'var(--primary-300)' }}>java-seoul-1/react-hooks</span>
+              <span style={{ color: 'var(--primary-300)' }}>React 실습 · 3반</span>
               <span
                 className="landing-session-live"
                 style={{
@@ -157,7 +157,7 @@ export default function LandingPage() {
                 }}
               >
                 <span className="qurie-live-dot" style={{ width: 6, height: 6, background: '#7ee2a8' }} />
-                LIVE · 4명 접속
+                진행 중 · 4명 참여
               </span>
             </div>
             <div>
@@ -198,7 +198,7 @@ export default function LandingPage() {
               &nbsp;&nbsp;<span style={{ color: '#c792ea' }}>useEffect</span>(() =&gt; {'{'}
             </div>
             <div>
-              &nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: '#697098' }}>// 300ms 이후 반영</span>
+              &nbsp;&nbsp;&nbsp;&nbsp;<span style={{ color: '#697098' }}>// 입력 후 0.3초 뒤 반영</span>
               <span
                 style={{
                   display: 'inline-block',
@@ -246,7 +246,7 @@ export default function LandingPage() {
             }}
           >
             <div className="landing-quiz-pipeline">
-              {['AI 난이도 산정', '문제 생성', '재검증 · 조정'].map((label, i) => (
+              {['수준 파악', '문제 만들기', '검토 · 난이도 맞추기'].map((label, i) => (
                 <span key={label} style={{ display: 'contents' }}>
                   <span
                     style={{
@@ -297,26 +297,26 @@ export default function LandingPage() {
             >
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <span style={{ background: 'var(--status-neutral-bg)', color: 'var(--status-neutral)', borderRadius: 999, padding: '3px 10px', fontSize: 10.5, fontWeight: 600 }}>
-                  MULTIPLE_CHOICE
+                  객관식
                 </span>
                 <span style={{ background: 'var(--accent-softer)', color: 'var(--accent)', borderRadius: 999, padding: '3px 10px', fontSize: 10.5, fontWeight: 600 }}>
-                  CONCEPTUAL
+                  개념
                 </span>
                 <span style={{ background: 'var(--status-warning-bg)', color: 'var(--status-warning)', borderRadius: 999, padding: '3px 10px', fontSize: 10.5, fontWeight: 600 }}>
-                  NORMAL
+                  보통
                 </span>
                 <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
-                  time_limit 90s
+                  제한 시간 90초
                 </span>
               </div>
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>
-                useEffect의 cleanup 함수가 실행되는 시점은 언제인가요?
+                화면이 사라질 때 실행되는 함수는 언제 동작하나요?
               </div>
               <div style={{ border: '1px solid var(--accent)', background: 'var(--accent-softer)', borderRadius: 999, padding: '9px 14px', fontSize: 13, color: 'var(--ink)' }}>
-                다음 effect 실행 직전과 언마운트 시점
+                다음 실행 전과 화면이 없어질 때
               </div>
               <div style={{ border: '1px solid var(--border-strong)', borderRadius: 999, padding: '9px 14px', fontSize: 13, color: 'var(--text-secondary)' }}>
-                컴포넌트가 처음 마운트될 때 한 번
+                화면이 처음 나타날 때 한 번
               </div>
             </div>
           </div>
@@ -335,15 +335,15 @@ export default function LandingPage() {
             >
               <Brain size={20} strokeWidth={1.75} />
             </span>
-            <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>AI 퀴즈 자동 생성</h3>
+            <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>AI가 퀴즈를 만들어 줘요</h3>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-              세션에 연결된 프로젝트 코드를 바탕으로 AI가 퀴즈를 만들어요. 난이도를 먼저 살펴보고, 만든 문제를
-              다시 점검해 쉬움 · 보통 · 어려움으로 맞춰 줘요.
+              방금 다룬 실습 내용을 바탕으로 AI가 퀴즈를 만들어요. 수준을 먼저 파악한 뒤, 문제를 다시 검토해
+              쉬움 · 보통 · 어려움에 맞게 조정해 줘요.
             </p>
             {[
-              '개념형 · 코드형 목적에 맞춰 문제 구성',
-              '문제별 제한 시간으로 부정행위를 줄여 줘요',
-              '정답 해설까지 AI가 함께 작성해 줘요',
+              '이해 확인형 · 실습형으로 목적에 맞게 문제 구성',
+              '문제마다 제한 시간을 두어 공정하게 평가해요',
+              '정답과 해설까지 AI가 함께 작성해 줘요',
             ].map((item) => (
               <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-body)' }}>
                 <Check size={14} style={{ color: 'var(--status-success)' }} />
@@ -370,15 +370,15 @@ export default function LandingPage() {
             >
               <BarChart3 size={20} strokeWidth={1.75} />
             </span>
-            <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>세션 리포트 & 인사 데이터 연계</h3>
+            <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>학습 리포트로 성과 확인</h3>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-              세션이 끝나면 구성원별 퀴즈 완료율·정답률·난이도 비율·평점이 리포트로 나와요. Master는 이 데이터를
-              바탕으로 매니저 평가와 인사 관리에 활용할 수 있어요.
+              수업이 끝나면 구성원별 퀴즈 완료율·정답률·난이도·평점이 리포트로 정리돼요. 교육 관리자는 이 자료로
+              강사 평가와 운영 개선에 활용할 수 있어요.
             </p>
             {[
-              '세션 단위 자동 집계 · 발급 이력 관리',
-              '매니저 코멘트와 첨부 파일 등록',
-              '불성실 계정 비활성화 등 인사 조치 근거',
+              '수업별 자동 집계 · 기록 보관',
+              '강사 코멘트와 자료 첨부',
+              '참여가 저조한 구성원 관리 근거',
             ].map((item) => (
               <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-body)' }}>
                 <Check size={14} style={{ color: 'var(--status-success)' }} />
@@ -401,9 +401,9 @@ export default function LandingPage() {
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                Session report
+                학습 리포트
               </span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>SR-20260722-JW</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>2026.07.22 · 김지원</span>
             </div>
             <div className="landing-report-stats">
               {[
@@ -421,12 +421,12 @@ export default function LandingPage() {
               <DonutChart
                 size={110}
                 thickness={14}
-                centerValue="H 40%"
+                centerValue="어려움 40%"
                 centerLabel="난이도 비율"
                 segments={[
-                  { label: 'EASY', value: 20 },
-                  { label: 'NORMAL', value: 40, accent: true },
-                  { label: 'HARD', value: 40 },
+                  { label: '쉬움', value: 20 },
+                  { label: '보통', value: 40, accent: true },
+                  { label: '어려움', value: 40 },
                 ]}
               />
             </div>
@@ -438,13 +438,12 @@ export default function LandingPage() {
       <section id="cta" className="landing-cta">
         <h2 className="landing-cta-title">지금 Qurie로 팀의 학습을 시작해 보세요</h2>
         <p style={{ margin: 0, fontSize: 14, color: 'var(--grey-300)', maxWidth: 480 }}>
-          기업 등록부터 매니저 초대, 첫 세션 개설까지 하루면 충분해요. 도입 상담을 통해 조직에 맞는 운영 방식을
-          함께 찾아 드려요.
+          도입 상담부터 강사 초대, 첫 수업 개설까지 하루면 충분해요. 조직에 맞는 운영 방식을 함께 찾아 드려요.
         </p>
         <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
           <Link to="/demo" style={{ textDecoration: 'none' }}>
             <Button variant="accent" style={{ padding: '13px 24px', fontSize: 15 }}>
-              데모 요청하기
+              도입 문의하기
             </Button>
           </Link>
         </div>
@@ -458,7 +457,7 @@ export default function LandingPage() {
           style={{ height: 24, width: 'auto', objectFit: 'contain', objectPosition: 'left', display: 'block' }}
         />
         <p style={{ margin: 0, fontSize: 12, lineHeight: 1.6, color: 'var(--text-muted)' }}>
-          기업을 위한 실시간 협업 코드 학습 & AI 퀴즈 플랫폼.
+          기업·기관을 위한 실시간 코딩 교육 & AI 퀴즈 플랫폼.
         </p>
         <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>© 2026 Qurie · 현재 데모 버전</p>
       </footer>
