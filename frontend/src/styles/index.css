@@ -129,6 +129,11 @@ body {
 }
 
 /* App shell — mobile drawer sidebar (master / manager / student) */
+.qurie-app-shell {
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
+}
 .qurie-app-shell__main {
   flex: 1 1 auto;
   display: flex;

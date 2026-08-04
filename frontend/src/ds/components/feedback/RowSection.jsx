@@ -21,10 +21,10 @@ return <section style={{display:'flex',flexDirection:'column',gap:8,...style}}>
 export function RowSkeleton({height=132,columns=1,gap=16,radius=16,style={}}){
 return <div aria-hidden="true" style={{display:'grid',gridTemplateColumns:'repeat('+columns+',minmax(0,1fr))',gap,...style}}>
 {Array.from({length:columns}).map((_,i)=>
-<div key={i} style={{height,borderRadius:radius,background:'#fff',border:'1px solid var(--border)',padding:20,display:'flex',flexDirection:'column',gap:14}}>
-<div style={{width:76,height:11,borderRadius:6,background:'rgba(17,17,17,0.07)',animation:'qurie-skeleton 1.4s ease-in-out '+(i*0.08)+'s infinite'}}/>
-<div style={{width:104,height:30,borderRadius:8,background:'rgba(17,17,17,0.09)',animation:'qurie-skeleton 1.4s ease-in-out '+(i*0.08+0.1)+'s infinite'}}/>
-<div style={{width:60,height:10,borderRadius:6,background:'rgba(17,17,17,0.05)',animation:'qurie-skeleton 1.4s ease-in-out '+(i*0.08+0.2)+'s infinite'}}/>
+<div key={i} style={{height,borderRadius:radius,background:'var(--surface-card)',border:'1px solid var(--border)',padding:20,display:'flex',flexDirection:'column',gap:14}}>
+<div style={{width:76,height:11,borderRadius:6,background:'var(--surface-sunken)',animation:'qurie-skeleton 1.4s ease-in-out '+(i*0.08)+'s infinite'}}/>
+<div style={{width:104,height:30,borderRadius:8,background:'var(--surface-sunken)',animation:'qurie-skeleton 1.4s ease-in-out '+(i*0.08+0.1)+'s infinite'}}/>
+<div style={{width:60,height:10,borderRadius:6,background:'var(--surface-sunken)',animation:'qurie-skeleton 1.4s ease-in-out '+(i*0.08+0.2)+'s infinite'}}/>
 </div>)}
 </div>;
 }

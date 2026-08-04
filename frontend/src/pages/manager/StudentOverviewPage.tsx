@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
-import { ApiIntegrationPanel } from '../../components/feedback/ApiIntegrationPanel';
 import {
   AlertBanner,
   Badge,
@@ -21,6 +20,7 @@ import {
   useGetUserProfile,
   useMe,
 } from '../../data';
+import { getUserProfileExtras, regionLabel } from '../../utils/userProfileExtras';
 
 function OverviewSkeleton() {
   return (
@@ -102,6 +102,76 @@ function StudentHeader({
           {reportPending ? '생성 중…' : '리포트 생성'}
         </Button>
       ) : null}
+    </div>
+  );
+}
+
+function StudentInfoPanel({ userId, classId }: { userId: number; classId: number }) {
+  const { data: profile } = useGetUserProfile(userId);
+  const { data: membersPage } = useGetClassMembers(classId, { size: 100 });
+  const member = useMemo(
+    () => membersPage.data.find((m) => m.userId === userId) ?? null,
+    [membersPage.data, userId],
+  );
+  const extras = getUserProfileExtras(profile.email);
+
+  const rows = [
+    { label: '이메일', value: profile.email },
+    { label: '그룹', value: member?.groupName ?? '미배정' },
+    { label: '전화번호', value: extras.phone ?? '—' },
+    { label: '지역', value: regionLabel(extras.region) },
+  ];
+
+  return (
+    <div
+      style={{
+        background: 'var(--surface-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        boxShadow: 'var(--shadow-card)',
+        padding: 24,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 0,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--text-secondary)',
+          marginBottom: 12,
+        }}
+      >
+        학생 정보
+      </span>
+      {rows.map((row) => (
+        <div
+          key={row.label}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: 12,
+            padding: '11px 0',
+            borderBottom: '1px solid var(--divider)',
+            fontSize: 13,
+          }}
+        >
+          <span style={{ color: 'var(--text-muted)' }}>{row.label}</span>
+          <span
+            style={{
+              fontWeight: 600,
+              color: 'var(--ink)',
+              fontFamily: row.label === '이메일' ? 'var(--font-mono)' : undefined,
+              textAlign: 'right',
+            }}
+          >
+            {row.value}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -253,13 +323,13 @@ function StudentOverviewBody({
       />
       {reportMsg ? <AlertBanner tone="success" title="리포트 생성" description={reportMsg} /> : null}
       {reportError ? <AlertBanner tone="error" title="리포트 실패" description={reportError} /> : null}
-      <ApiIntegrationPanel groupId="studentAnalytics" />
+      <StudentInfoPanel userId={userId} classId={classId} />
       {canManage ? <InstructorCommentPanel userId={userId} classId={classId} /> : null}
 
       <Modal
         open={reportOpen}
         title="리포트 생성"
-        description="선택한 학생의 학습 요약 리포트를 지금 발급해요. 세션 집계 API가 붙기 전에는 기본값으로 생성됩니다."
+        description="선택한 학생의 학습 요약 리포트를 발급합니다."
         primaryLabel={createReport.isPending ? '생성 중…' : '생성하기'}
         secondaryLabel="취소"
         onPrimary={onCreateReport}

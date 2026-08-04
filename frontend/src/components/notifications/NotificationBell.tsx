@@ -114,12 +114,15 @@ function NotificationBellInner({
   const rootRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
 
-  const { data } = useGetNotices({ size: 8 });
+  const isMaster = role === 'MASTER';
+  const { data } = useGetNotices(
+    isMaster ? { size: 0 } : { size: 8, forAudience: true },
+  );
   const helpQuery = useGetClassHelpRequests(
     role === 'MANAGER' || role === 'MASTER' ? classId : null,
   );
 
-  const unreadNotices = data.data.filter((n) => !readIds(userId).has(n.id));
+  const unreadNotices = isMaster ? [] : data.data.filter((n) => !readIds(userId).has(n.id));
   const helpCount = helpQuery.data?.length ?? 0;
   const unreadTotal = unreadNotices.length + helpCount;
 
@@ -143,12 +146,14 @@ function NotificationBellInner({
 
   const onBellClick = () => {
     if (unreadTotal > 0) {
-      markNoticesRead(
-        userId,
-        unreadNotices.map((n) => n.id),
-      );
-      const listPath = noticeListPath(role);
-      if (unreadNotices.length > 0 && listPath) {
+      if (!isMaster && unreadNotices.length > 0) {
+        markNoticesRead(
+          userId,
+          unreadNotices.map((n) => n.id),
+        );
+      }
+      const listPath = isMaster ? null : noticeListPath(role);
+      if (!isMaster && unreadNotices.length > 0 && listPath) {
         navigate(listPath);
       } else {
         navigate(dashboardPathForRole(role));

@@ -49,6 +49,7 @@ export default function App() {
         <Route path="/demo" element={<DemoRequestPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/find-password" element={<ResetPage />} />
         <Route path="/reset" element={<ResetPage />} />
 
         <Route path="/admin/login" element={<AdminLoginPage />} />
@@ -86,6 +87,7 @@ export default function App() {
           <Route path="/manager/settings" element={<Navigate to="/manager/me" replace />} />
 
           <Route path="/app" element={<StudentDashboardPage />} />
+          <Route path="/app/announcements" element={<NoticesPage />} />
           <Route path="/app/announcements/:noticeId" element={<NoticeDetailPage />} />
           <Route path="/app/classes" element={<Navigate to="/app" replace />} />
           <Route path="/app/classes/:id" element={<Navigate to="/app" replace />} />

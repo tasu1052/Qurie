@@ -245,6 +245,7 @@ export function ManagerNoticesBody({ classId }: { classId: number }) {
 
       <ConfirmDeleteOverlay
         open={deleteTarget !== null}
+        closeOnConfirm={false}
         title="공지 삭제"
         description={
           deleteTarget
@@ -254,7 +255,10 @@ export function ManagerNoticesBody({ classId }: { classId: number }) {
         confirmText={deleteTarget?.title ?? ''}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {
-          if (deleteTarget) deleteNotice.mutate(deleteTarget.id);
+          if (!deleteTarget) return;
+          deleteNotice.mutate(deleteTarget.id, {
+            onSuccess: () => setDeleteTarget(null),
+          });
         }}
       />
     </div>

@@ -17,8 +17,6 @@ import {
   RowErrorFallback,
   Select,
   Skeleton,
-  StatCard,
-  StatCardRow,
 } from '../../ds';
 import javaTech from '../../ds/assets/tech/java_100.png';
 import pythonTech from '../../ds/assets/tech/python_100.png';
@@ -31,7 +29,6 @@ import {
   useDeleteTrack,
   useGetClasses,
   useGetTrack,
-  useGetUsers,
   useUpdateTrack,
   type ClassResponse,
 } from '../../data';
@@ -133,22 +130,7 @@ function DetailSkeleton() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <Skeleton width="100%" height={100} radius={16} />
-      <StatCardRow>
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            style={{
-              background: 'var(--surface-card-solid)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--card-radius)',
-              padding: 'var(--stat-card-padding)',
-            }}
-          >
-            <Skeleton width="60%" height={14} delay={i * 0.08} />
-            <Skeleton width="40%" height={28} delay={i * 0.08 + 0.04} style={{ marginTop: 12 }} />
-          </div>
-        ))}
-      </StatCardRow>
+      <Skeleton width="100%" height={280} radius={16} delay={0.08} />
     </div>
   );
 }
@@ -157,7 +139,6 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
   const navigate = useNavigate();
   const { data: track } = useGetTrack(trackId);
   const { data: classesPage } = useGetClasses({ trackId, size: 100, sort: 'name,asc' });
-  const { data: managersPage } = useGetUsers({ role: 'MANAGER', size: 100 });
   const updateTrack = useUpdateTrack();
   const deleteTrack = useDeleteTrack();
 
@@ -187,25 +168,25 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const trackManagers = useMemo(() => {
+    const byId = new Map<number, { userId: number; name: string; email: string }>();
+    for (const q of memberQueries) {
+      for (const m of q.data?.data ?? []) {
+        if (!byId.has(m.userId)) {
+          byId.set(m.userId, { userId: m.userId, name: m.name, email: m.email });
+        }
+      }
+    }
+    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  }, [memberQueries]);
+
   const techKey = normalizeTech(track.tech);
   const techImage = techImg[techKey];
-  const managerCount = managersPage.meta.total;
+  const managerCount = trackManagers.length;
   const activeClassCount = classes.filter((c) => classStatus(c.endedAt).active).length;
   const trackStatusLabel =
     classes.length === 0 ? '대기' : activeClassCount > 0 ? '진행 중' : '종료';
   const alerts = useMemo(() => deriveAlerts(classes), [classes]);
-
-  const totalStudents = useMemo(() => {
-    let sum = 0;
-    let hasAny = false;
-    for (const q of analyticsQueries) {
-      if (q.data) {
-        sum += q.data.studentCount;
-        hasAny = true;
-      }
-    }
-    return hasAny ? sum : null;
-  }, [analyticsQueries]);
 
   const openSettings = () => {
     setName(track.name);
@@ -340,26 +321,6 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
           트랙 설정
         </Button>
       </div>
-
-      <StatCardRow>
-        <StatCard
-          label="운영 클래스"
-          value={String(classes.length)}
-          caption={classes.length > 0 ? classes.map((c) => c.name).slice(0, 3).join(' · ') : '등록된 클래스 없음'}
-        />
-        <StatCard label="담당 매니저" value={String(managerCount)} caption="MANAGER 역할" />
-        <StatCard
-          label="트랙 학생"
-          value={totalStudents != null ? String(totalStudents) : '—'}
-          caption={totalStudents != null ? '클래스 합산' : '집계 중'}
-        />
-        <StatCard
-          label="활성 클래스"
-          value={String(activeClassCount)}
-          caption={`전체 ${classes.length}개 중`}
-          accent={activeClassCount > 0}
-        />
-      </StatCardRow>
 
       <div className="qurie-app-split" style={{ gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
@@ -619,11 +580,11 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
             >
               담당 매니저
             </span>
-            {managersPage.data.length === 0 ? (
+            {trackManagers.length === 0 ? (
               <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>등록된 매니저가 없습니다.</p>
             ) : (
-              managersPage.data.map((m) => (
-                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              trackManagers.map((m) => (
+                <div key={m.userId} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span
                     style={{
                       width: 30,

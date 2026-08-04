@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ApiIntegrationPanel } from '../../components/feedback/ApiIntegrationPanel';
 import { Badge, Button, EmptyState, RowErrorFallback, Skeleton } from '../../ds';
 import {
   QueryAsyncBoundary,
@@ -13,29 +12,9 @@ import {
 import { PastQuizShell } from './pastQuizShell';
 import { SESSION_LIST_PAGE_TITLE, usePastQuizBasePath, type PastQuizBasePath } from './pastQuizPaths';
 
-type FilterKey = 'all' | 'correct' | 'wrong';
-
-const filterChips: { key: FilterKey; label: string }[] = [
-  { key: 'all', label: '전체' },
-  { key: 'correct', label: '맞춘 문항' },
-  { key: 'wrong', label: '틀린 문항' },
-];
 
 function correctChoiceIdx(item: QuizItem): number {
   return item.choices.find((c) => c.answer)?.idx ?? 0;
-}
-
-function filterItems(
-  items: QuizItem[],
-  progressByQuizId: Map<number, QuizProgressItem>,
-  filter: FilterKey,
-): QuizItem[] {
-  if (filter === 'all') return items;
-  return items.filter((item) => {
-    const progress = progressByQuizId.get(item.id);
-    if (progress?.isCorrect == null) return false;
-    return filter === 'correct' ? progress.isCorrect === true : progress.isCorrect === false;
-  });
 }
 
 function ChoiceRow({
@@ -196,7 +175,6 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
   const navigate = useNavigate();
   const { data: quizSet } = useGetQuizSet(quizSetId);
   const { data: progressSummary } = useGetQuizProgress(quizSetId);
-  const [filter, setFilter] = useState<FilterKey>('all');
 
   const progressItems = progressSummary?.items ?? [];
   const progressByQuizId = useMemo(() => {
@@ -212,10 +190,7 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
     [quizSet.quizzes],
   );
 
-  const displayItems = useMemo(
-    () => filterItems(items, progressByQuizId, filter),
-    [items, progressByQuizId, filter],
-  );
+  const displayItems = items;
 
   const correctCount = items.filter((item) => progressByQuizId.get(item.id)?.isCorrect === true).length;
 
@@ -238,44 +213,14 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
         </span>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        {filterChips.map((c) => {
-          const active = filter === c.key;
-          return (
-            <button
-              key={c.key}
-              type="button"
-              onClick={() => setFilter(c.key)}
-              style={{
-                borderRadius: 999,
-                padding: '6px 14px',
-                fontSize: 12,
-                fontWeight: active ? 600 : 400,
-                cursor: 'pointer',
-                fontFamily: 'var(--font-sans)',
-                border: `1px solid ${active ? 'var(--ink)' : 'var(--border-strong)'}`,
-                background: active ? 'var(--surface-sunken)' : 'var(--surface-card)',
-                color: active ? 'var(--ink)' : 'var(--text-secondary)',
-              }}
-            >
-              {c.label}
-            </button>
-          );
-        })}
-      </div>
-
       <div className="qurie-app-split" style={{ alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
           {displayItems.length === 0 ? (
             <EmptyState
               message="표시할 문항이 없습니다"
-              description={
-                filter !== 'all'
-                  ? '진행 기록이 없거나 해당 필터에 맞는 문항이 없어요.'
-                  : '퀴즈 문항이 아직 생성되지 않았어요.'
-              }
-              actionLabel={filter !== 'all' ? '전체 보기' : '목록으로'}
-              onAction={() => (filter !== 'all' ? setFilter('all') : navigate(`${basePath}/quizzes`))}
+              description="퀴즈 문항이 아직 생성되지 않았어요."
+              actionLabel="목록으로"
+              onAction={() => navigate(`${basePath}/quizzes`)}
             />
           ) : (
             displayItems.map((item) => (
@@ -283,7 +228,6 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
             ))
           )}
         </div>
-        <ApiIntegrationPanel groupId="pastQuizReview" variant="compact" title="AI 오답 분석 API" />
       </div>
     </>
   );

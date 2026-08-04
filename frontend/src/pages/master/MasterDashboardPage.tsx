@@ -243,9 +243,6 @@ function TracksAndManagers({ onOpenTrack }: { onOpenTrack: (id: string) => void 
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{m.name}</div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{m.email}</div>
                 </div>
-                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                  주간 세션 {m.weeklySessionCount}
-                </span>
               </div>
             ))
           )}

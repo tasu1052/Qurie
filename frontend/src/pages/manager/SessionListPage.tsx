@@ -30,6 +30,7 @@ import {
 } from '../../data';
 import { queryKeys } from '../../network/core/queryKeys';
 import { getGroups } from '../../network/group/group-apis';
+import { getSessions } from '../../network/session/session-apis';
 import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
 
 function apiErrorMessage(error: unknown, fallback: string): string {
@@ -296,24 +297,49 @@ export default function SessionListPage() {
       return;
     }
     setCreateError(null);
-    createSession.mutate(
-      {
-        classId,
-        title: title.trim(),
-        ...(classPublic ? { classPublic: true } : { groupId: groupId as number }),
-      },
-      {
-        onSuccess: (created) => {
-          setCreateOpen(false);
-          resetCreateForm();
-          setRowKey((k) => k + 1);
-          openSessionInNewTab(created.id, created.title);
+
+    void (async () => {
+      if (classPublic) {
+        try {
+          const existing = await getSessions(classId);
+          if (existing.some((s) => s.classPublic && s.active)) {
+            setCreateError(
+              '이미 진행 중인 수업 공개 세션이 있습니다. 기존 세션을 종료한 뒤 다시 시도해 주세요.',
+            );
+            return;
+          }
+        } catch {
+          setCreateError('세션 목록을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+          return;
+        }
+      }
+
+      createSession.mutate(
+        {
+          classId,
+          title: title.trim(),
+          ...(classPublic ? { classPublic: true } : { groupId: groupId as number }),
         },
-        onError: (err) => {
-          setCreateError(apiErrorMessage(err, '세션 생성에 실패했습니다.'));
+        {
+          onSuccess: (created) => {
+            setCreateOpen(false);
+            resetCreateForm();
+            setRowKey((k) => k + 1);
+            openSessionInNewTab(created.id, created.title);
+          },
+          onError: (err) => {
+            const msg = apiErrorMessage(err, '세션 생성에 실패했습니다.');
+            if (classPublic && /public|공개|already|exist|duplicate|중복/i.test(msg)) {
+              setCreateError(
+                '이미 진행 중인 수업 공개 세션이 있습니다. 기존 세션을 종료한 뒤 다시 시도해 주세요.',
+              );
+              return;
+            }
+            setCreateError(msg);
+          },
         },
-      },
-    );
+      );
+    })();
   };
 
   return (
