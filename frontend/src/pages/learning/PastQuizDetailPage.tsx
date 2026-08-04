@@ -232,7 +232,7 @@ export default function PastQuizDetailPage({ basePath: basePathProp }: PastQuizD
         })}
       </div>
 
-      <div className="qurie-master-split" style={{ alignItems: 'start' }}>
+      <div className="qurie-app-split" style={{ alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
           {displayItems.length === 0 ? (
             <EmptyState

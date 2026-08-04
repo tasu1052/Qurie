@@ -426,7 +426,7 @@ function StudentManagementBody({ classId }: { classId: number }) {
       </div>
 
       <div
-        className="qurie-master-split"
+        className="qurie-app-split"
         style={{ gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)' }}
       >
         <MembersTable
