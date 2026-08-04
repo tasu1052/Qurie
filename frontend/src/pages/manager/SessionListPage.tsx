@@ -81,6 +81,10 @@ function sessionStatus(s: SessionResponse): 'LIVE' | '종료' {
 
 const SESSION_PAGE_SIZE = 20;
 
+const SESSION_TABLE_MIN_WIDTH = 920;
+const SESSION_TABLE_COLUMNS =
+  'minmax(180px, 2fr) minmax(130px, 1.2fr) minmax(88px, max-content) minmax(168px, max-content)';
+
 function SessionTable({
   classId,
   statusFilter,
@@ -144,14 +148,16 @@ function SessionTable({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0, width: '100%' }}>
-      <div className="qurie-table-card">
-        <div className="qurie-table-scroll">
-          <div style={{ minWidth: 720 }}>
-            <div
-              className="qurie-table-grid"
-              style={{
-                gridTemplateColumns: '2fr 1.2fr 0.8fr 1.4fr',
+    <div className="qurie-table-card">
+      <div className="qurie-table-scroll">
+        <div
+          className="qurie-table-inner"
+          style={{ minWidth: SESSION_TABLE_MIN_WIDTH, ['--qurie-table-min' as string]: `${SESSION_TABLE_MIN_WIDTH}px` }}
+        >
+          <div
+            className="qurie-table-grid"
+            style={{
+              gridTemplateColumns: SESSION_TABLE_COLUMNS,
                 padding: '10px 24px',
                 borderBottom: '1px solid var(--divider)',
                 fontSize: 11,
@@ -175,7 +181,7 @@ function SessionTable({
                   key={s.id}
                   className="qurie-table-grid"
                   style={{
-                    gridTemplateColumns: '2fr 1.2fr 0.8fr 1.4fr',
+                    gridTemplateColumns: SESSION_TABLE_COLUMNS,
                     padding: '13px 24px',
                     borderBottom: '1px solid var(--divider)',
                     fontSize: 13,
@@ -205,19 +211,10 @@ function SessionTable({
                   <span style={{ color: 'var(--text-secondary)', minWidth: 0, wordBreak: 'break-word' }}>
                     {formatSessionTime(s.createdAt)}
                   </span>
-                  <span style={{ minWidth: 0 }}>
+                  <span className="qurie-table-status">
                     {status === 'LIVE' ? <LiveBadge /> : <Badge status="neutral">{status}</Badge>}
                   </span>
-                  <span
-                    style={{
-                      textAlign: 'right',
-                      display: 'flex',
-                      gap: 6,
-                      justifyContent: 'flex-end',
-                      flexWrap: 'wrap',
-                      minWidth: 0,
-                    }}
-                  >
+                  <span className="qurie-table-actions">
                     <Button
                       variant="secondary"
                       size="sm"
@@ -248,7 +245,6 @@ function SessionTable({
             />
           </div>
         ) : null}
-      </div>
     </div>
   );
 }

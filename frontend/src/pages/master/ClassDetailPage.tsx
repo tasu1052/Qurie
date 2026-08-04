@@ -97,7 +97,7 @@ function MemberList({ members }: { members: ClassMemberResponse[] }) {
         <p style={{ margin: '0 20px 20px', fontSize: 13, color: 'var(--text-muted)' }}>등록된 멤버가 없습니다.</p>
       ) : (
         <div className="qurie-table-scroll">
-          <div style={{ minWidth: 720 }}>
+          <div style={{ minWidth: 720 }} className="qurie-table-inner">
             <div
               className="qurie-table-grid"
               style={{

@@ -279,7 +279,7 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
 
       <div className="qurie-table-card">
         <div className="qurie-table-scroll">
-          <div style={{ minWidth: 720 }}>
+          <div className="qurie-table-inner" style={{ minWidth: 720 }}>
             <div
               className="qurie-table-grid"
               style={{
