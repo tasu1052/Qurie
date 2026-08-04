@@ -2,6 +2,7 @@ package com.roma.qurie.quiz.dto;
 
 import java.util.List;
 
+import com.roma.qurie.quiz.entity.QuizChoice;
 import com.roma.qurie.quiz.entity.QuizProgress;
 import com.roma.qurie.quiz.entity.QuizProgressStatus;
 import com.roma.qurie.quiz.entity.QuizSet;
@@ -30,16 +31,34 @@ public record QuizProgressSummaryResponse(
 				progresses.stream().map(ProgressItem::from).toList());
 	}
 
+	/** 응시 복원용. 제출 응답과 같이 해설·정답 인덱스를 포함한다. */
 	public record ProgressItem(
-			Long quizId, QuizProgressStatus status, Integer chosenChoiceIdx, Boolean isCorrect, long elapsedMs) {
+			Long quizId,
+			QuizProgressStatus status,
+			Integer chosenChoiceIdx,
+			Boolean isCorrect,
+			long elapsedMs,
+			String explanation,
+			Integer correctChoiceIdx) {
 
 		public static ProgressItem from(QuizProgress progress) {
+			var quiz = progress.getQuiz();
+			Integer correctIdx = null;
+			if (quiz != null && quiz.getChoices() != null) {
+				correctIdx = quiz.getChoices().stream()
+						.filter(QuizChoice::isAnswer)
+						.map(QuizChoice::getIdx)
+						.findFirst()
+						.orElse(null);
+			}
 			return new ProgressItem(
-					progress.getQuiz().getId(),
+					quiz != null ? quiz.getId() : null,
 					progress.getStatus(),
 					progress.getChosenChoice() != null ? progress.getChosenChoice().getIdx() : null,
 					progress.getIsCorrect(),
-					progress.getElapsedMs());
+					progress.getElapsedMs(),
+					quiz != null ? quiz.getExplanation() : null,
+					correctIdx);
 		}
 	}
 }

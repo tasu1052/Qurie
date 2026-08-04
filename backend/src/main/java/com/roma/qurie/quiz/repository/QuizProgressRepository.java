@@ -15,6 +15,7 @@ public interface QuizProgressRepository extends JpaRepository<QuizProgress, Long
 	@Query("""
 			select qp from QuizProgress qp
 			join fetch qp.quiz q
+			left join fetch q.choices
 			left join fetch qp.chosenChoice
 			where q.quizSet.id = :quizSetId and qp.user.id = :userId
 			""")

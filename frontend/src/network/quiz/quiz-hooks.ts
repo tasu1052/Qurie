@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tansta
 import { queryKeys } from '../core/queryKeys';
 import {
     generateQuiz,
+    getQuizProgress,
     getQuizQuestions,
     getQuizSet,
     listQuizSetsByProject,
@@ -115,5 +116,17 @@ export const useSubmitQuizProgress = () => {
                 queryKey: queryKeys.quiz.progress(variables.quizSetId),
             });
         },
+    });
+};
+
+/** 세션 재입장 시 본인 응시 기록 복원. */
+export const useGetQuizProgress = (quizSetId: number | null) => {
+    return useQuery({
+        queryKey:
+            quizSetId != null ? queryKeys.quiz.progress(quizSetId) : (['quiz', 'progress', 'idle'] as const),
+        queryFn: () => getQuizProgress(quizSetId as number),
+        enabled: quizSetId != null,
+        staleTime: 0,
+        refetchOnWindowFocus: true,
     });
 };

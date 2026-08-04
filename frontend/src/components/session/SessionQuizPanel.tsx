@@ -6,6 +6,7 @@ import {
   getProjectFileContent,
   getProjectFiles,
   useGenerateQuiz,
+  useGetQuizProgress,
   useMeOptional,
   usePollQuizQuestions,
   usePollQuizSet,
@@ -14,10 +15,12 @@ import {
   useSubmitQuizSatisfaction,
   type QuizGenerationMode,
   type QuizItem,
+  type QuizProgressItem,
   type QuizQuestionItem,
   type QuizQuestionsResponse,
   type QuizSetDetailResponse,
 } from '../../data';
+import { getQuizProgress } from '../../network/quiz/quiz-apis';
 import { refresh } from '../../network/auth/auth-apis';
 import {
   loadSessionQuizSetId,
@@ -63,6 +66,30 @@ type QuizResult = {
   correctChoiceIdx: number | null;
   status: 'ATTEMPTED' | 'SKIPPED';
 };
+
+function mapProgressItemToResult(item: QuizProgressItem): QuizResult {
+  return {
+    status: item.status === 'ATTEMPTED' ? 'ATTEMPTED' : 'SKIPPED',
+    isCorrect: item.isCorrect,
+    explanation: item.explanation,
+    correctChoiceIdx: item.correctChoiceIdx,
+  };
+}
+
+function progressItemsToMaps(items: QuizProgressItem[]): {
+  answers: Record<number, number>;
+  results: Record<number, QuizResult>;
+} {
+  const answers: Record<number, number> = {};
+  const results: Record<number, QuizResult> = {};
+  for (const item of items) {
+    results[item.quizId] = mapProgressItemToResult(item);
+    if (item.chosenChoiceIdx != null) {
+      answers[item.quizId] = item.chosenChoiceIdx;
+    }
+  }
+  return { answers, results };
+}
 
 function mapJobStatus(
   status: string | undefined,
@@ -452,6 +479,7 @@ function SingleQuizPlayer({
   completeCorrect,
   completeTotal,
   onReviewFromComplete,
+  initialIndex = 0,
 }: {
   quizzes: PlayableQuiz[];
   requestedCount: number;
@@ -469,9 +497,11 @@ function SingleQuizPlayer({
   completeCorrect: number;
   completeTotal: number;
   onReviewFromComplete: () => void;
+  /** 서버 progress 복원 시 시작할 문항 인덱스 (마운트 시 1회) */
+  initialIndex?: number;
 }) {
   const totalSlots = Math.max(requestedCount, quizzes.length, 1);
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() => Math.max(0, initialIndex));
   const [hovered, setHovered] = useState(false);
   const currentIndex = Math.min(index, Math.max(0, totalSlots - 1));
 
@@ -914,6 +944,7 @@ export function SessionQuizPanel({
   const [resultsBySet, setResultsBySet] = useState<Record<number, Record<number, QuizResult>>>({});
   const [startedAtBySet, setStartedAtBySet] = useState<Record<number, Record<number, string>>>({});
   const [reviewingCompleteFor, setReviewingCompleteFor] = useState<number | null>(null);
+  const [conflictEpoch, setConflictEpoch] = useState(0);
 
   const projectQuizSets = useQuizSetsByProject(projectId);
 
@@ -931,13 +962,45 @@ export function SessionQuizPanel({
     saveSessionQuizSetId(sessionId, activeQuizSetId);
   }, [sessionId, activeQuizSetId]);
 
-  const answers = activeQuizSetId != null ? (answersBySet[activeQuizSetId] ?? {}) : {};
-  const results = useMemo(
-    () => (activeQuizSetId != null ? (resultsBySet[activeQuizSetId] ?? {}) : {}),
-    [activeQuizSetId, resultsBySet],
+  const progressQuery = useGetQuizProgress(activeQuizSetId);
+  const serverMaps = useMemo(
+    () => progressItemsToMaps(progressQuery.data?.items ?? []),
+    [progressQuery.data],
   );
+
+  const answers = useMemo(() => {
+    const local = activeQuizSetId != null ? (answersBySet[activeQuizSetId] ?? {}) : {};
+    return { ...serverMaps.answers, ...local };
+  }, [activeQuizSetId, answersBySet, serverMaps.answers]);
+
+  const results = useMemo(() => {
+    const local = activeQuizSetId != null ? (resultsBySet[activeQuizSetId] ?? {}) : {};
+    return { ...serverMaps.results, ...local };
+  }, [activeQuizSetId, resultsBySet, serverMaps.results]);
+
   const startedAts = activeQuizSetId != null ? (startedAtBySet[activeQuizSetId] ?? {}) : {};
 
+  const applyProgressSummary = (items: QuizProgressItem[], quizSetId: number) => {
+    const mapped = progressItemsToMaps(items);
+    setAnswersBySet((prev) => ({
+      ...prev,
+      [quizSetId]: { ...(prev[quizSetId] ?? {}), ...mapped.answers },
+    }));
+    setResultsBySet((prev) => ({
+      ...prev,
+      [quizSetId]: { ...(prev[quizSetId] ?? {}), ...mapped.results },
+    }));
+  };
+
+  const onProgressConflict = async (quizSetId: number) => {
+    try {
+      const summary = await getQuizProgress(quizSetId);
+      applyProgressSummary(summary.items, quizSetId);
+      setConflictEpoch((n) => n + 1);
+    } catch {
+      setFormError('이미 응시한 문항입니다. 새로고침 후 다시 확인해 주세요.');
+    }
+  };
   const managerPoll = usePollQuizSet(isInstructor ? activeQuizSetId : null);
   const studentPoll = usePollQuizQuestions(!isInstructor ? activeQuizSetId : null);
   const poll = isInstructor ? managerPoll : studentPoll;
@@ -969,6 +1032,16 @@ export function SessionQuizPanel({
 
   const showCompleteScreen =
     allHandled && activeQuizSetId != null && reviewingCompleteFor !== activeQuizSetId;
+
+  const resumeIndex = useMemo(() => {
+    if (playableQuizzes.length === 0) return 0;
+    const firstOpen = playableQuizzes.findIndex((q) => results[q.id] == null);
+    return firstOpen >= 0 ? firstOpen : 0;
+  }, [playableQuizzes, results]);
+
+  const progressHydrated =
+    progressQuery.isSuccess && (progressQuery.data?.items.length ?? 0) > 0;
+  const playerMountKey = `${activeQuizSetId ?? 0}-${progressHydrated ? 1 : 0}-${conflictEpoch}`;
 
   const alreadyRated =
     activeQuizSetId != null &&
@@ -1112,6 +1185,7 @@ export function SessionQuizPanel({
 
   const onSubmitQuiz = (quiz: PlayableQuiz) => {
     if (activeQuizSetId == null) return;
+    if (results[quiz.id] != null) return;
     const choiceIdx = answers[quiz.id];
     if (choiceIdx == null) return;
     const startedAt = ensureStarted(quiz.id);
@@ -1126,6 +1200,27 @@ export function SessionQuizPanel({
           [quiz.id]: gradeLocally(quiz, choiceIdx),
         },
       }));
+      // 재입장 복원을 위해 서버에도 응시 기록을 남긴다.
+      submitProgress.mutate(
+        {
+          quizSetId: activeQuizSetId,
+          quizId: quiz.id,
+          status: 'ATTEMPTED',
+          chosenChoiceIdx: choiceIdx,
+          startedAt,
+          finishedAt,
+        },
+        {
+          onError: (err) => {
+            if (isAxiosError(err) && err.response?.status === 409) {
+              void onProgressConflict(activeQuizSetId);
+              return;
+            }
+            // 로컬 결과는 이미 반영됨 — 서버 저장 실패만 안내
+            setFormError(apiErrorMessage(err, '응시 기록 저장에 실패했습니다.'));
+          },
+        },
+      );
       return;
     }
 
@@ -1154,6 +1249,10 @@ export function SessionQuizPanel({
           }));
         },
         onError: (err) => {
+          if (isAxiosError(err) && err.response?.status === 409) {
+            void onProgressConflict(activeQuizSetId);
+            return;
+          }
           setFormError(apiErrorMessage(err, '제출에 실패했습니다.'));
         },
       },
@@ -1162,6 +1261,7 @@ export function SessionQuizPanel({
 
   const onSkipQuiz = (quiz: PlayableQuiz) => {
     if (activeQuizSetId == null) return;
+    if (results[quiz.id] != null) return;
     if (answers[quiz.id] != null) return;
     const startedAt = ensureStarted(quiz.id);
     const finishedAt = new Date().toISOString();
@@ -1184,6 +1284,23 @@ export function SessionQuizPanel({
 
     if (isInstructor) {
       markSkipped();
+      submitProgress.mutate(
+        {
+          quizSetId: activeQuizSetId,
+          quizId: quiz.id,
+          status: 'SKIPPED',
+          chosenChoiceIdx: null,
+          startedAt,
+          finishedAt,
+        },
+        {
+          onError: (err) => {
+            if (isAxiosError(err) && err.response?.status === 409) {
+              void onProgressConflict(activeQuizSetId);
+            }
+          },
+        },
+      );
       return;
     }
 
@@ -1199,6 +1316,10 @@ export function SessionQuizPanel({
       {
         onSuccess: () => markSkipped(),
         onError: (err) => {
+          if (isAxiosError(err) && err.response?.status === 409) {
+            void onProgressConflict(activeQuizSetId);
+            return;
+          }
           setFormError(apiErrorMessage(err, '건너뛰기에 실패했습니다.'));
         },
       },
@@ -1394,6 +1515,7 @@ export function SessionQuizPanel({
         >
           {showQuizPlayer ? (
             <SingleQuizPlayer
+              key={playerMountKey}
               quizzes={playableQuizzes}
               requestedCount={requestedCount ?? playableQuizzes.length}
               generating={generating}
@@ -1425,6 +1547,7 @@ export function SessionQuizPanel({
               onReviewFromComplete={() => {
                 if (activeQuizSetId != null) setReviewingCompleteFor(activeQuizSetId);
               }}
+              initialIndex={resumeIndex}
             />
           ) : !generating && summary?.status === 'COMPLETED' && playableQuizzes.length === 0 ? (
             <QuizEmptyState description="생성은 완료됐지만 표시할 문항이 없습니다." />
