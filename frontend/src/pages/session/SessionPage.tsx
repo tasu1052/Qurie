@@ -56,7 +56,9 @@ import {
   usePointerDrag,
   useSessionPanelSizes,
   useViewportWidth,
+  type SessionMobileView,
 } from '../../components/session/sessionPanelLayout';
+import { SessionBottomNav } from '../../components/session/SessionBottomNav';
 import type * as Y from 'yjs';
 
 type LeftTab = 'explorer';
@@ -152,6 +154,7 @@ export default function SessionPage() {
     initialActiveFile ? languageFromPath(initialActiveFile) : 'plaintext',
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mobileView, setMobileView] = useState<SessionMobileView>('editor');
   const [activeFile, setActiveFile] = useState<string | null>(initialActiveFile);
   /** 리더가 다시 가져오기 중일 때만 true — 서버 프로젝트가 있어도 ImportPanel 을 연다. */
   const [reimportMode, setReimportMode] = useState(false);
@@ -458,7 +461,15 @@ export default function SessionPage() {
   const onSelectFile = (path: string) => {
     if (!projectRef) return;
     void openFile(projectRef.projectId, path);
+    if (chrome.stacked) setMobileView('editor');
   };
+
+  const showExplorerPanel =
+    (!chrome.stacked && chrome.showLeft) || (chrome.stacked && mobileView === 'explorer');
+  const editorVisible = !chrome.stacked || mobileView === 'editor';
+  const showRightPanel =
+    (!chrome.stacked && chrome.showRight) ||
+    (chrome.stacked && (mobileView === 'community' || mobileView === 'quiz'));
 
   const onEndSession = () => {
     if (!hasSessionId) return;
@@ -548,7 +559,8 @@ export default function SessionPage() {
         display: 'flex',
         flexDirection: 'column',
         background: 'var(--bg-app)',
-        height: '100vh',
+        height: chrome.stacked ? '100dvh' : '100vh',
+        maxHeight: chrome.stacked ? '100dvh' : '100vh',
         fontFamily: 'var(--font-sans)',
         color: 'var(--ink)',
         overflow: 'hidden',
@@ -655,6 +667,29 @@ export default function SessionPage() {
                     <span style={{ height: 1, background: 'var(--divider)', margin: '4px 6px' }} />
                   </>
                 ) : null}
+                {chrome.narrowHeader && hasSessionId ? (
+                  <>
+                    <MenuAction
+                      label="질문하기"
+                      disabled={askHelp.isPending}
+                      onClick={() => {
+                        setSettingsOpen(false);
+                        onAskHelp();
+                      }}
+                    />
+                    {isSessionManager ? (
+                      <MenuAction
+                        label={createReport.isPending ? '리포트 생성 중…' : '리포트 생성'}
+                        disabled={createReport.isPending}
+                        onClick={() => {
+                          setSettingsOpen(false);
+                          onCreateReport();
+                        }}
+                      />
+                    ) : null}
+                    <span style={{ height: 1, background: 'var(--divider)', margin: '4px 6px' }} />
+                  </>
+                ) : null}
                 <MenuAction
                   label="나가기"
                   onClick={() => {
@@ -696,18 +731,22 @@ export default function SessionPage() {
         />
       ) : null}
 
-      <div style={{ flex: 1, display: 'flex', minHeight: 0, minWidth: 0 }}>
-        {chrome.showLeft ? (
+      <div style={{ flex: 1, display: 'flex', minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
+        {showExplorerPanel ? (
           <>
             <aside
               style={{
-                width: leftWidth,
-                minWidth: leftWidth,
-                maxWidth: leftWidth,
+                ...(chrome.stacked
+                  ? { flex: 1, width: '100%', minWidth: 0, maxWidth: 'none' }
+                  : {
+                      width: leftWidth,
+                      minWidth: leftWidth,
+                      maxWidth: leftWidth,
+                    }),
                 background: 'var(--surface-card)',
                 display: 'flex',
                 flexDirection: 'column',
-                flexShrink: 0,
+                flexShrink: chrome.stacked ? 1 : 0,
                 minHeight: 0,
                 overflow: 'hidden',
               }}
@@ -1085,20 +1124,30 @@ export default function SessionPage() {
                 </div>
               </div>
             </aside>
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="탐색기 너비 조절"
-              onPointerDown={leftDrag.onPointerDown}
-              onPointerMove={leftDrag.onPointerMove}
-              onPointerUp={leftDrag.onPointerUp}
-              onPointerCancel={leftDrag.onPointerUp}
-              style={resizeHandleStyle('vertical', leftDrag.dragging)}
-            />
+            {!chrome.stacked ? (
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="탐색기 너비 조절"
+                onPointerDown={leftDrag.onPointerDown}
+                onPointerMove={leftDrag.onPointerMove}
+                onPointerUp={leftDrag.onPointerUp}
+                onPointerCancel={leftDrag.onPointerUp}
+                style={resizeHandleStyle('vertical', leftDrag.dragging)}
+              />
+            ) : null}
           </>
         ) : null}
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+        <div
+          style={{
+            flex: 1,
+            display: editorVisible ? 'flex' : 'none',
+            flexDirection: 'column',
+            minWidth: 0,
+            minHeight: 0,
+          }}
+        >
           <div
             style={{
               display: 'flex',
@@ -1209,51 +1258,80 @@ export default function SessionPage() {
                 provider={provider}
                 language={editorLanguage}
                 onlineUserIds={onlineUserIds}
+                compact={chrome.isMobile}
               />
             ) : (
-              <div style={{ flex: 1 }} />
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.55 }}>
+                  {projectRef
+                    ? '탐색기에서 파일을 선택하세요.'
+                    : pendingImport
+                      ? '프로젝트 미리보기 중입니다.'
+                      : '프로젝트를 연결한 뒤 파일을 열어 주세요.'}
+                </span>
+              </div>
             )}
           </div>
         </div>
 
-        {chrome.showRight ? (
+        {showRightPanel ? (
           <>
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="사이드 패널 너비 조절"
-              onPointerDown={rightDrag.onPointerDown}
-              onPointerMove={rightDrag.onPointerMove}
-              onPointerUp={rightDrag.onPointerUp}
-              onPointerCancel={rightDrag.onPointerUp}
-              style={resizeHandleStyle('vertical', rightDrag.dragging)}
-            />
+            {!chrome.stacked ? (
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="사이드 패널 너비 조절"
+                onPointerDown={rightDrag.onPointerDown}
+                onPointerMove={rightDrag.onPointerMove}
+                onPointerUp={rightDrag.onPointerUp}
+                onPointerCancel={rightDrag.onPointerUp}
+                style={resizeHandleStyle('vertical', rightDrag.dragging)}
+              />
+            ) : null}
             <aside
               style={{
-                width: rightWidth,
-                minWidth: rightWidth,
-                maxWidth: rightWidth,
+                ...(chrome.stacked
+                  ? { flex: 1, width: '100%', minWidth: 0, maxWidth: 'none' }
+                  : {
+                      width: rightWidth,
+                      minWidth: rightWidth,
+                      maxWidth: rightWidth,
+                    }),
                 background: 'var(--surface-card)',
                 display: 'flex',
                 flexDirection: 'column',
-                flexShrink: 0,
+                flexShrink: chrome.stacked ? 1 : 0,
                 minHeight: 0,
                 overflow: 'hidden',
               }}
             >
-              <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-                <button
-                  type="button"
-                  style={tabBtn(rightTab === 'community')}
-                  onClick={() => setRightTab('community')}
-                >
-                  커뮤니티
-                </button>
-                <button type="button" style={tabBtn(rightTab === 'quiz')} onClick={() => setRightTab('quiz')}>
-                  퀴즈
-                </button>
-              </div>
-              {rightTab === 'community' ? (
+              {!chrome.stacked ? (
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    style={tabBtn(rightTab === 'community')}
+                    onClick={() => setRightTab('community')}
+                  >
+                    커뮤니티
+                  </button>
+                  <button type="button" style={tabBtn(rightTab === 'quiz')} onClick={() => setRightTab('quiz')}>
+                    퀴즈
+                  </button>
+                </div>
+              ) : null}
+              {chrome.stacked ? (
+                mobileView === 'community' ? (
+                  <SessionChatPanel chat={chat} hasSessionId={hasSessionId} />
+                ) : (
+                  <SessionQuizPanel
+                    sessionId={sessionId}
+                    projectId={projectRef?.projectId ?? null}
+                    versionHash={projectRef?.versionHash ?? null}
+                    pushedQuizSetId={chat.lastQuizNotification?.quizSetId ?? null}
+                    canGenerateQuiz={canGenerateQuiz}
+                  />
+                )
+              ) : rightTab === 'community' ? (
                 <SessionChatPanel chat={chat} hasSessionId={hasSessionId} />
               ) : (
                 <SessionQuizPanel
@@ -1269,6 +1347,16 @@ export default function SessionPage() {
         ) : null}
       </div>
 
+      {chrome.stacked ? (
+        <SessionBottomNav
+          active={mobileView}
+          onChange={(view) => {
+            setMobileView(view);
+            if (view === 'community') setRightTab('community');
+            if (view === 'quiz') setRightTab('quiz');
+          }}
+        />
+      ) : (
       <footer
         style={{
           height: 30,
@@ -1298,6 +1386,7 @@ export default function SessionPage() {
           <span style={{ color: 'var(--accent)', whiteSpace: 'nowrap' }}>{editorLanguage}</span>
         </span>
       </footer>
+      )}
 
       <Modal
         open={endConfirmOpen}
