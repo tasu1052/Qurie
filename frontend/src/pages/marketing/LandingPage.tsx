@@ -6,6 +6,7 @@ import { QurieHeroAnimation } from './hero/HeroAnimation';
 import { useMeOptional } from '../../data';
 import { homePathForRole } from '../../components/auth/roleRoutes';
 import { useMarketingLightTheme } from '../../hooks/useMarketingLightTheme';
+import './LandingPage.css';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -16,24 +17,9 @@ export default function LandingPage() {
   useMarketingLightTheme();
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--surface-card)', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
+    <div className="landing-page">
       {/* Topbar — mockup 1a */}
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 32,
-          padding: '0 64px',
-          height: 64,
-          borderBottom: '1px solid var(--divider)',
-          background: 'var(--surface-card)',
-          backdropFilter: 'blur(32px) saturate(1.6)',
-          WebkitBackdropFilter: 'blur(32px) saturate(1.6)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-        }}
-      >
+      <header className="landing-header">
         <Link to="/" style={{ textDecoration: 'none', display: 'inline-flex' }}>
           <img
             src={logoSrc}
@@ -41,7 +27,7 @@ export default function LandingPage() {
             style={{ height: 28, width: 'auto', objectFit: 'contain', display: 'block' }}
           />
         </Link>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="landing-header-actions">
           {user ? (
             <Button
               variant="ghost"
@@ -55,45 +41,22 @@ export default function LandingPage() {
             </Link>
           )}
           <Link to="/demo" style={{ textDecoration: 'none' }}>
-            <Button variant="primary">데모 요청하기</Button>
+            <Button variant="primary">
+              <span className="landing-header-demo-full">데모 요청하기</span>
+              <span className="landing-header-demo-short">데모</span>
+            </Button>
           </Link>
         </div>
       </header>
 
       {/* Hero — centered copy + animated product mock */}
-      <section
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          padding: '88px 64px 64px',
-          gap: 20,
-        }}
-      >
-        <h1
-          style={{
-            fontSize: 56,
-            fontWeight: 800,
-            letterSpacing: '-1.2px',
-            lineHeight: 1.15,
-            color: 'var(--ink)',
-            margin: 0,
-          }}
-        >
+      <section className="landing-hero">
+        <h1 className="landing-hero-title">
           AI 시대, 부트캠프를 위한
           <br />
           최적의 코드 교육 솔루션
         </h1>
-        <p
-          style={{
-            maxWidth: 560,
-            margin: 0,
-            fontSize: 16,
-            lineHeight: 1.6,
-            color: 'var(--text-secondary)',
-          }}
-        >
+        <p className="landing-hero-lead">
           Qurie는 기업·기관을 위한 실시간 협업 코드 학습 플랫폼이에요. 클래스와 세션 단위로 학습을 운영하고,
           AI가 만든 퀴즈와 세션 리포트로 구성원의 성장을 숫자로 살펴볼 수 있어요.
         </p>
@@ -105,28 +68,14 @@ export default function LandingPage() {
           </Link>
         </div>
 
-        <div
-          style={{
-            marginTop: 40,
-            width: 1040,
-            maxWidth: '100%',
-            height: 585,
-            position: 'relative',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            boxShadow: 'var(--shadow-modal)',
-            overflow: 'hidden',
-            textAlign: 'left',
-            background: '#F4F4F6',
-          }}
-        >
+        <div className="landing-hero-mock">
           <QurieHeroAnimation />
         </div>
       </section>
 
       {/* Features */}
-      <section id="features" style={{ display: 'flex', flexDirection: 'column', gap: 80, padding: '88px 120px' }}>
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <section id="features" className="landing-features">
+        <div className="landing-features-heading" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <span
             style={{
               fontSize: 11,
@@ -138,14 +87,14 @@ export default function LandingPage() {
           >
             Core features
           </span>
-          <h2 style={{ fontSize: 32, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>
+          <h2 style={{ fontWeight: 700, color: 'var(--ink)', margin: 0 }}>
             학습 관리부터 트랙 운영까지, 하나의 흐름으로
           </h2>
         </div>
 
         {/* Feature 1 — realtime session */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="landing-feature-row">
+          <div className="landing-feature-copy" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <span
               style={{
                 width: 40,
@@ -177,6 +126,7 @@ export default function LandingPage() {
             ))}
           </div>
           <div
+            className="landing-feature-visual"
             style={{
               background: 'var(--secondary-700)',
               borderRadius: 12,
@@ -188,12 +138,13 @@ export default function LandingPage() {
               boxShadow: 'var(--shadow-modal)',
             }}
           >
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+            <div className="landing-session-header" style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
               <span style={{ fontSize: 10, letterSpacing: '0.06em', color: 'var(--grey-300)', textTransform: 'uppercase' }}>
                 session
               </span>
               <span style={{ color: 'var(--primary-300)' }}>java-seoul-1/react-hooks</span>
               <span
+                className="landing-session-live"
                 style={{
                   marginLeft: 'auto',
                   display: 'inline-flex',
@@ -281,8 +232,9 @@ export default function LandingPage() {
         </div>
 
         {/* Feature 2 — AI quiz */}
-        <div id="process" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
+        <div id="process" className="landing-feature-row landing-feature-row--reverse">
           <div
+            className="landing-feature-visual"
             style={{
               background: 'var(--surface-sunken)',
               border: '1px solid var(--border)',
@@ -293,7 +245,7 @@ export default function LandingPage() {
               gap: 12,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="landing-quiz-pipeline">
               {['AI 난이도 산정', '문제 생성', '재검증 · 조정'].map((label, i) => (
                 <span key={label} style={{ display: 'contents' }}>
                   <span
@@ -328,7 +280,7 @@ export default function LandingPage() {
                     </span>
                     {label}
                   </span>
-                  {i < 2 && <span style={{ color: 'var(--accent)', fontWeight: 800 }}>&gt;</span>}
+                  {i < 2 && <span className="landing-quiz-pipeline-arrow">&gt;</span>}
                 </span>
               ))}
             </div>
@@ -368,7 +320,7 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="landing-feature-copy" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <span
               style={{
                 width: 40,
@@ -402,8 +354,8 @@ export default function LandingPage() {
         </div>
 
         {/* Feature 3 — report */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="landing-feature-row">
+          <div className="landing-feature-copy" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <span
               style={{
                 width: 40,
@@ -435,6 +387,7 @@ export default function LandingPage() {
             ))}
           </div>
           <div
+            className="landing-feature-visual"
             style={{
               background: 'var(--surface-card)',
               border: '1px solid var(--border)',
@@ -452,7 +405,7 @@ export default function LandingPage() {
               </span>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>SR-20260722-JW</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, textAlign: 'center' }}>
+            <div className="landing-report-stats">
               {[
                 { v: '100%', l: '퀴즈 완료율' },
                 { v: '92%', l: '정답률', accent: true },
@@ -482,19 +435,8 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section
-        id="cta"
-        style={{
-          background: 'var(--ink)',
-          textAlign: 'center',
-          padding: '72px 64px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 18,
-        }}
-      >
-        <h2 style={{ fontSize: 32, fontWeight: 700, color: '#fff', margin: 0 }}>지금 Qurie로 팀의 학습을 시작해 보세요</h2>
+      <section id="cta" className="landing-cta">
+        <h2 className="landing-cta-title">지금 Qurie로 팀의 학습을 시작해 보세요</h2>
         <p style={{ margin: 0, fontSize: 14, color: 'var(--grey-300)', maxWidth: 480 }}>
           기업 등록부터 매니저 초대, 첫 세션 개설까지 하루면 충분해요. 도입 상담을 통해 조직에 맞는 운영 방식을
           함께 찾아 드려요.
@@ -509,40 +451,16 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1.4fr 1fr 1fr 1fr',
-          gap: 32,
-          padding: '48px 64px',
-          borderTop: '1px solid var(--divider)',
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <img
-            src={logoSrc}
-            alt="Qurie"
-            style={{ height: 24, width: 'auto', objectFit: 'contain', objectPosition: 'left', display: 'block' }}
-          />
-          <p style={{ margin: 0, fontSize: 12, lineHeight: 1.6, color: 'var(--text-muted)' }}>
-            기업을 위한 실시간 협업 코드 학습 & AI 퀴즈 플랫폼.
-          </p>
-          <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>© 2026 Qurie · 현재 데모 버전</p>
-        </div>
-        {[
-          { title: '제품', items: ['주요 기능', '업데이트 노트', '보안'] },
-          { title: '리소스', items: ['도움말 센터', 'API 가이드', '커뮤니티'] },
-          { title: '회사', items: ['소개', '채용', '개인정보처리방침'] },
-        ].map((col) => (
-          <div key={col.title} style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
-            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink)' }}>
-              {col.title}
-            </span>
-            {col.items.map((item) => (
-              <span key={item}>{item}</span>
-            ))}
-          </div>
-        ))}
+      <footer className="landing-footer">
+        <img
+          src={logoSrc}
+          alt="Qurie"
+          style={{ height: 24, width: 'auto', objectFit: 'contain', objectPosition: 'left', display: 'block' }}
+        />
+        <p style={{ margin: 0, fontSize: 12, lineHeight: 1.6, color: 'var(--text-muted)' }}>
+          기업을 위한 실시간 협업 코드 학습 & AI 퀴즈 플랫폼.
+        </p>
+        <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>© 2026 Qurie · 현재 데모 버전</p>
       </footer>
     </div>
   );
