@@ -83,6 +83,7 @@ def call_anthropic(model: str, prompt: str, limit: int) -> tuple[str, int, int, 
     r = get_anthropic().messages.create(
         model=model,
         max_tokens=limit,
+        temperature=config.TEMPERATURE,
         messages=[{"role": "user", "content": prompt}],
     )
     return (
@@ -99,6 +100,7 @@ def call_anthropic_tool(model: str, prompt: str, limit: int,
     r = get_anthropic().messages.create(
         model=model,
         max_tokens=limit,
+        temperature=config.TEMPERATURE,
         messages=[{"role": "user", "content": prompt}],
         tools=[tool],
         tool_choice={"type": "tool", "name": tool["name"]},
@@ -119,6 +121,7 @@ def call_gemini_schema(model: str, prompt: str, limit: int,
         contents=prompt,
         config=types.GenerateContentConfig(
             max_output_tokens=limit,
+            temperature=config.TEMPERATURE,
             response_mime_type="application/json",
             response_json_schema=schema,
         ),
@@ -141,6 +144,7 @@ def call_gemini(model: str, prompt: str, limit: int) -> tuple[str, int, int, boo
         contents=prompt,
         config=types.GenerateContentConfig(
             max_output_tokens=limit,
+            temperature=config.TEMPERATURE,
             response_mime_type="application/json",
         ),
     )
@@ -171,6 +175,9 @@ def call_openai(model: str, prompt: str, limit: int) -> tuple[str, int, int, boo
         "messages": [{"role": "user", "content": prompt}],
         token_param_of(model): limit,
     }
+    # reasoning 모델은 temperature 조정을 거부하고 기본값만 허용한다(max_tokens와 같은 사정).
+    if not model.startswith(_REASONING_PREFIXES):
+        kw["temperature"] = config.TEMPERATURE
     try:
         r = get_openai().chat.completions.create(
             **kw, response_format={"type": "json_object"})
@@ -219,7 +226,8 @@ def _mock_quiz_item(i: int, purpose: str, primary_file: str = "solution.py") -> 
 def _mock_response(purpose: str, prompt: str = "") -> str:
     if purpose.upper() in ("GENERATE", "generate"):
         n, conceptual_n, micro_n = _parse_generate_meta(prompt)
-        path_m = re.search(r'file_path="([^"]+)"', prompt)
+        # 프롬프트가 file_path="x" / "file_path": "x" 두 형태를 모두 쓴다.
+        path_m = re.search(r'"?file_path"?\s*[:=]\s*"([^"]+)"', prompt)
         primary = path_m.group(1) if path_m else "solution.py"
         quizzes = []
         for i in range(conceptual_n):
@@ -229,6 +237,13 @@ def _mock_response(purpose: str, prompt: str = "") -> str:
         while len(quizzes) < n:
             quizzes.append(_mock_quiz_item(len(quizzes), "MICRO", primary))
         return json.dumps({"quizzes": quizzes[:n]}, ensure_ascii=False)
+    if purpose.upper() == "REPORT":
+        return json.dumps({
+            "comment": "[mock] 전반적으로 안정적인 결과입니다. 보완할 부분도 함께 정리했습니다.",
+            "strengths": ["[mock] 반복문 흐름 추적 문항을 모두 맞혔습니다."],
+            "improvements": ["[mock] 재귀 종료 조건 문항을 다시 확인해 보세요."],
+            "focus_concepts": ["mock"],
+        }, ensure_ascii=False)
     if purpose.upper() in ("SOLVE", "solve"):
         n = _parse_generate_meta(prompt)[0] if prompt else 3
         item_m = re.findall(r"\[\d+\]", prompt)
