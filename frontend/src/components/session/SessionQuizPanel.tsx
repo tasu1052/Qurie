@@ -13,7 +13,6 @@ import {
   useQuizSetsByProject,
   useSubmitQuizProgress,
   useSubmitQuizSatisfaction,
-  type QuizGenerationMode,
   type QuizItem,
   type QuizProgressItem,
   type QuizQuestionItem,
@@ -34,7 +33,7 @@ import {
   sortQuizTargetFiles,
   type QuizSourceSelection,
 } from './quizSourceScope';
-import { AlertBanner, AsyncJobPanel, Badge, Button, Input, Select } from '../../ds';
+import { AlertBanner, AsyncJobPanel, Badge, Button, Input } from '../../ds';
 
 type SessionQuizPanelProps = {
   sessionId: number;
@@ -42,6 +41,8 @@ type SessionQuizPanelProps = {
   versionHash: string | null;
   /** 세션 웹소켓(`/topic/sessions/{id}/quiz`)으로 도착한 퀴즈셋 id. 다른 참여자가 만든 것도 여기로 들어온다. */
   pushedQuizSetId?: number | null;
+  /** 강사 또는 그룹 리더 — 퀴즈 생성·재생성 UI */
+  canGenerateQuiz?: boolean;
 };
 
 type PlayableChoice = { idx: number; content: string; answer?: boolean };
@@ -89,16 +90,6 @@ function progressItemsToMaps(items: QuizProgressItem[]): {
     }
   }
   return { answers, results };
-}
-
-function mapJobStatus(
-  status: string | undefined,
-): 'PENDING' | 'GENERATING' | 'RUNNING' | 'FAILED' | 'DONE' | undefined {
-  if (status === 'QUEUED' || status === 'PENDING') return 'PENDING';
-  if (status === 'GENERATING') return 'GENERATING';
-  if (status === 'FAILED') return 'FAILED';
-  if (status === 'COMPLETED' || status === 'READY') return 'DONE';
-  return undefined;
 }
 
 function isManagerSummary(
@@ -161,6 +152,15 @@ function toPlayableQuizzes(
     lineEnd: q.lineEnd,
     choices: q.choices.map((c) => ({ idx: c.idx, content: c.content })),
   }));
+}
+
+function dedupeQuizzesByOrder(quizzes: PlayableQuiz[]): PlayableQuiz[] {
+  const seen = new Set<number>();
+  return quizzes.filter((q) => {
+    if (seen.has(q.orderNo)) return false;
+    seen.add(q.orderNo);
+    return true;
+  });
 }
 
 function QuizMetaRow({
@@ -563,7 +563,7 @@ function SingleQuizPlayer({
           display: 'flex',
           flexDirection: 'column',
           gap: 10,
-          minHeight: 220,
+          minHeight: 280,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -766,7 +766,7 @@ function SingleQuizPlayer({
           style={{
             position: 'absolute',
             left: -6,
-            top: '50%',
+            top: 140,
             transform: 'translateY(-50%)',
             width: 32,
             height: 32,
@@ -793,7 +793,7 @@ function SingleQuizPlayer({
           style={{
             position: 'absolute',
             right: -6,
-            top: '50%',
+            top: 140,
             transform: 'translateY(-50%)',
             width: 32,
             height: 32,
@@ -861,10 +861,12 @@ function SatisfactionSticky({
         bottom: 0,
         zIndex: 2,
         marginTop: 'auto',
-        borderTop: '1px solid var(--border)',
+        borderTop: '1px solid var(--border-strong)',
+        border: '1px solid var(--border-strong)',
+        borderRadius: 12,
         background: 'var(--surface-card)',
         boxShadow: 'var(--shadow-card)',
-        padding: '12px 4px 4px',
+        padding: '14px 12px 12px',
         display: 'flex',
         flexDirection: 'column',
         gap: 10,
@@ -921,15 +923,16 @@ export function SessionQuizPanel({
   projectId,
   versionHash,
   pushedQuizSetId = null,
+  canGenerateQuiz = false,
 }: SessionQuizPanelProps) {
   const meQuery = useMeOptional();
   const role = meQuery.isSuccess ? meQuery.data?.role : undefined;
   const isInstructor = role === 'MANAGER' || role === 'MASTER';
+  const canManageQuiz = canGenerateQuiz;
 
   const generateQuiz = useGenerateQuiz();
   const submitSatisfaction = useSubmitQuizSatisfaction();
   const submitProgress = useSubmitQuizProgress();
-  const [mode, setMode] = useState<QuizGenerationMode>('PRACTICE');
   const [count, setCount] = useState('5');
   const [userPrompt, setUserPrompt] = useState('');
   const [createdQuizSetId, setCreatedQuizSetId] = useState<number | null>(null);
@@ -949,12 +952,12 @@ export function SessionQuizPanel({
   const projectQuizSets = useQuizSetsByProject(projectId);
 
   const activeQuizSetId = useMemo(() => {
-    const cached = loadSessionQuizSetId(sessionId);
+    if (createdQuizSetId != null) return createdQuizSetId;
+    if (pushedQuizSetId != null) return pushedQuizSetId;
     const fromServer = projectQuizSets.data?.[0]?.quizSetId ?? null;
-    const candidates = [cached, fromServer, pushedQuizSetId, createdQuizSetId].filter(
-      (id): id is number => typeof id === 'number' && id > 0,
-    );
-    return candidates.length > 0 ? Math.max(...candidates) : null;
+    if (fromServer != null) return fromServer;
+    const cached = loadSessionQuizSetId(sessionId);
+    return cached;
   }, [sessionId, projectQuizSets.data, pushedQuizSetId, createdQuizSetId]);
 
   useEffect(() => {
@@ -1007,18 +1010,17 @@ export function SessionQuizPanel({
 
   const summary = useMemo(() => poll.data ?? null, [poll.data]);
   const latestSummary = projectQuizSets.data?.[0] ?? null;
-  const jobStatus = mapJobStatus(summary?.status);
   const generatingInFlight =
+    generateQuiz.isPending ||
     summary?.status === 'QUEUED' ||
-    summary?.status === 'GENERATING' ||
-    (projectQuizSets.data ?? []).some((s) => s.status === 'QUEUED' || s.status === 'GENERATING');
+    summary?.status === 'GENERATING';
   const canGenerate =
-    isInstructor && projectId != null && !generateQuiz.isPending && !generatingInFlight;
+    canManageQuiz && projectId != null && !generateQuiz.isPending && !generatingInFlight;
 
-  const playableQuizzes = useMemo(
-    () => (summary && summary.quizzes.length > 0 ? toPlayableQuizzes(summary) : []),
-    [summary],
-  );
+  const playableQuizzes = useMemo(() => {
+    if (!summary || summary.quizzes.length === 0) return [];
+    return dedupeQuizzesByOrder(toPlayableQuizzes(summary));
+  }, [summary]);
 
   const allHandled =
     playableQuizzes.length > 0 &&
@@ -1041,7 +1043,8 @@ export function SessionQuizPanel({
 
   const progressHydrated =
     progressQuery.isSuccess && (progressQuery.data?.items.length ?? 0) > 0;
-  const playerMountKey = `${activeQuizSetId ?? 0}-${progressHydrated ? 1 : 0}-${conflictEpoch}`;
+  const inReviewMode = reviewingCompleteFor === activeQuizSetId;
+  const playerMountKey = `${activeQuizSetId ?? 0}-${inReviewMode ? 'review' : 'play'}-${progressHydrated ? 1 : 0}-${conflictEpoch}`;
 
   const alreadyRated =
     activeQuizSetId != null &&
@@ -1049,7 +1052,6 @@ export function SessionQuizPanel({
     latestSummary.satisfactionRating != null;
 
   const satisfactionVisible =
-    isInstructor &&
     summary?.status === 'COMPLETED' &&
     allHandled &&
     activeQuizSetId != null &&
@@ -1069,7 +1071,7 @@ export function SessionQuizPanel({
   };
 
   const openSourcePicker = () => {
-    if (!isInstructor || projectId == null) return;
+    if (!canManageQuiz || projectId == null) return;
     const n = Number(count);
     if (!Number.isFinite(n) || n < 1 || n > 20) {
       setFormError('문항 수는 1–20 사이여야 합니다.');
@@ -1080,7 +1082,7 @@ export function SessionQuizPanel({
   };
 
   const onGenerateFromSource = async (selection: QuizSourceSelection) => {
-    if (!isInstructor || projectId == null) return;
+    if (!canManageQuiz || projectId == null) return;
     const n = Number(count);
     if (!Number.isFinite(n) || n < 1 || n > 20) {
       setFormError('문항 수는 1–20 사이여야 합니다.');
@@ -1112,7 +1114,7 @@ export function SessionQuizPanel({
       generateQuiz.mutate(
         {
           projectId,
-          mode,
+          mode: 'PRACTICE',
           count: n,
           ratioEasy: 1,
           ratioNormal: 1,
@@ -1200,6 +1202,7 @@ export function SessionQuizPanel({
           [quiz.id]: gradeLocally(quiz, choiceIdx),
         },
       }));
+      window.dispatchEvent(new CustomEvent('qurie-quiz-advance'));
       // 재입장 복원을 위해 서버에도 응시 기록을 남긴다.
       submitProgress.mutate(
         {
@@ -1247,6 +1250,7 @@ export function SessionQuizPanel({
               },
             },
           }));
+          window.dispatchEvent(new CustomEvent('qurie-quiz-advance'));
         },
         onError: (err) => {
           if (isAxiosError(err) && err.response?.status === 409) {
@@ -1337,7 +1341,7 @@ export function SessionQuizPanel({
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>AI 퀴즈</span>
         <QuizEmptyState
           description={
-            isInstructor
+            canManageQuiz
               ? '프로젝트를 임포트한 뒤 퀴즈를 생성할 수 있습니다.'
               : '강사가 퀴즈를 생성하면 여기에 표시됩니다.'
           }
@@ -1346,7 +1350,7 @@ export function SessionQuizPanel({
     );
   }
 
-  if (!isInstructor && activeQuizSetId == null && !restoring) {
+  if (!isInstructor && !canManageQuiz && activeQuizSetId == null && !restoring) {
     return (
       <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>AI 퀴즈</span>
@@ -1364,10 +1368,6 @@ export function SessionQuizPanel({
   const errorMessage =
     summary && isManagerSummary(summary) ? (summary.errorMessage ?? undefined) : undefined;
   const requestedCount = summary?.requestedCount ?? latestSummary?.requestedCount ?? null;
-  const stageHint =
-    summary?.status === 'GENERATING' && summary.generationStage
-      ? ` · ${summary.generationStage}`
-      : '';
 
   const showGeneratingPlaceholder =
     activeQuizSetId != null &&
@@ -1383,6 +1383,19 @@ export function SessionQuizPanel({
     summary?.status === 'QUEUED' ||
     summary?.status === 'GENERATING' ||
     Boolean(showGeneratingPlaceholder && summary?.status !== 'COMPLETED');
+  const showCreateForm =
+    canManageQuiz &&
+    projectId != null &&
+    playableQuizzes.length === 0 &&
+    !showGeneratingPlaceholder &&
+    !generatingInFlight;
+  const showRegenerate =
+    canManageQuiz &&
+    projectId != null &&
+    (playableQuizzes.length > 0 || summary?.status === 'COMPLETED') &&
+    !generatingInFlight;
+  const showGeneratingBanner =
+    canManageQuiz && (generateQuiz.isPending || generatingInFlight || generating);
 
   return (
     <div
@@ -1396,7 +1409,14 @@ export function SessionQuizPanel({
         minHeight: 0,
       }}
     >
-      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>AI 퀴즈</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>AI 퀴즈</span>
+        {showRegenerate ? (
+          <Button variant="secondary" size="sm" disabled={!canGenerate} onClick={openSourcePicker}>
+            퀴즈 재생성
+          </Button>
+        ) : null}
+      </div>
 
       {formError ? (
         <AlertBanner
@@ -1408,26 +1428,60 @@ export function SessionQuizPanel({
         />
       ) : null}
 
-      {isInstructor && (generateQuiz.isPending || generatingInFlight || generating) ? (
+      {summary?.status === 'FAILED' || latestSummary?.status === 'FAILED' ? (
+        <AlertBanner
+          tone="error"
+          title="퀴즈 생성 실패"
+          description={errorMessage ?? latestSummary?.errorMessage ?? '다시 시도해 주세요.'}
+          actionLabel="닫기"
+          onAction={() => setFormError(null)}
+        />
+      ) : null}
+
+      {showQuizPlayer ? (
+        <SingleQuizPlayer
+          key={playerMountKey}
+          quizzes={playableQuizzes}
+          requestedCount={requestedCount ?? playableQuizzes.length}
+          generating={generating}
+          answers={answers}
+          onToggleChoice={(quizId, choiceIdx) => {
+            if (activeQuizSetId == null) return;
+            ensureStarted(quizId);
+            setAnswersBySet((prev) => {
+              const cur = prev[activeQuizSetId] ?? {};
+              const next = { ...cur };
+              if (next[quizId] === choiceIdx) {
+                delete next[quizId];
+              } else {
+                next[quizId] = choiceIdx;
+              }
+              return { ...prev, [activeQuizSetId]: next };
+            });
+          }}
+          results={results}
+          onSubmit={onSubmitQuiz}
+          onSkip={onSkipQuiz}
+          submitting={submitProgress.isPending}
+          warnMessage={navWarn}
+          onNotReady={() => setNavWarn('아직 퀴즈가 생성되지 않았어요')}
+          onClearWarn={() => setNavWarn(null)}
+          showComplete={showCompleteScreen}
+          completeCorrect={correctCount}
+          completeTotal={playableQuizzes.length}
+          onReviewFromComplete={() => {
+            if (activeQuizSetId != null) setReviewingCompleteFor(activeQuizSetId);
+          }}
+          initialIndex={inReviewMode ? 0 : resumeIndex}
+        />
+      ) : null}
+
+      {showGeneratingBanner ? (
         <QuizGeneratingBanner done={generatedCount} total={requestedCount} />
       ) : null}
 
-      {isInstructor ? (
+      {showCreateForm ? (
         <>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>모드</span>
-            <Select
-              size="sm"
-              value={mode}
-              onChange={(v) => setMode(v as QuizGenerationMode)}
-              options={[
-                { value: 'PRACTICE', label: 'PRACTICE' },
-                { value: 'ASSESSMENT', label: 'ASSESSMENT' },
-              ]}
-              style={{ width: '100%' }}
-            />
-          </label>
-
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>문항 수</span>
             <Input value={count} onChange={(e) => setCount(e.target.value)} width="100%" />
@@ -1452,20 +1506,20 @@ export function SessionQuizPanel({
               {lastSource.kind === 'dir' ? `${lastSource.path}/` : lastSource.path}
             </span>
           ) : null}
-
-          {pickerOpen && projectId != null ? (
-            <QuizSourcePickerModal
-              open={pickerOpen}
-              projectId={projectId}
-              initialSelection={lastSource}
-              confirming={generateQuiz.isPending}
-              onClose={() => setPickerOpen(false)}
-              onConfirm={(selection) => {
-                void onGenerateFromSource(selection);
-              }}
-            />
-          ) : null}
         </>
+      ) : null}
+
+      {pickerOpen && projectId != null ? (
+        <QuizSourcePickerModal
+          open={pickerOpen}
+          projectId={projectId}
+          initialSelection={lastSource}
+          confirming={generateQuiz.isPending}
+          onClose={() => setPickerOpen(false)}
+          onConfirm={(selection) => {
+            void onGenerateFromSource(selection);
+          }}
+        />
       ) : null}
 
       {restoring ? (
@@ -1477,82 +1531,8 @@ export function SessionQuizPanel({
         />
       ) : null}
 
-      {activeQuizSetId != null ? (
-        <AsyncJobPanel
-          label="AI 퀴즈"
-          status={
-            jobStatus ??
-            (showGeneratingPlaceholder ? 'GENERATING' : summary?.status === 'FAILED' ? 'FAILED' : 'PENDING')
-          }
-          title={
-            summary?.status === 'COMPLETED'
-              ? `퀴즈셋 #${activeQuizSetId} 생성 완료`
-              : summary?.status === 'FAILED' || latestSummary?.status === 'FAILED'
-                ? `퀴즈셋 #${activeQuizSetId} 실패`
-                : `퀴즈셋 #${activeQuizSetId} 생성 중${stageHint}`
-          }
-          description={
-            summary
-              ? generatedCount != null
-                ? `요청 ${summary.requestedCount} · 생성 ${generatedCount}${
-                    summary.status === 'GENERATING' && generatedCount > 0
-                      ? ' · 준비된 문항부터 풀 수 있어요'
-                      : ''
-                  }`
-                : `요청 ${summary.requestedCount}문항`
-              : showGeneratingPlaceholder
-                ? '생성 중입니다. 새로고침해도 이어서 표시됩니다.'
-                : '상태를 확인하는 중…'
-          }
-          done={generatedCount}
-          total={requestedCount}
-          errorMessage={errorMessage ?? latestSummary?.errorMessage ?? undefined}
-          meta={
-            isInstructor
-              ? `GET /quiz?project · #${activeQuizSetId}`
-              : `GET /quiz/${activeQuizSetId}/questions`
-          }
-        >
-          {showQuizPlayer ? (
-            <SingleQuizPlayer
-              key={playerMountKey}
-              quizzes={playableQuizzes}
-              requestedCount={requestedCount ?? playableQuizzes.length}
-              generating={generating}
-              answers={answers}
-              onToggleChoice={(quizId, choiceIdx) => {
-                if (activeQuizSetId == null) return;
-                ensureStarted(quizId);
-                setAnswersBySet((prev) => {
-                  const cur = prev[activeQuizSetId] ?? {};
-                  const next = { ...cur };
-                  if (next[quizId] === choiceIdx) {
-                    delete next[quizId];
-                  } else {
-                    next[quizId] = choiceIdx;
-                  }
-                  return { ...prev, [activeQuizSetId]: next };
-                });
-              }}
-              results={results}
-              onSubmit={onSubmitQuiz}
-              onSkip={onSkipQuiz}
-              submitting={submitProgress.isPending}
-              warnMessage={navWarn}
-              onNotReady={() => setNavWarn('아직 퀴즈가 생성되지 않았어요')}
-              onClearWarn={() => setNavWarn(null)}
-              showComplete={showCompleteScreen}
-              completeCorrect={correctCount}
-              completeTotal={playableQuizzes.length}
-              onReviewFromComplete={() => {
-                if (activeQuizSetId != null) setReviewingCompleteFor(activeQuizSetId);
-              }}
-              initialIndex={resumeIndex}
-            />
-          ) : !generating && summary?.status === 'COMPLETED' && playableQuizzes.length === 0 ? (
-            <QuizEmptyState description="생성은 완료됐지만 표시할 문항이 없습니다." />
-          ) : null}
-        </AsyncJobPanel>
+      {!showQuizPlayer && !generating && summary?.status === 'COMPLETED' && playableQuizzes.length === 0 ? (
+        <QuizEmptyState description="생성은 완료됐지만 표시할 문항이 없습니다." />
       ) : null}
 
       {satisfactionVisible ? (
