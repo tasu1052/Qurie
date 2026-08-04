@@ -11,7 +11,7 @@ import {
   type NoticeResponse,
   type UserRole,
 } from '../../data';
-import { noticeListPath, useOpenNoticeDetail } from '../../hooks/useOpenNoticeDetail';
+import { useOpenNoticeDetail } from '../../hooks/useOpenNoticeDetail';
 import { Skeleton } from '../../ds';
 
 const READ_KEY = 'qurie-notice-read-ids';
@@ -88,29 +88,45 @@ function HelpRequestRows({
         <div
           key={`help-${req.id}`}
           style={{
+            margin: '0 10px 8px',
             padding: '12px 14px',
-            borderBottom: '1px solid var(--divider)',
+            border: '1px solid var(--border)',
+            borderRadius: 10,
             display: 'flex',
             flexDirection: 'column',
-            gap: 8,
-            background: 'var(--surface-modal)',
+            gap: 10,
+            background: 'var(--surface-card)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--status-warning)' }}>호출</span>
-            <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>
-              {new Date(req.createdAt).toLocaleTimeString('ko-KR', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <span
+              style={{
+                flexShrink: 0,
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.03em',
+                textTransform: 'uppercase',
+                color: 'var(--status-warning)',
+                background: 'var(--status-warning-bg)',
+                borderRadius: 999,
+                padding: '3px 8px',
+              }}
+            >
+              호출
             </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.4 }}>
+                {req.fromName}님이 도움이 필요해요
+              </div>
+              <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text-muted)' }}>
+                {new Date(req.createdAt).toLocaleTimeString('ko-KR', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+                · 세션 {req.sessionTitle || `#${req.sessionId}`}
+              </div>
+            </div>
           </div>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
-            {req.fromName}님이 도움이 필요해요
-          </span>
-          <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-            세션 · {req.sessionTitle || `#${req.sessionId}`}
-          </span>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               type="button"
@@ -166,7 +182,6 @@ function BellPanel({
   classId: number | null;
   onClose: () => void;
 }) {
-  const navigate = useNavigate();
   const openNotice = useOpenNoticeDetail();
   const { data } = useGetNotices({ size: 8 });
   const helpQuery = useGetClassHelpRequests(
@@ -174,7 +189,6 @@ function BellPanel({
   );
   const notices = data.data;
   const helpRequests = helpQuery.data ?? [];
-  const morePath = noticeListPath(role);
 
   useEffect(() => {
     if (notices.length === 0) return;
@@ -187,9 +201,6 @@ function BellPanel({
     <div role="dialog" aria-label="알림" style={panelShellStyle}>
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
           padding: '12px 14px',
           borderBottom: '1px solid var(--divider)',
           background: 'var(--surface-modal)',
@@ -199,106 +210,112 @@ function BellPanel({
         }}
       >
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>알림</span>
-        {morePath ? (
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              navigate(morePath);
-            }}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              color: 'var(--accent)',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'var(--font-sans)',
-              padding: 0,
-            }}
-          >
-            공지 전체
-          </button>
-        ) : null}
       </div>
 
       <HelpRequestRows requests={helpRequests} onClose={onClose} />
 
-      <div
-        style={{
-          padding: '10px 14px 6px',
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: '0.04em',
-          textTransform: 'uppercase',
-          color: 'var(--text-muted)',
-        }}
-      >
-        공지
-      </div>
+      {notices.length > 0 ? (
+        <div
+          style={{
+            padding: '8px 14px 4px',
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
+          }}
+        >
+          공지
+        </div>
+      ) : null}
       {notices.length === 0 ? (
-        <div style={{ padding: '8px 20px 20px', fontSize: 13, color: 'var(--text-muted)' }}>
+        <div style={{ padding: '12px 14px 16px', fontSize: 13, color: 'var(--text-muted)' }}>
           {helpRequests.length === 0 ? '새 알림이 없습니다.' : '새 공지가 없습니다.'}
         </div>
       ) : (
-        notices.map((n) => (
-          <button
-            key={n.id}
-            type="button"
-            onClick={() => {
-              onClose();
-              openNotice(n.id);
-            }}
-            style={{
-              padding: '12px 14px',
-              border: 'none',
-              borderBottom: '1px solid var(--divider)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4,
-              background: 'var(--surface-modal)',
-              textAlign: 'left',
-              cursor: 'pointer',
-              fontFamily: 'var(--font-sans)',
-              color: 'inherit',
-              width: '100%',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
-                  color: 'var(--text-muted)',
-                }}
-              >
-                {scopeLabel(n.scope)}
-              </span>
-              {n.pinned ? (
-                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--accent)' }}>고정</span>
-              ) : null}
-              <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>
-                {new Date(n.createdAt).toLocaleDateString('ko-KR')}
-              </span>
-            </div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{n.title}</span>
-            <span
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 10px 12px' }}>
+          {notices.map((n) => (
+            <button
+              key={n.id}
+              type="button"
+              onClick={() => {
+                onClose();
+                openNotice(n.id);
+              }}
               style={{
-                fontSize: 12,
-                color: 'var(--text-secondary)',
-                lineHeight: 1.45,
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
+                padding: '12px 14px',
+                border: '1px solid var(--border)',
+                borderRadius: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                background: 'var(--surface-card)',
+                textAlign: 'left',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                color: 'inherit',
+                width: '100%',
+                transition: 'border-color 0.15s ease, background 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-strong)';
+                e.currentTarget.style.background = 'var(--surface-sunken)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.background = 'var(--surface-card)';
               }}
             >
-              {n.body}
-            </span>
-          </button>
-        ))
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.03em',
+                    textTransform: 'uppercase',
+                    color: 'var(--text-secondary)',
+                    background: 'var(--surface-sunken)',
+                    borderRadius: 999,
+                    padding: '3px 8px',
+                  }}
+                >
+                  {scopeLabel(n.scope)}
+                </span>
+                {n.pinned ? (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: 'var(--accent)',
+                      background: 'var(--accent-softer)',
+                      borderRadius: 999,
+                      padding: '3px 8px',
+                    }}
+                  >
+                    고정
+                  </span>
+                ) : null}
+                <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>
+                  {new Date(n.createdAt).toLocaleDateString('ko-KR')}
+                </span>
+              </div>
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: 'var(--ink)',
+                  lineHeight: 1.45,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+              >
+                {n.title}
+              </span>
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
