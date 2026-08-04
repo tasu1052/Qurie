@@ -16,10 +16,9 @@ import TrackDetailPage from './pages/master/TrackDetailPage';
 import ClassManagementPage from './pages/master/ClassManagementPage';
 import ClassDetailPage from './pages/master/ClassDetailPage';
 import MemberManagementPage from './pages/master/MemberManagementPage';
-import AnnouncementsPage from './pages/master/AnnouncementsPage';
-import MasterMyPage from './pages/master/MasterMyPage';
+import NoticesPage from './pages/shared/NoticesPage';
+import ProfilePage from './pages/shared/ProfilePage';
 import ManagerDashboardPage from './pages/manager/ManagerDashboardPage';
-import ManagerAnnouncementsPage from './pages/manager/ManagerAnnouncementsPage';
 import StudentManagementPage from './pages/manager/StudentManagementPage';
 import StudentOverviewPage, {
   RedirectLegacyStudentDetail,
@@ -27,9 +26,7 @@ import StudentOverviewPage, {
 import SessionListPage from './pages/manager/SessionListPage';
 import GroupListPage from './pages/manager/GroupListPage';
 import GroupEditPage from './pages/manager/GroupEditPage';
-import ManagerMyPage from './pages/manager/ManagerMyPage';
 import StudentDashboardPage from './pages/student/StudentDashboardPage';
-import MyPage from './pages/student/MyPage';
 import SessionPage from './pages/session/SessionPage';
 import SessionReportPage from './pages/session/SessionReportPage';
 import FinalReportPage from './pages/student/FinalReportPage';
@@ -67,11 +64,11 @@ export default function App() {
           <Route path="/master/classes" element={<ClassManagementPage />} />
           <Route path="/master/classes/:classId" element={<ClassDetailPage />} />
           <Route path="/master/members" element={<MemberManagementPage />} />
-          <Route path="/master/announcements" element={<AnnouncementsPage />} />
+          <Route path="/master/announcements" element={<NoticesPage />} />
           <Route path="/master/announcements/:noticeId" element={<NoticeDetailPage />} />
           <Route path="/master/analytics" element={<Navigate to="/master/classes" replace />} />
           <Route path="/master/analytics/:classId" element={<RedirectClassAnalytics />} />
-          <Route path="/master/me" element={<MasterMyPage />} />
+          <Route path="/master/me" element={<ProfilePage />} />
           <Route path="/master/settings" element={<Navigate to="/master/me" replace />} />
 
           <Route path="/manager" element={<ManagerDashboardPage />} />
@@ -83,16 +80,16 @@ export default function App() {
           <Route path="/manager/quizzes/:quizSetId" element={<PastQuizDetailPage />} />
           <Route path="/manager/groups" element={<GroupListPage />} />
           <Route path="/manager/groups/:id" element={<GroupEditPage />} />
-          <Route path="/manager/announcements" element={<ManagerAnnouncementsPage />} />
+          <Route path="/manager/announcements" element={<NoticesPage />} />
           <Route path="/manager/announcements/:noticeId" element={<NoticeDetailPage />} />
-          <Route path="/manager/me" element={<ManagerMyPage />} />
+          <Route path="/manager/me" element={<ProfilePage />} />
           <Route path="/manager/settings" element={<Navigate to="/manager/me" replace />} />
 
           <Route path="/app" element={<StudentDashboardPage />} />
           <Route path="/app/announcements/:noticeId" element={<NoticeDetailPage />} />
           <Route path="/app/classes" element={<Navigate to="/app" replace />} />
           <Route path="/app/classes/:id" element={<Navigate to="/app" replace />} />
-          <Route path="/app/me" element={<MyPage />} />
+          <Route path="/app/me" element={<ProfilePage />} />
           <Route path="/app/sessions" element={<Navigate to="/app/report" replace />} />
           <Route path="/app/quizzes" element={<PastQuizListPage />} />
           <Route path="/app/quizzes/:quizSetId" element={<PastQuizDetailPage />} />

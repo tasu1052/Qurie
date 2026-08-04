@@ -1,19 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pencil, Pin, Plus, Trash2 } from 'lucide-react';
-import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
-import { MasterShell, PageMain } from '../../components/layout/MasterShell';
+import { Plus } from 'lucide-react';
+import { ConfirmDeleteOverlay } from '../overlays/ConfirmDeleteOverlay';
+import { AlertBanner, EmptyState, Input, Modal, Select } from '../../ds';
 import {
-  AlertBanner,
-  Badge,
-  EmptyState,
-  Input,
-  Modal,
-  RowErrorFallback,
-  Select,
-  Skeleton,
-} from '../../ds';
-import {
-  QueryAsyncBoundary,
   useCreateNotice,
   useDeleteNotice,
   useGetClasses,
@@ -24,137 +13,13 @@ import {
   type NoticeScope,
 } from '../../data';
 import { useOpenNoticeDetail } from '../../hooks/useOpenNoticeDetail';
+import {
+  NoticeCard,
+  ScopeFilterTabs,
+  type ScopeFilter,
+} from './noticesShared';
 
-type ScopeFilter = '전체' | 'TRACK' | 'CLASS';
-
-function ListSkeleton() {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {[0, 1, 2].map((i) => (
-        <Skeleton key={i} width="100%" height={120} radius={16} delay={i * 0.08} />
-      ))}
-    </div>
-  );
-}
-
-function scopeLabel(scope: NoticeScope): string {
-  if (scope === 'ENTERPRISE') return '전체';
-  if (scope === 'TRACK') return '트랙';
-  return '클래스';
-}
-
-function NoticeCard({
-  item,
-  onOpen,
-  onDelete,
-  onEdit,
-  deleting,
-}: {
-  item: NoticeResponse;
-  onOpen: () => void;
-  onDelete: () => void;
-  onEdit: () => void;
-  deleting: boolean;
-}) {
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onOpen();
-        }
-      }}
-      style={{
-        background: 'var(--surface-card)',
-        border: `1px solid ${item.pinned ? 'var(--accent-soft)' : 'var(--border)'}`,
-        borderRadius: 16,
-        boxShadow: 'var(--shadow-card)',
-        padding: '20px 24px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-        cursor: 'pointer',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {item.pinned ? (
-          <>
-            <Pin size={14} strokeWidth={1.75} style={{ color: 'var(--accent)' }} />
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: 'var(--accent)',
-              }}
-            >
-              고정됨
-            </span>
-          </>
-        ) : null}
-        <Badge status={item.pinned ? 'accent' : 'neutral'}>{scopeLabel(item.scope)}</Badge>
-        {item.targetName ? (
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{item.targetName}</span>
-        ) : null}
-        <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
-          {new Date(item.createdAt).toLocaleDateString('ko-KR')}
-        </span>
-        <button
-          type="button"
-          title="수정"
-          aria-label="공지 수정"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit();
-          }}
-          style={{
-            border: 'none',
-            background: 'transparent',
-            color: 'var(--text-secondary)',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            padding: 4,
-          }}
-        >
-          <Pencil size={14} strokeWidth={1.75} />
-        </button>
-        <button
-          type="button"
-          title="삭제"
-          aria-label="공지 삭제"
-          disabled={deleting}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          style={{
-            border: 'none',
-            background: 'transparent',
-            color: 'var(--status-error)',
-            cursor: deleting ? 'wait' : 'pointer',
-            display: 'inline-flex',
-            padding: 4,
-          }}
-        >
-          <Trash2 size={14} strokeWidth={1.75} />
-        </button>
-      </div>
-      <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>{item.title}</h3>
-      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-        {item.body}
-      </p>
-      <div style={{ display: 'flex', gap: 14, fontSize: 12, color: 'var(--text-muted)' }}>
-        <span>작성: {item.authorName}</span>
-      </div>
-    </div>
-  );
-}
-
-function AnnouncementsBody() {
+export function MasterNoticesBody() {
   const openNotice = useOpenNoticeDetail();
   const [scope, setScope] = useState<ScopeFilter>('전체');
   const [open, setOpen] = useState(false);
@@ -266,44 +131,22 @@ function AnnouncementsBody() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, position: 'relative' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>공지사항</h1>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
             전체 · 트랙 · 클래스 단위로 공지를 관리해요.
           </span>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {(
-            [
-              { key: '전체', label: '전체' },
-              { key: 'TRACK', label: '트랙' },
-              { key: 'CLASS', label: '클래스' },
-            ] as const
-          ).map((s) => {
-            const active = scope === s.key;
-            return (
-              <button
-                key={s.key}
-                type="button"
-                onClick={() => setScope(s.key)}
-                style={{
-                  background: active ? 'var(--ink)' : 'var(--surface-card)',
-                  color: active ? 'var(--text-inverse)' : 'var(--text-secondary)',
-                  border: active ? 'none' : '1px solid var(--border-strong)',
-                  borderRadius: 999,
-                  padding: '5px 14px',
-                  fontSize: 12,
-                  fontWeight: active ? 600 : 400,
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                }}
-              >
-                {s.label}
-              </button>
-            );
-          })}
-        </div>
+        <ScopeFilterTabs
+          scope={scope}
+          onChange={setScope}
+          options={[
+            { key: '전체', label: '전체' },
+            { key: 'TRACK', label: '트랙' },
+            { key: 'CLASS', label: '클래스' },
+          ]}
+        />
       </div>
 
       {notices.length === 0 ? (
@@ -440,29 +283,5 @@ function AnnouncementsBody() {
         }}
       />
     </div>
-  );
-}
-
-export default function AnnouncementsPage() {
-  const [rowKey, setRowKey] = useState(0);
-
-  return (
-    <MasterShell activeKey="announcements" breadcrumbs={['SSAFY 서울캠퍼스', '공지사항']}>
-      <PageMain>
-        <QueryAsyncBoundary
-          key={rowKey}
-          suspenseFallback={<ListSkeleton />}
-          errorFallback={
-            <RowErrorFallback
-              onRetry={() => setRowKey((k) => k + 1)}
-              title="공지를 불러오지 못했습니다"
-              description="목록을 다시 불러와 주세요."
-            />
-          }
-        >
-          <AnnouncementsBody />
-        </QueryAsyncBoundary>
-      </PageMain>
-    </MasterShell>
   );
 }

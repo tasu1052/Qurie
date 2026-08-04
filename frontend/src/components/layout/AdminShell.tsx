@@ -4,7 +4,7 @@ import { Building2, LogOut } from 'lucide-react';
 import { Button, Sidebar, Topbar } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
 import { getAdminSession, logoutAdmin } from '../../data';
-import { PageMain } from './MasterShell';
+import { PageMain } from './PageMain';
 
 const iconProps = { size: 16, strokeWidth: 1.75 } as const;
 
