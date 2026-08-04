@@ -12,23 +12,33 @@ const menuStyle={
   border:'1px solid var(--border-strong)',
   borderRadius:'var(--radius-md)',
   boxShadow:'var(--shadow-popover)',
-  padding:5,zIndex:200,
+  padding:5,zIndex:210,
 };
 export function Select({options=[],value,onChange,size='md',disabled=false,style={}}){
 const [open,setOpen]=React.useState(false);
 const ref=React.useRef(null);
-React.useEffect(()=>{const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false)};document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h)},[]);
+const suppressToggleRef=React.useRef(false);
+React.useEffect(()=>{
+  const h=(e)=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
+  document.addEventListener('click',h);
+  return()=>document.removeEventListener('click',h);
+},[]);
 const cur=options.find(o=>(o.value??o)===value)??options[0];
 const label=o=>o?.label??o;
 const pad=size==='sm'?'5px 12px':'8px 16px';
-const pick=(v)=>{setOpen(false);if(onChange)onChange(v);};
+const pick=(v)=>{
+  suppressToggleRef.current=true;
+  setOpen(false);
+  if(onChange)onChange(v);
+  window.setTimeout(()=>{suppressToggleRef.current=false;},0);
+};
 return <div ref={ref} className="qurie-select" style={{position:'relative',display:'inline-block',...style}}>
-<button type="button" disabled={disabled} onClick={()=>setOpen(o=>!o)} style={{...triggerStyle,padding:pad,fontSize:size==='sm'?12:14,cursor:disabled?'not-allowed':'pointer',opacity:disabled?0.45:1}}>
+<button type="button" disabled={disabled} onClick={()=>{if(suppressToggleRef.current)return;setOpen(o=>!o);}} style={{...triggerStyle,padding:pad,fontSize:size==='sm'?12:14,cursor:disabled?'not-allowed':'pointer',opacity:disabled?0.45:1}}>
 {label(cur)}<span style={{color:'var(--text-muted)',fontSize:size==='sm'?9:10,transform:'rotate(90deg)',fontWeight:600}}>&gt;</span>
 </button>
 {open&&<div className="qurie-select__menu" style={menuStyle}>
 {options.map((o,i)=>{const v=o.value??o;const sel=v===value;
-return <div key={i} role="option" aria-selected={sel} onMouseDown={(e)=>{e.preventDefault();e.stopPropagation();pick(v);}} style={{padding:'6px 12px',borderRadius:'var(--radius-sm)',fontSize:size==='sm'?12:13,fontFamily:'var(--font-sans)',fontWeight:sel?600:400,color:sel?'var(--accent)':'var(--ink)',background:sel?'var(--accent-softer)':'var(--surface-modal)',cursor:'pointer',whiteSpace:'nowrap'}}
+return <div key={i} role="option" aria-selected={sel} onClick={(e)=>{e.preventDefault();e.stopPropagation();pick(v);}} style={{padding:'6px 12px',borderRadius:'var(--radius-sm)',fontSize:size==='sm'?12:13,fontFamily:'var(--font-sans)',fontWeight:sel?600:400,color:sel?'var(--accent)':'var(--ink)',background:sel?'var(--accent-softer)':'var(--surface-modal)',cursor:'pointer',whiteSpace:'nowrap'}}
 onMouseEnter={e=>{if(!sel)e.currentTarget.style.background='var(--surface-hover)'}} onMouseLeave={e=>{if(!sel)e.currentTarget.style.background='var(--surface-modal)'}}>{label(o)}</div>})}
 </div>}
 </div>;
