@@ -4,20 +4,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Badge, Button, EmptyState } from '../../ds';
 import { getPastQuizSetMock, type PastQuizItem } from '../../mocks/pastLearning';
 import { PastQuizShell } from './pastQuizShell';
-import { usePastQuizBasePath, type PastQuizBasePath } from './pastQuizPaths';
+import { SESSION_LIST_PAGE_TITLE, usePastQuizBasePath, type PastQuizBasePath } from './pastQuizPaths';
 
 type FilterKey = 'all' | 'correct' | 'wrong';
-type ModeKey = 'view' | 'retry';
 
 const filterChips: { key: FilterKey; label: string }[] = [
   { key: 'all', label: '전체' },
   { key: 'correct', label: '맞춘 문항' },
   { key: 'wrong', label: '틀린 문항' },
-];
-
-const modeChips: { key: ModeKey; label: string }[] = [
-  { key: 'view', label: '열람' },
-  { key: 'retry', label: '오답 재풀이' },
 ];
 
 function filterItems(items: PastQuizItem[], filter: FilterKey): PastQuizItem[] {
@@ -67,6 +61,8 @@ function ChoiceRow({
         background,
         fontSize: 13,
         color: 'var(--ink)',
+        width: '100%',
+        boxSizing: 'border-box',
       }}
     >
       {showResult && isCorrect ? (
@@ -96,20 +92,10 @@ function ChoiceRow({
   );
 }
 
-function RetryQuestion({
-  item,
-  selectedIdx,
-  submitted,
-  onSelect,
-  onSubmit,
-}: {
-  item: PastQuizItem;
-  selectedIdx: number | null;
-  submitted: boolean;
-  onSelect: (idx: number) => void;
-  onSubmit: () => void;
-}) {
-  const isCorrect = submitted && selectedIdx === item.correctIdx;
+function QuestionCard({ item }: { item: PastQuizItem }) {
+  const [pickedIdx, setPickedIdx] = useState<number | null>(null);
+  const showResult = pickedIdx != null;
+  const isCorrect = pickedIdx === item.correctIdx;
 
   return (
     <div
@@ -123,63 +109,51 @@ function RetryQuestion({
         gap: 12,
       }}
     >
-      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>
-        Q{item.orderNo}
-      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>
+          Q{item.orderNo}
+        </span>
+        {showResult ? (
+          <Badge status={isCorrect ? 'success' : 'error'}>{isCorrect ? '정답' : '오답'}</Badge>
+        ) : item.isCorrect === true ? (
+          <Badge status="success">정답</Badge>
+        ) : item.isCorrect === false ? (
+          <Badge status="error">오답</Badge>
+        ) : null}
+      </div>
       <p style={{ margin: 0, fontSize: 14, fontWeight: 600, lineHeight: 1.5, color: 'var(--ink)' }}>
         {item.question}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {item.choices.map((c) => {
-          const picked = selectedIdx === c.idx;
-          const showAnswer = submitted;
-          const isAnswer = c.idx === item.correctIdx;
-          let border = picked ? 'var(--accent)' : 'var(--border)';
-          let background = picked ? 'var(--accent-softer)' : 'var(--surface-sunken)';
-          if (showAnswer && isAnswer) {
-            border = 'var(--status-success)';
-            background = 'var(--status-success-bg)';
-          } else if (showAnswer && picked && !isAnswer) {
-            border = 'var(--status-error)';
-            background = 'var(--status-error-bg)';
-          }
-          return (
-            <button
-              key={c.idx}
-              type="button"
-              disabled={submitted}
-              onClick={() => onSelect(c.idx)}
-              style={{
-                textAlign: 'left',
-                padding: '10px 12px',
-                borderRadius: 10,
-                border: `1px solid ${border}`,
-                background,
-                fontSize: 13,
-                cursor: submitted ? 'default' : 'pointer',
-                fontFamily: 'var(--font-sans)',
-                color: 'var(--ink)',
-              }}
-            >
-              {c.content}
-            </button>
-          );
-        })}
+        {item.choices.map((c) => (
+          <button
+            key={c.idx}
+            type="button"
+            disabled={showResult}
+            onClick={() => setPickedIdx(c.idx)}
+            style={{
+              border: 'none',
+              padding: 0,
+              background: 'transparent',
+              cursor: showResult ? 'default' : 'pointer',
+              fontFamily: 'var(--font-sans)',
+              textAlign: 'left',
+            }}
+          >
+            <ChoiceRow
+              choice={c}
+              correctIdx={item.correctIdx}
+              userChoiceIdx={pickedIdx}
+              showResult={showResult}
+            />
+          </button>
+        ))}
       </div>
-      {!submitted ? (
-        <Button variant="secondary" size="sm" disabled={selectedIdx == null} onClick={onSubmit}>
-          제출
-        </Button>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <Badge status={isCorrect ? 'success' : 'error'}>
-            {isCorrect ? '정답입니다' : '오답입니다'}
-          </Badge>
-          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
-            {item.explanation}
-          </p>
-        </div>
-      )}
+      {showResult ? (
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
+          {item.explanation}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -196,24 +170,15 @@ export default function PastQuizDetailPage({ basePath: basePathProp }: PastQuizD
   const quizSet = Number.isFinite(quizSetId) ? getPastQuizSetMock(quizSetId) : undefined;
 
   const [filter, setFilter] = useState<FilterKey>('all');
-  const [mode, setMode] = useState<ModeKey>('view');
-  const [retryAnswers, setRetryAnswers] = useState<Record<number, number | null>>({});
-  const [retrySubmitted, setRetrySubmitted] = useState<Record<number, boolean>>({});
-
-  const wrongItems = useMemo(
-    () => (quizSet ? quizSet.items.filter((i) => i.isCorrect === false) : []),
-    [quizSet],
-  );
 
   const displayItems = useMemo(() => {
     if (!quizSet) return [];
-    if (mode === 'retry') return wrongItems;
     return filterItems(quizSet.items, filter);
-  }, [quizSet, mode, filter, wrongItems]);
+  }, [quizSet, filter]);
 
   if (!quizSet) {
     return (
-      <PastQuizShell basePath={basePath} breadcrumbs={['지난 퀴즈', '상세']}>
+      <PastQuizShell basePath={basePath} breadcrumbs={[SESSION_LIST_PAGE_TITLE, '상세']}>
         <EmptyState
           message="퀴즈 세트를 찾을 수 없습니다"
           actionLabel="목록으로"
@@ -224,7 +189,7 @@ export default function PastQuizDetailPage({ basePath: basePathProp }: PastQuizD
   }
 
   return (
-    <PastQuizShell basePath={basePath} breadcrumbs={['지난 퀴즈', quizSet.sessionTitle]}>
+    <PastQuizShell basePath={basePath} breadcrumbs={[SESSION_LIST_PAGE_TITLE, quizSet.sessionTitle]}>
       <div>
         <Button
           variant="ghost"
@@ -242,13 +207,13 @@ export default function PastQuizDetailPage({ basePath: basePathProp }: PastQuizD
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        {modeChips.map((c) => {
-          const active = mode === c.key;
+        {filterChips.map((c) => {
+          const active = filter === c.key;
           return (
             <button
               key={c.key}
               type="button"
-              onClick={() => setMode(c.key)}
+              onClick={() => setFilter(c.key)}
               style={{
                 borderRadius: 999,
                 padding: '6px 14px',
@@ -256,9 +221,9 @@ export default function PastQuizDetailPage({ basePath: basePathProp }: PastQuizD
                 fontWeight: active ? 600 : 400,
                 cursor: 'pointer',
                 fontFamily: 'var(--font-sans)',
-                border: `1px solid ${active ? 'var(--accent)' : 'var(--border-strong)'}`,
-                background: active ? 'var(--accent-softer)' : 'var(--surface-card)',
-                color: active ? 'var(--accent)' : 'var(--text-secondary)',
+                border: `1px solid ${active ? 'var(--ink)' : 'var(--border-strong)'}`,
+                background: active ? 'var(--surface-sunken)' : 'var(--surface-card)',
+                color: active ? 'var(--ink)' : 'var(--text-secondary)',
               }}
             >
               {c.label}
@@ -267,107 +232,16 @@ export default function PastQuizDetailPage({ basePath: basePathProp }: PastQuizD
         })}
       </div>
 
-      {mode === 'view' ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {filterChips.map((c) => {
-            const active = filter === c.key;
-            return (
-              <button
-                key={c.key}
-                type="button"
-                onClick={() => setFilter(c.key)}
-                style={{
-                  borderRadius: 999,
-                  padding: '6px 14px',
-                  fontSize: 12,
-                  fontWeight: active ? 600 : 400,
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                  border: `1px solid ${active ? 'var(--ink)' : 'var(--border-strong)'}`,
-                  background: active ? 'var(--surface-sunken)' : 'var(--surface-card)',
-                  color: active ? 'var(--ink)' : 'var(--text-secondary)',
-                }}
-              >
-                {c.label}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-
       <div className="qurie-master-split" style={{ alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
-          {mode === 'retry' && wrongItems.length === 0 ? (
-            <EmptyState
-              message="틀린 문항이 없습니다"
-              description="모든 문항을 맞혔어요."
-              actionLabel="열람으로 보기"
-              onAction={() => setMode('view')}
-            />
-          ) : displayItems.length === 0 ? (
+          {displayItems.length === 0 ? (
             <EmptyState
               message="표시할 문항이 없습니다"
               actionLabel="전체 보기"
               onAction={() => setFilter('all')}
             />
-          ) : mode === 'view' ? (
-            displayItems.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  background: 'var(--surface-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 16,
-                  padding: 20,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 12,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Q{item.orderNo}
-                  </span>
-                  {item.isCorrect === true ? (
-                    <Badge status="success">정답</Badge>
-                  ) : item.isCorrect === false ? (
-                    <Badge status="error">오답</Badge>
-                  ) : null}
-                </div>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, lineHeight: 1.5, color: 'var(--ink)' }}>
-                  {item.question}
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {item.choices.map((c) => (
-                    <ChoiceRow
-                      key={c.idx}
-                      choice={c}
-                      correctIdx={item.correctIdx}
-                      userChoiceIdx={item.userChoiceIdx}
-                      showResult
-                    />
-                  ))}
-                </div>
-                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
-                  {item.explanation}
-                </p>
-              </div>
-            ))
           ) : (
-            displayItems.map((item) => (
-              <RetryQuestion
-                key={item.id}
-                item={item}
-                selectedIdx={retryAnswers[item.id] ?? null}
-                submitted={retrySubmitted[item.id] ?? false}
-                onSelect={(idx) =>
-                  setRetryAnswers((prev) => ({ ...prev, [item.id]: idx }))
-                }
-                onSubmit={() =>
-                  setRetrySubmitted((prev) => ({ ...prev, [item.id]: true }))
-                }
-              />
-            ))
+            displayItems.map((item) => <QuestionCard key={item.id} item={item} />)
           )}
         </div>
 

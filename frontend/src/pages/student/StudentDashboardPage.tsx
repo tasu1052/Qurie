@@ -51,6 +51,8 @@ function openSessionInNewTab(
   win.opener = null;
 }
 
+const DASH_PANEL_HEIGHT = 320;
+
 function MyGroupPanel({
   detail,
   onlineUserIds,
@@ -58,8 +60,6 @@ function MyGroupPanel({
   detail: GroupDetailResponse;
   onlineUserIds: Set<number>;
 }) {
-  const leader = detail.members.find((m) => m.role === 'LEADER');
-
   return (
     <div
       style={{
@@ -72,6 +72,9 @@ function MyGroupPanel({
         flexDirection: 'column',
         gap: 14,
         minWidth: 0,
+        height: DASH_PANEL_HEIGHT,
+        boxSizing: 'border-box',
+        overflow: 'hidden',
       }}
     >
       <div>
@@ -91,12 +94,7 @@ function MyGroupPanel({
           {detail.description || '설명이 없습니다.'}
         </p>
       </div>
-      {leader ? (
-        <Badge status="accent">리더 {leader.name}</Badge>
-      ) : (
-        <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>리더 미지정</span>
-      )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', minHeight: 0, flex: 1 }}>
         {detail.members.map((m: GroupMemberResponse) => {
           const online = onlineUserIds.has(m.userId);
           return (
@@ -260,6 +258,8 @@ function StudentDashWithClass({ classId }: { classId: number }) {
               border: '1px solid var(--border)',
               borderRadius: 16,
               padding: 24,
+              height: DASH_PANEL_HEIGHT,
+              boxSizing: 'border-box',
             }}
           >
             <EmptyState
@@ -282,6 +282,9 @@ function StudentDashWithClass({ classId }: { classId: number }) {
             flexDirection: 'column',
             gap: 12,
             minWidth: 0,
+            height: DASH_PANEL_HEIGHT,
+            boxSizing: 'border-box',
+            overflow: 'hidden',
           }}
         >
           <span
@@ -303,7 +306,7 @@ function StudentDashWithClass({ classId }: { classId: number }) {
               onAction={() => navigate('/app/report')}
             />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', minHeight: 0, flex: 1 }}>
               {joinableSessions.map((s) => (
                 <SessionCard
                   key={s.id}
@@ -316,34 +319,41 @@ function StudentDashWithClass({ classId }: { classId: number }) {
         </div>
       </div>
 
-      <DashboardNoticesSection role="STUDENT" classId={classId} size={5} />
-
-      <div
-        style={{
-          background: 'var(--surface-card)',
-          border: '1px solid var(--border)',
-          borderRadius: 16,
-          boxShadow: 'var(--shadow-card)',
-          padding: 24,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-        }}
-      >
-        <span
+      <div className="qurie-app-split" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
+        <DashboardNoticesSection role="STUDENT" classId={classId} size={5} maxHeight={DASH_PANEL_HEIGHT} />
+        <div
           style={{
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: 'var(--text-secondary)',
+            background: 'var(--surface-card)',
+            border: '1px solid var(--border)',
+            borderRadius: 16,
+            boxShadow: 'var(--shadow-card)',
+            padding: 24,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+            minWidth: 0,
+            height: DASH_PANEL_HEIGHT,
+            boxSizing: 'border-box',
           }}
         >
-          학습자료
-        </span>
-        <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-          학습자료 API가 준비되면 이 영역에 자료 목록이 표시돼요.
-        </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              학습자료
+            </span>
+            <Badge status="neutral">준비 중</Badge>
+          </div>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+            학습자료 API가 준비되면 이 영역에 자료 목록이 표시돼요.
+          </p>
+        </div>
       </div>
     </>
   );
