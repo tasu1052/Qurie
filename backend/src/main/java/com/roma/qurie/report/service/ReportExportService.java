@@ -17,6 +17,7 @@ import com.roma.qurie.report.entity.SessionReport;
 import com.roma.qurie.report.entity.UserReport;
 import com.roma.qurie.report.repository.SessionReportRepository;
 import com.roma.qurie.report.repository.UserReportRepository;
+import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.user.entity.User;
 import com.roma.qurie.user.repository.UserRepository;
 
@@ -56,7 +57,8 @@ public class ReportExportService {
 	private final ReportPdfRenderer pdfRenderer;
 
 	@Transactional(readOnly = true)
-	public byte[] exportUserReportPdf(Long ordinaryUserId, Long classId) {
+	public byte[] exportUserReportPdf(Long ordinaryUserId, Long classId, AuthUser requester) {
+		verifyCanExport(ordinaryUserId, requester);
 		UserReport report = userReportRepository.findByOrdinaryUserIdAndClassId(ordinaryUserId, classId)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "발급된 최종 리포트가 없습니다."));
 
@@ -64,11 +66,22 @@ public class ReportExportService {
 	}
 
 	@Transactional(readOnly = true)
-	public byte[] exportSessionReportPdf(Long sessionId, Long ordinaryUserId) {
+	public byte[] exportSessionReportPdf(Long sessionId, Long ordinaryUserId, AuthUser requester) {
+		verifyCanExport(ordinaryUserId, requester);
 		SessionReport report = sessionReportRepository.findBySessionIdAndOrdinaryUserId(sessionId, ordinaryUserId)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "발급된 세션 리포트가 없습니다."));
 
 		return pdfRenderer.render(buildSessionReportHtml(report, userNameOf(ordinaryUserId)));
+	}
+
+	/** 다운로드는 조회와 같은 권한 기준(본인/매니저/마스터)을 쓴다 — PDF 라고 화면 조회보다 느슨하면 우회 경로가 된다. */
+	private void verifyCanExport(Long ordinaryUserId, AuthUser requester) {
+		if (requester == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
+		if (!ReportAccessPolicy.canView(requester, ordinaryUserId)) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "다른 사용자의 리포트를 내려받을 권한이 없습니다.");
+		}
 	}
 
 	private String userNameOf(Long ordinaryUserId) {
