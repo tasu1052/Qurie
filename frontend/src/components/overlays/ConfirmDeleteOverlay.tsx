@@ -7,8 +7,6 @@ type ConfirmDeleteOverlayProps = {
   title: ReactNode;
   description: ReactNode;
   confirmText: string;
-  childCounts?: string[];
-  conflict?: boolean;
   onClose: () => void;
   onConfirm: () => void;
   confirmLabel?: string;
@@ -20,20 +18,16 @@ export function ConfirmDeleteOverlay({
   title,
   description,
   confirmText,
-  childCounts = [],
-  conflict = false,
   onClose,
   onConfirm,
   confirmLabel = '삭제',
 }: ConfirmDeleteOverlayProps) {
   const [typed, setTyped] = useState('');
-  const [cascade, setCascade] = useState(false);
 
   if (!open) return null;
 
   const resetAndClose = () => {
     setTyped('');
-    setCascade(false);
     onClose();
   };
 
@@ -62,10 +56,6 @@ export function ConfirmDeleteOverlay({
           confirmText={confirmText}
           typed={typed}
           onTypedChange={setTyped}
-          childCounts={childCounts}
-          conflict={conflict}
-          cascade={cascade}
-          onCascadeChange={setCascade}
           onCancel={resetAndClose}
           onConfirm={() => {
             onConfirm();

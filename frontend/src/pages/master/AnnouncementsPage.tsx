@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pencil, Pin, Plus, Trash2 } from 'lucide-react';
+import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import {
   AlertBanner,
@@ -24,7 +25,7 @@ import {
 } from '../../data';
 import { useOpenNoticeDetail } from '../../hooks/useOpenNoticeDetail';
 
-type ScopeFilter = '전체' | 'ENTERPRISE' | 'TRACK' | 'CLASS';
+type ScopeFilter = '전체' | 'TRACK' | 'CLASS';
 
 function ListSkeleton() {
   return (
@@ -158,9 +159,10 @@ function AnnouncementsBody() {
   const [scope, setScope] = useState<ScopeFilter>('전체');
   const [open, setOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<NoticeResponse | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<NoticeResponse | null>(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [createScope, setCreateScope] = useState<NoticeScope>('ENTERPRISE');
+  const [createScope, setCreateScope] = useState<NoticeScope>('TRACK');
   const [trackId, setTrackId] = useState('');
   const [classId, setClassId] = useState('');
   const [pinned, setPinned] = useState(false);
@@ -181,12 +183,19 @@ function AnnouncementsBody() {
   const updateNotice = useUpdateNotice();
   const deleteNotice = useDeleteNotice();
   const notices = noticesPage.data;
+  const tracks = tracksPage.data;
+  const firstTrackId = tracks[0] ? String(tracks[0].id) : '';
+
+  useEffect(() => {
+    if (!open || editTarget || createScope !== 'TRACK') return;
+    if (!trackId && firstTrackId) setTrackId(firstTrackId);
+  }, [open, editTarget, createScope, trackId, firstTrackId]);
 
   const resetForm = () => {
     setTitle('');
     setBody('');
-    setCreateScope('ENTERPRISE');
-    setTrackId('');
+    setCreateScope('TRACK');
+    setTrackId(firstTrackId);
     setClassId('');
     setPinned(false);
     setError(null);
@@ -316,7 +325,7 @@ function AnnouncementsBody() {
               deleting={deleteNotice.isPending}
               onOpen={() => openNotice(n.id)}
               onEdit={() => openEdit(n)}
-              onDelete={() => deleteNotice.mutate(n.id)}
+              onDelete={() => setDeleteTarget(n)}
             />
           ))}
         </div>
@@ -378,7 +387,6 @@ function AnnouncementsBody() {
                 <span style={{ fontSize: 13, fontWeight: 600 }}>범위</span>
                 <Select
                   options={[
-                    { value: 'ENTERPRISE', label: '전체 (ENTERPRISE)' },
                     { value: 'TRACK', label: '트랙' },
                     { value: 'CLASS', label: '클래스' },
                   ]}
@@ -390,7 +398,7 @@ function AnnouncementsBody() {
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>트랙</span>
                   <Select
-                    options={tracksPage.data.map((t) => ({ value: String(t.id), label: t.name }))}
+                    options={tracks.map((t) => ({ value: String(t.id), label: t.name }))}
                     value={trackId}
                     onChange={setTrackId}
                   />
@@ -416,6 +424,21 @@ function AnnouncementsBody() {
           </label>
         </div>
       </Modal>
+
+      <ConfirmDeleteOverlay
+        open={deleteTarget !== null}
+        title="공지 삭제"
+        description={
+          deleteTarget
+            ? `「${deleteTarget.title}」 공지를 삭제합니다. 이 작업은 되돌릴 수 없습니다.`
+            : ''
+        }
+        confirmText={deleteTarget?.title ?? ''}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) deleteNotice.mutate(deleteTarget.id);
+        }}
+      />
     </div>
   );
 }

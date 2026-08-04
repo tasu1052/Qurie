@@ -49,6 +49,15 @@ function classStatus(endedAt: string | null): { status: 'active' | 'ended'; labe
   return { status: 'active', label: '진행 중' };
 }
 
+function parseClassNumberFromName(name: string): number {
+  const match = name.match(/\d+/);
+  if (match) {
+    const num = Number(match[0]);
+    if (Number.isFinite(num) && num >= 1) return num;
+  }
+  return 1;
+}
+
 function GridSkeleton() {
   return (
     <div className="qurie-card-grid">
@@ -75,17 +84,21 @@ function GridSkeleton() {
 function ClassCardView({
   item,
   trackLabel,
+  openMenuId,
+  setOpenMenuId,
   onOpen,
   onDelete,
 }: {
   item: ClassResponse;
   trackLabel: string;
+  openMenuId: number | null;
+  setOpenMenuId: (id: number | null) => void;
   onOpen: () => void;
   onDelete: () => void;
 }) {
   const { status, label } = classStatus(item.endedAt);
   const active = status === 'active';
-  const [menuOpen, setMenuOpen] = useState(false);
+  const menuOpen = openMenuId === item.id;
 
   return (
     <div
@@ -157,22 +170,21 @@ function ClassCardView({
         <div style={{ marginLeft: 'auto', position: 'relative' }}>
           <button
             type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label="클래스 메뉴"
+            onClick={() => setOpenMenuId(menuOpen ? null : item.id)}
+            aria-label="클래스 설정"
             aria-expanded={menuOpen}
             style={{
               background: 'none',
               border: 'none',
               color: 'var(--text-muted)',
               cursor: 'pointer',
-              fontWeight: 700,
-              letterSpacing: 1,
+              fontWeight: 600,
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
               padding: 0,
             }}
           >
-            ⋯
+            설정
           </button>
           {menuOpen ? (
             <div
@@ -193,29 +205,7 @@ function ClassCardView({
               <button
                 type="button"
                 onClick={() => {
-                  setMenuOpen(false);
-                  onOpen();
-                }}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  textAlign: 'left',
-                  border: 'none',
-                  background: 'transparent',
-                  padding: '8px 10px',
-                  fontSize: 13,
-                  fontFamily: 'var(--font-sans)',
-                  color: 'var(--ink)',
-                  cursor: 'pointer',
-                  borderRadius: 6,
-                }}
-              >
-                상세 보기
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
+                  setOpenMenuId(null);
                   onDelete();
                 }}
                 style={{
@@ -249,12 +239,12 @@ function ClassListBody() {
   const [trackId, setTrackId] = useState<string>('all');
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState('');
-  const [classNumber, setClassNumber] = useState('1');
   const [selectedTrack, setSelectedTrack] = useState('');
   const [capacity, setCapacity] = useState('45');
   const [createError, setCreateError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ClassResponse | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
 
   const { data: tracksPage } = useGetTracks({ size: 100 });
   const tracks = tracksPage.data;
@@ -279,6 +269,11 @@ function ClassListBody() {
   const createClass = useCreateClass();
   const deleteClass = useDeleteClass();
   const classes = classesPage.data;
+  const sortedClasses = useMemo(
+    () => [...classes].sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+    [classes],
+  );
+  const hasActiveFilter = Boolean(debouncedQuery.trim()) || trackId !== 'all';
 
   const trackNameById = useMemo(() => {
     const map = new Map<number, string>();
@@ -297,15 +292,10 @@ function ClassListBody() {
       setCreateError('트랙을 선택하세요.');
       return;
     }
-    const num = Number(classNumber);
-    if (!Number.isFinite(num) || num < 1) {
-      setCreateError('반 번호는 1 이상이어야 합니다.');
-      return;
-    }
     createClass.mutate(
       {
         trackId: tid,
-        classNumber: num,
+        classNumber: parseClassNumberFromName(name.trim()),
         name: name.trim(),
         capacity: capacity.trim() ? Number(capacity) : undefined,
       },
@@ -313,7 +303,6 @@ function ClassListBody() {
         onSuccess: () => {
           setCreateOpen(false);
           setName('');
-          setClassNumber('1');
           setCapacity('45');
         },
         onError: (err) => setCreateError(apiErrorMessage(err, '클래스 생성에 실패했습니다.')),
@@ -368,21 +357,34 @@ function ClassListBody() {
         </span>
       </div>
 
-      {classes.length === 0 ? (
-        <EmptyState
-          message="클래스가 없습니다"
-          description="트랙을 선택한 뒤 새 클래스를 만들어 보세요."
-          actionLabel="클래스 생성"
-          onAction={() => setCreateOpen(true)}
-        />
+      {sortedClasses.length === 0 ? (
+        hasActiveFilter ? (
+          <EmptyState
+            message="검색 결과가 없습니다"
+            description={
+              debouncedQuery.trim()
+                ? `"${debouncedQuery.trim()}"에 해당하는 클래스가 없습니다.`
+                : '선택한 트랙에 클래스가 없습니다.'
+            }
+          />
+        ) : (
+          <EmptyState
+            message="클래스가 없습니다"
+            description="트랙을 선택한 뒤 새 클래스를 만들어 보세요."
+            actionLabel="클래스 생성"
+            onAction={() => setCreateOpen(true)}
+          />
+        )
       ) : (
         <div className="qurie-card-grid">
-          {classes.map((c) => {
+          {sortedClasses.map((c) => {
             return (
               <ClassCardView
                 key={c.id}
                 item={c}
                 trackLabel={trackNameById.get(c.trackId) ?? `track #${c.trackId}`}
+                openMenuId={openMenuId}
+                setOpenMenuId={setOpenMenuId}
                 onOpen={() => navigate(`/master/classes/${c.id}`)}
                 onDelete={() => setDeleteTarget(c)}
               />
@@ -461,18 +463,8 @@ function ClassListBody() {
             />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>반 번호</span>
-            <Input
-              type="number"
-              value={classNumber}
-              onChange={(e) => setClassNumber(e.target.value)}
-              width="100%"
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>정원</span>
             <Input
-              type="number"
               value={capacity}
               onChange={(e) => setCapacity(e.target.value)}
               width="100%"
@@ -486,8 +478,6 @@ function ClassListBody() {
         title="클래스 삭제"
         description="클래스를 삭제하면 세션·그룹·참여 기록이 함께 영향을 받습니다."
         confirmText={deleteTarget?.name ?? ''}
-        childCounts={[]}
-        conflict
         onClose={() => {
           setDeleteTarget(null);
           setDeleteError(null);

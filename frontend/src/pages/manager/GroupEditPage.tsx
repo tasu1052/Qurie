@@ -785,7 +785,6 @@ function GroupEditForm({
         title="그룹 삭제"
         description="그룹을 삭제하면 구성원 배정이 해제됩니다. 이 작업은 되돌릴 수 없습니다."
         confirmText={detail.name}
-        childCounts={[`멤버 ${detail.memberCount}명`]}
         onClose={() => setDeleteOpen(false)}
         onConfirm={onDelete}
         confirmLabel="삭제"

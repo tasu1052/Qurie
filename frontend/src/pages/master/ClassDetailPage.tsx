@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios';
 import { Users } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
+import { getUserProfileExtras } from '../../utils/userProfileExtras';
 import {
   AlertBanner,
   Badge,
@@ -70,7 +71,7 @@ function DetailSkeleton() {
   );
 }
 
-function MemberTable({ title, members }: { title: string; members: ClassMemberResponse[] }) {
+function MemberList({ members }: { members: ClassMemberResponse[] }) {
   return (
     <div
       style={{
@@ -92,7 +93,7 @@ function MemberTable({ title, members }: { title: string; members: ClassMemberRe
             color: 'var(--text-secondary)',
           }}
         >
-          {title}
+          멤버
         </span>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{members.length}명</span>
       </div>
@@ -103,7 +104,7 @@ function MemberTable({ title, members }: { title: string; members: ClassMemberRe
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '1.6fr 0.8fr 1fr',
+              gridTemplateColumns: '1.6fr 0.8fr 1fr 1fr',
               padding: '10px 20px',
               borderBottom: '1px solid var(--divider)',
               fontSize: 11,
@@ -115,30 +116,37 @@ function MemberTable({ title, members }: { title: string; members: ClassMemberRe
           >
             <span>멤버</span>
             <span>역할</span>
+            <span>전화번호</span>
             <span>그룹</span>
           </div>
-          {members.map((m) => (
-            <div
-              key={m.userId}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1.6fr 0.8fr 1fr',
-                padding: '12px 20px',
-                borderBottom: '1px solid var(--divider)',
-                fontSize: 13,
-                alignItems: 'center',
-              }}
-            >
-              <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
-                  {m.email}
-                </span>
-              </span>
-              <span>{roleBadge(m.role)}</span>
-              <span style={{ color: 'var(--text-secondary)' }}>{m.groupName ?? '—'}</span>
-            </div>
-          ))}
+          <div style={{ maxHeight: 360, overflow: 'auto' }}>
+            {members.map((m) => {
+              const phone = getUserProfileExtras(m.email).phone;
+              return (
+                <div
+                  key={m.userId}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1.6fr 0.8fr 1fr 1fr',
+                    padding: '12px 20px',
+                    borderBottom: '1px solid var(--divider)',
+                    fontSize: 13,
+                    alignItems: 'center',
+                  }}
+                >
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                    <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                      {m.email}
+                    </span>
+                  </span>
+                  <span>{roleBadge(m.role)}</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{phone || '—'}</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{m.groupName ?? '—'}</span>
+                </div>
+              );
+            })}
+          </div>
         </>
       )}
     </div>
@@ -198,8 +206,14 @@ function ClassDetailBody({ classId }: { classId: number }) {
     [tracksPage.data, cls.trackId],
   );
   const { active, label } = classStatus(cls.endedAt);
-  const managers = membersPage.data.filter((m) => m.role === 'MANAGER');
-  const students = membersPage.data.filter((m) => m.role === 'STUDENT');
+  const orderedMembers = useMemo(
+    () => [
+      ...membersPage.data.filter((m) => m.role === 'MANAGER'),
+      ...membersPage.data.filter((m) => m.role === 'STUDENT'),
+      ...membersPage.data.filter((m) => m.role !== 'MANAGER' && m.role !== 'STUDENT'),
+    ],
+    [membersPage.data],
+  );
 
   const onConfirmDelete = () => {
     setDeleteError(null);
@@ -231,8 +245,8 @@ function ClassDetailBody({ classId }: { classId: number }) {
           ) : null}
         </div>
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          <Button variant="secondary" icon={<Users size={14} />} onClick={() => navigate(`/master/members?classId=${classId}`)}>
-            회원 관리
+          <Button variant="secondary" icon={<Users size={14} />} onClick={() => navigate('/master/classes')}>
+            클래스 관리
           </Button>
           <Button variant="ghost" onClick={() => setDeleteOpen(true)}>
             삭제
@@ -240,10 +254,7 @@ function ClassDetailBody({ classId }: { classId: number }) {
         </div>
       </div>
 
-      <div className="qurie-master-split">
-        <MemberTable title="매니저" members={managers} />
-        <MemberTable title="학생" members={students} />
-      </div>
+      <MemberList members={orderedMembers} />
 
       <ClassAnalyticsSection classId={classId} className={cls.name} />
 
@@ -252,8 +263,6 @@ function ClassDetailBody({ classId }: { classId: number }) {
         title="클래스 삭제"
         description="클래스를 삭제하면 세션·그룹·참여 기록이 함께 영향을 받습니다."
         confirmText={cls.name}
-        childCounts={[]}
-        conflict
         onClose={() => {
           setDeleteOpen(false);
           setDeleteError(null);

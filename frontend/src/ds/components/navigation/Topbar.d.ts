@@ -11,6 +11,9 @@ export interface TopbarProps {
   hideSearch?: boolean;
   /** Account chip click — typically navigate to my page. */
   onUserClick?: () => void;
+  /** Slot before breadcrumbs (e.g. mobile menu button). */
+  leading?: React.ReactNode;
+  className?: string;
   style?: React.CSSProperties;
 }
 export declare function Topbar(props: TopbarProps): JSX.Element;

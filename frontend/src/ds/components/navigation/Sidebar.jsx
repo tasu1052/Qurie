@@ -6,7 +6,7 @@ export function Sidebar({items=[],activeKey,onSelect,collapsed=false,footer=null
 const w=collapsed?'var(--sidebar-width-collapsed)':'var(--sidebar-width)';
 return <nav style={{width:w,minWidth:w,height:'100vh',position:'sticky',top:0,background:'var(--surface-card)',backdropFilter:'var(--surface-blur)',WebkitBackdropFilter:'var(--surface-blur)',borderRight:'1px solid var(--border)',display:'flex',flexDirection:'column',padding:'16px 12px',gap:4,boxSizing:'border-box',fontFamily:'var(--font-sans)',transition:'width 180ms ease-out',...style}}>
 <div style={{display:'flex',alignItems:'center',gap:8,padding:'4px 10px 16px',minHeight:44,flexShrink:0}}>
-{logoSrc?<img src={logoSrc} alt={brand} style={{height:'var(--logo-height)',width:'auto',objectFit:'contain',objectPosition:'left',display:'block'}}/>:
+{logoSrc?<img src={logoSrc} alt={brand} className="sidebar-logo" style={{height:'var(--logo-height)',width:'auto',objectFit:'contain',objectPosition:'left',display:'block'}}/>:
 <span style={{fontSize:18,fontWeight:700,color:'var(--ink)',letterSpacing:'-0.02em',whiteSpace:'nowrap',lineHeight:1}}>Q<span style={{color:'var(--accent)',fontWeight:800}}>&gt;</span>{collapsed?'':'rie'}</span>}
 </div>
 <div style={{display:'flex',flexDirection:'column',gap:4,flex:1,minHeight:0,overflowY:'auto'}}>
