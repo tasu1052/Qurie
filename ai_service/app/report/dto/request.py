@@ -1,6 +1,8 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from app.core import config
 
 
 class ConceptCount(BaseModel):
@@ -41,6 +43,27 @@ class ReportSummary(BaseModel):
         return v or {}
 
 
+class Cohort(BaseModel):
+    """같은 퀴즈를 푼 학생 전체의 문항별 집계.
+
+    같은 오답이라도 반 정답률이 20%인 문항과 85%인 문항은 무게가 다르다.
+    이 값이 있으면 지적의 강도를 조절하고, 없으면 개인 기록만으로 판단한다.
+    """
+
+    attempted: int = Field(ge=0)
+    correct: int = Field(ge=0)
+    correct_rate: float | None = Field(default=None, ge=0, le=100)
+    # 보기별 선택 인원. 오답이 한 보기로 몰렸다면 그 오해가 반 전체에 퍼져 있다는 뜻.
+    choice_distribution: list[int] | None = None
+
+    @model_validator(mode="after")
+    def fill_rate(self):
+        if self.correct_rate is None:
+            self.correct_rate = (
+                self.correct / self.attempted * 100 if self.attempted else 0.0)
+        return self
+
+
 class Attempt(BaseModel):
     """문항 1개에 대한 응시 기록. quiz + quiz_choice + quiz_progress 조인 결과."""
 
@@ -58,6 +81,15 @@ class Attempt(BaseModel):
     line_start: int | None = None
     line_end: int | None = None
     elapsed_ms: int = Field(default=0, ge=0)
+    cohort: Cohort | None = None
+
+    @field_validator("cohort", mode="after")
+    @classmethod
+    def drop_thin_cohort(cls, v: Cohort | None) -> Cohort | None:
+        """응시자가 적으면 통계로 쓸 수 없다. 프롬프트에 아예 넣지 않는다."""
+        if v is None or v.attempted < config.REPORT_COHORT_MIN_ATTEMPTS:
+            return None
+        return v
 
 
 class CreateReportRequest(BaseModel):

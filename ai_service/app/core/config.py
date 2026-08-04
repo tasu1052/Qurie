@@ -22,6 +22,10 @@ REPORT_MODEL = "gemini-2.5-flash-lite"
 # 2~3문항으로 "이 개념에 약하다"고 단정할 근거가 없고, 학생에게 보이는 글이라 위험하다.
 REPORT_MIN_ATTEMPTS = 3
 
+# 반 통계(cohort)를 신뢰할 최소 응시자 수. 3명 중 1명 정답을 "반 평균 33%"라고
+# 부르면 안 된다. 미달이면 통계를 버리고 개인 기록만으로 판단한다.
+REPORT_COHORT_MIN_ATTEMPTS = 5
+
 # --- 파이프라인 상수 ---
 JUDGE_PASS_SCORE = 7
 GEN_INPUT_CODE_TOKEN_BUDGET = 6000
