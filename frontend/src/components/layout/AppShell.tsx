@@ -100,9 +100,9 @@ export function AppShell({ role, activeKey, breadcrumbs, children }: AppShellPro
           }
         />
       </div>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+      <div className="qurie-app-shell__main">
         <Topbar
-          style={{ flexShrink: 0 }}
+          style={{ flexShrink: 0, width: '100%' }}
           breadcrumbs={breadcrumbs}
           userName={user.name}
           userRole={user.role}

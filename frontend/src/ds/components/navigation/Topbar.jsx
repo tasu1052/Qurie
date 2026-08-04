@@ -17,7 +17,7 @@ export function Topbar({
   style={},
 }){
 const lastIndex=breadcrumbs.length-1;
-return <header className={`qurie-topbar${className?` ${className}`:''}`} style={{height:'var(--topbar-height)',background:'var(--surface-card)',backdropFilter:'var(--surface-blur)',WebkitBackdropFilter:'var(--surface-blur)',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:16,padding:'0 20px',boxSizing:'border-box',fontFamily:'var(--font-sans)',position:'relative',zIndex:60,minWidth:0,...style}}>
+return <header className={`qurie-topbar${className?` ${className}`:''}`} style={{height:'var(--topbar-height)',background:'var(--surface-card)',backdropFilter:'var(--surface-blur)',WebkitBackdropFilter:'var(--surface-blur)',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:16,padding:'0 20px',boxSizing:'border-box',fontFamily:'var(--font-sans)',position:'relative',zIndex:60,minWidth:0,width:'100%',maxWidth:'100%',flexShrink:0,...style}}>
 {leading}
 <div className="qurie-topbar__crumbs" style={{display:'flex',alignItems:'center',gap:8,fontSize:14,minWidth:0,flex:'1 1 auto',overflow:'hidden'}}>
 {breadcrumbs.map((b,i)=><React.Fragment key={i}>
@@ -25,7 +25,7 @@ return <header className={`qurie-topbar${className?` ${className}`:''}`} style={
 <span className={i<lastIndex?'qurie-topbar__crumb qurie-topbar__crumb--prefix':'qurie-topbar__crumb qurie-topbar__crumb--current'} style={{color:i===lastIndex?'var(--ink)':'var(--text-secondary)',fontWeight:i===lastIndex?600:400,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{b}</span>
 </React.Fragment>)}
 </div>
-<div className="qurie-topbar__actions" style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:12,flexShrink:0,minWidth:0}}>
+<div className="qurie-topbar__actions" style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
 {!hideSearch&&<Input className="qurie-topbar__search" placeholder={searchPlaceholder} shortcut="⌘K" icon={searchIcon} onChange={onSearch} width={240}/>}
 {actions}
 <div

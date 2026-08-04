@@ -131,6 +131,14 @@ body {
 }
 
 /* App shell — mobile drawer sidebar (master / manager / student) */
+.qurie-app-shell__main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
 .qurie-app-shell__sidebar {
   flex-shrink: 0;
 }
@@ -160,6 +168,11 @@ body {
 }
 
 /* Topbar — responsive breadcrumbs & account chip */
+.qurie-topbar {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
 .qurie-topbar__menu {
   display: inline-flex;
   align-items: center;
