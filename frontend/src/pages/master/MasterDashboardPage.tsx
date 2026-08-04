@@ -94,6 +94,7 @@ function TrackCardItem({ track, onClick }: { track: TrackCard; onClick: () => vo
       }}
     >
       <span
+        className="tech-icon-wrap"
         style={{
           width: 38,
           height: 38,

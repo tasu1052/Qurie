@@ -1,4 +1,19 @@
 import React from 'react';
+const triggerStyle={
+  display:'inline-flex',alignItems:'center',gap:6,
+  background:'var(--surface-modal)',
+  border:'1px solid var(--border-strong)',
+  borderRadius:'var(--radius-control)',
+  fontFamily:'var(--font-sans)',fontWeight:500,color:'var(--ink)',
+};
+const menuStyle={
+  position:'absolute',top:'calc(100% + 4px)',left:0,minWidth:'100%',
+  background:'var(--surface-modal)',
+  border:'1px solid var(--border-strong)',
+  borderRadius:'var(--radius-md)',
+  boxShadow:'var(--shadow-popover)',
+  padding:5,zIndex:200,
+};
 export function Select({options=[],value,onChange,size='md',disabled=false,style={}}){
 const [open,setOpen]=React.useState(false);
 const ref=React.useRef(null);
@@ -7,14 +22,14 @@ const cur=options.find(o=>(o.value??o)===value)??options[0];
 const label=o=>o?.label??o;
 const pad=size==='sm'?'5px 12px':'8px 16px';
 const pick=(v)=>{setOpen(false);if(onChange)onChange(v);};
-return <div ref={ref} style={{position:'relative',display:'inline-block',...style}}>
-<button type="button" disabled={disabled} onClick={()=>setOpen(o=>!o)} style={{display:'inline-flex',alignItems:'center',gap:6,background:'var(--surface-card)',border:'1px solid var(--border-strong)',borderRadius:'var(--radius-control)',padding:pad,fontFamily:'var(--font-sans)',fontSize:size==='sm'?12:14,fontWeight:500,color:'var(--ink)',cursor:disabled?'not-allowed':'pointer',opacity:disabled?0.45:1}}>
+return <div ref={ref} className="qurie-select" style={{position:'relative',display:'inline-block',...style}}>
+<button type="button" disabled={disabled} onClick={()=>setOpen(o=>!o)} style={{...triggerStyle,padding:pad,fontSize:size==='sm'?12:14,cursor:disabled?'not-allowed':'pointer',opacity:disabled?0.45:1}}>
 {label(cur)}<span style={{color:'var(--text-muted)',fontSize:size==='sm'?9:10,transform:'rotate(90deg)',fontWeight:600}}>&gt;</span>
 </button>
-{open&&<div style={{position:'absolute',top:'calc(100% + 4px)',left:0,minWidth:'100%',background:'var(--surface-card)',border:'1px solid var(--border-strong)',borderRadius:'var(--radius-md)',boxShadow:'var(--shadow-popover)',padding:5,zIndex:30}}>
+{open&&<div className="qurie-select__menu" style={menuStyle}>
 {options.map((o,i)=>{const v=o.value??o;const sel=v===value;
-return <div key={i} role="option" aria-selected={sel} onMouseDown={(e)=>{e.preventDefault();e.stopPropagation();pick(v);}} style={{padding:'6px 12px',borderRadius:'var(--radius-sm)',fontSize:size==='sm'?12:13,fontFamily:'var(--font-sans)',fontWeight:sel?600:400,color:sel?'var(--accent)':'var(--ink)',background:sel?'var(--accent-softer)':'transparent',cursor:'pointer',whiteSpace:'nowrap'}}
-onMouseEnter={e=>{if(!sel)e.currentTarget.style.background='var(--surface-hover)'}} onMouseLeave={e=>{if(!sel)e.currentTarget.style.background='transparent'}}>{label(o)}</div>})}
+return <div key={i} role="option" aria-selected={sel} onMouseDown={(e)=>{e.preventDefault();e.stopPropagation();pick(v);}} style={{padding:'6px 12px',borderRadius:'var(--radius-sm)',fontSize:size==='sm'?12:13,fontFamily:'var(--font-sans)',fontWeight:sel?600:400,color:sel?'var(--accent)':'var(--ink)',background:sel?'var(--accent-softer)':'var(--surface-modal)',cursor:'pointer',whiteSpace:'nowrap'}}
+onMouseEnter={e=>{if(!sel)e.currentTarget.style.background='var(--surface-hover)'}} onMouseLeave={e=>{if(!sel)e.currentTarget.style.background='var(--surface-modal)'}}>{label(o)}</div>})}
 </div>}
 </div>;
 }

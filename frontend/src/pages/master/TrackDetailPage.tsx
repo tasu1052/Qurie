@@ -290,6 +290,7 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
         }}
       >
         <span
+          className="tech-icon-wrap"
           style={{
             width: 52,
             height: 52,
