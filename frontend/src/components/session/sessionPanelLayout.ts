@@ -34,11 +34,16 @@ export function useViewportWidth() {
   return width;
 }
 
-/** Breakpoints: hide side chrome so the editor remains. */
+export type SessionMobileView = 'editor' | 'explorer' | 'community' | 'quiz';
+
+/** Desktop: 3-column. Stacked (<1100px): bottom tabs, one panel at a time. */
 export function sessionChromeVisibility(vw: number) {
+  const stacked = vw < 1100;
   return {
-    showRight: vw >= 1100,
-    showLeft: vw >= 900,
+    stacked,
+    isMobile: vw < 768,
+    showRight: !stacked,
+    showLeft: !stacked,
     compactHeader: vw < 980,
     narrowHeader: vw < 720,
   };
