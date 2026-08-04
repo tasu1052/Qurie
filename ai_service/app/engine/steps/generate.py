@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 
 from app.core import config
+from app.engine.dedupe import mark_duplicates
 from app.engine.llm import call_llm_json
 from app.engine.prompts import build_generate_prompt
 from app.engine.state import PipelineState
@@ -33,6 +34,8 @@ def normalize_micro(q: dict, primary_file: str) -> dict:
 def node_generate(state: PipelineState) -> PipelineState:
     # 재시도 라운드에서는 이미 확보한 문항을 빼고 부족분만 뽑는다.
     count = state.get("gen_count") or state["requested_count"]
+    # 승인분·탈락분을 모두 넘겨 같은 문항이 다시 나오는 것을 막는다.
+    existing = list(state.get("approved_pool", [])) + list(state.get("rejected_pool", []))
     prompt = build_generate_prompt(
         state["files"],
         state["primary_file"],
@@ -41,6 +44,8 @@ def node_generate(state: PipelineState) -> PipelineState:
         state["purpose_counts"],
         state["mode"],
         state.get("user_prompt"),
+        existing=existing,
+        retry_notes=state.get("retry_notes"),
     )
     data = call_llm_json(
         config.GEN_MODEL, prompt, state["meter"], "GENERATE",
@@ -80,6 +85,9 @@ def node_generate(state: PipelineState) -> PipelineState:
         shuffled.append(nq)
 
     normalized = [normalize_micro(q, state["primary_file"]) for q in shuffled]
-    state["quizzes"] = apply_validation(normalized, state["files"])
+    validated = apply_validation(normalized, state["files"])
+    # 프롬프트로 "겹치지 마세요"라고 해도 표현만 바꾼 문항이 나온다. 계산으로 자른다.
+    # SOLVE/JUDGE 앞에서 걸러 중복 문항에 크레딧을 쓰지 않는다.
+    state["quizzes"] = mark_duplicates(validated, existing)
     state["choice_perms"] = perms
     return state

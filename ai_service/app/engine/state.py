@@ -18,6 +18,7 @@ class PipelineState(TypedDict, total=False):
     approved_pool: list[dict[str, Any]]
     rejected_pool: list[dict[str, Any]]
     last_approved: int
+    retry_notes: str
     user_prompt: str | None
     version_hash: str
     files: dict[str, str]

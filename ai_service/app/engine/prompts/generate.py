@@ -32,6 +32,44 @@ def _build_code_section(files: dict[str, str], primary_file: str) -> str:
     return "\n\n".join(parts)
 
 
+# 이미 출제된 문항 목록의 상한. 라운드가 쌓여도 프롬프트가 무한정 길어지지 않게 한다.
+_MAX_EXISTING = 30
+
+
+def _existing_block(existing: list[dict] | None) -> str:
+    """이미 만든 문항을 알려 준다.
+
+    재생성 라운드는 같은 코드와 같은 지시를 다시 받으므로, 알려 주지 않으면
+    가장 먼저 떠오르는 문항을 또 만든다. temperature 가 낮을수록 더 똑같아진다.
+    승인분뿐 아니라 탈락분도 넣는다 — 탈락한 문항을 또 만들면 또 탈락한다.
+    """
+    if not existing:
+        return ""
+    lines = []
+    for q in existing[:_MAX_EXISTING]:
+        question = (q.get("question") or "").replace("\n", " ").strip()
+        if question:
+            lines.append(f"- ({q.get('tested_concept') or '?'}) {question}")
+    if not lines:
+        return ""
+    return (
+        "\n[이미 출제된 문항 — 아래와 겹치는 문항을 내지 마세요]\n"
+        + "\n".join(lines)
+        + "\n같은 개념이라도 **묻는 각도가 다르면** 됩니다. 표현만 바꾼 사실상 같은 문항은 금지입니다.\n"
+    )
+
+
+def _retry_block(retry_notes: str | None) -> str:
+    """이전 라운드 탈락 사유. USER_HINT 밖에 둔다.
+
+    시스템이 만든 피드백을 untrusted 블록에 넣으면 "무시해도 되는 힌트"로
+    라벨링되어 모델이 따르지 않는다. 사용자 입력과 섞여 누적되는 문제도 있다.
+    """
+    if not retry_notes:
+        return ""
+    return f"\n[이전 라운드 탈락 사유 — 같은 실수를 반복하지 마세요]\n{retry_notes}\n"
+
+
 def build_generate_prompt(
     files: dict[str, str],
     primary_file: str,
@@ -40,11 +78,14 @@ def build_generate_prompt(
     purpose_counts: dict[str, int],
     mode: str,
     user_prompt: str | None,
+    existing: list[dict] | None = None,
+    retry_notes: str | None = None,
 ) -> str:
     code_block = _build_code_section(files, primary_file)
     file_list = ", ".join(f'"{p}"' for p in files)
     conceptual_n = purpose_counts.get("conceptual", 0)
     micro_n = purpose_counts.get("micro", 0)
+    already = _existing_block(existing) + _retry_block(retry_notes)
 
     hint = ""
     if user_prompt:
@@ -93,7 +134,7 @@ def build_generate_prompt(
 - choices 정확히 4개, answer_index 0~3, tested_concept 최대 60자.
 - purpose는 CONCEPTUAL 또는 MICRO만 사용.
 - 코드에 정의 없는 외부 함수의 내부 동작은 묻지 마세요.
-
+{already}
 {hint}
 [출력]
 지정된 출력 형식에 맞춰서만 답하세요. quizzes 배열 길이는 정확히 {requested_count}개.

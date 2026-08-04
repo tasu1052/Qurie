@@ -116,7 +116,8 @@ def test_refine_preserves_approved_and_asks_only_for_shortfall():
     assert out["purpose_counts"]["conceptual"] == 1
     assert out["purpose_counts"]["micro"] == 2
     assert out["retry_count"] == 1
-    assert "SOLVER_MISMATCH" in out["user_prompt"]
+    # 탈락 사유는 user_prompt(USER_HINT)가 아니라 별도 필드로 넘긴다
+    assert "SOLVER_MISMATCH" in out["retry_notes"]
 
 
 def test_refine_uses_original_target_not_previous_round():
