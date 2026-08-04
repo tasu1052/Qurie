@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { MasterShell, PageMain } from '../../components/layout/MasterShell';
+import { AppShell } from '../../components/layout/AppShell';
+import { PageMain } from '../../components/layout/PageMain';
 import { ProfilePageContent } from '../../components/profile/ProfilePageContent';
 import { RowErrorFallback, Skeleton, StatCardRow } from '../../ds';
-import { QueryAsyncBoundary } from '../../data';
+import { QueryAsyncBoundary, useMe } from '../../data';
 
 function ProfileSkeleton() {
   return (
@@ -27,11 +28,12 @@ function ProfileSkeleton() {
   );
 }
 
-export default function MasterMyPage() {
+export default function ProfilePage() {
+  const { data: user } = useMe();
   const [rowKey, setRowKey] = useState(0);
 
   return (
-    <MasterShell activeKey="me" breadcrumbs={['마이페이지']}>
+    <AppShell role={user.role} activeKey="me" breadcrumbs={['마이페이지']}>
       <PageMain>
         <QueryAsyncBoundary
           key={rowKey}
@@ -47,6 +49,6 @@ export default function MasterMyPage() {
           <ProfilePageContent />
         </QueryAsyncBoundary>
       </PageMain>
-    </MasterShell>
+    </AppShell>
   );
 }
