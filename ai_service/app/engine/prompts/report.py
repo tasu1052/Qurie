@@ -41,6 +41,9 @@ def _attempt_block(a: Attempt) -> str:
 def build_report_prompt(req: CreateReportRequest) -> str:
     attempts = "\n\n".join(_attempt_block(a) for a in req.attempts)
     concepts = sorted({a.tested_concept for a in req.attempts if a.tested_concept})
+    wrong = [a.index for a in req.attempts
+             if a.chosen_index is not None and not a.is_correct]
+    wrong_list = ", ".join(f"[{i}]" for i in wrong) if wrong else "(없음)"
 
     return f"""프로그래밍 학습자 1명의 퀴즈 응시 결과를 읽고 학습 리포트를 작성하세요.
 
@@ -65,6 +68,13 @@ def build_report_prompt(req: CreateReportRequest) -> str:
 - strengths: 정답률이 높았던 영역. 근거(문항 수) 포함.
 - improvements: 오답이 몰린 영역과 **구체적인 다음 행동**. "복습하세요"가 아니라 무엇을 어떻게 볼지 씁니다.
 - focus_concepts: 위 개념 목록에서만 고르세요. 우선 복습할 순서대로.
+- wrong_notes: **오답 문항 {wrong_list} 에 대해서만** 작성하세요. 정답이거나 미응시한 문항은 넣지 마세요.
+    quiz_index: 위 대괄호 안의 번호를 그대로 씁니다.
+    concept:    그 문항의 개념을 그대로 씁니다.
+    why_wrong:  **학생이 고른 보기가 왜 틀렸는지**를 설명하세요. 정답 해설을 되풀이하지 말고,
+                그 선택지를 고르게 만든 오해가 무엇인지 짚습니다.
+    key_point:  다음에 같은 유형을 만났을 때 확인할 한 가지.
+  오답이 많으면 개념이 겹치지 않게 중요한 것부터 최대 6개까지만 씁니다.
 
 emit_report 도구로만 답하세요.
 """
