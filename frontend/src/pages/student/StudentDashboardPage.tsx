@@ -27,7 +27,7 @@ function DashSkeleton() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <Skeleton width="100%" height={140} radius={16} />
-      <div className="qurie-master-split">
+      <div className="qurie-app-split">
         <Skeleton width="100%" height={220} radius={16} />
         <Skeleton width="100%" height={220} radius={16} delay={0.06} />
       </div>
@@ -250,7 +250,7 @@ function StudentDashWithClass({ classId }: { classId: number }) {
         />
       ) : null}
 
-      <div className="qurie-master-split" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
+      <div className="qurie-app-split" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
         {myGroup != null ? (
           <MyGroupPanel detail={myGroup} onlineUserIds={onlineUserIds} />
         ) : (

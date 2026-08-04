@@ -13,7 +13,8 @@ body {
   box-sizing: border-box;
 }
 
-/* Master dashboard track + side column — fills content width, stacks on narrow viewports */
+/* App content split — two-column layout, stacks on narrow viewports */
+.qurie-app-split,
 .qurie-master-split {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
@@ -22,6 +23,7 @@ body {
   width: 100%;
 }
 @media (max-width: 960px) {
+  .qurie-app-split,
   .qurie-master-split {
     grid-template-columns: minmax(0, 1fr);
   }

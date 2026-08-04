@@ -116,7 +116,7 @@ function ManagerDashBody({ classId }: { classId: number }) {
         <StatCard label="정원" value={cls.capacity != null ? String(cls.capacity) : '—'} caption="capacity" />
       </StatCardRow>
 
-      <div className="qurie-master-split">
+      <div className="qurie-app-split">
         <div
           style={{
             background: 'var(--surface-card)',

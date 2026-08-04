@@ -129,7 +129,7 @@ export function ProfilePageContent() {
         />
       </StatCardRow>
 
-      <div className="qurie-master-split">
+      <div className="qurie-app-split">
         <div
           style={{
             background: 'var(--surface-card)',

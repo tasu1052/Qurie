@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
   LayoutDashboard,
   Layers,
@@ -25,9 +25,6 @@ export type ShellNavItem = {
 export type ShellRoleConfig = {
   nav: ShellNavItem[];
   mePath: string;
-  showTopbarLogout: boolean;
-  showSidebarLogout: boolean;
-  avatarStyle?: CSSProperties;
 };
 
 const masterNav: ShellNavItem[] = [
@@ -56,29 +53,11 @@ const studentNav: ShellNavItem[] = [
   { key: 'me', label: '마이페이지', path: '/app/me', icon: <User {...iconProps} /> },
 ];
 
+/** All roles share the same shell chrome; only nav items and me path differ. */
 export const shellConfigByRole: Record<UserRole, ShellRoleConfig> = {
-  MASTER: {
-    nav: masterNav,
-    mePath: '/master/me',
-    showTopbarLogout: false,
-    showSidebarLogout: false,
-  },
-  MANAGER: {
-    nav: managerNav,
-    mePath: '/manager/me',
-    showTopbarLogout: true,
-    showSidebarLogout: true,
-  },
-  STUDENT: {
-    nav: studentNav,
-    mePath: '/app/me',
-    showTopbarLogout: true,
-    showSidebarLogout: true,
-    avatarStyle: {
-      background: 'var(--tertiary-100)',
-      color: 'var(--quaternary-400)',
-    },
-  },
+  MASTER: { nav: masterNav, mePath: '/master/me' },
+  MANAGER: { nav: managerNav, mePath: '/manager/me' },
+  STUDENT: { nav: studentNav, mePath: '/app/me' },
 };
 
 export function roleFromBasePath(basePath: '/app' | '/manager'): UserRole {
