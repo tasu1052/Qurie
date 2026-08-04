@@ -259,6 +259,7 @@ function ClassListBody() {
   const classFilters = useMemo(
     () => ({
       size: 50,
+      sort: 'name,asc',
       q: debouncedQuery.trim() || undefined,
       trackId: trackId === 'all' ? undefined : Number(trackId),
     }),

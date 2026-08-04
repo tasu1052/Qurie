@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
-import { BookOpen, Plus, Search } from 'lucide-react';
+import { BookOpen, Plus, Search, Users } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -94,6 +94,7 @@ function TrackCardView({
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <span
+          className="tech-icon-wrap"
           style={{
             width: 38,
             height: 38,
@@ -136,6 +137,9 @@ function TrackCardView({
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <BookOpen size={13} strokeWidth={1.75} />
           클래스 {track.classCount}
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Users size={13} strokeWidth={1.75} />—
         </span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 'auto' }}>

@@ -48,7 +48,7 @@ const panelShellStyle: CSSProperties = {
   width: 340,
   maxHeight: 420,
   overflow: 'auto',
-  background: 'var(--surface-card)',
+  background: 'var(--surface-modal)',
   border: '1px solid var(--border-strong)',
   borderRadius: 12,
   boxShadow: 'var(--shadow-modal)',
@@ -101,7 +101,7 @@ function HelpRequestRows({
             display: 'flex',
             flexDirection: 'column',
             gap: 10,
-            background: 'var(--surface-card)',
+            background: 'var(--surface-modal)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -211,7 +211,7 @@ function BellPanel({
         style={{
           padding: '12px 14px',
           borderBottom: '1px solid var(--divider)',
-          background: 'var(--surface-card)',
+          background: 'var(--surface-modal)',
           position: 'sticky',
           top: 0,
           zIndex: 1,
@@ -257,7 +257,7 @@ function BellPanel({
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 8,
-                background: 'var(--surface-card)',
+                background: 'var(--surface-modal)',
                 textAlign: 'left',
                 cursor: 'pointer',
                 fontFamily: 'var(--font-sans)',
@@ -271,7 +271,7 @@ function BellPanel({
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = 'var(--border)';
-                e.currentTarget.style.background = 'var(--surface-card)';
+                e.currentTarget.style.background = 'var(--surface-modal)';
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
