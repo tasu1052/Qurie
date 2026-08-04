@@ -1,9 +1,11 @@
 import { isAxiosError } from 'axios';
 import { Pencil, Pin, Trash2 } from 'lucide-react';
-import { Badge, Skeleton } from '../../ds';
+import { Badge, Pagination, Skeleton } from '../../ds';
 import type { NoticeResponse, NoticeScope } from '../../data';
 
 export type ScopeFilter = '전체' | 'TRACK' | 'CLASS';
+
+export const NOTICE_LIST_PAGE_SIZE = 10;
 
 export function apiErrorMessage(error: unknown, fallback: string): string {
   if (isAxiosError(error)) {
@@ -17,7 +19,7 @@ export function ListSkeleton() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {[0, 1, 2].map((i) => (
-        <Skeleton key={i} width="100%" height={120} radius={16} delay={i * 0.08} />
+        <Skeleton key={i} width="100%" height={88} radius={16} delay={i * 0.08} />
       ))}
     </div>
   );
@@ -136,13 +138,36 @@ export function NoticeCard({
         ) : null}
       </div>
       <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>{item.title}</h3>
-      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
-        {item.body}
-      </p>
       <div style={{ display: 'flex', gap: 14, fontSize: 12, color: 'var(--text-muted)' }}>
         <span>작성: {item.authorName}</span>
       </div>
     </div>
+  );
+}
+
+export function NoticesPagination({
+  page,
+  total,
+  pageSize = NOTICE_LIST_PAGE_SIZE,
+  onPage,
+}: {
+  page: number;
+  total: number;
+  pageSize?: number;
+  onPage: (page: number) => void;
+}) {
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  if (total <= pageSize) return null;
+  const start = (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, total);
+  return (
+    <Pagination
+      page={page}
+      pageCount={pageCount}
+      pageSize={pageSize}
+      rangeLabel={`${start}–${end} / ${total}개`}
+      onPage={onPage}
+    />
   );
 }
 

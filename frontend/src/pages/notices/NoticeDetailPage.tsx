@@ -21,7 +21,7 @@ function scopeLabel(scope: NoticeScope): string {
 
 function DetailSkeleton() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 720 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 800, width: '100%' }}>
       <Skeleton width="40%" height={28} radius={8} />
       <Skeleton width="100%" height={200} radius={16} />
     </div>
@@ -38,7 +38,7 @@ function NoticeDetailContent({
   backLabel: string;
 }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 720 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 800, width: '100%' }}>
       <div>
         <Button variant="ghost" size="sm" onClick={onBack}>
           {backLabel}
@@ -55,6 +55,7 @@ function NoticeDetailContent({
           display: 'flex',
           flexDirection: 'column',
           gap: 14,
+          minHeight: 240,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -79,6 +80,8 @@ function NoticeDetailContent({
             lineHeight: 1.7,
             color: 'var(--text-secondary)',
             whiteSpace: 'pre-wrap',
+            minHeight: 120,
+            flex: 1,
           }}
         >
           {notice.body}
