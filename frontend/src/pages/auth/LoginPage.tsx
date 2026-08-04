@@ -94,11 +94,13 @@ export default function LoginPage() {
 
   return (
     <AuthCardShell title="로그인" subtitle="기업 계정으로 Qurie 콘솔에 접속해요.">
-      <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <form autoComplete="on" onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontSize: 13, fontWeight: 600 }}>이메일</span>
           <Input
             type="email"
+            name="email"
+            autoComplete="email"
             placeholder="name@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -109,6 +111,8 @@ export default function LoginPage() {
           <span style={{ fontSize: 13, fontWeight: 600 }}>비밀번호</span>
           <Input
             type="password"
+            name="password"
+            autoComplete="current-password"
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -121,7 +125,7 @@ export default function LoginPage() {
             이메일 저장하기
           </label>
           <Link to="/reset" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
-            비밀번호 재설정
+            비밀번호 찾기
           </Link>
         </div>
         {formError && (
