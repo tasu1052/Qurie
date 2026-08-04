@@ -589,7 +589,6 @@ function SingleQuizPlayer({
               }}
             />
           </div>
-          {generating ? <CircularLoader /> : null}
         </div>
 
         {warnMessage ? (
@@ -610,17 +609,16 @@ function SingleQuizPlayer({
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 12,
+                gap: 8,
                 padding: '28px 8px',
                 textAlign: 'center',
               }}
             >
-              <CircularLoader size={28} />
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
-                문항을 준비하는 중이에요
+                다음 문항을 준비하는 중이에요
               </span>
               <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                생성이 완료되면 이 자리에 문항이 나타나요
+                준비되면 이 자리에 표시됩니다
               </span>
             </div>
           ) : (
@@ -1378,11 +1376,14 @@ export function SessionQuizPanel({
         (latestSummary.status === 'QUEUED' || latestSummary.status === 'GENERATING') &&
         summary == null));
 
-  const showQuizPlayer = playableQuizzes.length > 0 || showGeneratingPlaceholder;
+  const showQuizPlayer = playableQuizzes.length > 0;
   const generating =
     summary?.status === 'QUEUED' ||
     summary?.status === 'GENERATING' ||
     Boolean(showGeneratingPlaceholder && summary?.status !== 'COMPLETED');
+  const waitingForFirstQuestion =
+    playableQuizzes.length === 0 &&
+    (generateQuiz.isPending || generatingInFlight || generating || showGeneratingPlaceholder);
   const showCreateForm =
     canManageQuiz &&
     projectId != null &&
@@ -1394,8 +1395,7 @@ export function SessionQuizPanel({
     projectId != null &&
     (playableQuizzes.length > 0 || summary?.status === 'COMPLETED') &&
     !generatingInFlight;
-  const showGeneratingBanner =
-    canManageQuiz && (generateQuiz.isPending || generatingInFlight || generating);
+  const showGeneratingBanner = waitingForFirstQuestion;
 
   return (
     <div
@@ -1438,6 +1438,10 @@ export function SessionQuizPanel({
         />
       ) : null}
 
+      {showGeneratingBanner ? (
+        <QuizGeneratingBanner done={generatedCount} total={requestedCount} />
+      ) : null}
+
       {showQuizPlayer ? (
         <SingleQuizPlayer
           key={playerMountKey}
@@ -1474,10 +1478,6 @@ export function SessionQuizPanel({
           }}
           initialIndex={inReviewMode ? 0 : resumeIndex}
         />
-      ) : null}
-
-      {showGeneratingBanner ? (
-        <QuizGeneratingBanner done={generatedCount} total={requestedCount} />
       ) : null}
 
       {showCreateForm ? (
