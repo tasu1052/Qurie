@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { Plus, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
@@ -22,6 +23,7 @@ import {
   QueryAsyncBoundary,
   useCreateSession,
   useDeleteSession,
+  useGetGroups,
   useGetSessions,
   useMe,
   type SessionResponse,
@@ -30,6 +32,31 @@ import { queryKeys } from '../../network/core/queryKeys';
 import { getGroups } from '../../network/group/group-apis';
 import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
 import { resolvePastSessionMock } from '../../mocks/pastLearning';
+
+function apiErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError(error)) {
+    const data = error.response?.data;
+    if (typeof data === 'object' && data !== null) {
+      const message = (data as { message?: unknown }).message;
+      if (typeof message === 'string' && message.trim()) return message;
+    }
+    if (typeof error.message === 'string' && error.message.trim() && error.message !== 'Network Error') {
+      return error.message;
+    }
+  }
+  return fallback;
+}
+
+function formatSessionTime(iso: string): string {
+  return new Date(iso).toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
 
 function TableSkeleton() {
   return (
@@ -48,10 +75,9 @@ function TableSkeleton() {
   );
 }
 
-function sessionStatus(s: SessionResponse): 'LIVE' | '종료' | '예정' {
+function sessionStatus(s: SessionResponse): 'LIVE' | '종료' {
   if (s.active) return 'LIVE';
-  if (s.endedAt) return '종료';
-  return '예정';
+  return '종료';
 }
 
 function SessionTable({
@@ -78,14 +104,21 @@ function SessionTable({
   onDelete: (session: SessionResponse) => void;
 }) {
   const { data: sessions } = useGetSessions(classId);
+  const { data: groups } = useGetGroups(classId);
   const debouncedQuery = useDebouncedValue(query, 300);
+  const groupNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const g of groups) map.set(g.id, g.name);
+    return map;
+  }, [groups]);
 
   const filtered = sessions.filter((s) => {
     const status = sessionStatus(s);
     if (debouncedQuery && !s.title.toLowerCase().includes(debouncedQuery.toLowerCase())) return false;
     if (statusFilter === '전체') return true;
     if (statusFilter === '진행') return status === 'LIVE';
-    return status === statusFilter;
+    if (statusFilter === '종료') return status === '종료';
+    return true;
   });
 
   if (filtered.length === 0) {
@@ -112,7 +145,7 @@ function SessionTable({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '2fr 1.2fr 1fr 0.8fr 1.2fr',
+            gridTemplateColumns: '2fr 1.2fr 0.8fr 1.2fr',
             padding: '10px 24px',
             borderBottom: '1px solid var(--divider)',
             fontSize: 11,
@@ -124,19 +157,20 @@ function SessionTable({
         >
           <span>세션</span>
           <span>시작</span>
-          <span>참여</span>
           <span>상태</span>
           <span style={{ textAlign: 'right' }}>액션</span>
         </div>
         {filtered.map((s) => {
           const status = sessionStatus(s);
           const pastMock = status === '종료' ? resolvePastSessionMock(s.id) : null;
+          const groupLabel =
+            s.groupId != null ? groupNameById.get(s.groupId) ?? `그룹 #${s.groupId}` : null;
           return (
             <div
               key={s.id}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '2fr 1.2fr 1fr 0.8fr 1.2fr',
+                gridTemplateColumns: '2fr 1.2fr 0.8fr 1.2fr',
                 padding: '13px 24px',
                 borderBottom: '1px solid var(--divider)',
                 fontSize: 13,
@@ -147,8 +181,8 @@ function SessionTable({
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)', display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   {s.title}
                   {s.classPublic ? <Badge status="accent">수업</Badge> : null}
-                  {!s.classPublic && s.groupId != null ? (
-                    <Badge status="neutral">그룹 #{s.groupId}</Badge>
+                  {!s.classPublic && groupLabel ? (
+                    <Badge status="neutral">{groupLabel}</Badge>
                   ) : null}
                 </span>
                 {pastMock ? (
@@ -166,13 +200,12 @@ function SessionTable({
                 ) : null}
               </span>
               <span style={{ color: 'var(--text-secondary)' }}>
-                {new Date(s.createdAt).toLocaleString('ko-KR', { hour12: false })}
+                {formatSessionTime(s.createdAt)}
               </span>
-              <span style={{ color: 'var(--ink)' }}>—</span>
               {status === 'LIVE' ? (
                 <LiveBadge />
               ) : (
-                <Badge status={status === '예정' ? 'warning' : 'neutral'}>{status}</Badge>
+                <Badge status="neutral">{status}</Badge>
               )}
               <span style={{ textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                 <Button
@@ -180,10 +213,10 @@ function SessionTable({
                   size="sm"
                   onClick={() => {
                     if (status === '종료') onReport(s.id);
-                    else if (status === 'LIVE' || status === '예정') onEnter(s.id, s.title);
+                    else onEnter(s.id, s.title);
                   }}
                 >
-                  {status === '종료' ? '리포트' : status === 'LIVE' ? '입장' : '편집'}
+                  {status === '종료' ? '리포트' : '입장'}
                 </Button>
                 {status === '종료' && pastMock ? (
                   <Button variant="ghost" size="sm" onClick={() => onQuiz(pastMock.quizSetId)}>
@@ -238,7 +271,7 @@ export default function SessionListPage() {
     enabled: createOpen && hasValidClassId,
   });
 
-  const chips = ['전체', '진행', '예정', '종료'];
+  const chips = ['전체', '진행', '종료'];
 
   const openSessionInNewTab = (sessionId: number, title?: string) => {
     if (title) saveSessionTitle(sessionId, title);
@@ -282,7 +315,7 @@ export default function SessionListPage() {
           openSessionInNewTab(created.id, created.title);
         },
         onError: (err) => {
-          setCreateError(err instanceof Error ? err.message : '세션 생성에 실패했습니다.');
+          setCreateError(apiErrorMessage(err, '세션 생성에 실패했습니다.'));
         },
       },
     );
@@ -472,19 +505,7 @@ export default function SessionListPage() {
                 </span>
               </label>
             ) : null}
-            {createError ? (
-              <div
-                style={{
-                  fontSize: 13,
-                  color: 'var(--status-error)',
-                  background: 'var(--status-error-bg)',
-                  borderRadius: 10,
-                  padding: '10px 12px',
-                }}
-              >
-                {createError}
-              </div>
-            ) : null}
+            {createError ? <AlertBanner tone="error" title={createError} /> : null}
           </div>
         </Modal>
 
