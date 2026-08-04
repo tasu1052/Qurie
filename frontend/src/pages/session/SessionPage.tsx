@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -158,6 +158,8 @@ export default function SessionPage() {
   const [activeFile, setActiveFile] = useState<string | null>(initialActiveFile);
   /** 리더가 다시 가져오기 중일 때만 true — 서버 프로젝트가 있어도 ImportPanel 을 연다. */
   const [reimportMode, setReimportMode] = useState(false);
+  const [importAutoOpen, setImportAutoOpen] = useState<'file' | 'folder' | null>(null);
+  const [activeFileReady, setActiveFileReady] = useState(false);
   const hydratedActiveFileRef = useRef(false);
   const [pendingImport, setPendingImport] = useState<ProjectImportResponse | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
@@ -360,6 +362,7 @@ export default function SessionPage() {
     path: string,
     options?: { replaceSharedDoc?: boolean },
   ) => {
+    setActiveFileReady(false);
     setActiveFile(path);
     applyLanguageFromPath(path);
     if (hasSessionId) saveSessionActiveFile(sessionId, path);
@@ -371,8 +374,11 @@ export default function SessionPage() {
       } else {
         seedYTextIfEmpty(fileYText, file.content);
       }
+      setActiveFileReady(true);
     } catch {
       setImportNotice(`파일을 열지 못했습니다: ${path}`);
+      const fileYText = getOrCreateFileYText(ydoc, path);
+      setActiveFileReady(fileYText.length > 0);
     }
   };
 
@@ -402,6 +408,8 @@ export default function SessionPage() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync 완료 후 1회만
   }, [hasSessionId, sessionId, projectRef?.projectId, collabSynced]);
+
+  const clearImportAutoOpen = useCallback(() => setImportAutoOpen(null), []);
 
   const onImported = (result: ProjectImportResponse) => {
     setPendingImport(result);
@@ -441,21 +449,25 @@ export default function SessionPage() {
     setImportNotice('임포트를 취소했습니다. 다시 가져와 주세요.');
   };
 
-  const startReimport = () => {
+  const startReimport = (picker?: 'file' | 'folder') => {
     if (!canImportProject) return;
     setPendingImport(null);
     setReimportMode(true);
     setActiveFile(null);
+    setActiveFileReady(false);
     hydratedActiveFileRef.current = false;
     if (hasSessionId) clearSessionProject(sessionId);
     setImportNotice(null);
+    setImportAutoOpen(picker ?? null);
     setLeftTab('explorer');
+    if (chrome.stacked) setMobileView('explorer');
   };
 
   const cancelReimport = () => {
     setReimportMode(false);
     setPendingImport(null);
     setImportNotice(null);
+    setImportAutoOpen(null);
   };
 
   const onSelectFile = (path: string) => {
@@ -795,8 +807,8 @@ export default function SessionPage() {
                           <>
                             <button
                               type="button"
-                              title="다시 가져오기"
-                              onClick={startReimport}
+                              title="파일 다시 선택"
+                              onClick={() => startReimport('file')}
                               disabled={!hasSessionId}
                               style={{
                                 border: 'none',
@@ -814,7 +826,7 @@ export default function SessionPage() {
                             <button
                               type="button"
                               title="폴더 다시 선택"
-                              onClick={startReimport}
+                              onClick={() => startReimport('folder')}
                               disabled={!hasSessionId}
                               style={{
                                 border: 'none',
@@ -877,7 +889,12 @@ export default function SessionPage() {
                               </button>
                             </div>
                           ) : null}
-                          <ProjectImportPanel sessionId={sessionId} onImported={onImported} />
+                          <ProjectImportPanel
+                            sessionId={sessionId}
+                            onImported={onImported}
+                            autoOpenPicker={importAutoOpen}
+                            onAutoOpenHandled={clearImportAutoOpen}
+                          />
                         </div>
                       ) : (
                         <p style={{ margin: '8px 6px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
@@ -1251,7 +1268,7 @@ export default function SessionPage() {
                   : '연결 끊김 — 변경 사항은 로컬에 보관되며 재연결 시 동기화됩니다.'}
               </div>
             ) : null}
-            {provider && editorYText && activeFile ? (
+            {provider && editorYText && activeFile && collabSynced && activeFileReady ? (
               <CollabMonacoEditor
                 key={activeFile}
                 ytext={editorYText}
@@ -1259,15 +1276,20 @@ export default function SessionPage() {
                 language={editorLanguage}
                 onlineUserIds={onlineUserIds}
                 compact={chrome.isMobile}
+                visible={editorVisible}
               />
             ) : (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
                 <span style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.55 }}>
-                  {projectRef
-                    ? '탐색기에서 파일을 선택하세요.'
-                    : pendingImport
-                      ? '프로젝트 미리보기 중입니다.'
-                      : '프로젝트를 연결한 뒤 파일을 열어 주세요.'}
+                  {!collabSynced
+                    ? '동기화 연결 중…'
+                    : activeFile && !activeFileReady
+                      ? '파일을 불러오는 중…'
+                      : projectRef
+                        ? '탐색기에서 파일을 선택하세요.'
+                        : pendingImport
+                          ? '프로젝트 미리보기 중입니다.'
+                          : '프로젝트를 연결한 뒤 파일을 열어 주세요.'}
                 </span>
               </div>
             )}
