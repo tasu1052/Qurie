@@ -69,6 +69,19 @@ export function CollabMonacoEditor({
 
     const binding = new MonacoBinding(ytext, model, new Set([editor]), provider.awareness);
 
+    const ensureModelFromYText = () => {
+      const fromY = ytext.toString();
+      if (fromY.length > 0 && model.getValue() !== fromY) {
+        model.setValue(fromY);
+      }
+    };
+    ensureModelFromYText();
+    const onYTextChange = () => {
+      ensureModelFromYText();
+      requestAnimationFrame(() => editor.layout());
+    };
+    ytext.observe(onYTextChange);
+
     // 원격 커서 색상: awareness의 user.color를 클라이언트별 CSS 규칙으로 주입
     const styleEl = document.createElement('style');
     document.head.appendChild(styleEl);
@@ -89,6 +102,7 @@ export function CollabMonacoEditor({
     provider.awareness.on('change', renderCursorStyles);
 
     return () => {
+      ytext.unobserve(onYTextChange);
       provider.awareness.off('change', renderCursorStyles);
       styleEl.remove();
       binding.destroy();
