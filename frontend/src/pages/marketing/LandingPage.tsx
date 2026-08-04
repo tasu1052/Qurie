@@ -57,15 +57,6 @@ export default function LandingPage() {
           AI가 만든 퀴즈와 학습 리포트로 구성원의 성장을 한눈에 볼 수 있어요.
         </p>
 
-        <div className="landing-hero-actions">
-          <Link to="/demo" style={{ textDecoration: 'none' }}>
-            <Button variant="primary">도입 문의</Button>
-          </Link>
-          <a href="#features" style={{ textDecoration: 'none' }}>
-            <Button variant="secondary">주요 기능 보기</Button>
-          </a>
-        </div>
-
         <div className="landing-hero-mock">
           <QurieHeroAnimation />
         </div>
@@ -73,20 +64,42 @@ export default function LandingPage() {
 
       {/* Features */}
       <section id="features" className="landing-features">
-        <div className="landing-features-inner">
-        <div className="landing-features-heading">
-          <span className="landing-features-eyebrow">주요 기능</span>
-          <h2>수업 준비부터 과정 운영까지, 하나의 흐름으로</h2>
+        <div className="landing-features-heading" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--accent)',
+            }}
+          >
+            주요 기능
+          </span>
+          <h2 style={{ fontWeight: 700, color: 'var(--ink)', margin: 0 }}>
+            수업 준비부터 과정 운영까지, 하나의 흐름으로
+          </h2>
         </div>
 
         {/* Feature 1 — realtime session */}
         <div className="landing-feature-row">
-          <div className="landing-feature-copy">
-            <span className="landing-feature-icon">
+          <div className="landing-feature-copy" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <span
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: 'var(--accent-softer)',
+                color: 'var(--accent)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
               <Users size={20} strokeWidth={1.75} />
             </span>
-            <h3>함께하는 실시간 코딩 수업</h3>
-            <p>
+            <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>함께하는 실시간 코딩 수업</h3>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
               수업 시간에 실습 코드를 불러와, 여러 명이 같은 화면에서 함께 수정해요.
               변경 내용이 바로 반영되어, 겹치지 않고 함께 작업할 수 있어요.
             </p>
@@ -95,8 +108,8 @@ export default function LandingPage() {
               '수업 중 실시간 채팅과 실행 화면 공유',
               '팀별·개인별로 수업을 나눠 운영',
             ].map((item) => (
-              <span key={item} className="landing-feature-check">
-                <Check size={14} />
+              <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-body)' }}>
+                <Check size={14} style={{ color: 'var(--status-success)' }} />
                 {item}
               </span>
             ))}
@@ -296,12 +309,23 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-          <div className="landing-feature-copy">
-            <span className="landing-feature-icon">
+          <div className="landing-feature-copy" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <span
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: 'var(--accent-softer)',
+                color: 'var(--accent)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
               <Brain size={20} strokeWidth={1.75} />
             </span>
-            <h3>AI가 퀴즈를 만들어 줘요</h3>
-            <p>
+            <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>AI가 퀴즈를 만들어 줘요</h3>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
               방금 다룬 실습 내용을 바탕으로, AI가 퀴즈를 만들어요. 수준을 먼저 파악한 뒤, 문제를 다시 검토해,
               쉬움 · 보통 · 어려움에 맞게 조정해 줘요.
             </p>
@@ -310,8 +334,8 @@ export default function LandingPage() {
               '문제마다 제한 시간을 두어 공정하게 평가해요',
               '정답과 해설까지 AI가 함께 작성해 줘요',
             ].map((item) => (
-              <span key={item} className="landing-feature-check">
-                <Check size={14} />
+              <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-body)' }}>
+                <Check size={14} style={{ color: 'var(--status-success)' }} />
                 {item}
               </span>
             ))}
@@ -320,12 +344,23 @@ export default function LandingPage() {
 
         {/* Feature 3 — report */}
         <div className="landing-feature-row">
-          <div className="landing-feature-copy">
-            <span className="landing-feature-icon">
+          <div className="landing-feature-copy" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <span
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: 'var(--accent-softer)',
+                color: 'var(--accent)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
               <BarChart3 size={20} strokeWidth={1.75} />
             </span>
-            <h3>학습 리포트로 성과 확인</h3>
-            <p>
+            <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>학습 리포트로 성과 확인</h3>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
               수업이 끝나면, 구성원별 퀴즈 완료율 · 정답률 · 난이도 · 평점이 리포트로 정리돼요. 교육 관리자는
               이 자료로 강사 평가와 운영 개선에 활용할 수 있어요.
             </p>
@@ -334,8 +369,8 @@ export default function LandingPage() {
               '강사 코멘트와 자료 첨부',
               '참여가 저조한 구성원 관리 근거',
             ].map((item) => (
-              <span key={item} className="landing-feature-check">
-                <Check size={14} />
+              <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-body)' }}>
+                <Check size={14} style={{ color: 'var(--status-success)' }} />
                 {item}
               </span>
             ))}
@@ -384,29 +419,14 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-        </div>
       </section>
 
       {/* CTA */}
       <section id="cta" className="landing-cta">
         <h2 className="landing-cta-title">지금 Qurie로 팀의 학습을 시작해 보세요</h2>
-        <p className="landing-cta-lead">
+        <p style={{ margin: 0, fontSize: 14, color: 'var(--grey-300)', maxWidth: 480 }}>
           도입 상담부터 강사 초대, 첫 수업 개설까지 하루면 충분해요. 조직에 맞는 운영 방식을 함께 찾아 드려요.
         </p>
-        <div className="landing-cta-actions">
-          <Link to="/demo" style={{ textDecoration: 'none' }}>
-            <Button variant="accent">도입 문의하기</Button>
-          </Link>
-          {user ? (
-            <Button variant="secondary" onClick={() => navigate(homePathForRole(user.role))}>
-              내 대시보드
-            </Button>
-          ) : (
-            <Link to="/login" style={{ textDecoration: 'none' }}>
-              <Button variant="secondary">로그인</Button>
-            </Link>
-          )}
-        </div>
       </section>
 
       {/* Footer */}
@@ -416,10 +436,10 @@ export default function LandingPage() {
           alt="Qurie"
           style={{ height: 24, width: 'auto', objectFit: 'contain', objectPosition: 'left', display: 'block' }}
         />
-        <p className="landing-footer-tagline">
+        <p style={{ margin: 0, fontSize: 12, lineHeight: 1.6, color: 'var(--text-muted)' }}>
           기업·기관을 위한 실시간 코딩 교육 & AI 퀴즈 플랫폼.
         </p>
-        <p className="landing-footer-copy">© 2026 Qurie</p>
+        <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>© 2026 Qurie</p>
       </footer>
     </div>
   );
