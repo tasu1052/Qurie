@@ -35,7 +35,7 @@ function toTrackCard(t: TrackSummaryResponse): TrackCard {
 
 function TracksSkeleton() {
   return (
-    <div className="qurie-master-split">
+    <div className="qurie-app-split">
       <div
         style={{
           background: 'var(--surface-card)',
@@ -145,7 +145,7 @@ function TracksAndManagers({ onOpenTrack }: { onOpenTrack: (id: string) => void 
   const managers = managersPage.data;
 
   return (
-    <div className="qurie-master-split">
+    <div className="qurie-app-split">
       <div
         style={{
           background: 'var(--surface-card)',

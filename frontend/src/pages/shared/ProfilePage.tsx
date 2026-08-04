@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { AppShell } from '../../components/layout/AppShell';
-import { PageMain } from '../../components/layout/PageMain';
+import { AppPage } from '../../components/layout/AppPage';
 import { ProfilePageContent } from '../../components/profile/ProfilePageContent';
 import { RowErrorFallback, Skeleton, StatCardRow } from '../../ds';
-import { QueryAsyncBoundary, useMe } from '../../data';
+import { QueryAsyncBoundary } from '../../data';
 
 function ProfileSkeleton() {
   return (
@@ -29,26 +28,23 @@ function ProfileSkeleton() {
 }
 
 export default function ProfilePage() {
-  const { data: user } = useMe();
   const [rowKey, setRowKey] = useState(0);
 
   return (
-    <AppShell role={user.role} activeKey="me" breadcrumbs={['마이페이지']}>
-      <PageMain>
-        <QueryAsyncBoundary
-          key={rowKey}
-          suspenseFallback={<ProfileSkeleton />}
-          errorFallback={
-            <RowErrorFallback
-              onRetry={() => setRowKey((k) => k + 1)}
-              title="프로필을 불러오지 못했습니다"
-              description="이 행만 실패했습니다. 나머지 영역은 정상적으로 표시됩니다."
-            />
-          }
-        >
-          <ProfilePageContent />
-        </QueryAsyncBoundary>
-      </PageMain>
-    </AppShell>
+    <AppPage activeKey="me" breadcrumbs={['마이페이지']}>
+      <QueryAsyncBoundary
+        key={rowKey}
+        suspenseFallback={<ProfileSkeleton />}
+        errorFallback={
+          <RowErrorFallback
+            onRetry={() => setRowKey((k) => k + 1)}
+            title="프로필을 불러오지 못했습니다"
+            description="이 행만 실패했습니다. 나머지 영역은 정상적으로 표시됩니다."
+          />
+        }
+      >
+        <ProfilePageContent />
+      </QueryAsyncBoundary>
+    </AppPage>
   );
 }

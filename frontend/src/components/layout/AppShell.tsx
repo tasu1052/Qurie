@@ -2,9 +2,9 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
-import { Button, Sidebar, Topbar } from '../../ds';
+import { Sidebar, Topbar } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
-import { useLogout, useMe } from '../../data';
+import { useMe } from '../../data';
 import type { UserRole } from '../../network/core/types';
 import { NotificationBell } from '../notifications/NotificationBell';
 import { shellConfigByRole } from './shellConfig';
@@ -39,19 +39,12 @@ export function AppShell({ role, activeKey, breadcrumbs, children }: AppShellPro
   const navigate = useNavigate();
   const location = useLocation();
   const { data: user } = useMe();
-  const logout = useLogout();
   const config = shellConfigByRole[role];
   const isMobile = useIsMobile();
   const [navOpen, setNavOpen] = useState(false);
 
   const items = config.nav.map(({ key, label, icon }) => ({ key, label, icon }));
   const goMe = () => navigate(config.mePath);
-
-  const onLogout = () => {
-    logout.mutate(undefined, {
-      onSettled: () => navigate('/login', { replace: true }),
-    });
-  };
 
   useEffect(() => {
     setNavOpen(false);
@@ -76,17 +69,6 @@ export function AppShell({ role, activeKey, breadcrumbs, children }: AppShellPro
     navigate({ pathname: item.path, search: location.search });
     setNavOpen(false);
   };
-
-  const topbarActions = (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-      <NotificationBell role={user.role} />
-      {config.showTopbarLogout ? (
-        <Button variant="ghost" size="sm" onClick={onLogout} disabled={logout.isPending}>
-          로그아웃
-        </Button>
-      ) : null}
-    </span>
-  );
 
   return (
     <div
@@ -114,13 +96,7 @@ export function AppShell({ role, activeKey, breadcrumbs, children }: AppShellPro
           logoSrc={logoSrc}
           onSelect={onNavSelect}
           footer={
-            <SidebarAccountFooter
-              name={user.name}
-              email={user.email}
-              onLogout={config.showSidebarLogout ? onLogout : undefined}
-              onProfileClick={goMe}
-              avatarStyle={config.avatarStyle}
-            />
+            <SidebarAccountFooter name={user.name} email={user.email} onProfileClick={goMe} />
           }
         />
       </div>
@@ -145,7 +121,7 @@ export function AppShell({ role, activeKey, breadcrumbs, children }: AppShellPro
               </button>
             ) : null
           }
-          actions={topbarActions}
+          actions={<NotificationBell role={user.role} />}
         />
         {children}
       </div>

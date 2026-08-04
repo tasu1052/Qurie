@@ -261,7 +261,7 @@ function SessionReportBody({
         <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--ink)', fontWeight: 600 }}>
           {pastMock.reportHighlights.overall}
         </p>
-        <div className="qurie-master-split" style={{ alignItems: 'start' }}>
+        <div className="qurie-app-split" style={{ alignItems: 'start' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>강점</span>
             {pastMock.reportHighlights.strengths.map((s) => (
@@ -286,7 +286,7 @@ function SessionReportBody({
         </p>
       </div>
 
-      <div className="qurie-master-split">
+      <div className="qurie-app-split">
         <div
           style={{
             background: 'var(--surface-card)',
@@ -385,7 +385,7 @@ function SessionReportBody({
         </div>
       </div>
 
-      <div className="qurie-master-split" style={{ alignItems: 'start' }}>
+      <div className="qurie-app-split" style={{ alignItems: 'start' }}>
         <div
           style={{
             background: 'var(--surface-card)',

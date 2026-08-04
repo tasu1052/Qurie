@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppShell } from '../../components/layout/AppShell';
-import { PageMain } from '../../components/layout/PageMain';
+import { AppPage } from '../../components/layout/AppPage';
 import { MasterNoticesBody } from '../../components/notices/MasterNoticesBody';
 import { ManagerNoticesBody } from '../../components/notices/ManagerNoticesBody';
 import { ListSkeleton } from '../../components/notices/noticesShared';
@@ -64,10 +63,8 @@ export default function NoticesPage() {
     user.role === 'MASTER' ? ['SSAFY 서울캠퍼스', '공지사항'] : ['담당 클래스', '공지사항'];
 
   return (
-    <AppShell role={user.role} activeKey="announcements" breadcrumbs={breadcrumbs}>
-      <PageMain>
-        {user.role === 'MASTER' ? <MasterNoticesGate /> : <ManagerNoticesGate />}
-      </PageMain>
-    </AppShell>
+    <AppPage activeKey="announcements" breadcrumbs={breadcrumbs}>
+      {user.role === 'MASTER' ? <MasterNoticesGate /> : <ManagerNoticesGate />}
+    </AppPage>
   );
 }
