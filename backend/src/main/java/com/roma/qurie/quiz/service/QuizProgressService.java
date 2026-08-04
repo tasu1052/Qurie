@@ -10,6 +10,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.roma.qurie.project.Project;
 import com.roma.qurie.project.ProjectRepository;
+import com.roma.qurie.quiz.dto.QuizIncorrectProgressResponse;
 import com.roma.qurie.quiz.dto.QuizProgressResponse;
 import com.roma.qurie.quiz.dto.QuizProgressSubmitRequest;
 import com.roma.qurie.quiz.dto.QuizProgressSummaryResponse;
@@ -81,6 +82,16 @@ public class QuizProgressService {
 		List<QuizProgress> progresses =
 				quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(quizSetId, requester.id());
 		return QuizProgressSummaryResponse.from(quizSet, progresses);
+	}
+
+	@Transactional(readOnly = true)
+	public QuizIncorrectProgressResponse getIncorrectSummary(Long quizSetId, AuthUser requester) {
+		QuizSet quizSet = findQuizSetOrThrow(quizSetId);
+		participantService.verifySessionClassMember(sessionIdOf(quizSet), requester);
+
+		List<QuizProgress> incorrectProgresses =
+				quizProgressRepository.findIncorrectWithQuizByQuizSetIdAndUserId(quizSetId, requester.id());
+		return QuizIncorrectProgressResponse.from(quizSetId, incorrectProgresses);
 	}
 
 	/** ATTEMPTED 가 아니면 고른 보기가 없다. ATTEMPTED 인데 idx 가 문항의 실제 보기 범위를 벗어나면 잘못된 요청이다. */
