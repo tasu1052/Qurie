@@ -24,6 +24,7 @@ import {
   type NoticeResponse,
   type NoticeScope,
 } from '../../data';
+import { useOpenNoticeDetail } from '../../hooks/useOpenNoticeDetail';
 
 type ScopeFilter = '전체' | 'TRACK' | 'CLASS';
 
@@ -55,17 +56,28 @@ function NoticeCard({
   item,
   canEdit,
   deleting,
+  onOpen,
   onEdit,
   onDelete,
 }: {
   item: NoticeResponse;
   canEdit: boolean;
   deleting: boolean;
+  onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   return (
     <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
       style={{
         background: 'var(--surface-card)',
         border: `1px solid ${item.pinned ? 'var(--accent-soft)' : 'var(--border)'}`,
@@ -75,6 +87,7 @@ function NoticeCard({
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
+        cursor: 'pointer',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -92,7 +105,10 @@ function NoticeCard({
               type="button"
               title="수정"
               aria-label="공지 수정"
-              onClick={onEdit}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
               style={{
                 border: 'none',
                 background: 'transparent',
@@ -109,7 +125,10 @@ function NoticeCard({
               title="삭제"
               aria-label="공지 삭제"
               disabled={deleting}
-              onClick={onDelete}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
               style={{
                 border: 'none',
                 background: 'transparent',
@@ -134,6 +153,7 @@ function NoticeCard({
 }
 
 function ManagerAnnouncementsBody({ classId }: { classId: number }) {
+  const openNotice = useOpenNoticeDetail();
   const { data: cls } = useGetClass(classId);
   const [scope, setScope] = useState<ScopeFilter>('CLASS');
   const [open, setOpen] = useState(false);
@@ -298,6 +318,7 @@ function ManagerAnnouncementsBody({ classId }: { classId: number }) {
                 item={n}
                 canEdit={canEdit}
                 deleting={deleteNotice.isPending}
+                onOpen={() => openNotice(n.id)}
                 onEdit={() => openEdit(n)}
                 onDelete={() => deleteNotice.mutate(n.id)}
               />

@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileText,
-  History,
   BookOpen,
   User,
 } from 'lucide-react';
@@ -23,7 +22,6 @@ type AppShellProps = {
 
 const studentNav = [
   { key: 'dashboard', label: '대시보드', path: '/app', icon: <LayoutDashboard {...iconProps} /> },
-  { key: 'sessions', label: '세션', path: '/app/sessions', icon: <History {...iconProps} /> },
   { key: 'quizzes', label: '지난 퀴즈', path: '/app/quizzes', icon: <BookOpen {...iconProps} /> },
   { key: 'report', label: '종합 리포트', path: '/app/report', icon: <FileText {...iconProps} /> },
   { key: 'me', label: '마이페이지', path: '/app/me', icon: <User {...iconProps} /> },

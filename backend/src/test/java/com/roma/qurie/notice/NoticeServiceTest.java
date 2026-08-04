@@ -209,6 +209,55 @@ class NoticeServiceTest {
 		verify(noticeRepository, never()).delete(any(Notice.class));
 	}
 
+	@Test
+	void getNoticeReturnsAudienceNoticeForStudent() {
+		NoticeResponse response = new NoticeResponse(
+				NOTICE_ID,
+				NoticeScope.ENTERPRISE,
+				null,
+				null,
+				null,
+				"점검 안내",
+				"본문",
+				false,
+				"마스터",
+				java.time.LocalDateTime.now());
+		given(noticeRepository.findNoticeResponseById(
+						NOTICE_ID, ENTERPRISE_ID, NoticeAuthorType.MASTER, NoticeAuthorType.MANAGER))
+				.willReturn(Optional.of(response));
+		given(classRepository.findById(CLASS_ID)).willReturn(Optional.of(classEntity(ENTERPRISE_ID)));
+		AuthUser student = new AuthUser(
+				12L, UserRole.STUDENT.name(), ENTERPRISE_ID, "student@qurie.com", "학생", CLASS_ID);
+
+		assertThat(noticeService.getNotice(student, NOTICE_ID).title()).isEqualTo("점검 안내");
+	}
+
+	@Test
+	void getNoticeThrowsNotFoundWhenOutsideAudience() {
+		NoticeResponse response = new NoticeResponse(
+				NOTICE_ID,
+				NoticeScope.CLASS,
+				null,
+				999L,
+				"다른 반",
+				"반 공지",
+				"본문",
+				false,
+				"매니저",
+				java.time.LocalDateTime.now());
+		given(noticeRepository.findNoticeResponseById(
+						NOTICE_ID, ENTERPRISE_ID, NoticeAuthorType.MASTER, NoticeAuthorType.MANAGER))
+				.willReturn(Optional.of(response));
+		given(classRepository.findById(CLASS_ID)).willReturn(Optional.of(classEntity(ENTERPRISE_ID)));
+		AuthUser student = new AuthUser(
+				12L, UserRole.STUDENT.name(), ENTERPRISE_ID, "student@qurie.com", "학생", CLASS_ID);
+
+		assertThatThrownBy(() -> noticeService.getNotice(student, NOTICE_ID))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(NoticeServiceTest::statusOf)
+				.isEqualTo(HttpStatus.NOT_FOUND);
+	}
+
 	private static HttpStatusCode statusOf(Throwable throwable) {
 		return ((ResponseStatusException) throwable).getStatusCode();
 	}

@@ -4,6 +4,7 @@ import { ChevronRight } from 'lucide-react';
 import { StudentShell, PageMain } from '../../components/layout/StudentShell';
 import {
   Badge,
+  Button,
   ChartLegend,
   EmptyState,
   LineChart,
@@ -19,6 +20,11 @@ import {
   useMe,
   type SessionReportSummaryResponse,
 } from '../../data';
+import {
+  getPastSessionsMock,
+  resolvePastSessionMock,
+  type PastSessionMock,
+} from '../../mocks/pastLearning';
 
 function ReportSkeleton() {
   return (
@@ -63,13 +69,61 @@ function avg(xs: number[]): number | null {
   return xs.reduce((a, b) => a + b, 0) / xs.length;
 }
 
+type SessionReportRow = {
+  key: string;
+  sessionId: number;
+  title: string;
+  accuracy: number | null;
+  quizRating: number | null;
+  issuedAt: string | null;
+  aiSummary: string;
+  quizSetId: number;
+  demoOnly: boolean;
+  scoreLabel?: string;
+};
+
+function toRowsFromReports(reports: SessionReportSummaryResponse[]): SessionReportRow[] {
+  return reports.map((s) => {
+    const mock = resolvePastSessionMock(s.sessionId);
+    return {
+      key: `report-${s.sessionReportId}`,
+      sessionId: s.sessionId,
+      title: s.sessionTitle,
+      accuracy: s.accuracy,
+      quizRating: s.quizRating,
+      issuedAt: s.issuedAt,
+      aiSummary: mock.aiSummary,
+      quizSetId: mock.quizSetId,
+      demoOnly: false,
+      scoreLabel: `${mock.scoreCorrect}/${mock.scoreTotal} 정답`,
+    };
+  });
+}
+
+function toRowsFromMocks(mocks: PastSessionMock[]): SessionReportRow[] {
+  return mocks.map((s) => ({
+    key: `mock-${s.sessionId}`,
+    sessionId: s.sessionId,
+    title: s.title,
+    accuracy: s.scoreTotal > 0 ? (s.scoreCorrect / s.scoreTotal) * 100 : null,
+    quizRating: null,
+    issuedAt: s.endedAt,
+    aiSummary: s.aiSummary,
+    quizSetId: s.quizSetId,
+    demoOnly: true,
+    scoreLabel: `${s.scoreCorrect}/${s.scoreTotal} 정답`,
+  }));
+}
+
 function SessionReportTable({
-  reports,
+  rows,
   onOpen,
+  onQuiz,
   onGoDashboard,
 }: {
-  reports: SessionReportSummaryResponse[];
+  rows: SessionReportRow[];
   onOpen: (sessionId: number) => void;
+  onQuiz: (quizSetId: number) => void;
   onGoDashboard: () => void;
 }) {
   return (
@@ -82,7 +136,16 @@ function SessionReportTable({
         overflow: 'hidden',
       }}
     >
-      <div style={{ padding: '20px 24px 14px' }}>
+      <div
+        style={{
+          padding: '20px 24px 14px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
         <span
           style={{
             fontSize: 11,
@@ -94,8 +157,11 @@ function SessionReportTable({
         >
           세션 리포트
         </span>
+        {rows.some((r) => r.demoOnly) ? (
+          <Badge status="neutral">데모 · AI 연동 예정</Badge>
+        ) : null}
       </div>
-      {reports.length === 0 ? (
+      {rows.length === 0 ? (
         <div style={{ padding: '8px 24px 24px' }}>
           <EmptyState
             message="발급된 세션 리포트가 없습니다"
@@ -105,59 +171,80 @@ function SessionReportTable({
           />
         </div>
       ) : (
-        <>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '2fr 1fr 1fr 1fr 40px',
-              padding: '10px 24px',
-              borderBottom: '1px solid var(--divider)',
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--text-muted)',
-            }}
-          >
-            <span>세션</span>
-            <span>정답률</span>
-            <span>평점</span>
-            <span>일자</span>
-            <span />
-          </div>
-          {reports.map((s) => (
-            <button
-              key={s.sessionReportId}
-              type="button"
-              onClick={() => onOpen(s.sessionId)}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {rows.map((s) => (
+            <div
+              key={s.key}
               style={{
-                display: 'grid',
-                gridTemplateColumns: '2fr 1fr 1fr 1fr 40px',
-                padding: '13px 24px',
-                border: 'none',
-                borderBottom: '1px solid var(--divider)',
-                background: 'transparent',
-                fontSize: 13,
-                alignItems: 'center',
-                width: '100%',
-                textAlign: 'left',
-                cursor: 'pointer',
-                fontFamily: 'var(--font-sans)',
-                color: 'inherit',
+                padding: '16px 24px',
+                borderTop: '1px solid var(--divider)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
               }}
             >
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)' }}>
-                {s.sessionTitle}
-              </span>
-              <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{formatPct(s.accuracy)}</span>
-              <span style={{ fontWeight: 600 }}>{formatRating(s.quizRating)}</span>
-              <span style={{ color: 'var(--text-muted)' }}>{formatDate(s.issuedAt)}</span>
-              <span style={{ display: 'inline-flex', justifyContent: 'flex-end', color: 'var(--text-muted)' }}>
-                <ChevronRight size={16} strokeWidth={1.75} />
-              </span>
-            </button>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{s.title}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    {formatDate(s.issuedAt)}
+                    {s.accuracy != null ? ` · 정답률 ${formatPct(s.accuracy)}` : ''}
+                    {s.quizRating != null ? ` · 평점 ${formatRating(s.quizRating)}` : ''}
+                  </span>
+                </div>
+                {s.scoreLabel ? <Badge status="accent">{s.scoreLabel}</Badge> : null}
+              </div>
+
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                  color: 'var(--text-secondary)',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+              >
+                {s.aiSummary}
+              </p>
+
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Button variant="secondary" size="sm" onClick={() => onOpen(s.sessionId)}>
+                  상세
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => onQuiz(s.quizSetId)}>
+                  퀴즈 열람
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => onOpen(s.sessionId)}
+                  aria-label={`${s.title} 리포트 열기`}
+                  style={{
+                    marginLeft: 'auto',
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    padding: 4,
+                  }}
+                >
+                  <ChevronRight size={16} strokeWidth={1.75} />
+                </button>
+              </div>
+            </div>
           ))}
-        </>
+        </div>
       )}
     </div>
   );
@@ -167,6 +254,12 @@ function FinalReportBody({ className }: { className: string }) {
   const navigate = useNavigate();
   const { data: me } = useMe();
   const { data: reports } = useGetUserSessionReports(me.id);
+
+  const sessionRows = useMemo(() => {
+    if (reports.length > 0) return toRowsFromReports(reports);
+    // 실데이터가 없을 때만 시연용 목업을 보여 빈 화면을 피한다.
+    return toRowsFromMocks(getPastSessionsMock());
+  }, [reports]);
 
   const kpis = useMemo(() => {
     const accuracies = reports
@@ -267,8 +360,9 @@ function FinalReportBody({ className }: { className: string }) {
       ) : null}
 
       <SessionReportTable
-        reports={reports}
+        rows={sessionRows}
         onOpen={(sessionId) => navigate(`/session/${sessionId}/report`)}
+        onQuiz={(quizSetId) => navigate(`/app/quizzes/${quizSetId}`)}
         onGoDashboard={() => navigate('/app')}
       />
     </>

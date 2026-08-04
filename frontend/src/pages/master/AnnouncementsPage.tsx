@@ -22,6 +22,7 @@ import {
   type NoticeResponse,
   type NoticeScope,
 } from '../../data';
+import { useOpenNoticeDetail } from '../../hooks/useOpenNoticeDetail';
 
 type ScopeFilter = '전체' | 'ENTERPRISE' | 'TRACK' | 'CLASS';
 
@@ -43,17 +44,28 @@ function scopeLabel(scope: NoticeScope): string {
 
 function NoticeCard({
   item,
+  onOpen,
   onDelete,
   onEdit,
   deleting,
 }: {
   item: NoticeResponse;
+  onOpen: () => void;
   onDelete: () => void;
   onEdit: () => void;
   deleting: boolean;
 }) {
   return (
     <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
       style={{
         background: 'var(--surface-card)',
         border: `1px solid ${item.pinned ? 'var(--accent-soft)' : 'var(--border)'}`,
@@ -63,6 +75,7 @@ function NoticeCard({
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
+        cursor: 'pointer',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -93,7 +106,10 @@ function NoticeCard({
           type="button"
           title="수정"
           aria-label="공지 수정"
-          onClick={onEdit}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
           style={{
             border: 'none',
             background: 'transparent',
@@ -110,7 +126,10 @@ function NoticeCard({
           title="삭제"
           aria-label="공지 삭제"
           disabled={deleting}
-          onClick={onDelete}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
           style={{
             border: 'none',
             background: 'transparent',
@@ -135,6 +154,7 @@ function NoticeCard({
 }
 
 function AnnouncementsBody() {
+  const openNotice = useOpenNoticeDetail();
   const [scope, setScope] = useState<ScopeFilter>('전체');
   const [open, setOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<NoticeResponse | null>(null);
@@ -294,6 +314,7 @@ function AnnouncementsBody() {
               key={n.id}
               item={n}
               deleting={deleteNotice.isPending}
+              onOpen={() => openNotice(n.id)}
               onEdit={() => openEdit(n)}
               onDelete={() => deleteNotice.mutate(n.id)}
             />

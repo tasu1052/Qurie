@@ -32,9 +32,9 @@ import MyPage from './pages/student/MyPage';
 import SessionPage from './pages/session/SessionPage';
 import SessionReportPage from './pages/session/SessionReportPage';
 import FinalReportPage from './pages/student/FinalReportPage';
-import StudentSessionsPage from './pages/student/StudentSessionsPage';
 import PastQuizListPage from './pages/learning/PastQuizListPage';
 import PastQuizDetailPage from './pages/learning/PastQuizDetailPage';
+import NoticeDetailPage from './pages/notices/NoticeDetailPage';
 
 function RedirectClassAnalytics() {
   const { classId } = useParams<{ classId: string }>();
@@ -65,6 +65,7 @@ export default function App() {
           <Route path="/master/classes/:classId" element={<ClassDetailPage />} />
           <Route path="/master/members" element={<MemberManagementPage />} />
           <Route path="/master/announcements" element={<AnnouncementsPage />} />
+          <Route path="/master/announcements/:noticeId" element={<NoticeDetailPage />} />
           <Route path="/master/analytics" element={<Navigate to="/master/classes" replace />} />
           <Route path="/master/analytics/:classId" element={<RedirectClassAnalytics />} />
           <Route path="/master/me" element={<MasterMyPage />} />
@@ -80,14 +81,16 @@ export default function App() {
           <Route path="/manager/groups" element={<GroupListPage />} />
           <Route path="/manager/groups/:id" element={<GroupEditPage />} />
           <Route path="/manager/announcements" element={<ManagerAnnouncementsPage />} />
+          <Route path="/manager/announcements/:noticeId" element={<NoticeDetailPage />} />
           <Route path="/manager/me" element={<ManagerMyPage />} />
           <Route path="/manager/settings" element={<Navigate to="/manager/me" replace />} />
 
           <Route path="/app" element={<StudentDashboardPage />} />
+          <Route path="/app/announcements/:noticeId" element={<NoticeDetailPage />} />
           <Route path="/app/classes" element={<Navigate to="/app" replace />} />
           <Route path="/app/classes/:id" element={<Navigate to="/app" replace />} />
           <Route path="/app/me" element={<MyPage />} />
-          <Route path="/app/sessions" element={<StudentSessionsPage />} />
+          <Route path="/app/sessions" element={<Navigate to="/app/report" replace />} />
           <Route path="/app/quizzes" element={<PastQuizListPage />} />
           <Route path="/app/quizzes/:quizSetId" element={<PastQuizDetailPage />} />
           <Route path="/app/report" element={<FinalReportPage />} />

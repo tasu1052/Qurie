@@ -1,17 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { QueryAsyncBoundary, useGetNotices, type NoticeResponse, type UserRole } from '../../data';
+import { noticeListPath, useOpenNoticeDetail } from '../../hooks/useOpenNoticeDetail';
 import { RowErrorFallback, Skeleton } from '../../ds';
 
 function scopeLabel(scope: NoticeResponse['scope']): string {
   if (scope === 'ENTERPRISE') return '전체';
   if (scope === 'TRACK') return '트랙';
   return '클래스';
-}
-
-function morePath(role: UserRole): string | null {
-  if (role === 'MASTER') return '/master/announcements';
-  if (role === 'MANAGER') return '/manager/announcements';
-  return null;
 }
 
 function NoticesBody({
@@ -24,13 +19,14 @@ function NoticesBody({
   size?: number;
 }) {
   const navigate = useNavigate();
+  const openNotice = useOpenNoticeDetail();
   const { data } = useGetNotices({
     size,
     classId,
     forAudience: role === 'MANAGER' || role === 'STUDENT' ? true : undefined,
   });
   const notices = data.data;
-  const path = morePath(role);
+  const path = noticeListPath(role);
 
   return (
     <div
@@ -81,17 +77,25 @@ function NoticesBody({
         <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>등록된 공지가 없습니다.</span>
       ) : (
         notices.map((n) => (
-          <div
+          <button
             key={n.id}
+            type="button"
+            onClick={() => openNotice(n.id)}
             style={{
               display: 'flex',
               flexDirection: 'column',
               gap: 4,
-              paddingBottom: 10,
+              border: 'none',
               borderBottom: '1px solid var(--divider)',
+              background: 'transparent',
+              textAlign: 'left',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+              color: 'inherit',
+              padding: '0 0 10px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
               <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
                 {scopeLabel(n.scope)}
               </span>
@@ -113,7 +117,7 @@ function NoticesBody({
             >
               {n.body}
             </span>
-          </div>
+          </button>
         ))
       )}
     </div>

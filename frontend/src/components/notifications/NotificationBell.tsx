@@ -11,6 +11,7 @@ import {
   type NoticeResponse,
   type UserRole,
 } from '../../data';
+import { noticeListPath, useOpenNoticeDetail } from '../../hooks/useOpenNoticeDetail';
 import { Skeleton } from '../../ds';
 
 const READ_KEY = 'qurie-notice-read-ids';
@@ -55,12 +56,6 @@ function scopeLabel(scope: NoticeResponse['scope']): string {
   if (scope === 'ENTERPRISE') return '전체';
   if (scope === 'TRACK') return '트랙';
   return '클래스';
-}
-
-function allNoticesPath(role: UserRole): string | null {
-  if (role === 'MASTER') return '/master/announcements';
-  if (role === 'STUDENT') return '/app/classes';
-  return null;
 }
 
 function HelpRequestRows({
@@ -172,13 +167,14 @@ function BellPanel({
   onClose: () => void;
 }) {
   const navigate = useNavigate();
+  const openNotice = useOpenNoticeDetail();
   const { data } = useGetNotices({ size: 8 });
   const helpQuery = useGetClassHelpRequests(
     role === 'MANAGER' || role === 'MASTER' ? classId : null,
   );
   const notices = data.data;
   const helpRequests = helpQuery.data ?? [];
-  const morePath = allNoticesPath(role);
+  const morePath = noticeListPath(role);
 
   useEffect(() => {
     if (notices.length === 0) return;
@@ -246,18 +242,29 @@ function BellPanel({
         </div>
       ) : (
         notices.map((n) => (
-          <div
+          <button
             key={n.id}
+            type="button"
+            onClick={() => {
+              onClose();
+              openNotice(n.id);
+            }}
             style={{
               padding: '12px 14px',
+              border: 'none',
               borderBottom: '1px solid var(--divider)',
               display: 'flex',
               flexDirection: 'column',
               gap: 4,
               background: 'var(--surface-modal)',
+              textAlign: 'left',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+              color: 'inherit',
+              width: '100%',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
               <span
                 style={{
                   fontSize: 10,
@@ -290,7 +297,7 @@ function BellPanel({
             >
               {n.body}
             </span>
-          </div>
+          </button>
         ))
       )}
     </div>
