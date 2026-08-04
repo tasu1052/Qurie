@@ -128,11 +128,11 @@ body {
   }
 }
 
-/* Master shell — mobile drawer sidebar */
-.qurie-master-shell__sidebar {
+/* App shell — mobile drawer sidebar (master / manager / student) */
+.qurie-app-shell__sidebar {
   flex-shrink: 0;
 }
-.qurie-master-shell__backdrop {
+.qurie-app-shell__backdrop {
   position: fixed;
   inset: 0;
   z-index: 70;
@@ -143,7 +143,7 @@ body {
   cursor: pointer;
 }
 @media (max-width: 768px) {
-  .qurie-master-shell__sidebar {
+  .qurie-app-shell__sidebar {
     position: fixed;
     inset: 0 auto 0 0;
     z-index: 80;
@@ -151,7 +151,7 @@ body {
     transition: transform 180ms ease-out;
     box-shadow: none;
   }
-  .qurie-master-shell--nav-open .qurie-master-shell__sidebar {
+  .qurie-app-shell--nav-open .qurie-app-shell__sidebar {
     transform: translateX(0);
     box-shadow: var(--shadow-modal);
   }

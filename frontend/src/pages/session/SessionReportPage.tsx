@@ -1,6 +1,5 @@
-import { StudentShell, PageMain } from '../../components/layout/StudentShell';
-import { ManagerShell } from '../../components/layout/ManagerShell';
-import { MasterShell } from '../../components/layout/MasterShell';
+import { AppShell } from '../../components/layout/AppShell';
+import { PageMain } from '../../components/layout/PageMain';
 import {
   Badge,
   Button,
@@ -532,27 +531,11 @@ export default function SessionReportPage() {
   const breadcrumbs =
     me.role === 'STUDENT' ? ['리포트', '세션 리포트'] : ['세션', '세션 리포트'];
 
-  const wrap = (children: ReactNode) => {
-    if (me.role === 'MANAGER') {
-      return (
-        <ManagerShell activeKey={activeKey} breadcrumbs={breadcrumbs}>
-          <PageMain>{children}</PageMain>
-        </ManagerShell>
-      );
-    }
-    if (me.role === 'MASTER') {
-      return (
-        <MasterShell activeKey={activeKey} breadcrumbs={breadcrumbs}>
-          <PageMain>{children}</PageMain>
-        </MasterShell>
-      );
-    }
-    return (
-      <StudentShell activeKey={activeKey} breadcrumbs={breadcrumbs}>
-        <PageMain>{children}</PageMain>
-      </StudentShell>
-    );
-  };
+  const wrap = (children: ReactNode) => (
+    <AppShell role={me.role} activeKey={activeKey} breadcrumbs={breadcrumbs}>
+      <PageMain>{children}</PageMain>
+    </AppShell>
+  );
 
   if (!Number.isFinite(sessionId) || sessionId <= 0) {
     return wrap(
