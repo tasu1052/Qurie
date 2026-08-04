@@ -280,7 +280,7 @@ export function MasterNoticesBody() {
               style={{
                 width: '100%',
                 boxSizing: 'border-box',
-                borderRadius: 10,
+                borderRadius: 'var(--radius-md)',
                 border: '1px solid var(--border-strong)',
                 padding: '10px 12px',
                 fontFamily: 'var(--font-sans)',

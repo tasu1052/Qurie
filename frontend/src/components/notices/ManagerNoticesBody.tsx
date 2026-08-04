@@ -225,7 +225,7 @@ export function ManagerNoticesBody({ classId }: { classId: number }) {
                 width: '100%',
                 boxSizing: 'border-box',
                 border: '1px solid var(--border-strong)',
-                borderRadius: 'var(--radius-control)',
+                borderRadius: 'var(--radius-md)',
                 padding: '10px 14px',
                 fontFamily: 'var(--font-sans)',
                 fontSize: 14,

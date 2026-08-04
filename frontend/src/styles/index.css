@@ -191,6 +191,34 @@ body {
   min-width: 0;
 }
 
+/* My page — centered layout, two columns on wide viewports */
+.qurie-profile-page {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  display: grid;
+  gap: 28px;
+  align-content: start;
+}
+.qurie-profile-page__hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+}
+@media (min-width: 768px) {
+  .qurie-profile-page {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 40px;
+    row-gap: 24px;
+  }
+  .qurie-profile-page__hero {
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--divider);
+  }
+}
+
 /* Topbar — responsive breadcrumbs & account chip */
 .qurie-topbar {
   width: 100%;
