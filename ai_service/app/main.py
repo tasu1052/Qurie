@@ -2,7 +2,9 @@ from fastapi import FastAPI
 
 from app.http.health import router as health_router
 from app.http.quiz_routes import router as quiz_router
+from app.http.report_routes import router as report_router
 
 app = FastAPI(title="Qurie AI Service", version="0.1.0")
 app.include_router(health_router)
 app.include_router(quiz_router)
+app.include_router(report_router)
