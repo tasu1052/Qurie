@@ -89,10 +89,10 @@ public class SessionController {
     }
 
     /**
-     * todo: quiz_progress 엔티티가 생기면 집계 수치를 요청 바디로 받지 않고 서버에서 직접 계산해야 한다.
+     * 세션 리포트 발급. 정량 지표(문항 수·정답률 등)는 서버가 quiz_progress 에서 집계한다.
      *
      * @param sessionId: 리포트를 발급할 세션 id
-     * @param request: 세션 집계 수치와 AI 코멘트
+     * @param request: 발급 대상 사용자와 정성 항목(AI 코멘트·평점)
      */
     @PostMapping("{sessionId}/reports")
     @ResponseStatus(HttpStatus.CREATED)

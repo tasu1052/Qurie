@@ -47,18 +47,9 @@ export interface ChatMessageResponse {
     createdAt: string;
 }
 
+/** 정량 지표는 서버가 quiz_progress 에서 집계하므로 발급 대상과 정성 항목만 보낸다. */
 export interface SessionReportCreateRequest {
-    quizSetId?: number;
-    ordinaryUserId?: number;
-    quizTotalCount: number;
-    quizAttemptedCount: number;
-    quizCorrectCount: number;
-    quizSkippedCount: number;
-    completionRate: number;
-    accuracy: number;
-    avgElapsedMs?: number;
-    difficultyRatio?: Record<string, unknown>;
-    conceptStats?: Record<string, unknown>;
+    ordinaryUserId: number;
     quizRating?: number;
     aiComment?: string;
     aiStrengths?: string[];
