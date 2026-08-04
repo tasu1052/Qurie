@@ -263,6 +263,30 @@ class SessionServiceTest {
 		verify(groupParticipantRepository, never()).findGroupIdsByClassIdAndUserId(any(), any());
 	}
 
+	@Test
+	void managerListsSessionsForSpecificStudent() {
+		Long targetUserId = 30L;
+		given(sessionRepository.findByClassIdAndActive(CLASS_ID, true))
+				.willReturn(List.of(
+						new Session(CLASS_ID, null, "수업 방", MANAGER.id(), true),
+						new Session(CLASS_ID, GROUP_ID, "그 학생 그룹 방", MANAGER.id(), false),
+						new Session(CLASS_ID, 99L, "남의 그룹 방", MANAGER.id(), false)));
+		given(groupParticipantRepository.findGroupIdsByClassIdAndUserId(CLASS_ID, targetUserId))
+				.willReturn(List.of(GROUP_ID));
+
+		List<SessionResponse> sessions = sessionService.getOpenSessions(CLASS_ID, MANAGER, targetUserId);
+
+		assertThat(sessions).extracting(SessionResponse::title).containsExactly("수업 방", "그 학생 그룹 방");
+	}
+
+	@Test
+	void studentCannotListSessionsForAnotherUser() {
+		assertThatThrownBy(() -> sessionService.getOpenSessions(CLASS_ID, STUDENT, 999L))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
+				.isEqualTo(HttpStatus.FORBIDDEN);
+	}
+
 	private Session givenExistingSession() {
 		Session session = new Session(CLASS_ID, GROUP_ID, "1교시 방", MANAGER.id(), false);
 		given(sessionRepository.findById(1L)).willReturn(Optional.of(session));

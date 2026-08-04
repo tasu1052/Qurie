@@ -47,18 +47,9 @@ export interface ChatMessageResponse {
     createdAt: string;
 }
 
+/** 정량 지표는 서버가 quiz_progress 에서 집계하므로 발급 대상과 정성 항목만 보낸다. */
 export interface SessionReportCreateRequest {
-    quizSetId?: number;
-    ordinaryUserId?: number;
-    quizTotalCount: number;
-    quizAttemptedCount: number;
-    quizCorrectCount: number;
-    quizSkippedCount: number;
-    completionRate: number;
-    accuracy: number;
-    avgElapsedMs?: number;
-    difficultyRatio?: Record<string, unknown>;
-    conceptStats?: Record<string, unknown>;
+    ordinaryUserId: number;
     quizRating?: number;
     aiComment?: string;
     aiStrengths?: string[];
@@ -110,9 +101,10 @@ export const getSession = async (sessionId: number): Promise<SessionResponse> =>
     return data;
 };
 
-export const getSessions = async (classId: number): Promise<SessionResponse[]> => {
+/** userId 를 주면 그 학생 기준(반 공개 + 그 학생 그룹의 세션)으로 걸러진다 — 본인 외 지정은 매니저/마스터만. */
+export const getSessions = async (classId: number, userId?: number): Promise<SessionResponse[]> => {
     const { data } = await axiosInstance.get<SessionResponse[]>('/sessions', {
-        params: { classId },
+        params: userId != null ? { classId, userId } : { classId },
     });
     return data;
 };

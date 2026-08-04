@@ -31,6 +31,10 @@ public interface GroupParticipantRepository extends JpaRepository<GroupParticipa
     @Query("select gp.group.id from GroupParticipant gp where gp.group.classId = :classId and gp.user.id = :userId")
     List<Long> findGroupIdsByClassIdAndUserId(@Param("classId") Long classId, @Param("userId") Long userId);
 
+    /** 그룹 세션의 참여 대상(학생) id 목록. 세션 리포트 발급 대상 해석에 쓴다. */
+    @Query("select gp.user.id from GroupParticipant gp where gp.group.id = :groupId and gp.user.role = :role")
+    List<Long> findUserIdsByGroupIdAndUserRole(@Param("groupId") Long groupId, @Param("role") UserRole role);
+
     boolean existsByGroupIdAndUserId(Long groupId, Long userId);
 
     /** 그룹 리더 판정. 세션 안에서 프로젝트를 임포트할 수 있는 사람이 리더뿐이라 필요하다. */

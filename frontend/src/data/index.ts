@@ -271,10 +271,11 @@ export type {
   VoiceSignalType,
 } from '../network/voice';
 
-export { useCreateUserReport, useGetUserSessionReports } from '../network/report';
+export { useCreateUserReport, useGetUserReport, useGetUserSessionReports } from '../network/report';
 export type {
   UserReportCreateRequest,
   UserReportCreateResponse,
+  UserReportDetailResponse,
   SessionReportSummaryResponse,
 } from '../network/report';
 export {

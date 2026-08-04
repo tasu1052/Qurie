@@ -1,5 +1,14 @@
 package com.roma.qurie.report.service;
 
+import com.roma.qurie.project.ProjectRepository;
+import com.roma.qurie.quiz.entity.Quiz;
+import com.roma.qurie.quiz.entity.QuizDifficulty;
+import com.roma.qurie.quiz.entity.QuizProgress;
+import com.roma.qurie.quiz.entity.QuizProgressStatus;
+import com.roma.qurie.quiz.entity.QuizSet;
+import com.roma.qurie.quiz.entity.QuizSetStatus;
+import com.roma.qurie.quiz.repository.QuizProgressRepository;
+import com.roma.qurie.quiz.repository.QuizSetRepository;
 import com.roma.qurie.report.dto.SessionReportCreateRequest;
 import com.roma.qurie.report.dto.SessionReportCreateResponse;
 import com.roma.qurie.report.dto.SessionReportDetailResponse;
@@ -9,13 +18,17 @@ import com.roma.qurie.report.repository.SessionReportRepository;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.session.core.Session;
 import com.roma.qurie.session.core.SessionRepository;
+import com.roma.qurie.session.participant.SessionParticipantResolver;
 import com.roma.qurie.session.participant.SessionParticipantService;
 import com.roma.qurie.user.entity.User;
 import com.roma.qurie.user.repository.UserRepository;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -28,33 +41,46 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class SessionReportService {
 
-    private static final String MASTER_ROLE = "MASTER";
-    private static final String MANAGER_ROLE = "MANAGER";
-
     private final SessionReportRepository sessionReportRepository;
     private final SessionRepository sessionRepository;
     private final UserRepository userRepository;
     private final SessionParticipantService sessionParticipantService;
+    private final SessionParticipantResolver participantResolver;
+    private final ProjectRepository projectRepository;
+    private final QuizSetRepository quizSetRepository;
+    private final QuizProgressRepository quizProgressRepository;
 
+    /**
+     * 세션 리포트 발급. 정량 지표는 quiz_progress 에서 서버가 집계한다 —
+     * 클라이언트가 보낸 숫자를 저장하면 조회 화면과 어긋나거나 조작될 수 있다.
+     * 발급 대상은 편성(그룹/반 명단) 기준 참여 학생으로 제한한다.
+     */
     @Transactional
     public SessionReportCreateResponse createSessionReport(Long sessionId, SessionReportCreateRequest request) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "방을 찾을 수 없습니다."));
+        if (!participantResolver.isParticipantStudent(session, request.ordinaryUserId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "세션 참여 대상 학생이 아닙니다.");
+        }
         if (sessionReportRepository.existsBySessionIdAndOrdinaryUserId(sessionId, request.ordinaryUserId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 발급된 세션 리포트가 있습니다.");
         }
 
+        QuizResultAggregate aggregate = aggregateQuizResults(sessionId, request.ordinaryUserId());
+
         SessionReport sessionReport = SessionReport.builder()
                 .sessionId(sessionId)
                 .ordinaryUserId(request.ordinaryUserId())
-                .quizSetId(request.quizSetId())
-                .quizTotalCount(request.quizTotalCount())
-                .quizAttemptedCount(request.quizAttemptedCount())
-                .quizCorrectCount(request.quizCorrectCount())
-                .quizSkippedCount(request.quizSkippedCount())
-                .completionRate(request.completionRate())
-                .accuracy(request.accuracy())
-                .avgElapsedMs(request.avgElapsedMs())
-                .difficultyRatio(request.difficultyRatio())
-                .conceptStats(request.conceptStats())
+                .quizSetId(aggregate.quizSetId())
+                .quizTotalCount(aggregate.totalCount())
+                .quizAttemptedCount(aggregate.attemptedCount())
+                .quizCorrectCount(aggregate.correctCount())
+                .quizSkippedCount(aggregate.skippedCount())
+                .completionRate(aggregate.completionRate())
+                .accuracy(aggregate.accuracy())
+                .avgElapsedMs(aggregate.avgElapsedMs())
+                .difficultyRatio(aggregate.difficultyRatio())
+                .conceptStats(aggregate.conceptStats())
                 .quizRating(request.quizRating())
                 .aiComment(request.aiComment())
                 .aiStrengths(request.aiStrengths())
@@ -63,6 +89,124 @@ public class SessionReportService {
                 .build();
 
         return SessionReportCreateResponse.from(sessionReportRepository.save(sessionReport));
+    }
+
+    /**
+     * 집계 기준은 "세션 현재 프로젝트의 최신 완료 퀴즈셋" 하나다 — 화면이 최신 셋만 노출하므로
+     * 재생성된 옛 셋까지 합산하면 풀 수 없던 문항이 이수율 분모에 끼어 지표가 왜곡된다.
+     */
+    private QuizResultAggregate aggregateQuizResults(Long sessionId, Long userId) {
+        QuizSet quizSet = projectRepository.findFirstBySessionIdOrderByIdDesc(sessionId)
+                .flatMap(project -> quizSetRepository.findByProjectIdOrderByIdDesc(project.getId()).stream()
+                        .filter(set -> set.getStatus() == QuizSetStatus.COMPLETED)
+                        .findFirst())
+                .orElse(null);
+        if (quizSet == null) {
+            // 퀴즈 없이 끝난 세션도 리포트는 발급한다. 지표는 0 건으로 남는다.
+            return QuizResultAggregate.empty();
+        }
+
+        List<Quiz> quizzes = quizSet.getQuizzes();
+        List<QuizProgress> progresses =
+                quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(quizSet.getId(), userId);
+
+        int totalCount = quizzes.size();
+        int attemptedCount = (int) progresses.stream().filter(SessionReportService::isAttempted).count();
+        int correctCount = (int) progresses.stream().filter(SessionReportService::isCorrect).count();
+        int skippedCount = progresses.size() - attemptedCount;
+
+        return new QuizResultAggregate(
+                quizSet.getId(),
+                totalCount,
+                attemptedCount,
+                correctCount,
+                skippedCount,
+                ReportMath.percentOf(attemptedCount, totalCount),
+                ReportMath.percentOf(correctCount, attemptedCount),
+                averageElapsedMs(progresses),
+                difficultyRatioOf(quizzes, progresses),
+                conceptStatsOf(quizzes, progresses));
+    }
+
+    private Map<String, Object> difficultyRatioOf(List<Quiz> quizzes, List<QuizProgress> progresses) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (QuizDifficulty difficulty : QuizDifficulty.values()) {
+            long totalCount = quizzes.stream().filter(quiz -> quiz.getDifficulty() == difficulty).count();
+            if (totalCount == 0) {
+                continue;
+            }
+            List<QuizProgress> difficultyProgresses = progresses.stream()
+                    .filter(progress -> progress.getQuiz().getDifficulty() == difficulty)
+                    .toList();
+            result.put(difficulty.name(), countsOf((int) totalCount, difficultyProgresses));
+        }
+        return result;
+    }
+
+    private Map<String, Object> conceptStatsOf(List<Quiz> quizzes, List<QuizProgress> progresses) {
+        // 키 순서를 정렬로 고정해 같은 데이터면 같은 JSON 이 나오게 한다.
+        Map<String, Object> result = new TreeMap<>();
+        Map<String, List<Quiz>> byConcept =
+                quizzes.stream().collect(Collectors.groupingBy(SessionReportService::conceptOf));
+        for (Map.Entry<String, List<Quiz>> entry : byConcept.entrySet()) {
+            List<QuizProgress> conceptProgresses = progresses.stream()
+                    .filter(progress -> entry.getKey().equals(conceptOf(progress.getQuiz())))
+                    .toList();
+            result.put(entry.getKey(), countsOf(entry.getValue().size(), conceptProgresses));
+        }
+        return result;
+    }
+
+    /** 유저 리포트가 세션 리포트를 합산할 수 있도록 비율이 아니라 개수로 저장한다. */
+    private Map<String, Object> countsOf(int totalCount, List<QuizProgress> progresses) {
+        Map<String, Object> counts = new LinkedHashMap<>();
+        counts.put("total", totalCount);
+        counts.put("attempted", (int) progresses.stream().filter(SessionReportService::isAttempted).count());
+        counts.put("correct", (int) progresses.stream().filter(SessionReportService::isCorrect).count());
+        return counts;
+    }
+
+    private static boolean isAttempted(QuizProgress progress) {
+        return progress.getStatus() == QuizProgressStatus.ATTEMPTED;
+    }
+
+    private static boolean isCorrect(QuizProgress progress) {
+        return Boolean.TRUE.equals(progress.getIsCorrect());
+    }
+
+    private static String conceptOf(Quiz quiz) {
+        String concept = quiz.getTestedConcept();
+        return concept == null || concept.isBlank() ? "기타" : concept;
+    }
+
+    /** 풀이 시간은 실제로 응시한 문항 기준이다. 스킵·타임아웃까지 섞으면 평균이 왜곡된다. */
+    private static Integer averageElapsedMs(List<QuizProgress> progresses) {
+        List<QuizProgress> attempted = progresses.stream().filter(SessionReportService::isAttempted).toList();
+        if (attempted.isEmpty()) {
+            return null;
+        }
+        long sum = 0L;
+        for (QuizProgress progress : attempted) {
+            sum += progress.getElapsedMs();
+        }
+        return (int) (sum / attempted.size());
+    }
+
+    private record QuizResultAggregate(
+            Long quizSetId,
+            int totalCount,
+            int attemptedCount,
+            int correctCount,
+            int skippedCount,
+            BigDecimal completionRate,
+            BigDecimal accuracy,
+            Integer avgElapsedMs,
+            Map<String, Object> difficultyRatio,
+            Map<String, Object> conceptStats) {
+
+        static QuizResultAggregate empty() {
+            return new QuizResultAggregate(null, 0, 0, 0, 0, null, null, null, Map.of(), Map.of());
+        }
     }
 
     /**
@@ -77,7 +221,7 @@ public class SessionReportService {
         sessionParticipantService.verifySessionClassMember(sessionId, requester);
 
         Long targetUserId = userId != null ? userId : requester.id();
-        if (!canViewUserReport(requester, targetUserId)) {
+        if (!ReportAccessPolicy.canView(requester, targetUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "다른 사용자의 세션 리포트를 조회할 권한이 없습니다.");
         }
 
@@ -99,7 +243,7 @@ public class SessionReportService {
         if (requester == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
         }
-        if (!canViewUserReport(requester, ordinaryUserId)) {
+        if (!ReportAccessPolicy.canView(requester, ordinaryUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "세션 리포트 목록을 조회할 권한이 없습니다.");
         }
 
@@ -120,18 +264,5 @@ public class SessionReportService {
             result.add(SessionReportSummaryResponse.from(report, title));
         }
         return result;
-    }
-
-    private boolean canViewUserReport(AuthUser requester, Long targetUserId) {
-        if (requester.id().equals(targetUserId)) {
-            return true;
-        }
-        if (MASTER_ROLE.equals(requester.role())) {
-            return true;
-        }
-        if (MANAGER_ROLE.equals(requester.role())) {
-            return true;
-        }
-        return false;
     }
 }

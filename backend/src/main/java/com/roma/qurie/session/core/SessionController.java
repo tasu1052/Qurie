@@ -43,12 +43,17 @@ public class SessionController {
         return sessionService.getSession(id);
     }
 
-    /** 클래스별 열린 세션 목록 조회. 닫힌 세션은 제외된다. 해당 반 소속만 볼 수 있다. */
+    /**
+     * 클래스별 열린 세션 목록 조회. 닫힌 세션은 제외된다. 해당 반 소속만 볼 수 있다.
+     * userId 를 주면 그 학생 기준(반 공개 + 그 학생 그룹의 세션)으로 거른다 — 본인 외 지정은 매니저/마스터만.
+     */
     @GetMapping
     public List<SessionResponse> list(
-            @RequestParam Long classId, @AuthenticationPrincipal AuthUser requester) {
+            @RequestParam Long classId,
+            @RequestParam(name = "userId", required = false) Long userId,
+            @AuthenticationPrincipal AuthUser requester) {
         sessionParticipantService.verifyClassMember(classId, requester);
-        return sessionService.getOpenSessions(classId, requester);
+        return sessionService.getOpenSessions(classId, requester, userId);
     }
 
     @GetMapping("/{id}/participants")
@@ -89,10 +94,10 @@ public class SessionController {
     }
 
     /**
-     * todo: quiz_progress 엔티티가 생기면 집계 수치를 요청 바디로 받지 않고 서버에서 직접 계산해야 한다.
+     * 세션 리포트 발급. 정량 지표(문항 수·정답률 등)는 서버가 quiz_progress 에서 집계한다.
      *
      * @param sessionId: 리포트를 발급할 세션 id
-     * @param request: 세션 집계 수치와 AI 코멘트
+     * @param request: 발급 대상 사용자와 정성 항목(AI 코멘트·평점)
      */
     @PostMapping("{sessionId}/reports")
     @ResponseStatus(HttpStatus.CREATED)

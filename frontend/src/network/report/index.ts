@@ -1,3 +1,3 @@
 export * from './report-apis';
 
-export { useCreateUserReport, useGetUserSessionReports } from './report-hooks';
+export { useCreateUserReport, useGetUserReport, useGetUserSessionReports } from './report-hooks';

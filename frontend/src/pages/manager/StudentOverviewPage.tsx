@@ -396,17 +396,11 @@ function StudentOverviewBody({
   const onCreateReport = () => {
     setReportError(null);
     setReportMsg(null);
+    // 정량 지표는 서버가 세션 리포트를 합산해 계산한다 — 여기서 보내던 0 채움 값은 계약에서 제거됐다.
     createReport.mutate(
       {
         userId,
         classId,
-        sessionCount: 0,
-        quizTotalCount: 0,
-        quizAttemptedCount: 0,
-        quizCorrectCount: 0,
-        quizSkippedCount: 0,
-        completionRate: 0,
-        accuracy: 0,
       },
       {
         onSuccess: (res) => {

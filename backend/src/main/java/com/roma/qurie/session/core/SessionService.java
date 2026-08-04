@@ -22,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class SessionService {
 
     private static final String MANAGER_ROLE = "MANAGER";
+    private static final String MASTER_ROLE = "MASTER";
 
     private final SessionRepository sessionRepository;
     private final ChatService chatService;
@@ -112,18 +113,42 @@ public class SessionService {
      */
     @Transactional(readOnly = true)
     public List<SessionResponse> getOpenSessions(Long classId, AuthUser requester) {
+        return getOpenSessions(classId, requester, null);
+    }
+
+    /**
+     * userId 를 지정하면 그 학생 기준(반 공개 + 그 학생 그룹의 세션)으로 거른다 —
+     * 리포트 화면에서 강사가 특정 학생의 참여 대상 세션을 볼 때 쓴다. 본인 외 지정은 매니저/마스터만 가능하다.
+     */
+    @Transactional(readOnly = true)
+    public List<SessionResponse> getOpenSessions(Long classId, AuthUser requester, Long userId) {
+        requireCanListForUser(requester, userId);
+
         List<Session> openSessions = sessionRepository.findByClassIdAndActive(classId, true);
-        if (requester != null && MANAGER_ROLE.equals(requester.role())) {
+        if (userId == null && requester != null && MANAGER_ROLE.equals(requester.role())) {
             return openSessions.stream().map(SessionResponse::from).toList();
         }
 
-        Set<Long> myGroupIds = requester == null
+        Long targetUserId = userId;
+        if (targetUserId == null && requester != null) {
+            targetUserId = requester.id();
+        }
+        Set<Long> groupIds = targetUserId == null
                 ? Set.of()
-                : Set.copyOf(groupParticipantRepository.findGroupIdsByClassIdAndUserId(classId, requester.id()));
+                : Set.copyOf(groupParticipantRepository.findGroupIdsByClassIdAndUserId(classId, targetUserId));
         return openSessions.stream()
-                .filter(session -> session.getGroupId() == null || myGroupIds.contains(session.getGroupId()))
+                .filter(session -> session.getGroupId() == null || groupIds.contains(session.getGroupId()))
                 .map(SessionResponse::from)
                 .toList();
+    }
+
+    private void requireCanListForUser(AuthUser requester, Long userId) {
+        if (userId == null || requester == null || userId.equals(requester.id())) {
+            return;
+        }
+        if (!MANAGER_ROLE.equals(requester.role()) && !MASTER_ROLE.equals(requester.role())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "다른 사용자의 세션 목록을 조회할 권한이 없습니다.");
+        }
     }
 
     /**

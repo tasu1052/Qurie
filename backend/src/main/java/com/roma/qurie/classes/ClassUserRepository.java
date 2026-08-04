@@ -39,6 +39,10 @@ public interface ClassUserRepository extends JpaRepository<ClassUser, Long> {
 	List<ClassUser> findAllWithUserByClassEntityIdAndRole(
 			@Param("classId") Long classId, @Param("role") UserRole role);
 
+	/** 반 공개 세션의 참여 대상(학생) id 목록. 세션 리포트 발급 대상 해석에 쓴다. */
+	@Query("select cu.user.id from ClassUser cu where cu.classEntity.id = :classId and cu.user.role = :role")
+	List<Long> findUserIdsByClassEntityIdAndUserRole(@Param("classId") Long classId, @Param("role") UserRole role);
+
 	/**
 	 * 반 명단 페이지 조회. 회원 목록(UserRepository.findSummaries)과 같은 필터 계약(role·이름/이메일 검색)을 따른다.
 	 * 정렬이 쿼리에 박혀 있으므로 호출부는 Pageable 의 Sort 를 버려야 한다 (UserService.toPageRequest 와 같은 이유).
