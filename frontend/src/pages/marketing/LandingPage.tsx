@@ -41,11 +41,6 @@ export default function LandingPage() {
             style={{ height: 28, width: 'auto', objectFit: 'contain', display: 'block' }}
           />
         </Link>
-        <nav style={{ display: 'flex', gap: 24, fontSize: 14, color: 'var(--text-secondary)' }}>
-          <a href="#features" style={{ color: 'inherit', textDecoration: 'none' }}>주요 기능</a>
-          <a href="#process" style={{ color: 'inherit', textDecoration: 'none' }}>도입 프로세스</a>
-          <a href="#cta" style={{ color: 'inherit', textDecoration: 'none' }}>요금제</a>
-        </nav>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
           {user ? (
             <Button
