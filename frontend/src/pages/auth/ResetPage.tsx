@@ -39,7 +39,7 @@ export default function ResetPage() {
       { token, newPassword: newPassword.trim() },
       {
         onSuccess: () => setDone(true),
-        onError: () => setError('재설정에 실패했습니다. 링크가 만료됐을 수 있어요.'),
+        onError: () => setError('비밀번호 변경에 실패했습니다. 링크가 만료됐을 수 있어요.'),
       },
     );
   };
@@ -79,11 +79,11 @@ export default function ResetPage() {
         }}
       >
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>비밀번호 재설정</h1>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>비밀번호 찾기</h1>
           <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
             {token
-              ? '새 비밀번호를 입력하면 재설정이 완료돼요.'
-              : '가입 이메일을 입력하면 재설정 링크를 보내 드려요.'}
+              ? '새 비밀번호를 입력하면 변경이 완료돼요.'
+              : '가입 이메일을 입력하면 찾기 링크를 보내 드려요.'}
           </p>
         </div>
 
@@ -117,11 +117,13 @@ export default function ResetPage() {
               비밀번호를 바꿨어요. 새 비밀번호로 로그인해 주세요.
             </div>
           ) : (
-            <form onSubmit={onConfirm} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <form autoComplete="on" onSubmit={onConfirm} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span style={{ fontSize: 13, fontWeight: 600 }}>새 비밀번호</span>
                 <Input
                   type="password"
+                  name="new-password"
+                  autoComplete="new-password"
                   placeholder="8자 이상"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
@@ -148,14 +150,16 @@ export default function ResetPage() {
               lineHeight: 1.55,
             }}
           >
-            요청을 접수했어요. 가입된 이메일이면 재설정 메일이 도착해요.
+            요청을 접수했어요. 가입된 이메일이면 찾기 링크가 담긴 메일이 도착해요.
           </div>
         ) : (
-          <form onSubmit={onRequest} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <form autoComplete="on" onSubmit={onRequest} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>이메일 주소</span>
               <Input
                 type="email"
+                name="email"
+                autoComplete="email"
                 placeholder="name@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -167,7 +171,7 @@ export default function ResetPage() {
               disabled={!email || requestReset.isPending}
               style={{ width: '100%', justifyContent: 'center' }}
             >
-              {requestReset.isPending ? '요청 중…' : '재설정 링크 받기'}
+              {requestReset.isPending ? '요청 중…' : '찾기 링크 받기'}
             </Button>
           </form>
         )}

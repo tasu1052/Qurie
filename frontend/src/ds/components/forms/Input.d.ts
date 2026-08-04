@@ -10,5 +10,7 @@ export interface InputProps {
   disabled?: boolean;
   width?: number | string;
   style?: React.CSSProperties;
+  autoComplete?: string;
+  name?: string;
 }
 export declare function Input(props: InputProps): JSX.Element;

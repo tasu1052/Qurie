@@ -66,7 +66,7 @@ function SignupFields({ token }: { token: string }) {
   };
 
   return (
-    <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <form autoComplete="on" onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div
         style={{
           borderRadius: 12,
@@ -100,11 +100,21 @@ function SignupFields({ token }: { token: string }) {
 
       <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>이름</span>
-        <Input placeholder="홍길동" value={name} onChange={(e) => setName(e.target.value)} width="100%" />
+        <Input
+          name="name"
+          autoComplete="name"
+          placeholder="홍길동"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          width="100%"
+        />
       </label>
       <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>전화번호</span>
         <Input
+          type="tel"
+          name="tel"
+          autoComplete="tel"
           placeholder="010-0000-0000"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
@@ -123,6 +133,8 @@ function SignupFields({ token }: { token: string }) {
         <span style={{ fontSize: 13, fontWeight: 600 }}>비밀번호</span>
         <Input
           type="password"
+          name="new-password"
+          autoComplete="new-password"
           placeholder="8자 이상"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -133,6 +145,8 @@ function SignupFields({ token }: { token: string }) {
         <span style={{ fontSize: 13, fontWeight: 600 }}>비밀번호 확인</span>
         <Input
           type="password"
+          name="new-password-confirm"
+          autoComplete="new-password"
           placeholder="다시 입력"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
