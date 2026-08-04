@@ -27,6 +27,7 @@ import com.roma.qurie.enterprise.Enterprise;
 import com.roma.qurie.enterprise.EnterpriseRepository;
 import com.roma.qurie.notice.dto.NoticeCreateRequest;
 import com.roma.qurie.notice.dto.NoticeDetailResponse;
+import com.roma.qurie.notice.dto.NoticeResponse;
 import com.roma.qurie.notice.dto.NoticeUpdateRequest;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.track.Track;
