@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Upload } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import {
   AlertBanner,
@@ -10,8 +10,6 @@ import {
   LiveBadge,
   RowErrorFallback,
   Skeleton,
-  StatCard,
-  StatCardRow,
 } from '../../ds';
 import {
   QueryAsyncBoundary,
@@ -23,26 +21,119 @@ import {
 import { DashboardNoticesSection } from '../../components/notices/DashboardNoticesSection';
 import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
 
+const DASH_PANEL_STYLE = {
+  background: 'var(--surface-card)',
+  border: '1px solid var(--border)',
+  borderRadius: 16,
+  boxShadow: 'var(--shadow-card)',
+  padding: 20,
+  display: 'flex',
+  flexDirection: 'column' as const,
+  gap: 12,
+  minWidth: 0,
+  minHeight: 280,
+  maxHeight: 320,
+  boxSizing: 'border-box' as const,
+};
+
 function DashSkeleton() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <Skeleton width="100%" height={100} radius={16} />
-      <StatCardRow>
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            style={{
-              background: 'var(--surface-card-solid)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--card-radius)',
-              padding: 'var(--stat-card-padding)',
-            }}
-          >
-            <Skeleton width="50%" height={14} delay={i * 0.08} />
-            <Skeleton width="40%" height={28} delay={i * 0.08 + 0.04} style={{ marginTop: 12 }} />
+      <Skeleton width="100%" height={52} radius={12} />
+      <div
+        className="qurie-app-split"
+        style={{ gridTemplateColumns: 'minmax(0, 0.72fr) minmax(0, 0.88fr) minmax(0, 1fr)' }}
+      >
+        <Skeleton width="100%" height={280} radius={16} />
+        <Skeleton width="100%" height={280} radius={16} delay={0.06} />
+        <Skeleton width="100%" height={280} radius={16} delay={0.12} />
+      </div>
+    </div>
+  );
+}
+
+function DashboardMetrics({
+  activeCount,
+  sessionCount,
+  groupCount,
+  capacity,
+}: {
+  activeCount: number;
+  sessionCount: number;
+  groupCount: number;
+  capacity: string;
+}) {
+  const items = [
+    { label: '열린 세션', value: String(activeCount), accent: activeCount > 0 },
+    { label: '전체 세션', value: String(sessionCount), accent: false },
+    { label: '그룹', value: String(groupCount), accent: false },
+    { label: '정원', value: capacity, accent: false },
+  ];
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'stretch',
+        gap: 12,
+        padding: '14px 18px',
+        background: 'var(--surface-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        boxShadow: 'var(--shadow-card)',
+      }}
+    >
+      {items.map((item, index) => (
+        <div
+          key={item.label}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            paddingRight: index < items.length - 1 ? 12 : 0,
+            borderRight: index < items.length - 1 ? '1px solid var(--divider)' : undefined,
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 72 }}>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
+              }}
+            >
+              {item.label}
+            </span>
+            <span
+              style={{
+                fontSize: 20,
+                fontWeight: 700,
+                lineHeight: 1.2,
+                color: item.accent ? 'var(--accent)' : 'var(--ink)',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {item.value}
+            </span>
           </div>
-        ))}
-      </StatCardRow>
+          {item.label === '열린 세션' && activeCount > 0 ? (
+            <span
+              style={{
+                width: 4,
+                alignSelf: 'stretch',
+                borderRadius: 999,
+                background: 'var(--accent)',
+                minHeight: 36,
+              }}
+              aria-hidden
+            />
+          ) : null}
+        </div>
+      ))}
     </div>
   );
 }
@@ -68,6 +159,8 @@ function ManagerDashBody({ classId }: { classId: number }) {
     win.opener = null;
     setPopupBlockedSessionId(null);
   };
+
+  const capacityLabel = cls.capacity != null ? String(cls.capacity) : '—';
 
   return (
     <>
@@ -102,35 +195,21 @@ function ManagerDashBody({ classId }: { classId: number }) {
             {cls.description || '담당 클래스 대시보드'}
           </span>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button variant="primary" icon={<Plus size={14} />} onClick={() => navigate('/manager/sessions')}>
-            세션
-          </Button>
-        </div>
       </div>
 
-      <StatCardRow>
-        <StatCard label="열린 세션" value={String(active.length)} caption="active" accent />
-        <StatCard label="전체 세션" value={String(sessions.length)} caption="sessions" />
-        <StatCard label="그룹" value={String(groups.length)} caption="groups" />
-        <StatCard label="정원" value={cls.capacity != null ? String(cls.capacity) : '—'} caption="capacity" />
-      </StatCardRow>
+      <DashboardMetrics
+        activeCount={active.length}
+        sessionCount={sessions.length}
+        groupCount={groups.length}
+        capacity={capacityLabel}
+      />
 
-      <div className="qurie-app-split">
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            boxShadow: 'var(--shadow-card)',
-            padding: 24,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            minWidth: 0,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div
+        className="qurie-app-split"
+        style={{ gridTemplateColumns: 'minmax(0, 0.72fr) minmax(0, 0.88fr) minmax(0, 1fr)' }}
+      >
+        <div style={{ ...DASH_PANEL_STYLE, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
             <span
               style={{
                 fontSize: 11,
@@ -159,47 +238,55 @@ function ManagerDashBody({ classId }: { classId: number }) {
               더보기
             </button>
           </div>
-          {sessions.length === 0 ? (
-            <EmptyState message="세션이 없습니다" actionLabel="세션으로" onAction={() => navigate('/manager/sessions')} />
-          ) : (
-            sessions.slice(0, 6).map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => openSessionInNewTab(s.id, s.title)}
-                style={{
-                  textAlign: 'left',
-                  border: '1px solid var(--border)',
-                  borderRadius: 12,
-                  padding: '12px 14px',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                }}
-              >
-                {s.active ? <LiveBadge /> : <Badge status="neutral">종료</Badge>}
-                <span style={{ fontWeight: 600, fontSize: 13 }}>{s.title}</span>
-              </button>
-            ))
-          )}
+          <div style={{ overflowY: 'auto', minHeight: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {sessions.length === 0 ? (
+              <EmptyState
+                message="세션이 없습니다"
+                actionLabel="세션으로"
+                onAction={() => navigate('/manager/sessions')}
+              />
+            ) : (
+              sessions.slice(0, 6).map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => openSessionInNewTab(s.id, s.title)}
+                  style={{
+                    textAlign: 'left',
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    padding: '10px 12px',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-sans)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    flexShrink: 0,
+                  }}
+                >
+                  {s.active ? <LiveBadge /> : <Badge status="neutral">종료</Badge>}
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      fontSize: 13,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {s.title}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
         </div>
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            boxShadow: 'var(--shadow-card)',
-            padding: 24,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            minWidth: 0,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+
+        <DashboardNoticesSection role="MANAGER" classId={classId} size={4} compact />
+
+        <div style={{ ...DASH_PANEL_STYLE }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
             <span
               style={{
                 fontSize: 11,
@@ -209,53 +296,44 @@ function ManagerDashBody({ classId }: { classId: number }) {
                 color: 'var(--text-secondary)',
               }}
             >
-              그룹 미리보기
+              학습 자료
             </span>
-            <button
-              type="button"
-              onClick={() => navigate('/manager/groups')}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                color: 'var(--accent)',
-                fontSize: 12.5,
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'var(--font-sans)',
-                padding: 0,
-              }}
-            >
-              더보기
-            </button>
+            <Badge status="neutral">준비 중</Badge>
           </div>
-          {groups.length === 0 ? (
-            <EmptyState message="그룹이 없습니다" actionLabel="그룹으로" onAction={() => navigate('/manager/groups')} />
-          ) : (
-            groups.slice(0, 6).map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                onClick={() => navigate(`/manager/groups/${g.id}`)}
-                style={{
-                  textAlign: 'left',
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: 'var(--ink)',
-                  padding: '6px 0',
-                }}
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 12,
+              textAlign: 'center',
+              padding: '8px 12px',
+              borderRadius: 12,
+              border: '1px dashed var(--border-strong)',
+              background: 'var(--surface-sunken)',
+              minHeight: 0,
+            }}
+          >
+            <span style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+              PDF·링크 등 학습 자료를 업로드할 수 있어요.
+              <br />
+              기능 준비 중입니다.
+            </span>
+            <span title="준비 중">
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Upload size={14} strokeWidth={1.75} />}
+                disabled
               >
-                {g.name}
-              </button>
-            ))
-          )}
+                업로드
+              </Button>
+            </span>
+          </div>
         </div>
       </div>
-
-      <DashboardNoticesSection role="MANAGER" classId={classId} size={5} />
     </>
   );
 }
