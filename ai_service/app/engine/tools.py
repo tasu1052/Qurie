@@ -14,6 +14,36 @@ from __future__ import annotations
 
 QUIZ_TOOL_NAME = "emit_quizzes"
 JUDGE_TOOL_NAME = "emit_scores"
+REPORT_TOOL_NAME = "emit_report"
+
+
+def report_tool(max_items: int = 4) -> dict:
+    """학습 리포트 스키마.
+
+    항목 수를 minItems/maxItems 로 묶는다. 열어두면 한두 개만 쓰거나 열 개를 쏟아내
+    화면 분량이 매번 달라진다.
+    """
+    bullet = {"type": "string", "minLength": 10, "maxLength": 200}
+    return {
+        "name": REPORT_TOOL_NAME,
+        "description": "학생 1명의 학습 리포트를 넘긴다. 이 도구로만 답하라.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "comment": {"type": "string", "minLength": 30, "maxLength": 600},
+                "strengths": {
+                    "type": "array", "items": bullet, "minItems": 1, "maxItems": max_items},
+                "improvements": {
+                    "type": "array", "items": bullet, "minItems": 1, "maxItems": max_items},
+                "focus_concepts": {
+                    "type": "array",
+                    "items": {"type": "string", "maxLength": 60},
+                    "minItems": 1, "maxItems": max_items,
+                },
+            },
+            "required": ["comment", "strengths", "improvements", "focus_concepts"],
+        },
+    }
 
 
 def judge_tool(item_count: int) -> dict:
