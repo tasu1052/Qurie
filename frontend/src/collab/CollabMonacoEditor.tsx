@@ -25,6 +25,8 @@ interface CollabMonacoEditorProps {
   onlineUserIds?: number[];
   /** 좁은 화면(모바일)에서 가독성·터치를 위해 글자 크기를 키운다. */
   compact?: boolean;
+  /** display:none 토글 후 레이아웃을 다시 잡기 위해 사용한다. */
+  visible?: boolean;
 }
 
 /**
@@ -37,8 +39,10 @@ export function CollabMonacoEditor({
   language = 'typescript',
   onlineUserIds,
   compact = false,
+  visible = true,
 }: CollabMonacoEditorProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const prevOnlineRef = useRef<Set<number> | null>(null);
 
   useEffect(() => {
@@ -58,6 +62,7 @@ export function CollabMonacoEditor({
       padding: { top: compact ? 12 : 16, bottom: compact ? 12 : 16 },
       wordWrap: compact ? 'on' : 'off',
     });
+    editorRef.current = editor;
 
     const model = editor.getModel();
     if (!model) return () => editor.dispose();
@@ -88,8 +93,27 @@ export function CollabMonacoEditor({
       styleEl.remove();
       binding.destroy();
       editor.dispose();
+      editorRef.current = null;
     };
   }, [ytext, provider, language, compact]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const ro = new ResizeObserver(() => {
+      editorRef.current?.layout();
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!visible) return;
+    const frame = requestAnimationFrame(() => {
+      editorRef.current?.layout();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [visible, ytext, language, compact]);
 
   // 참가자 목록에서 빠진 userId → 그 유저의 awareness(커서)를 로컬에서도 즉시 제거·브로드캐스트
   const onlineKey = onlineUserIds?.slice().sort((a, b) => a - b).join(',') ?? '';

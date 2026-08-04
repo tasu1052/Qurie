@@ -11,6 +11,9 @@ import { readLocalProjectFiles } from './readLocalProjectFiles';
 type ProjectImportPanelProps = {
   sessionId: number;
   onImported: (result: ProjectImportResponse) => void;
+  /** 마운트 직후 파일/폴더 선택 창을 바로 연다. */
+  autoOpenPicker?: 'file' | 'folder' | null;
+  onAutoOpenHandled?: () => void;
 };
 
 function apiErrorMessage(error: unknown, fallback: string): string {
@@ -37,7 +40,12 @@ function apiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-export function ProjectImportPanel({ sessionId, onImported }: ProjectImportPanelProps) {
+export function ProjectImportPanel({
+  sessionId,
+  onImported,
+  autoOpenPicker = null,
+  onAutoOpenHandled,
+}: ProjectImportPanelProps) {
   const importLocal = useImportProjectLocal();
   const importGit = useImportProjectGit();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -57,6 +65,16 @@ export function ProjectImportPanel({ sessionId, onImported }: ProjectImportPanel
   }, []);
 
   const busy = importLocal.isPending || importGit.isPending;
+
+  useEffect(() => {
+    if (!autoOpenPicker || busy) return;
+    const input = autoOpenPicker === 'folder' ? folderInputRef.current : fileInputRef.current;
+    const timer = window.setTimeout(() => {
+      input?.click();
+      onAutoOpenHandled?.();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [autoOpenPicker, busy, onAutoOpenHandled]);
 
   const handleLocalFiles = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
