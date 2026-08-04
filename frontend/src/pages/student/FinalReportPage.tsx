@@ -21,11 +21,7 @@ import {
   type SessionReportSummaryResponse,
   type UserReportDetailResponse,
 } from '../../data';
-import {
-  getPastSessionsMock,
-  resolvePastSessionMock,
-  type PastSessionMock,
-} from '../../mocks/pastLearning';
+import { ApiIntegrationPanel } from '../../components/feedback/ApiIntegrationPanel';
 
 function ReportSkeleton() {
   return (
@@ -35,11 +31,6 @@ function ReportSkeleton() {
     </div>
   );
 }
-
-const MOCK_AI_COMMENT =
-  '전반적으로 개념 이해도는 안정적이에요. 오답이 반복되는 유형(의존성 배열, 경계 조건)만 집중 복습하면 다음 세션 정답률이 빠르게 올라갈 거예요.';
-const MOCK_INSTRUCTOR_COMMENT =
-  '세션 참여 태도가 좋습니다. 틀린 문항 해설에서 핵심 문장만 노트에 남기는 습관을 추천해요.';
 
 type BarItem = { label: string; display: string; pct: number };
 
@@ -93,38 +84,6 @@ function SimpleBars({ items }: { items: BarItem[] }) {
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-function CommentBlock({
-  title,
-  badge,
-  body,
-}: {
-  title: string;
-  badge: string;
-  body: string;
-}) {
-  return (
-    <div
-      style={{
-        background: 'var(--surface-card)',
-        border: '1px solid var(--border)',
-        borderRadius: 16,
-        boxShadow: 'var(--shadow-card)',
-        padding: 20,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-        minWidth: 0,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{title}</span>
-        <Badge status="neutral">{badge}</Badge>
-      </div>
-      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>{body}</p>
     </div>
   );
 }
@@ -242,54 +201,26 @@ type SessionReportRow = {
   accuracy: number | null;
   quizRating: number | null;
   issuedAt: string | null;
-  aiSummary: string;
-  quizSetId: number;
-  demoOnly: boolean;
-  scoreLabel?: string;
 };
 
 function toRowsFromReports(reports: SessionReportSummaryResponse[]): SessionReportRow[] {
-  return reports.map((s) => {
-    const mock = resolvePastSessionMock(s.sessionId);
-    return {
-      key: `report-${s.sessionReportId}`,
-      sessionId: s.sessionId,
-      title: s.sessionTitle,
-      accuracy: s.accuracy,
-      quizRating: s.quizRating,
-      issuedAt: s.issuedAt,
-      aiSummary: mock.aiSummary,
-      quizSetId: mock.quizSetId,
-      demoOnly: false,
-      scoreLabel: `${mock.scoreCorrect}/${mock.scoreTotal} 정답`,
-    };
-  });
-}
-
-function toRowsFromMocks(mocks: PastSessionMock[]): SessionReportRow[] {
-  return mocks.map((s) => ({
-    key: `mock-${s.sessionId}`,
+  return reports.map((s) => ({
+    key: `report-${s.sessionReportId}`,
     sessionId: s.sessionId,
-    title: s.title,
-    accuracy: s.scoreTotal > 0 ? (s.scoreCorrect / s.scoreTotal) * 100 : null,
-    quizRating: null,
-    issuedAt: s.endedAt,
-    aiSummary: s.aiSummary,
-    quizSetId: s.quizSetId,
-    demoOnly: true,
-    scoreLabel: `${s.scoreCorrect}/${s.scoreTotal} 정답`,
+    title: s.sessionTitle,
+    accuracy: s.accuracy,
+    quizRating: s.quizRating,
+    issuedAt: s.issuedAt,
   }));
 }
 
 function SessionReportTable({
   rows,
   onOpen,
-  onQuiz,
   onGoDashboard,
 }: {
   rows: SessionReportRow[];
   onOpen: (sessionId: number) => void;
-  onQuiz: (quizSetId: number) => void;
   onGoDashboard: () => void;
 }) {
   return (
@@ -323,9 +254,6 @@ function SessionReportTable({
         >
           세션 리포트
         </span>
-        {rows.some((r) => r.demoOnly) ? (
-          <Badge status="neutral">데모 · AI 연동 예정</Badge>
-        ) : null}
       </div>
       {rows.length === 0 ? (
         <div style={{ padding: '8px 24px 24px' }}>
@@ -366,30 +294,11 @@ function SessionReportTable({
                     {s.quizRating != null ? ` · 평점 ${formatRating(s.quizRating)}` : ''}
                   </span>
                 </div>
-                {s.scoreLabel ? <Badge status="accent">{s.scoreLabel}</Badge> : null}
               </div>
-
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 13,
-                  lineHeight: 1.55,
-                  color: 'var(--text-secondary)',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 3,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                }}
-              >
-                {s.aiSummary}
-              </p>
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Button variant="secondary" size="sm" onClick={() => onOpen(s.sessionId)}>
                   상세
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => onQuiz(s.quizSetId)}>
-                  퀴즈 열람
                 </Button>
                 <button
                   type="button"
@@ -421,11 +330,7 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
   const { data: me } = useMe();
   const { data: reports } = useGetUserSessionReports(me.id);
 
-  const sessionRows = useMemo(() => {
-    if (reports.length > 0) return toRowsFromReports(reports);
-    // 실데이터가 없을 때만 시연용 목업을 보여 빈 화면을 피한다.
-    return toRowsFromMocks(getPastSessionsMock());
-  }, [reports]);
+  const sessionRows = useMemo(() => toRowsFromReports(reports), [reports]);
 
   const barItems = useMemo((): BarItem[] => {
     const accuracies = reports
@@ -505,10 +410,7 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
 
       <SimpleBars items={barItems} />
 
-      <div className="qurie-app-split" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
-        <CommentBlock title="AI 학습 코멘트" badge="데모 · mock" body={MOCK_AI_COMMENT} />
-        <CommentBlock title="강사 코멘트" badge="데모 · mock" body={MOCK_INSTRUCTOR_COMMENT} />
-      </div>
+      <ApiIntegrationPanel groupId="finalReportComments" />
 
       {reports.length > 0 ? (
         <div
@@ -543,7 +445,6 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
       <SessionReportTable
         rows={sessionRows}
         onOpen={(sessionId) => navigate(`/session/${sessionId}/report`)}
-        onQuiz={(quizSetId) => navigate(`/app/quizzes/${quizSetId}`)}
         onGoDashboard={() => navigate('/app')}
       />
     </>

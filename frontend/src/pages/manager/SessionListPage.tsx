@@ -31,7 +31,6 @@ import {
 import { queryKeys } from '../../network/core/queryKeys';
 import { getGroups } from '../../network/group/group-apis';
 import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
-import { resolvePastSessionMock } from '../../mocks/pastLearning';
 
 function apiErrorMessage(error: unknown, fallback: string): string {
   if (isAxiosError(error)) {
@@ -91,7 +90,6 @@ function SessionTable({
   onEmptyCreate,
   onEnter,
   onReport,
-  onQuiz,
   onDelete,
 }: {
   classId: number;
@@ -102,7 +100,6 @@ function SessionTable({
   onEmptyCreate: () => void;
   onEnter: (sessionId: number, title: string) => void;
   onReport: (sessionId: number) => void;
-  onQuiz: (quizSetId: number) => void;
   onDelete: (session: SessionResponse) => void;
 }) {
   const { data: sessions } = useGetSessions(classId);
@@ -171,7 +168,6 @@ function SessionTable({
             </div>
             {pageItems.map((s) => {
               const status = sessionStatus(s);
-              const pastMock = status === '종료' ? resolvePastSessionMock(s.id) : null;
               const groupLabel =
                 s.groupId != null ? groupNameById.get(s.groupId) ?? `그룹 #${s.groupId}` : null;
               return (
@@ -194,19 +190,6 @@ function SessionTable({
                         <Badge status="neutral">{groupLabel}</Badge>
                       ) : null}
                     </span>
-                    {pastMock ? (
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: 'var(--text-muted)',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {pastMock.aiSummary}
-                      </span>
-                    ) : null}
                   </span>
                   <span style={{ color: 'var(--text-secondary)' }}>
                     {formatSessionTime(s.createdAt)}
@@ -227,11 +210,6 @@ function SessionTable({
                     >
                       {status === '종료' ? '리포트' : '입장'}
                     </Button>
-                    {status === '종료' && pastMock ? (
-                      <Button variant="ghost" size="sm" onClick={() => onQuiz(pastMock.quizSetId)}>
-                        퀴즈
-                      </Button>
-                    ) : null}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -429,7 +407,6 @@ export default function SessionListPage() {
               onEmptyCreate={() => setCreateOpen(true)}
               onEnter={openSessionInNewTab}
               onReport={(sessionId) => navigate(`/session/${sessionId}/report`)}
-              onQuiz={(quizSetId) => navigate(`/manager/quizzes/${quizSetId}`)}
               onDelete={setDeleteTarget}
             />
           </QueryAsyncBoundary>

@@ -4,11 +4,23 @@ import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { DashboardNoticesSection } from '../../components/notices/DashboardNoticesSection';
 import { Badge, Chevron, RowErrorFallback, Skeleton } from '../../ds';
 import { QueryAsyncBoundary, useGetTracks, useGetUsers } from '../../data';
-import type { TrackCard } from '../../data';
+import type { TrackSummaryResponse } from '../../data';
+
+type TrackCard = {
+  id: string;
+  name: string;
+  tech: 'java' | 'python' | 'database';
+  status: 'active' | 'scheduled';
+  statusLabel: string;
+  meta: string;
+  metricValue: string;
+  metricLabel: string;
+  accentMetric?: boolean;
+};
+
 import javaTech from '../../ds/assets/tech/java_50.png';
 import pythonTech from '../../ds/assets/tech/python_50.png';
 import dbTech from '../../ds/assets/tech/database_50.png';
-import type { TrackSummaryResponse } from '../../data';
 
 const techImg: Record<string, string> = { java: javaTech, python: pythonTech, database: dbTech };
 

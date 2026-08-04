@@ -15,7 +15,7 @@ import {
   useMe,
   type SessionResponse,
 } from '../../data';
-import { getPastQuizSetBySessionId } from '../../mocks/pastLearning';
+import { ApiIntegrationPanel } from '../../components/feedback/ApiIntegrationPanel';
 import { PastQuizShell } from './pastQuizShell';
 import { SESSION_LIST_PAGE_TITLE, usePastQuizBasePath, type PastQuizBasePath } from './pastQuizPaths';
 
@@ -133,7 +133,6 @@ function SessionListTable({
             </div>
             {pageItems.map((s) => {
               const status = sessionStatus(s);
-              const quizMock = getPastQuizSetBySessionId(s.id);
               return (
                 <div
                   key={s.id}
@@ -159,35 +158,28 @@ function SessionListTable({
                       }}
                     >
                       {s.title}
-                      {s.classPublic ? <Badge status="accent">수업</Badge> : null}
-                    </span>
-                    {quizMock ? (
-                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        퀴즈 {quizMock.scoreCorrect}/{quizMock.scoreTotal}
-                      </span>
-                    ) : null}
-                  </span>
-                  <span style={{ color: 'var(--text-secondary)' }}>{formatSessionTime(s.createdAt)}</span>
-                  {status === 'LIVE' ? <LiveBadge /> : <Badge status="neutral">종료</Badge>}
-                  <span
-                    style={{
-                      textAlign: 'right',
-                      display: 'flex',
-                      gap: 6,
-                      justifyContent: 'flex-end',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      disabled={!quizMock}
-                      onClick={() => {
-                        if (quizMock) navigate(`${basePath}/quizzes/${quizMock.quizSetId}`);
-                      }}
-                    >
-                      지난 퀴즈
-                    </Button>
+                  {s.classPublic ? <Badge status="accent">수업</Badge> : null}
+                </span>
+              </span>
+              <span style={{ color: 'var(--text-secondary)' }}>{formatSessionTime(s.createdAt)}</span>
+              {status === 'LIVE' ? <LiveBadge /> : <Badge status="neutral">종료</Badge>}
+              <span
+                style={{
+                  textAlign: 'right',
+                  display: 'flex',
+                  gap: 6,
+                  justifyContent: 'flex-end',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={status !== '종료'}
+                  onClick={() => navigate(`/session/${s.id}/report`)}
+                >
+                  지난 퀴즈
+                </Button>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -263,6 +255,8 @@ export default function PastQuizListPage({ basePath: basePathProp }: PastQuizLis
           );
         })}
       </div>
+
+      <ApiIntegrationPanel groupId="pastQuizBySession" variant="compact" title="세션별 퀴즈 API" />
 
       {!hasValidClassId ? (
         <EmptyState

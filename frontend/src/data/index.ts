@@ -1,62 +1,8 @@
 /**
  * Page data import surface.
  *
- * Today pages pull mock adapters from here. When teammate ships network query
- * hooks with the same call signature + {@link MockRowResult} return shape,
- * swap the re-exports in this file only — do not chase imports across pages.
- *
- * Hook contracts (screen → endpoint → expected hook): see
- * `docs/API_HOOK_CONTRACTS.md`.
+ * Pages import hooks from here only — see `docs/API_HOOK_CONTRACTS.md`.
  */
-
-export type {
-  MockRowResult,
-} from '../mocks/adapters';
-
-export {
-  useMasterKpiRow,
-  useMasterTracksRow,
-  useMasterReportsRow,
-  useTrackListRow,
-  useTrackDetailRow,
-  useClassListRow,
-  useMemberKpiRow,
-  useMemberListRow,
-  useNoticesRow,
-  useTrackAnalyticsRow,
-  useClassAnalyticsRow,
-  useManagerDashboardRow,
-  useManagerStudentsRow,
-  useStudentOverviewRow,
-  useManagerSessionsRow,
-  useManagerGroupsRow,
-  useStudentDashboardRow,
-  useClassLobbyRow,
-  useMyPageRow,
-  useFinalReportRow,
-  useInvitationPreviewRow,
-} from '../mocks/adapters';
-
-export type {
-  AnalyticsClassSummary,
-  ClassCard,
-  ClassRole,
-  HrAlert,
-  InvitationPreview,
-  KpiItem,
-  ManagerActivity,
-  MemberRow,
-  NoticeItem,
-  PendingInvite,
-  ReportRow,
-  RowStatus,
-  SessionSummaryRow,
-  TrackAlert,
-  TrackCard,
-  TrackDetailClass,
-  TrackListItem,
-  TrackManager,
-} from '../mocks/fixtures';
 
 /** Shared API envelope types already used by `network/` (teammate). */
 export type {
@@ -295,25 +241,3 @@ export type {
 
 /** Teammate boundary — UI supplies fallbacks only. */
 export { QueryAsyncBoundary } from '../network/boundaries/QueryAsyncBoundary';
-
-/**
- * Admin console (Qurie staff) — local mock until admin login / bootcamp APIs land.
- * Replace with network hooks via this seam only.
- */
-export {
-  ADMIN_SAMPLE,
-  createBootcamp,
-  getAdminSession,
-  getBootcamp,
-  inviteMaster,
-  listBootcamps,
-  loginAdmin,
-  logoutAdmin,
-  signupInviteUrl,
-} from '../mocks/adminStore';
-export type {
-  AdminBootcamp,
-  AdminSession,
-  MasterInvite,
-  MasterInviteStatus,
-} from '../mocks/adminStore';
