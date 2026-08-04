@@ -43,12 +43,17 @@ public class SessionController {
         return sessionService.getSession(id);
     }
 
-    /** 클래스별 열린 세션 목록 조회. 닫힌 세션은 제외된다. 해당 반 소속만 볼 수 있다. */
+    /**
+     * 클래스별 열린 세션 목록 조회. 닫힌 세션은 제외된다. 해당 반 소속만 볼 수 있다.
+     * userId 를 주면 그 학생 기준(반 공개 + 그 학생 그룹의 세션)으로 거른다 — 본인 외 지정은 매니저/마스터만.
+     */
     @GetMapping
     public List<SessionResponse> list(
-            @RequestParam Long classId, @AuthenticationPrincipal AuthUser requester) {
+            @RequestParam Long classId,
+            @RequestParam(name = "userId", required = false) Long userId,
+            @AuthenticationPrincipal AuthUser requester) {
         sessionParticipantService.verifyClassMember(classId, requester);
-        return sessionService.getOpenSessions(classId, requester);
+        return sessionService.getOpenSessions(classId, requester, userId);
     }
 
     @GetMapping("/{id}/participants")

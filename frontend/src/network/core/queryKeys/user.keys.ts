@@ -10,4 +10,6 @@ export const userKeys = {
     list: (filters: UserListFilters = {}) => [...userKeys.all, 'list', filters] as const,
     detail: (userId: number) => [...userKeys.all, 'detail', userId] as const,
     sessionReports: (userId: number) => [...userKeys.detail(userId), 'session-reports'] as const,
+    reportSummary: (userId: number, classId: number) =>
+        [...userKeys.detail(userId), 'report-summary', classId] as const,
 };

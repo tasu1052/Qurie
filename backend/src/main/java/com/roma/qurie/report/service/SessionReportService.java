@@ -23,7 +23,6 @@ import com.roma.qurie.session.participant.SessionParticipantService;
 import com.roma.qurie.user.entity.User;
 import com.roma.qurie.user.repository.UserRepository;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -41,9 +40,6 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 @RequiredArgsConstructor
 public class SessionReportService {
-
-    private static final String MASTER_ROLE = "MASTER";
-    private static final String MANAGER_ROLE = "MANAGER";
 
     private final SessionReportRepository sessionReportRepository;
     private final SessionRepository sessionRepository;
@@ -125,8 +121,8 @@ public class SessionReportService {
                 attemptedCount,
                 correctCount,
                 skippedCount,
-                percentOf(attemptedCount, totalCount),
-                percentOf(correctCount, attemptedCount),
+                ReportMath.percentOf(attemptedCount, totalCount),
+                ReportMath.percentOf(correctCount, attemptedCount),
                 averageElapsedMs(progresses),
                 difficultyRatioOf(quizzes, progresses),
                 conceptStatsOf(quizzes, progresses));
@@ -183,15 +179,6 @@ public class SessionReportService {
         return concept == null || concept.isBlank() ? "기타" : concept;
     }
 
-    /** 분모가 0이면 "집계할 데이터 없음"이므로 0% 가 아니라 null 을 남긴다. */
-    private static BigDecimal percentOf(int numerator, int denominator) {
-        if (denominator == 0) {
-            return null;
-        }
-        return BigDecimal.valueOf(numerator * 100L)
-                .divide(BigDecimal.valueOf(denominator), 2, RoundingMode.HALF_UP);
-    }
-
     /** 풀이 시간은 실제로 응시한 문항 기준이다. 스킵·타임아웃까지 섞으면 평균이 왜곡된다. */
     private static Integer averageElapsedMs(List<QuizProgress> progresses) {
         List<QuizProgress> attempted = progresses.stream().filter(SessionReportService::isAttempted).toList();
@@ -234,7 +221,7 @@ public class SessionReportService {
         sessionParticipantService.verifySessionClassMember(sessionId, requester);
 
         Long targetUserId = userId != null ? userId : requester.id();
-        if (!canViewUserReport(requester, targetUserId)) {
+        if (!ReportAccessPolicy.canView(requester, targetUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "다른 사용자의 세션 리포트를 조회할 권한이 없습니다.");
         }
 
@@ -256,7 +243,7 @@ public class SessionReportService {
         if (requester == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
         }
-        if (!canViewUserReport(requester, ordinaryUserId)) {
+        if (!ReportAccessPolicy.canView(requester, ordinaryUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "세션 리포트 목록을 조회할 권한이 없습니다.");
         }
 
@@ -277,18 +264,5 @@ public class SessionReportService {
             result.add(SessionReportSummaryResponse.from(report, title));
         }
         return result;
-    }
-
-    private boolean canViewUserReport(AuthUser requester, Long targetUserId) {
-        if (requester.id().equals(targetUserId)) {
-            return true;
-        }
-        if (MASTER_ROLE.equals(requester.role())) {
-            return true;
-        }
-        if (MANAGER_ROLE.equals(requester.role())) {
-            return true;
-        }
-        return false;
     }
 }

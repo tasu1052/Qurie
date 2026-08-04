@@ -24,6 +24,7 @@ import com.roma.qurie.common.dto.PageResponse;
 import com.roma.qurie.report.dto.SessionReportSummaryResponse;
 import com.roma.qurie.report.dto.UserReportCreateRequest;
 import com.roma.qurie.report.dto.UserReportCreateResponse;
+import com.roma.qurie.report.dto.UserReportDetailResponse;
 import com.roma.qurie.report.service.SessionReportService;
 import com.roma.qurie.report.service.UserReportService;
 import com.roma.qurie.security.AuthUser;
@@ -97,19 +98,29 @@ public class UserController {
 	/**
 	 * 사용자 최종 리포트 발급. /users 리소스 하위 경로라 세션 리포트(SessionController)와 같은 방식으로
 	 * 리소스 소유 컨트롤러에 둔다 — 별도 UserReportController 로 빼면 /api/v1 처럼 prefix 가 어긋난다.
-	 *
-	 * todo: API 설계안(v0.1)은 report-summary 를 저장하지 않는 GET 집계 리소스로 정의한다.
-	 *       user_reports 테이블 유지가 확정되면 이 엔드포인트도 함께 정리해야 한다.
-	 * todo: 집계 수치는 session_reports 에서 서버가 계산하도록 옮긴다.
+	 * 정량 지표는 서버가 그 반의 세션 리포트들을 합산해 계산한다.
 	 *
 	 * @param ordinaryUserId: 최종 리포트를 발급할 사용자 id
-	 * @param request: 클래스 id와 누적 집계 수치
+	 * @param request: 클래스 id와 평점(공식 미확정이라 전달값 저장)
 	 */
 	@PostMapping("/{userId}/report-summary")
 	@ResponseStatus(HttpStatus.CREATED)
 	public UserReportCreateResponse createUserReport(@PathVariable("userId") Long ordinaryUserId,
 			@Valid @RequestBody UserReportCreateRequest request) {
 		return userReportService.createUserReport(ordinaryUserId, request);
+	}
+
+	/**
+	 * 사용자 최종 리포트 조회. 본인 또는 매니저/마스터만 볼 수 있다.
+	 *
+	 * @param ordinaryUserId: 리포트 대상 사용자 id
+	 * @param classId: 리포트가 발급된 클래스 id
+	 */
+	@GetMapping("/{userId}/report-summary")
+	public UserReportDetailResponse getUserReport(@PathVariable("userId") Long ordinaryUserId,
+			@RequestParam("classId") Long classId,
+			@AuthenticationPrincipal AuthUser requester) {
+		return userReportService.getUserReport(ordinaryUserId, classId, requester);
 	}
 
 	/** 종합 리포트 화면의 세션 리포트 목록. */
