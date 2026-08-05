@@ -10,7 +10,12 @@ import {
   type QuizProgressItem,
 } from '../../data';
 import { PastQuizShell } from './pastQuizShell';
-import { SESSION_LIST_PAGE_TITLE, usePastQuizBasePath, type PastQuizBasePath } from './pastQuizPaths';
+import {
+  sessionListPath,
+  sessionListTitle,
+  usePastQuizBasePath,
+  type PastQuizBasePath,
+} from './pastQuizPaths';
 
 
 function correctChoiceIdx(item: QuizItem): number {
@@ -201,7 +206,7 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
           variant="ghost"
           size="sm"
           icon={<ArrowLeft size={14} />}
-          onClick={() => navigate(`${basePath}/quizzes`)}
+          onClick={() => navigate(sessionListPath(basePath))}
         >
           목록으로
         </Button>
@@ -220,7 +225,7 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
               message="표시할 문항이 없습니다"
               description="퀴즈 문항이 아직 생성되지 않았어요."
               actionLabel="목록으로"
-              onAction={() => navigate(`${basePath}/quizzes`)}
+              onAction={() => navigate(sessionListPath(basePath))}
             />
           ) : (
             displayItems.map((item) => (
@@ -247,18 +252,18 @@ export default function PastQuizDetailPage({ basePath: basePathProp }: PastQuizD
 
   if (!validId) {
     return (
-      <PastQuizShell basePath={basePath} breadcrumbs={[SESSION_LIST_PAGE_TITLE, '상세']}>
+      <PastQuizShell basePath={basePath} breadcrumbs={[sessionListTitle(basePath), '상세']}>
         <EmptyState
           message="퀴즈 세트를 찾을 수 없습니다"
           actionLabel="목록으로"
-          onAction={() => navigate(`${basePath}/quizzes`)}
+          onAction={() => navigate(sessionListPath(basePath))}
         />
       </PastQuizShell>
     );
   }
 
   return (
-    <PastQuizShell basePath={basePath} breadcrumbs={[SESSION_LIST_PAGE_TITLE, `퀴즈 #${quizSetId}`]}>
+    <PastQuizShell basePath={basePath} breadcrumbs={[sessionListTitle(basePath), `퀴즈 #${quizSetId}`]}>
       <QueryAsyncBoundary
         key={rowKey}
         suspenseFallback={<QuizDetailSkeleton />}

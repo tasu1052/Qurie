@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Download } from 'lucide-react';
 import { StudentShell, PageMain } from '../../components/layout/StudentShell';
 import {
-  Badge,
   Button,
   ChartLegend,
   EmptyState,
@@ -100,6 +99,7 @@ function SimpleBars({ items }: { items: BarItem[] }) {
         display: 'flex',
         flexDirection: 'column',
         gap: 14,
+        minWidth: 0,
       }}
     >
       <span
@@ -163,8 +163,41 @@ function SemesterSummaryHero({
     : '—';
 
   return (
-    <>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+    <div
+      style={{
+        background: 'var(--hero-surface)',
+        color: 'var(--hero-fg)',
+        border: '1px solid var(--hero-border)',
+        borderRadius: 16,
+        padding: 28,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
+        <span
+          style={{
+            alignSelf: 'flex-start',
+            background: 'var(--accent)',
+            color: '#ffffff',
+            borderRadius: 999,
+            padding: '4px 14px',
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+          }}
+        >
+          SEMESTER SUMMARY
+        </span>
         <Button
           variant="secondary"
           size="sm"
@@ -184,44 +217,17 @@ function SemesterSummaryHero({
           {downloadPdf.isPending ? '내보내는 중…' : 'PDF로 내보내기'}
         </Button>
       </div>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--hero-fg)', margin: 0 }}>
+        학습 리포트
+      </h2>
+      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.65, color: 'var(--hero-fg-muted)', maxWidth: 720 }}>
+        {report.userName} · {className} · {report.sessionCount}개 세션 리포트 집계
+      </p>
+      <span style={{ fontSize: 12.5, color: 'var(--hero-fg-muted)' }}>발급 {issued}</span>
       {pdfError ? (
         <span style={{ fontSize: 13, color: 'var(--status-error)' }}>{pdfError}</span>
       ) : null}
-      <div
-        style={{
-          background: 'var(--hero-surface)',
-          color: 'var(--hero-fg)',
-          border: '1px solid var(--hero-border)',
-          borderRadius: 16,
-          padding: 28,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-        }}
-      >
-        <span
-          style={{
-            alignSelf: 'flex-start',
-            background: 'var(--accent)',
-            color: '#ffffff',
-            borderRadius: 999,
-            padding: '4px 14px',
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: '0.08em',
-          }}
-        >
-          SEMESTER SUMMARY
-        </span>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--hero-fg)', margin: 0 }}>
-          학기 전체 학습 요약
-        </h2>
-        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.65, color: 'var(--hero-fg-muted)', maxWidth: 720 }}>
-          {report.userName} · {className} · {report.sessionCount}개 세션 리포트 집계
-        </p>
-        <span style={{ fontSize: 12.5, color: 'var(--hero-fg-muted)' }}>발급 {issued}</span>
-      </div>
-    </>
+    </div>
   );
 }
 
@@ -443,18 +449,6 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>리포트</h1>
-            <Badge status="neutral">STUDENT</Badge>
-          </div>
-          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            {me.name} · {className}
-          </span>
-        </div>
-      </div>
-
       {classId != null ? (
         <QueryAsyncBoundary
           suspenseFallback={<Skeleton width="100%" height={120} radius={16} />}
@@ -464,7 +458,68 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
         </QueryAsyncBoundary>
       ) : null}
 
-      <SimpleBars items={barItems} />
+      <div className="qurie-app-split" style={{ alignItems: 'stretch' }}>
+        <SimpleBars items={barItems} />
+        {reports.length > 0 ? (
+          <div
+            style={{
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 16,
+              boxShadow: 'var(--shadow-card)',
+              padding: 24,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+              minWidth: 0,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              세션 정답률
+            </span>
+            <LineChart series={line.series} labels={line.labels} height={180} />
+            <ChartLegend items={line.series.map((s) => ({ label: s.name ?? '', accent: s.accent }))} />
+          </div>
+        ) : (
+          <div
+            style={{
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 16,
+              boxShadow: 'var(--shadow-card)',
+              padding: 24,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              minWidth: 0,
+              justifyContent: 'center',
+            }}
+          >
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              세션 정답률
+            </span>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+              세션 리포트가 발급되면 추이가 표시돼요.
+            </span>
+          </div>
+        )}
+      </div>
 
       {classId != null ? (
         <QueryAsyncBoundary
@@ -473,36 +528,6 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
         >
           <InstructorCommentsSection userId={me.id} classId={classId} />
         </QueryAsyncBoundary>
-      ) : null}
-
-      {reports.length > 0 ? (
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            boxShadow: 'var(--shadow-card)',
-            padding: 24,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16,
-            minWidth: 0,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            세션 정답률
-          </span>
-          <LineChart series={line.series} labels={line.labels} height={180} />
-          <ChartLegend items={line.series.map((s) => ({ label: s.name ?? '', accent: s.accent }))} />
-        </div>
       ) : null}
 
       <SessionReportTable

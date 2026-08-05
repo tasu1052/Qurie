@@ -77,7 +77,7 @@ export default function App() {
           <Route path="/manager/students/detail/:userId" element={<StudentOverviewPage />} />
           <Route path="/manager/students/:id" element={<RedirectLegacyStudentDetail />} />
           <Route path="/manager/sessions" element={<SessionListPage />} />
-          <Route path="/manager/quizzes" element={<PastQuizListPage />} />
+          <Route path="/manager/quizzes" element={<Navigate to="/manager/sessions" replace />} />
           <Route path="/manager/quizzes/:quizSetId" element={<PastQuizDetailPage />} />
           <Route path="/manager/groups" element={<GroupListPage />} />
           <Route path="/manager/groups/:id" element={<GroupEditPage />} />

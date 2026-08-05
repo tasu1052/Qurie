@@ -115,12 +115,6 @@ function DashboardMetricsInfographic({
             {capacity}
           </span>
         </div>
-        {activeCount > 0 ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <LiveBadge />
-            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>진행 중인 세션이 있습니다</span>
-          </div>
-        ) : null}
       </div>
     </div>
   );
@@ -129,7 +123,7 @@ function DashboardMetricsInfographic({
 function ManagerDashBody({ classId }: { classId: number }) {
   const navigate = useNavigate();
   const { data: cls } = useGetClass(classId);
-  const { data: sessions } = useGetSessions(classId);
+  const { data: sessions } = useGetSessions(classId, { includeEnded: true });
   const { data: groups } = useGetGroups(classId);
   const active = sessions.filter((s) => s.active);
   const ended = sessions.filter((s) => !s.active);
@@ -161,9 +155,14 @@ function ManagerDashBody({ classId }: { classId: number }) {
             {cls.description || '담당 클래스 대시보드'}
           </span>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => navigate('/manager/students')}>
-          학생 관리
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Button variant="secondary" size="sm" onClick={() => navigate('/manager/sessions')}>
+            세션 더보기
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => navigate('/manager/students')}>
+            학생 관리
+          </Button>
+        </div>
       </div>
 
       <DashboardMetricsInfographic
