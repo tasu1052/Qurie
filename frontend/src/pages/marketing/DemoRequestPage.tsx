@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Input } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
+import { ApiIntegrationPanel } from '../../components/feedback/ApiIntegrationPanel';
 import { useMarketingLightTheme } from '../../hooks/useMarketingLightTheme';
 
 const USE_CASES = [
@@ -136,12 +137,13 @@ export default function DemoRequestPage() {
         }}
       >
         <div>
-          <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, letterSpacing: '-0.4px' }}>데모 요청</h1>
+          <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, letterSpacing: '-0.4px' }}>도입 문의</h1>
           <p style={{ margin: '10px 0 0', fontSize: 14, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
-            업무 정보를 남겨 주시면 데모 일정 안내를 도와드려요. 지금은 프론트 전용 폼이며, 제출 내용은
-            서버로 전송되지 않습니다.
+            업무 정보를 남겨 주시면 도입 안내를 도와드려요. 아래 API 연동 후 제출 내용이 서버로 전송됩니다.
           </p>
         </div>
+
+        <ApiIntegrationPanel groupId="demoRequest" variant="compact" title="도입 문의 API" />
 
         {submitted ? (
           <div
@@ -158,7 +160,7 @@ export default function DemoRequestPage() {
           >
             <span style={{ fontSize: 16, fontWeight: 700 }}>요청이 접수되었습니다</span>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
-              {form.firstName}님, 남겨 주신 정보로 데모 안내를 준비할게요. 실제 연동 전까지는 이 화면에서만
+              {form.firstName}님, 남겨 주신 정보는 POST /marketing/leads API 연동 후 전달됩니다. 지금은 이 화면에서만
               확인됩니다.
             </p>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>

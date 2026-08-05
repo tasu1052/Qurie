@@ -23,6 +23,10 @@ interface CollabMonacoEditorProps {
   language?: string;
   /** STOMP 참가자 userId — 세션 퇴장 시 해당 유저 원격 커서 즉시 제거 */
   onlineUserIds?: number[];
+  /** 좁은 화면(모바일)에서 가독성·터치를 위해 글자 크기를 키운다. */
+  compact?: boolean;
+  /** display:none 토글 후 레이아웃을 다시 잡기 위해 사용한다. */
+  visible?: boolean;
 }
 
 /**
@@ -34,8 +38,11 @@ export function CollabMonacoEditor({
   provider,
   language = 'typescript',
   onlineUserIds,
+  compact = false,
+  visible = true,
 }: CollabMonacoEditorProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const prevOnlineRef = useRef<Set<number> | null>(null);
 
   useEffect(() => {
@@ -47,18 +54,33 @@ export function CollabMonacoEditor({
       language,
       theme: 'vs-dark',
       automaticLayout: true,
-      fontSize: 13,
+      fontSize: compact ? 15 : 13,
       fontFamily: 'var(--font-mono)',
-      lineHeight: 24,
+      lineHeight: compact ? 22 : 24,
       minimap: { enabled: false },
       scrollBeyondLastLine: false,
-      padding: { top: 16, bottom: 16 },
+      padding: { top: compact ? 12 : 16, bottom: compact ? 12 : 16 },
+      wordWrap: compact ? 'on' : 'off',
     });
+    editorRef.current = editor;
 
     const model = editor.getModel();
     if (!model) return () => editor.dispose();
 
     const binding = new MonacoBinding(ytext, model, new Set([editor]), provider.awareness);
+
+    const ensureModelFromYText = () => {
+      const fromY = ytext.toString();
+      if (fromY.length > 0 && model.getValue() !== fromY) {
+        model.setValue(fromY);
+      }
+    };
+    ensureModelFromYText();
+    const onYTextChange = () => {
+      ensureModelFromYText();
+      requestAnimationFrame(() => editor.layout());
+    };
+    ytext.observe(onYTextChange);
 
     // 원격 커서 색상: awareness의 user.color를 클라이언트별 CSS 규칙으로 주입
     const styleEl = document.createElement('style');
@@ -80,12 +102,32 @@ export function CollabMonacoEditor({
     provider.awareness.on('change', renderCursorStyles);
 
     return () => {
+      ytext.unobserve(onYTextChange);
       provider.awareness.off('change', renderCursorStyles);
       styleEl.remove();
       binding.destroy();
       editor.dispose();
+      editorRef.current = null;
     };
-  }, [ytext, provider, language]);
+  }, [ytext, provider, language, compact]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const ro = new ResizeObserver(() => {
+      editorRef.current?.layout();
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!visible) return;
+    const frame = requestAnimationFrame(() => {
+      editorRef.current?.layout();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [visible, ytext, language, compact]);
 
   // 참가자 목록에서 빠진 userId → 그 유저의 awareness(커서)를 로컬에서도 즉시 제거·브로드캐스트
   const onlineKey = onlineUserIds?.slice().sort((a, b) => a - b).join(',') ?? '';

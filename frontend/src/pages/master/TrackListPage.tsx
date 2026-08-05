@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
-import { BookOpen, PlayCircle, Plus, Search, Users } from 'lucide-react';
+import { BookOpen, Plus, Search } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -94,6 +94,7 @@ function TrackCardView({
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <span
+          className="tech-icon-wrap"
           style={{
             width: 38,
             height: 38,
@@ -106,7 +107,7 @@ function TrackCardView({
           }}
         >
           {img ? (
-            <img src={img} width={22} height={22} alt={track.tech ?? 'tech'} style={{ objectFit: 'contain' }} />
+            <img src={img} width={22} height={22} alt={track.tech ?? 'tech'} className="tech-icon" style={{ objectFit: 'contain' }} />
           ) : (
             <BookOpen size={18} strokeWidth={1.75} />
           )}
@@ -132,18 +133,7 @@ function TrackCardView({
       <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
         {track.description || '설명이 없습니다.'}
       </p>
-      <div style={{ display: 'flex', gap: 14, fontSize: 12.5, color: 'var(--text-secondary)' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <BookOpen size={13} strokeWidth={1.75} />
-          클래스 {track.classCount}
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <Users size={13} strokeWidth={1.75} />—
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <PlayCircle size={13} strokeWidth={1.75} />—
-        </span>
-      </div>
+      <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>클래스 {track.classCount}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 'auto' }}>
         <button
           type="button"
@@ -314,12 +304,19 @@ function TrackListBody() {
       </div>
 
       {tracks.length === 0 ? (
+        debouncedQuery.trim() ? (
+          <EmptyState
+            message="검색 결과가 없습니다"
+            description={`"${debouncedQuery.trim()}"에 해당하는 트랙이 없습니다.`}
+          />
+        ) : (
         <EmptyState
           message="트랙이 없습니다"
           description="첫 트랙을 만들어 클래스를 배정해 보세요."
           actionLabel="트랙 생성"
           onAction={() => setCreateOpen(true)}
         />
+        )
       ) : (
         <>
           <div className="qurie-card-grid">
@@ -426,8 +423,6 @@ function TrackListBody() {
         title="트랙 삭제"
         description="트랙을 삭제하면 하위 클래스·세션·리포트가 함께 영향을 받습니다. 이 작업은 되돌릴 수 없습니다."
         confirmText={deleteTarget?.name ?? ''}
-        childCounts={deleteTarget ? [`클래스 ${deleteTarget.classCount}`] : []}
-        conflict
         onClose={() => {
           setDeleteTarget(null);
           setDeleteError(null);

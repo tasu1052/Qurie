@@ -1,4 +1,5 @@
 import { isAxiosError } from 'axios';
+import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Calendar, Copy, Plus, Search, Shuffle, Trash2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -12,7 +13,6 @@ import {
   EmptyState,
   Input,
   Modal,
-  Pagination,
   RowErrorFallback,
   RowSection,
   Skeleton,
@@ -23,6 +23,7 @@ import {
   useDeleteGroup,
   useDuplicateGroup,
   useEditGroup,
+  useGetClassMembers,
   useGetGroupDetail,
   useGetGroups,
   useMe,
@@ -30,6 +31,8 @@ import {
   type GroupDetailResponse,
   type GroupResponse,
 } from '../../data';
+import { queryKeys } from '../../network/core/queryKeys';
+import { getGroupCandidates } from '../../network/group/group-apis';
 
 function apiErrorMessage(error: unknown, fallback: string): string {
   if (isAxiosError(error)) {
@@ -136,12 +139,20 @@ function ShuffleModal({
   onDone: () => void;
 }) {
   const { data: groups } = useGetGroups(classId);
+  const { data: membersPage } = useGetClassMembers(classId, { size: 200 });
+  const studentCount = useMemo(
+    () => membersPage.data.filter((m) => m.role === 'STUDENT').length,
+    [membersPage.data],
+  );
   const shuffleGroups = useShuffleGroups();
   const deleteGroup = useDeleteGroup();
   const editGroup = useEditGroup();
   const [shuffleCount, setShuffleCount] = useState('4');
   const [titlePrefix, setTitlePrefix] = useState('그룹');
   const [batchDescription, setBatchDescription] = useState('');
+  const shuffleDefaults = defaultDateInputs();
+  const [shuffleStartDate, setShuffleStartDate] = useState(shuffleDefaults.startDate);
+  const [shuffleEndDate, setShuffleEndDate] = useState(shuffleDefaults.endDate);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -157,7 +168,24 @@ function ShuffleModal({
 
   const onShuffle = async () => {
     if (!Number.isFinite(count) || count < 1) return;
-    const period = defaultPeriod();
+    if (count > studentCount) {
+      setError(
+        `그룹 수(${count})가 학생 수(${studentCount})보다 많습니다. 그룹 수를 줄이거나 학생을 추가해 주세요.`,
+      );
+      return;
+    }
+    if (!shuffleStartDate || !shuffleEndDate) {
+      setError('시작일과 종료일을 선택하세요.');
+      return;
+    }
+    if (shuffleStartDate > shuffleEndDate) {
+      setError('종료일은 시작일 이후여야 합니다.');
+      return;
+    }
+    const period = {
+      startedAt: dateInputToLocalStart(shuffleStartDate),
+      endedAt: dateInputToLocalEnd(shuffleEndDate),
+    };
     const existingIds = groups.map((g) => g.id);
     const description =
       batchDescription.trim() || '랜덤 배정으로 생성된 그룹';
@@ -263,6 +291,27 @@ function ShuffleModal({
             width="100%"
           />
         </label>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>시작일</span>
+            <input
+              type="date"
+              value={shuffleStartDate}
+              onChange={(e) => setShuffleStartDate(e.target.value)}
+              style={dateFieldStyle()}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>종료일</span>
+            <input
+              type="date"
+              value={shuffleEndDate}
+              onChange={(e) => setShuffleEndDate(e.target.value)}
+              style={dateFieldStyle()}
+            />
+          </label>
+        </div>
       </div>
     </Modal>
   );
@@ -391,9 +440,8 @@ function GroupCard({
       <ConfirmDeleteOverlay
         open={deleteOpen}
         title="그룹 삭제"
-        description="그룹을 삭제하면 구성원 배정이 해제됩니다. 이 작업은 되돌릴 수 없습니다."
+        description="이 작업은 되돌릴 수 없습니다."
         confirmText={detail.name}
-        childCounts={[`멤버 ${detail.memberCount}명`]}
         onClose={() => setDeleteOpen(false)}
         onConfirm={() => {
           deleteGroup.mutate(
@@ -411,17 +459,13 @@ function GroupGrid({
   classId,
   statusFilter,
   query,
-  page,
-  onPage,
-  onBlankCreate,
+  onOpenCreate,
   onRefresh,
 }: {
   classId: number;
   statusFilter: string;
   query: string;
-  page: number;
-  onPage: (p: number) => void;
-  onBlankCreate: () => void;
+  onOpenCreate: () => void;
   onRefresh: () => void;
 }) {
   const { data: groups } = useGetGroups(classId);
@@ -444,62 +488,21 @@ function GroupGrid({
       {filtered.length === 0 ? (
         <EmptyState
           message="그룹이 없습니다"
-          description="그룹 만들기로 추가하거나, 아래 빈 카드로 바로 시작할 수 있습니다."
-          actionLabel="새 그룹 만들기"
-          onAction={onBlankCreate}
+          description={
+            statusFilter === '종료'
+              ? '종료된 그룹이 없습니다.'
+              : '그룹 만들기로 새 그룹을 추가하세요.'
+          }
+          actionLabel={statusFilter === '종료' ? undefined : '그룹 만들기'}
+          onAction={statusFilter === '종료' ? undefined : onOpenCreate}
         />
-      ) : null}
-      <div className="qurie-card-grid">
-        {filtered.map((g) => (
-          <GroupCard key={g.id} group={g} onChanged={onRefresh} />
-        ))}
-        <button
-          type="button"
-          onClick={onBlankCreate}
-          style={{
-            border: '1.5px dashed var(--grey-100)',
-            borderRadius: 16,
-            minHeight: 220,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-            cursor: 'pointer',
-            background: 'transparent',
-            fontFamily: 'var(--font-sans)',
-            color: 'var(--text-muted)',
-            padding: 24,
-          }}
-        >
-          <span
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: '50%',
-              background: 'var(--surface-sunken)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Plus size={18} strokeWidth={1.75} />
-          </span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
-            새 그룹 만들기
-          </span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            이름 · 구성원 · 기간을 설정하세요
-          </span>
-        </button>
-      </div>
-      <Pagination
-        page={page}
-        pageCount={1}
-        pageSize={12}
-        rangeLabel={`1–${filtered.length} / ${filtered.length}개`}
-        onPage={onPage}
-      />
+      ) : (
+        <div className="qurie-card-grid">
+          {filtered.map((g) => (
+            <GroupCard key={g.id} group={g} onChanged={onRefresh} />
+          ))}
+        </div>
+      )}
     </RowSection>
   );
 }
@@ -510,9 +513,9 @@ export default function GroupListPage() {
   const classId = me.classId;
   const hasValidClassId = typeof classId === 'number' && Number.isFinite(classId) && classId > 0;
   const createGroup = useCreateGroup();
+  const editGroup = useEditGroup();
   const [status, setStatus] = useState('전체');
   const [query, setQuery] = useState('');
-  const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [shuffleOpen, setShuffleOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
@@ -520,8 +523,16 @@ export default function GroupListPage() {
   const defaults = defaultDateInputs();
   const [startDate, setStartDate] = useState(defaults.startDate);
   const [endDate, setEndDate] = useState(defaults.endDate);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
   const [rowKey, setRowKey] = useState(0);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  const candidatesQuery = useQuery({
+    queryKey: hasValidClassId ? queryKeys.groups.candidates(classId) : ['groups', 'candidates', 'idle'],
+    queryFn: () => getGroupCandidates(classId as number),
+    enabled: createOpen && hasValidClassId,
+  });
+  const candidates = candidatesQuery.data ?? [];
 
   const refresh = () => setRowKey((k) => k + 1);
 
@@ -531,7 +542,14 @@ export default function GroupListPage() {
     const next = defaultDateInputs();
     setStartDate(next.startDate);
     setEndDate(next.endDate);
+    setSelectedMemberIds([]);
     setCreateError(null);
+  };
+
+  const toggleMember = (userId: number) => {
+    setSelectedMemberIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+    );
   };
 
   const onCreate = () => {
@@ -546,45 +564,29 @@ export default function GroupListPage() {
       return;
     }
     setCreateError(null);
-    createGroup.mutate(
-      {
-        classId,
-        name: groupName.trim(),
-        description: description.trim(),
-        startedAt: dateInputToLocalStart(startDate),
-        endedAt: dateInputToLocalEnd(endDate),
-      },
-      {
-        onSuccess: () => {
-          setCreateOpen(false);
-          resetCreateForm();
-          refresh();
-        },
-        onError: (err) => {
-          setCreateError(apiErrorMessage(err, '그룹 생성에 실패했습니다.'));
-        },
-      },
-    );
-  };
-
-  const onBlankCreate = () => {
-    if (!hasValidClassId || createGroup.isPending) return;
-    const period = defaultPeriod();
-    setCreateError(null);
-    createGroup.mutate(
-      {
-        classId,
-        name: '새 그룹',
-        description: '설명을 입력하세요',
-        ...period,
-      },
-      {
-        onSuccess: (created) => navigate(`/manager/groups/${created.id}`),
-        onError: (err) => {
-          setCreateError(apiErrorMessage(err, '그룹 생성에 실패했습니다.'));
-        },
-      },
-    );
+    void (async () => {
+      try {
+        const created = await createGroup.mutateAsync({
+          classId,
+          name: groupName.trim(),
+          description: description.trim(),
+          startedAt: dateInputToLocalStart(startDate),
+          endedAt: dateInputToLocalEnd(endDate),
+        });
+        if (selectedMemberIds.length > 0) {
+          await editGroup.mutateAsync({
+            groupId: created.id,
+            memberIds: selectedMemberIds,
+            leaderId: selectedMemberIds[0],
+          });
+        }
+        setCreateOpen(false);
+        resetCreateForm();
+        refresh();
+      } catch (err) {
+        setCreateError(apiErrorMessage(err, '그룹 생성에 실패했습니다.'));
+      }
+    })();
   };
 
   return (
@@ -674,9 +676,7 @@ export default function GroupListPage() {
               classId={classId}
               statusFilter={status}
               query={query}
-              page={page}
-              onPage={setPage}
-              onBlankCreate={onBlankCreate}
+              onOpenCreate={() => setCreateOpen(true)}
               onRefresh={refresh}
             />
           </QueryAsyncBoundary>
@@ -685,8 +685,8 @@ export default function GroupListPage() {
         <Modal
           open={createOpen}
           title="그룹 만들기"
-          description="이름과 설명을 입력하면 빈 멤버로 그룹이 생성됩니다. 멤버는 상세에서 배정하세요."
-          primaryLabel={createGroup.isPending ? '생성 중…' : '생성하기'}
+          description="이름·기간을 입력하고 배정할 학생을 선택하세요. 첫 번째 선택 학생이 리더로 지정됩니다."
+          primaryLabel={createGroup.isPending || editGroup.isPending ? '생성 중…' : '생성하기'}
           secondaryLabel="취소"
           onPrimary={onCreate}
           onSecondary={() => {
@@ -741,6 +741,57 @@ export default function GroupListPage() {
                 />
               </label>
             </div>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                멤버 배정 ({selectedMemberIds.length}명 선택)
+              </span>
+              <div
+                style={{
+                  maxHeight: 180,
+                  overflowY: 'auto',
+                  border: '1px solid var(--border)',
+                  borderRadius: 12,
+                  padding: 8,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                  background: 'var(--surface-sunken)',
+                }}
+              >
+                {candidatesQuery.isLoading ? (
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', padding: 8 }}>불러오는 중…</span>
+                ) : candidates.length === 0 ? (
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', padding: 8 }}>
+                    배정 가능한 학생이 없습니다.
+                  </span>
+                ) : (
+                  candidates.map((c) => (
+                    <label
+                      key={c.userId}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '6px 8px',
+                        borderRadius: 8,
+                        fontSize: 13,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedMemberIds.includes(c.userId)}
+                        onChange={() => toggleMember(c.userId)}
+                      />
+                      <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{c.name}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                        {c.email}
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </label>
           </div>
         </Modal>
 

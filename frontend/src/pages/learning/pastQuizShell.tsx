@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { StudentShell, PageMain } from '../../components/layout/StudentShell';
-import { ManagerShell } from '../../components/layout/ManagerShell';
+import { AppShell } from '../../components/layout/AppShell';
+import { PageMain } from '../../components/layout/PageMain';
+import { roleFromBasePath } from '../../components/layout/shellConfig';
 import type { PastQuizBasePath } from './pastQuizPaths';
 
 export function PastQuizShell({
@@ -12,16 +13,9 @@ export function PastQuizShell({
   breadcrumbs: string[];
   children: ReactNode;
 }) {
-  if (basePath === '/manager') {
-    return (
-      <ManagerShell activeKey="quizzes" breadcrumbs={breadcrumbs}>
-        <PageMain>{children}</PageMain>
-      </ManagerShell>
-    );
-  }
   return (
-    <StudentShell activeKey="quizzes" breadcrumbs={breadcrumbs}>
+    <AppShell role={roleFromBasePath(basePath)} activeKey="quizzes" breadcrumbs={breadcrumbs}>
       <PageMain>{children}</PageMain>
-    </StudentShell>
+    </AppShell>
   );
 }

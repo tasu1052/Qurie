@@ -1,17 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import {
-  AlertBanner,
   Badge,
   Button,
+  DonutChart,
   EmptyState,
   LiveBadge,
   RowErrorFallback,
   Skeleton,
-  StatCard,
-  StatCardRow,
 } from '../../ds';
 import {
   QueryAsyncBoundary,
@@ -22,28 +19,109 @@ import {
 } from '../../data';
 import { DashboardNoticesSection } from '../../components/notices/DashboardNoticesSection';
 import { ClassMaterialsCard } from '../../components/materials/ClassMaterialsCard';
-import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
 
 function DashSkeleton() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <Skeleton width="100%" height={100} radius={16} />
-      <StatCardRow>
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            style={{
-              background: 'var(--surface-card-solid)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--card-radius)',
-              padding: 'var(--stat-card-padding)',
-            }}
-          >
-            <Skeleton width="50%" height={14} delay={i * 0.08} />
-            <Skeleton width="40%" height={28} delay={i * 0.08 + 0.04} style={{ marginTop: 12 }} />
+      <Skeleton width="100%" height={140} radius={16} delay={0.06} />
+      <div
+        className="qurie-app-split"
+        style={{ gridTemplateColumns: 'minmax(0, 0.88fr) minmax(0, 1fr)' }}
+      >
+        <Skeleton width="100%" height={280} radius={16} />
+        <Skeleton width="100%" height={280} radius={16} delay={0.06} />
+      </div>
+    </div>
+  );
+}
+
+function DashboardMetricsInfographic({
+  activeCount,
+  endedCount,
+  groupCount,
+  capacity,
+}: {
+  activeCount: number;
+  endedCount: number;
+  groupCount: number;
+  capacity: string;
+}) {
+  const sessionTotal = activeCount + endedCount;
+  const segments =
+    sessionTotal > 0
+      ? [
+          { label: '진행 중', value: activeCount, accent: activeCount > 0 },
+          { label: '종료', value: endedCount },
+        ]
+      : [
+          { label: '진행 중', value: 0 },
+          { label: '종료', value: 0 },
+        ];
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: 16,
+        alignItems: 'stretch',
+      }}
+    >
+      <div
+        style={{
+          background: 'var(--surface-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          boxShadow: 'var(--shadow-card)',
+          padding: 20,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: 140,
+        }}
+      >
+        <DonutChart
+          segments={segments}
+          size={120}
+          thickness={14}
+          centerValue={String(sessionTotal)}
+          centerLabel="세션"
+        />
+      </div>
+      <div
+        style={{
+          background: 'var(--surface-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          boxShadow: 'var(--shadow-card)',
+          padding: 20,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          gap: 16,
+          minHeight: 140,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>그룹</span>
+          <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
+            {groupCount}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>정원</span>
+          <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
+            {capacity}
+          </span>
+        </div>
+        {activeCount > 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <LiveBadge />
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>진행 중인 세션이 있습니다</span>
           </div>
-        ))}
-      </StatCardRow>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -54,33 +132,13 @@ function ManagerDashBody({ classId }: { classId: number }) {
   const { data: sessions } = useGetSessions(classId);
   const { data: groups } = useGetGroups(classId);
   const active = sessions.filter((s) => s.active);
+  const ended = sessions.filter((s) => !s.active);
   const live = active[0];
-  const [popupBlockedSessionId, setPopupBlockedSessionId] = useState<number | null>(null);
 
-  const openSessionInNewTab = (sessionId: number, title?: string) => {
-    if (title) saveSessionTitle(sessionId, title);
-    const qs = title ? `?title=${encodeURIComponent(title)}` : '';
-    const url = `/session/${sessionId}${qs}`;
-    const win = window.open(url, '_blank');
-    if (!win) {
-      setPopupBlockedSessionId(sessionId);
-      return;
-    }
-    win.opener = null;
-    setPopupBlockedSessionId(null);
-  };
+  const capacityLabel = cls.capacity != null ? String(cls.capacity) : '—';
 
   return (
     <>
-      {popupBlockedSessionId != null ? (
-        <AlertBanner
-          tone="warning"
-          title="브라우저가 새 창 열기를 차단했습니다."
-          description="브라우저의 팝업 차단을 해제한 뒤 다시 시도해 주세요."
-          actionLabel="확인"
-          onAction={() => setPopupBlockedSessionId(null)}
-        />
-      ) : null}
       <div
         style={{
           background: 'var(--surface-card)',
@@ -103,163 +161,27 @@ function ManagerDashBody({ classId }: { classId: number }) {
             {cls.description || '담당 클래스 대시보드'}
           </span>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button variant="primary" icon={<Plus size={14} />} onClick={() => navigate('/manager/sessions')}>
-            세션
-          </Button>
-        </div>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/manager/students')}>
+          학생 관리
+        </Button>
       </div>
 
-      <StatCardRow>
-        <StatCard label="열린 세션" value={String(active.length)} caption="active" accent />
-        <StatCard label="전체 세션" value={String(sessions.length)} caption="sessions" />
-        <StatCard label="그룹" value={String(groups.length)} caption="groups" />
-        <StatCard label="정원" value={cls.capacity != null ? String(cls.capacity) : '—'} caption="capacity" />
-      </StatCardRow>
+      <DashboardMetricsInfographic
+        activeCount={active.length}
+        endedCount={ended.length}
+        groupCount={groups.length}
+        capacity={capacityLabel}
+      />
 
-      <div className="qurie-master-split">
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            boxShadow: 'var(--shadow-card)',
-            padding: 24,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            minWidth: 0,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              최근 세션
-            </span>
-            <button
-              type="button"
-              onClick={() => navigate('/manager/sessions')}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                color: 'var(--accent)',
-                fontSize: 12.5,
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'var(--font-sans)',
-                padding: 0,
-              }}
-            >
-              더보기
-            </button>
-          </div>
-          {sessions.length === 0 ? (
-            <EmptyState message="세션이 없습니다" actionLabel="세션으로" onAction={() => navigate('/manager/sessions')} />
-          ) : (
-            sessions.slice(0, 6).map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => openSessionInNewTab(s.id, s.title)}
-                style={{
-                  textAlign: 'left',
-                  border: '1px solid var(--border)',
-                  borderRadius: 12,
-                  padding: '12px 14px',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                }}
-              >
-                {s.active ? <LiveBadge /> : <Badge status="neutral">종료</Badge>}
-                <span style={{ fontWeight: 600, fontSize: 13 }}>{s.title}</span>
-              </button>
-            ))
-          )}
-        </div>
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            boxShadow: 'var(--shadow-card)',
-            padding: 24,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            minWidth: 0,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              그룹 미리보기
-            </span>
-            <button
-              type="button"
-              onClick={() => navigate('/manager/groups')}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                color: 'var(--accent)',
-                fontSize: 12.5,
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'var(--font-sans)',
-                padding: 0,
-              }}
-            >
-              더보기
-            </button>
-          </div>
-          {groups.length === 0 ? (
-            <EmptyState message="그룹이 없습니다" actionLabel="그룹으로" onAction={() => navigate('/manager/groups')} />
-          ) : (
-            groups.slice(0, 6).map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                onClick={() => navigate(`/manager/groups/${g.id}`)}
-                style={{
-                  textAlign: 'left',
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: 'var(--ink)',
-                  padding: '6px 0',
-                }}
-              >
-                {g.name}
-              </button>
-            ))
-          )}
-        </div>
+      <div
+        className="qurie-app-split"
+        style={{ gridTemplateColumns: 'minmax(0, 0.88fr) minmax(0, 1fr)' }}
+      >
+        <DashboardNoticesSection role="MANAGER" classId={classId} size={4} compact />
+
+        {/* 세션에서 자료 열람이 빠져서, 강사는 여기서 바로 업로드·관리한다. */}
+        <ClassMaterialsCard classId={classId} canManage title="강의자료" />
       </div>
-
-      {/* 세션에서 자료 열람이 빠져서, 강사는 여기서 바로 업로드·관리한다. */}
-      <ClassMaterialsCard classId={classId} canManage title="강의자료" />
-
-      <DashboardNoticesSection role="MANAGER" classId={classId} size={5} />
     </>
   );
 }

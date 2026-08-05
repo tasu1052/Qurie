@@ -22,6 +22,11 @@
 --shadow-modal:0 12px 40px rgba(0,0,0,0.55);
 --shadow-popover:0 6px 20px rgba(0,0,0,0.45);
 }
+[data-theme="dark"] .sidebar-logo{filter:brightness(0) invert(1);}
+[data-theme="dark"] .tech-icon-wrap{background:rgba(255,255,255,0.94)!important;}
+[data-theme="dark"] .tech-icon{filter:none;}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 @media (max-width:1024px){
 :root{--grid-kpi:2;--content-pad:20px}
 }

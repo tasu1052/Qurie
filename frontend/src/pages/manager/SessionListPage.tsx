@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { Plus, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
@@ -15,24 +16,47 @@ import {
   Modal,
   Pagination,
   RowErrorFallback,
-  RowSection,
+  Select,
   Skeleton,
 } from '../../ds';
 import {
-  humanizeApiError,
   QueryAsyncBoundary,
   useCreateSession,
   useDeleteSession,
+  useGetGroups,
   useGetSessions,
   useMe,
   type SessionResponse,
 } from '../../data';
 import { queryKeys } from '../../network/core/queryKeys';
 import { getGroups } from '../../network/group/group-apis';
+import { getSessions } from '../../network/session/session-apis';
 import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
 
-/** 한 페이지에 보여줄 세션 수 — 종료 세션까지 포함하면 목록이 길어지므로 클라이언트에서 잘라 보여준다. */
-const PAGE_SIZE = 10;
+function apiErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError(error)) {
+    const data = error.response?.data;
+    if (typeof data === 'object' && data !== null) {
+      const message = (data as { message?: unknown }).message;
+      if (typeof message === 'string' && message.trim()) return message;
+    }
+    if (typeof error.message === 'string' && error.message.trim() && error.message !== 'Network Error') {
+      return error.message;
+    }
+  }
+  return fallback;
+}
+
+function formatSessionTime(iso: string): string {
+  return new Date(iso).toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
 
 function TableSkeleton() {
   return (
@@ -51,11 +75,16 @@ function TableSkeleton() {
   );
 }
 
-function sessionStatus(s: SessionResponse): 'LIVE' | '종료' | '예정' {
+function sessionStatus(s: SessionResponse): 'LIVE' | '종료' {
   if (s.active) return 'LIVE';
-  if (s.endedAt) return '종료';
-  return '예정';
+  return '종료';
 }
+
+const SESSION_PAGE_SIZE = 20;
+
+const SESSION_TABLE_MIN_WIDTH = 920;
+const SESSION_TABLE_COLUMNS =
+  'minmax(180px, 2fr) minmax(130px, 1.2fr) minmax(88px, max-content) minmax(168px, max-content)';
 
 function SessionTable({
   classId,
@@ -80,15 +109,35 @@ function SessionTable({
 }) {
   // 종료된 세션까지 받아야 '전체/종료' 칩이 실제 데이터를 보여준다
   const { data: sessions } = useGetSessions(classId, { includeEnded: true });
+  const { data: groups } = useGetGroups(classId);
   const debouncedQuery = useDebouncedValue(query, 300);
+  const groupNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const g of groups) map.set(g.id, g.name);
+    return map;
+  }, [groups]);
 
   const filtered = sessions.filter((s) => {
     const status = sessionStatus(s);
     if (debouncedQuery && !s.title.toLowerCase().includes(debouncedQuery.toLowerCase())) return false;
     if (statusFilter === '전체') return true;
     if (statusFilter === '진행') return status === 'LIVE';
-    return status === statusFilter;
+    if (statusFilter === '종료') return status === '종료';
+    return true;
   });
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / SESSION_PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageItems = filtered.slice(
+    (safePage - 1) * SESSION_PAGE_SIZE,
+    safePage * SESSION_PAGE_SIZE,
+  );
+  const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * SESSION_PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safePage * SESSION_PAGE_SIZE, filtered.length);
+
+  useEffect(() => {
+    if (page > pageCount) onPage(pageCount);
+  }, [page, pageCount, onPage]);
 
   if (filtered.length === 0) {
     return (
@@ -100,116 +149,117 @@ function SessionTable({
     );
   }
 
-  // 필터/검색으로 목록이 줄면 현재 페이지가 범위를 벗어날 수 있어 마지막 페이지로 눌러 준다
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount);
-  const pageStart = (safePage - 1) * PAGE_SIZE;
-  const pageRows = filtered.slice(pageStart, pageStart + PAGE_SIZE);
-
   return (
-    <RowSection style={{ gap: 24 }}>
-      <div
-        style={{
-          background: 'var(--surface-card)',
-          border: '1px solid var(--border)',
-          borderRadius: 16,
-          boxShadow: 'var(--shadow-card)',
-          overflow: 'hidden',
-        }}
-      >
+    <div className="qurie-table-card">
+      <div className="qurie-table-scroll">
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '2fr 1.2fr 1fr 0.8fr 1.2fr',
-            padding: '10px 24px',
-            borderBottom: '1px solid var(--divider)',
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-          }}
+          className="qurie-table-inner"
+          style={{ minWidth: SESSION_TABLE_MIN_WIDTH, ['--qurie-table-min' as string]: `${SESSION_TABLE_MIN_WIDTH}px` }}
         >
-          <span>세션</span>
-          <span>시작</span>
-          <span>참여</span>
-          <span>상태</span>
-          <span style={{ textAlign: 'right' }}>액션</span>
-        </div>
-        {pageRows.map((s) => {
-          const status = sessionStatus(s);
-          return (
-            <div
-              key={s.id}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '2fr 1.2fr 1fr 0.8fr 1.2fr',
-                padding: '13px 24px',
+          <div
+            className="qurie-table-grid"
+            style={{
+              gridTemplateColumns: SESSION_TABLE_COLUMNS,
+                padding: '10px 24px',
                 borderBottom: '1px solid var(--divider)',
-                fontSize: 13,
-                alignItems: 'center',
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
               }}
             >
-              <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--ink)', display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  {s.title}
-                  {s.classPublic ? <Badge status="accent">수업</Badge> : null}
-                  {!s.classPublic && s.groupId != null ? (
-                    <Badge status="neutral">그룹 #{s.groupId}</Badge>
-                  ) : null}
-                </span>
-              </span>
-              <span style={{ display: 'flex', flexDirection: 'column', gap: 2, color: 'var(--text-secondary)' }}>
-                <span>{new Date(s.createdAt).toLocaleString('ko-KR', { hour12: false })}</span>
-                {/* 종료 세션은 언제 끝났는지가 더 중요하므로 종료 시각을 함께 보여준다 */}
-                {s.endedAt ? (
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    종료 {new Date(s.endedAt).toLocaleString('ko-KR', { hour12: false })}
-                  </span>
-                ) : null}
-              </span>
-              <span style={{ color: 'var(--ink)' }}>—</span>
-              {status === 'LIVE' ? (
-                <LiveBadge />
-              ) : (
-                <Badge status={status === '예정' ? 'warning' : 'neutral'}>{status}</Badge>
-              )}
-              <span style={{ textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    if (status === '종료') onReport(s.id);
-                    else if (status === 'LIVE' || status === '예정') onEnter(s.id, s.title);
+              <span>세션</span>
+              <span>시작</span>
+              <span>상태</span>
+              <span style={{ textAlign: 'right' }}>액션</span>
+            </div>
+            {pageItems.map((s) => {
+              const status = sessionStatus(s);
+              const groupLabel =
+                s.groupId != null ? groupNameById.get(s.groupId) ?? `그룹 #${s.groupId}` : null;
+              return (
+                <div
+                  key={s.id}
+                  className="qurie-table-grid"
+                  style={{
+                    gridTemplateColumns: SESSION_TABLE_COLUMNS,
+                    padding: '13px 24px',
+                    borderBottom: '1px solid var(--divider)',
+                    fontSize: 13,
+                    alignItems: 'center',
                   }}
                 >
-                  {status === '종료' ? '리포트' : status === 'LIVE' ? '입장' : '편집'}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDelete(s)}
-                >
-                  삭제
-                </Button>
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      <Pagination
-        page={safePage}
-        pageCount={pageCount}
-        pageSize={PAGE_SIZE}
-        rangeLabel={`${pageStart + 1}–${pageStart + pageRows.length} / ${filtered.length}개`}
-        onPage={onPage}
-      />
-    </RowSection>
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 12.5,
+                        color: 'var(--ink)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        flexWrap: 'wrap',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {s.title}
+                      {s.classPublic ? <Badge status="accent">수업</Badge> : null}
+                      {!s.classPublic && groupLabel ? (
+                        <Badge status="neutral">{groupLabel}</Badge>
+                      ) : null}
+                    </span>
+                  </span>
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 2, color: 'var(--text-secondary)', minWidth: 0, wordBreak: 'break-word' }}>
+                    <span>{formatSessionTime(s.createdAt)}</span>
+                    {/* 종료 세션은 언제 끝났는지가 더 중요하므로 종료 시각을 함께 보여준다 */}
+                    {s.endedAt ? (
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        종료 {formatSessionTime(s.endedAt)}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="qurie-table-status">
+                    {status === 'LIVE' ? <LiveBadge /> : <Badge status="neutral">{status}</Badge>}
+                  </span>
+                  <span className="qurie-table-actions">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        if (status === '종료') onReport(s.id);
+                        else onEnter(s.id, s.title);
+                      }}
+                    >
+                      {status === '종료' ? '리포트' : '입장'}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => onDelete(s)}>
+                      삭제
+                    </Button>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {filtered.length > SESSION_PAGE_SIZE ? (
+          <div style={{ padding: '14px 24px', borderTop: '1px solid var(--divider)' }}>
+            <Pagination
+              page={safePage}
+              pageCount={pageCount}
+              pageSize={SESSION_PAGE_SIZE}
+              rangeLabel={`${rangeStart}–${rangeEnd} / ${filtered.length}개`}
+              onPage={onPage}
+            />
+          </div>
+        ) : null}
+    </div>
   );
 }
 
 export default function SessionListPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: me } = useMe();
   const classId = me.classId;
   const hasValidClassId = typeof classId === 'number' && Number.isFinite(classId) && classId > 0;
@@ -234,7 +284,11 @@ export default function SessionListPage() {
     enabled: createOpen && hasValidClassId,
   });
 
-  const chips = ['전체', '진행', '예정', '종료'];
+  const chips = ['전체', '진행', '종료'];
+
+  useEffect(() => {
+    setPage(1);
+  }, [status, query]);
 
   const openSessionInNewTab = (sessionId: number, title?: string) => {
     if (title) saveSessionTitle(sessionId, title);
@@ -264,29 +318,57 @@ export default function SessionListPage() {
       return;
     }
     setCreateError(null);
-    createSession.mutate(
-      {
-        classId,
-        title: title.trim(),
-        ...(classPublic ? { classPublic: true } : { groupId: groupId as number }),
-      },
-      {
-        onSuccess: (created) => {
-          setCreateOpen(false);
-          resetCreateForm();
-          setRowKey((k) => k + 1);
-          openSessionInNewTab(created.id, created.title);
+
+    void (async () => {
+      if (classPublic) {
+        try {
+          const existing = await getSessions(classId);
+          if (existing.some((s) => s.classPublic && s.active)) {
+            setCreateError(
+              '이미 진행 중인 수업 공개 세션이 있습니다. 기존 세션을 종료한 뒤 다시 시도해 주세요.',
+            );
+            return;
+          }
+        } catch {
+          setCreateError('세션 목록을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+          return;
+        }
+      }
+
+      createSession.mutate(
+        {
+          classId,
+          title: title.trim(),
+          ...(classPublic ? { classPublic: true } : { groupId: groupId as number }),
         },
-        onError: (err) => {
-          setCreateError(humanizeApiError(err, '세션 생성에 실패했습니다.'));
+        {
+          onSuccess: (created) => {
+            setCreateOpen(false);
+            resetCreateForm();
+            void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.list(classId) });
+            setRowKey((k) => k + 1);
+            openSessionInNewTab(created.id, created.title);
+          },
+          onError: (err) => {
+            const msg = apiErrorMessage(err, '세션 생성에 실패했습니다.');
+            if (classPublic && /public|공개|already|exist|duplicate|중복/i.test(msg)) {
+              setCreateError(
+                '이미 진행 중인 수업 공개 세션이 있습니다. 기존 세션을 종료한 뒤 다시 시도해 주세요.',
+              );
+              return;
+            }
+            setCreateError(msg);
+          },
         },
-      },
-    );
+      );
+    })();
   };
 
   return (
     <ManagerShell activeKey="sessions" breadcrumbs={['서울 1반', '세션']}>
       <PageMain>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0, width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>세션</h1>
@@ -320,11 +402,7 @@ export default function SessionListPage() {
               <button
                 key={c}
                 type="button"
-                onClick={() => {
-                  setStatus(c);
-                  // 필터가 바뀌면 목록이 달라지므로 첫 페이지부터 다시 본다
-                  setPage(1);
-                }}
+                onClick={() => setStatus(c)}
                 style={{
                   borderRadius: 999,
                   padding: '6px 14px',
@@ -345,11 +423,7 @@ export default function SessionListPage() {
             placeholder="세션 검색…"
             icon={<Search size={14} strokeWidth={1.75} />}
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              // 검색어가 바뀌면 결과 집합이 달라지므로 첫 페이지로 되돌린다
-              setPage(1);
-            }}
+            onChange={(e) => setQuery(e.target.value)}
             width={220}
             style={{ marginLeft: 'auto' }}
           />
@@ -444,50 +518,27 @@ export default function SessionListPage() {
             {!classPublic ? (
               <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>그룹</span>
-                <select
+                <Select
                   value={groupId === '' ? '' : String(groupId)}
-                  onChange={(e) => {
-                    const v = e.target.value;
+                  onChange={(v) => {
                     setGroupId(v === '' ? '' : Number(v));
                     setCreateError(null);
                   }}
-                  style={{
-                    width: '100%',
-                    height: 40,
-                    borderRadius: 10,
-                    border: '1px solid var(--border-strong)',
-                    background: 'var(--surface-card)',
-                    color: 'var(--ink)',
-                    padding: '0 12px',
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 13,
-                  }}
-                >
-                  <option value="">그룹을 선택하세요</option>
-                  {(groupsQuery.data ?? []).map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: '그룹을 선택하세요' },
+                    ...(groupsQuery.data ?? []).map((g) => ({
+                      value: String(g.id),
+                      label: g.name,
+                    })),
+                  ]}
+                  style={{ width: '100%' }}
+                />
                 <span style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
                   일반 세션은 그룹을 지정해야 만들 수 있어요. 해당 그룹 구성원만 입장할 수 있어요.
                 </span>
               </label>
             ) : null}
-            {createError ? (
-              <div
-                style={{
-                  fontSize: 13,
-                  color: 'var(--status-error)',
-                  background: 'var(--status-error-bg)',
-                  borderRadius: 10,
-                  padding: '10px 12px',
-                }}
-              >
-                {createError}
-              </div>
-            ) : null}
+            {createError ? <AlertBanner tone="error" title={createError} /> : null}
           </div>
         </Modal>
 
@@ -509,6 +560,8 @@ export default function SessionListPage() {
               { id: deleteTarget.id, classId: deleteTarget.classId },
               {
                 onSuccess: () => {
+                  void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
+                  void queryClient.invalidateQueries({ queryKey: queryKeys.sessions.list(deleteTarget.classId) });
                   setRowKey((k) => k + 1);
                   setDeleteTarget(null);
                 },
@@ -517,6 +570,7 @@ export default function SessionListPage() {
           }}
           confirmLabel={deleteSession.isPending ? '삭제 중…' : '삭제'}
         />
+        </div>
       </PageMain>
     </ManagerShell>
   );

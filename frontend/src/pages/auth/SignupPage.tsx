@@ -1,15 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Badge, Button, EmptyState, Input, RowErrorFallback, Skeleton } from '../../ds';
+import { Badge, Button, EmptyState, Input, RowErrorFallback, Select, Skeleton } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
 import { QueryAsyncBoundary, useGetInvitationPreview, useSignUp } from '../../data';
-
-function strengthLabel(pw: string) {
-  if (pw.length >= 12 && /[A-Z]/.test(pw) && /[0-9]/.test(pw)) return { label: '강함', color: 'var(--accent)' };
-  if (pw.length >= 8) return { label: '보통', color: 'var(--status-warning)' };
-  if (pw.length > 0) return { label: '약함', color: 'var(--status-error)' };
-  return { label: '', color: 'transparent' };
-}
+import { REGION_OPTIONS, setUserProfileExtras } from '../../utils/userProfileExtras';
 
 function FormSkeleton() {
   return (
@@ -22,6 +16,11 @@ function FormSkeleton() {
   );
 }
 
+const regionFieldOptions = REGION_OPTIONS.filter((r) => r.value !== 'all').map((r) => ({
+  value: r.value,
+  label: r.label,
+}));
+
 function SignupFields({ token }: { token: string }) {
   const navigate = useNavigate();
   const { data: preview } = useGetInvitationPreview(token);
@@ -29,9 +28,9 @@ function SignupFields({ token }: { token: string }) {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [terms, setTerms] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [region, setRegion] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
-  const strength = strengthLabel(password);
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -44,10 +43,6 @@ function SignupFields({ token }: { token: string }) {
       setFormError('비밀번호 확인이 일치하지 않습니다.');
       return;
     }
-    if (!terms) {
-      setFormError('이용약관에 동의해 주세요.');
-      return;
-    }
 
     // 임시 UI 토큰(어드민 목업 링크) — 실초대 API가 아닌 경우
     if (token.startsWith('dev-')) {
@@ -58,14 +53,20 @@ function SignupFields({ token }: { token: string }) {
     signUp.mutate(
       { token, password, name },
       {
-        onSuccess: () => navigate('/login', { replace: true }),
+        onSuccess: () => {
+          setUserProfileExtras(preview.email, {
+            phone: phone.trim() || undefined,
+            region: region || undefined,
+          });
+          navigate('/login', { replace: true });
+        },
         onError: () => setFormError('회원가입에 실패했습니다. 초대 토큰과 입력을 확인해 주세요.'),
       },
     );
   };
 
   return (
-    <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <form autoComplete="on" onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div
         style={{
           borderRadius: 12,
@@ -79,7 +80,6 @@ function SignupFields({ token }: { token: string }) {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Badge status="accent">{preview.role}</Badge>
-          <Badge status="neutral">PENDING</Badge>
         </div>
         <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
           <div>
@@ -100,48 +100,58 @@ function SignupFields({ token }: { token: string }) {
 
       <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>이름</span>
-        <Input placeholder="홍길동" value={name} onChange={(e) => setName(e.target.value)} width="100%" />
+        <Input
+          name="name"
+          autoComplete="name"
+          placeholder="홍길동"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          width="100%"
+        />
+      </label>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>전화번호</span>
+        <Input
+          type="tel"
+          name="tel"
+          autoComplete="tel"
+          placeholder="010-0000-0000"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          width="100%"
+        />
+      </label>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>지역</span>
+        <Select
+          options={regionFieldOptions}
+          value={region}
+          onChange={setRegion}
+        />
       </label>
       <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>비밀번호</span>
         <Input
           type="password"
+          name="new-password"
+          autoComplete="new-password"
           placeholder="8자 이상"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           width="100%"
         />
-        {strength.label ? (
-          <span style={{ fontSize: 11, fontWeight: 600, color: strength.color }}>강도 · {strength.label}</span>
-        ) : null}
       </label>
       <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>비밀번호 확인</span>
         <Input
           type="password"
+          name="new-password-confirm"
+          autoComplete="new-password"
           placeholder="다시 입력"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           width="100%"
         />
-      </label>
-      <label
-        style={{
-          display: 'inline-flex',
-          alignItems: 'flex-start',
-          gap: 8,
-          fontSize: 12.5,
-          color: 'var(--text-secondary)',
-          cursor: 'pointer',
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={terms}
-          onChange={(e) => setTerms(e.target.checked)}
-          style={{ marginTop: 2 }}
-        />
-        이용약관 및 개인정보 처리방침에 동의합니다.
       </label>
       {formError ? (
         <div

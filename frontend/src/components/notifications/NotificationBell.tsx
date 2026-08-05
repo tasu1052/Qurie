@@ -15,7 +15,7 @@ import {
 import { noticeListPath, useOpenNoticeDetail } from '../../hooks/useOpenNoticeDetail';
 import { Skeleton } from '../../ds';
 
-const READ_KEY = 'qurie-notice-read-ids';
+const READ_KEY_PREFIX = 'qurie-notice-read-ids';
 
 /**
  * 패널 배경은 불투명한 --surface-modal 이라 backdrop-filter 가 시각 효과 없이
@@ -39,9 +39,17 @@ const panelShellStyle: CSSProperties = {
   color: 'var(--ink)',
 };
 
-function readIds(): Set<number> {
+// 같은 브라우저에서 계정을 바꿔 로그인해도 읽음 상태가 섞이지 않도록 사용자별 키를 쓴다.
+function readKeyForUser(userId: number | undefined): string | null {
+  if (userId == null) return null;
+  return `${READ_KEY_PREFIX}-${userId}`;
+}
+
+function readIds(userId: number | undefined): Set<number> {
+  const key = readKeyForUser(userId);
+  if (!key) return new Set();
   try {
-    const raw = localStorage.getItem(READ_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return new Set();
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return new Set();
@@ -51,14 +59,13 @@ function readIds(): Set<number> {
   }
 }
 
-function writeIds(ids: Set<number>) {
-  localStorage.setItem(READ_KEY, JSON.stringify([...ids]));
-}
-
-function markRead(id: number) {
-  const ids = readIds();
-  ids.add(id);
-  writeIds(ids);
+function markNoticesRead(userId: number | undefined, noticeIds: number[]) {
+  if (noticeIds.length === 0) return;
+  const key = readKeyForUser(userId);
+  if (!key) return;
+  const ids = readIds(userId);
+  for (const id of noticeIds) ids.add(id);
+  localStorage.setItem(key, JSON.stringify([...ids]));
 }
 
 /**
@@ -265,11 +272,13 @@ function BellPanelNoClass({ role, onClose }: { role: UserRole; onClose: () => vo
 function BellPanel({
   role,
   classId,
+  userId,
   onClose,
   onRead,
 }: {
   role: UserRole;
   classId: number | null;
+  userId: number | undefined;
   onClose: () => void;
   onRead: () => void;
 }) {
@@ -283,9 +292,10 @@ function BellPanel({
 
   const markAllRead = () => {
     if (notices.length === 0) return;
-    const ids = readIds();
-    for (const n of notices) ids.add(n.id);
-    writeIds(ids);
+    markNoticesRead(
+      userId,
+      notices.map((n) => n.id),
+    );
     onRead();
   };
 
@@ -317,7 +327,7 @@ function BellPanel({
             key={n.id}
             type="button"
             onClick={() => {
-              markRead(n.id);
+              markNoticesRead(userId, [n.id]);
               onRead();
               onClose();
               openNotice(n.id);
@@ -381,17 +391,19 @@ function UnreadBadge({
   version,
   classId,
   role,
+  userId,
 }: {
   version: number;
   classId: number | null;
   role: UserRole;
+  userId: number | undefined;
 }) {
   const { data } = useGetNotices(bellNoticeFilters(role));
   const helpQuery = useGetClassHelpRequests(
     role === 'MANAGER' || role === 'MASTER' ? classId : null,
   );
   void version;
-  const unreadNotices = data.data.filter((n) => !readIds().has(n.id)).length;
+  const unreadNotices = data.data.filter((n) => !readIds(userId).has(n.id)).length;
   const helpCount = helpQuery.data?.length ?? 0;
   return <BadgeDot unread={unreadNotices + helpCount} />;
 }
@@ -430,18 +442,19 @@ function BadgeDot({ unread }: { unread: number }) {
   );
 }
 
-type NotificationBellProps = {
+function NotificationBellInner({
+  role,
+  classId,
+  userId,
+}: {
   role: UserRole;
-};
-
-/** Topbar bell: notices + manager help-request alerts. */
-export function NotificationBell({ role }: NotificationBellProps) {
+  classId: number | null;
+  userId: number | undefined;
+}) {
   const [open, setOpen] = useState(false);
   const [readVersion, setReadVersion] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
-  const meQuery = useMeOptional();
-  const classId = meQuery.data?.classId ?? null;
   // forAudience=true 는 classId 없는 계정에서 400 이라 MASTER 외에는 classId 확보 후에만 공지를 조회한다.
   const canFetchNotices = role === 'MASTER' || classId != null;
 
@@ -495,7 +508,7 @@ export function NotificationBell({ role }: NotificationBellProps) {
         <Bell size={17} strokeWidth={1.75} />
         <QueryAsyncBoundary suspenseFallback={null} errorFallback={null}>
           {canFetchNotices ? (
-            <UnreadBadge version={readVersion} classId={classId} role={role} />
+            <UnreadBadge version={readVersion} classId={classId} role={role} userId={userId} />
           ) : (
             <HelpOnlyBadge classId={classId} role={role} />
           )}
@@ -516,7 +529,13 @@ export function NotificationBell({ role }: NotificationBellProps) {
             }
           >
             {canFetchNotices ? (
-              <BellPanel role={role} classId={classId} onClose={close} onRead={bumpReadVersion} />
+              <BellPanel
+                role={role}
+                classId={classId}
+                userId={userId}
+                onClose={close}
+                onRead={bumpReadVersion}
+              />
             ) : (
               <BellPanelNoClass role={role} onClose={close} />
             )}
@@ -524,5 +543,46 @@ export function NotificationBell({ role }: NotificationBellProps) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+type NotificationBellProps = {
+  role: UserRole;
+};
+
+/** Topbar bell: notices + manager help-request alerts. */
+export function NotificationBell({ role }: NotificationBellProps) {
+  const meQuery = useMeOptional();
+  const classId = meQuery.data?.classId ?? null;
+  const userId = meQuery.data?.id;
+
+  return (
+    <QueryAsyncBoundary suspenseFallback={<BellPlaceholder />} errorFallback={null}>
+      <NotificationBellInner role={role} classId={classId} userId={userId} />
+    </QueryAsyncBoundary>
+  );
+}
+
+function BellPlaceholder() {
+  return (
+    <button
+      type="button"
+      aria-label="알림"
+      disabled
+      style={{
+        border: 'none',
+        background: 'transparent',
+        color: 'var(--text-secondary)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 4,
+        position: 'relative',
+        borderRadius: 8,
+        opacity: 0.6,
+      }}
+    >
+      <Bell size={17} strokeWidth={1.75} />
+    </button>
   );
 }

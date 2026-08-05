@@ -9,11 +9,11 @@ export function noticeDetailPath(role: UserRole, noticeId: number): string {
   return `/app/announcements/${noticeId}`;
 }
 
-/** 역할별 공지 목록 경로. 학생은 목록 페이지가 없어 null. */
-export function noticeListPath(role: UserRole): string | null {
+/** 역할별 공지 목록 경로. */
+export function noticeListPath(role: UserRole): string {
   if (role === 'MASTER') return '/master/announcements';
   if (role === 'MANAGER') return '/manager/announcements';
-  return null;
+  return '/app/announcements';
 }
 
 /**

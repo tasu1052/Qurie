@@ -28,6 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.roma.qurie.project.Project;
 import com.roma.qurie.project.ProjectRepository;
+import com.roma.qurie.quiz.dto.QuizIncorrectProgressResponse;
 import com.roma.qurie.quiz.dto.QuizProgressNotification;
 import com.roma.qurie.quiz.dto.QuizProgressResponse;
 import com.roma.qurie.quiz.dto.QuizProgressSubmitRequest;
@@ -287,6 +288,38 @@ class QuizProgressServiceTest {
 		assertThat(response.correctCount()).isEqualTo(1);
 	}
 
+	@Test
+	void getIncorrectSummaryReturnsOnlyIncorrectItems() {
+		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(quizSet()));
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
+		QuizProgress incorrect = new QuizProgress(
+				quizWithChoices(), student(), QuizProgressStatus.ATTEMPTED, incorrectChoice(),
+				LocalDateTime.now(), LocalDateTime.now().plusSeconds(5));
+		given(quizProgressRepository.findIncorrectWithQuizByQuizSetIdAndUserId(QUIZ_SET_ID, STUDENT.id()))
+				.willReturn(List.of(incorrect));
+
+		QuizIncorrectProgressResponse response = quizProgressService.getIncorrectSummary(QUIZ_SET_ID, STUDENT);
+
+		verify(participantService).verifySessionClassMember(SESSION_ID, STUDENT);
+		assertThat(response.quizSetId()).isEqualTo(QUIZ_SET_ID);
+		assertThat(response.incorrectCount()).isEqualTo(1);
+		assertThat(response.items()).hasSize(1);
+		assertThat(response.items().get(0).isCorrect()).isFalse();
+	}
+
+	@Test
+	void getIncorrectSummaryReturnsEmptyWhenNothingWasWrong() {
+		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(quizSet()));
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
+		given(quizProgressRepository.findIncorrectWithQuizByQuizSetIdAndUserId(QUIZ_SET_ID, STUDENT.id()))
+				.willReturn(List.of());
+
+		QuizIncorrectProgressResponse response = quizProgressService.getIncorrectSummary(QUIZ_SET_ID, STUDENT);
+
+		assertThat(response.incorrectCount()).isEqualTo(0);
+		assertThat(response.items()).isEmpty();
+	}
+
 	private static HttpStatusCode statusOf(Throwable throwable) {
 		return ((ResponseStatusException) throwable).getStatusCode();
 	}
@@ -331,6 +364,10 @@ class QuizProgressServiceTest {
 
 	private QuizChoice correctChoice() {
 		return quizWithChoices().getChoices().get(2);
+	}
+
+	private QuizChoice incorrectChoice() {
+		return quizWithChoices().getChoices().get(0);
 	}
 
 	private User student() {

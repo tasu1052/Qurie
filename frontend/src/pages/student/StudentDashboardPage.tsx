@@ -29,7 +29,7 @@ function DashSkeleton() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <Skeleton width="100%" height={140} radius={16} />
-      <div className="qurie-master-split">
+      <div className="qurie-app-split">
         <Skeleton width="100%" height={220} radius={16} />
         <Skeleton width="100%" height={220} radius={16} delay={0.06} />
       </div>
@@ -53,6 +53,8 @@ function openSessionInNewTab(
   win.opener = null;
 }
 
+const DASH_PANEL_HEIGHT = 320;
+
 function MyGroupPanel({
   detail,
   onlineUserIds,
@@ -60,8 +62,6 @@ function MyGroupPanel({
   detail: GroupDetailResponse;
   onlineUserIds: Set<number>;
 }) {
-  const leader = detail.members.find((m) => m.role === 'LEADER');
-
   return (
     <div
       style={{
@@ -74,6 +74,9 @@ function MyGroupPanel({
         flexDirection: 'column',
         gap: 14,
         minWidth: 0,
+        height: DASH_PANEL_HEIGHT,
+        boxSizing: 'border-box',
+        overflow: 'hidden',
       }}
     >
       <div>
@@ -93,42 +96,47 @@ function MyGroupPanel({
           {detail.description || '설명이 없습니다.'}
         </p>
       </div>
-      {leader ? (
-        <Badge status="accent">리더 {leader.name}</Badge>
-      ) : (
-        <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>리더 미지정</span>
-      )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr auto auto',
+          gap: 8,
+          padding: '6px 10px',
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+        }}
+      >
+        <span>구성원</span>
+        <span>역할</span>
+        <span>상태</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', minHeight: 0, flex: 1 }}>
         {detail.members.map((m: GroupMemberResponse) => {
           const online = onlineUserIds.has(m.userId);
           return (
             <div
               key={m.userId}
               style={{
-                display: 'flex',
+                display: 'grid',
+                gridTemplateColumns: '1fr auto auto',
+                gap: 8,
                 alignItems: 'center',
-                gap: 10,
                 padding: '8px 10px',
                 borderRadius: 10,
                 background: 'var(--surface-sunken)',
               }}
             >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: online ? 'var(--status-success)' : 'var(--border-strong)',
-                  flexShrink: 0,
-                }}
-                title={online ? '접속 중' : '오프라인'}
-              />
-              <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', minWidth: 0 }}>
                 {m.name}
               </span>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                 {m.role === 'LEADER' ? '리더' : '멤버'}
-                {online ? ' · 접속 중' : ''}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                {online ? '접속 중' : '오프라인'}
               </span>
             </div>
           );
@@ -230,8 +238,9 @@ function StudentDashWithClass({ classId }: { classId: number }) {
     <>
       <div
         style={{
-          background: 'var(--ink)',
-          color: 'var(--text-inverse)',
+          background: 'var(--hero-surface)',
+          color: 'var(--hero-fg)',
+          border: '1px solid var(--hero-border)',
           borderRadius: 16,
           padding: 28,
           display: 'flex',
@@ -239,11 +248,11 @@ function StudentDashWithClass({ classId }: { classId: number }) {
           gap: 14,
         }}
       >
-        <span style={{ fontSize: 13, opacity: 0.72 }}>안녕하세요, {me.name}님</span>
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'var(--text-inverse)' }}>
+        <span style={{ fontSize: 13, color: 'var(--hero-fg-muted)' }}>안녕하세요, {me.name}님</span>
+        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'var(--hero-fg)' }}>
           {heroSession ? '클래스 세션이 진행 중입니다' : '진행 중인 클래스 세션이 없습니다'}
         </h1>
-        <span style={{ fontSize: 13, opacity: 0.72 }}>
+        <span style={{ fontSize: 13, color: 'var(--hero-fg-muted)' }}>
           {heroSession
             ? heroSession.title
             : `${className} · 강사가 세션을 열면 여기 표시돼요`}
@@ -286,7 +295,7 @@ function StudentDashWithClass({ classId }: { classId: number }) {
         />
       ) : null}
 
-      <div className="qurie-master-split" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
+      <div className="qurie-app-split" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
         {myGroup != null ? (
           <MyGroupPanel detail={myGroup} onlineUserIds={onlineUserIds} />
         ) : (
@@ -296,6 +305,8 @@ function StudentDashWithClass({ classId }: { classId: number }) {
               border: '1px solid var(--border)',
               borderRadius: 16,
               padding: 24,
+              height: DASH_PANEL_HEIGHT,
+              boxSizing: 'border-box',
             }}
           >
             <EmptyState
@@ -318,6 +329,9 @@ function StudentDashWithClass({ classId }: { classId: number }) {
             flexDirection: 'column',
             gap: 12,
             minWidth: 0,
+            height: DASH_PANEL_HEIGHT,
+            boxSizing: 'border-box',
+            overflow: 'hidden',
           }}
         >
           <span
@@ -339,7 +353,7 @@ function StudentDashWithClass({ classId }: { classId: number }) {
               onAction={() => navigate('/app/report')}
             />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', minHeight: 0, flex: 1 }}>
               {joinableSessions.map((s) => (
                 <SessionCard
                   key={s.id}
@@ -352,9 +366,10 @@ function StudentDashWithClass({ classId }: { classId: number }) {
         </div>
       </div>
 
-      <DashboardNoticesSection role="STUDENT" classId={classId} size={5} />
-
-      <ClassMaterialsCard classId={classId} />
+      <div className="qurie-app-split" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
+        <DashboardNoticesSection role="STUDENT" classId={classId} size={5} maxHeight={DASH_PANEL_HEIGHT} />
+        <ClassMaterialsCard classId={classId} />
+      </div>
     </>
   );
 }

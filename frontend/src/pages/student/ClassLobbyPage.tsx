@@ -23,7 +23,7 @@ function LobbySkeleton() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <Skeleton width="100%" height={120} radius={16} />
-      <div className="qurie-master-split">
+      <div className="qurie-app-split">
         <Skeleton width="100%" height={280} radius={16} />
         <Skeleton width="100%" height={280} radius={16} />
       </div>
@@ -107,7 +107,7 @@ function ClassLobbyBody({ classId }: { classId: number }) {
         ) : null}
       </div>
 
-      <div className="qurie-master-split">
+      <div className="qurie-app-split">
         <div
           style={{
             background: 'var(--surface-card)',

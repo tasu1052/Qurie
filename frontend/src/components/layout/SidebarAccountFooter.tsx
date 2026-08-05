@@ -5,7 +5,7 @@ import { ThemeToggle } from '../theme/ThemeToggle';
 type SidebarAccountFooterProps = {
   name: string;
   email: string;
-  onLogout: () => void;
+  onLogout?: () => void;
   /** Navigate to my page when the account chip is clicked. */
   onProfileClick?: () => void;
   /** Optional avatar background override (student shell uses tertiary). */
@@ -85,21 +85,23 @@ export function SidebarAccountFooter({
             </span>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onLogout}
-          title="로그아웃"
-          style={{
-            border: 'none',
-            background: 'transparent',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            padding: 4,
-          }}
-        >
-          <LogOut size={14} strokeWidth={1.75} />
-        </button>
+        {onLogout ? (
+          <button
+            type="button"
+            onClick={onLogout}
+            title="로그아웃"
+            style={{
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              padding: 4,
+            }}
+          >
+            <LogOut size={14} strokeWidth={1.75} />
+          </button>
+        ) : null}
       </div>
     </div>
   );

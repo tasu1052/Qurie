@@ -342,7 +342,7 @@ function GroupEditForm({
         leaderId: leaderId ?? undefined,
       },
       {
-        onSuccess: () => setSaveError(null),
+        onSuccess: () => navigate('/manager/groups', { replace: true }),
         onError: (error) => setSaveError(saveErrorMessage(error)),
       },
     );
@@ -685,9 +685,13 @@ function GroupEditForm({
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 6,
+                    gap: 8,
                     overflow: 'auto',
                     maxHeight: 420,
+                    padding: 12,
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    background: 'var(--surface-sunken)',
                   }}
                 >
                   {poolStudents.length === 0 ? (
@@ -781,9 +785,8 @@ function GroupEditForm({
       <ConfirmDeleteOverlay
         open={deleteOpen}
         title="그룹 삭제"
-        description="그룹을 삭제하면 구성원 배정이 해제됩니다. 이 작업은 되돌릴 수 없습니다."
+        description="이 작업은 되돌릴 수 없습니다."
         confirmText={detail.name}
-        childCounts={[`멤버 ${detail.memberCount}명`]}
         onClose={() => setDeleteOpen(false)}
         onConfirm={onDelete}
         confirmLabel="삭제"

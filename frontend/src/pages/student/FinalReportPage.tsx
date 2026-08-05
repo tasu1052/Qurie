@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Download } from 'lucide-react';
 import { StudentShell, PageMain } from '../../components/layout/StudentShell';
 import {
   Badge,
@@ -10,39 +10,224 @@ import {
   LineChart,
   RowErrorFallback,
   Skeleton,
-  StatCard,
-  StatCardRow,
 } from '../../ds';
 import {
   QueryAsyncBoundary,
+  useDownloadUserReportPdf,
   useGetClass,
+  useGetStudentComments,
+  useGetUserReport,
   useGetUserSessionReports,
   useMe,
   type SessionReportSummaryResponse,
+  type UserReportDetailResponse,
 } from '../../data';
-import { getPastSessionsMock, type PastSessionMock } from '../../mocks/pastLearning';
+function InstructorCommentsSection({ userId, classId }: { userId: number; classId: number }) {
+  const comments = useGetStudentComments(userId, classId).data ?? [];
+
+  if (comments.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        background: 'var(--surface-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        boxShadow: 'var(--shadow-card)',
+        padding: 24,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        강사 코멘트
+      </span>
+      {comments.map((c) => (
+        <div
+          key={c.id}
+          style={{
+            borderRadius: 12,
+            border: '1px solid var(--border)',
+            background: 'var(--surface-sunken)',
+            padding: '12px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{c.authorName}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              {new Date(c.createdAt).toLocaleDateString('ko-KR')}
+            </span>
+          </div>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>{c.content}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function ReportSkeleton() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <Skeleton width="100%" height={80} radius={16} />
-      <StatCardRow>
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            style={{
-              background: 'var(--surface-card-solid)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--card-radius)',
-              padding: 'var(--stat-card-padding)',
-            }}
-          >
-            <Skeleton width="50%" height={14} delay={i * 0.08} />
-          </div>
-        ))}
-      </StatCardRow>
+      <Skeleton width="100%" height={160} radius={16} delay={0.06} />
     </div>
   );
+}
+
+type BarItem = { label: string; display: string; pct: number };
+
+function SimpleBars({ items }: { items: BarItem[] }) {
+  return (
+    <div
+      style={{
+        background: 'var(--surface-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        boxShadow: 'var(--shadow-card)',
+        padding: 24,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        학습 지표
+      </span>
+      {items.map((item) => (
+        <div key={item.label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}>
+            <span style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
+            <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{item.display}</span>
+          </div>
+          <div
+            style={{
+              height: 8,
+              borderRadius: 999,
+              background: 'var(--surface-sunken)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                width: `${Math.max(0, Math.min(100, item.pct))}%`,
+                height: '100%',
+                borderRadius: 999,
+                background: 'var(--accent)',
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SemesterSummaryHero({
+  report,
+  className,
+}: {
+  report: UserReportDetailResponse;
+  className: string;
+}) {
+  const downloadPdf = useDownloadUserReportPdf();
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const issued = report.issuedAt
+    ? new Date(report.issuedAt).toLocaleString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      })
+    : '—';
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={<Download size={14} strokeWidth={1.75} />}
+          disabled={downloadPdf.isPending}
+          onClick={() => {
+            setPdfError(null);
+            downloadPdf.mutate(
+              { userId: report.ordinaryUserId, classId: report.classId },
+              {
+                onError: () =>
+                  setPdfError('PDF 내보내기에 실패했습니다. 리포트가 발급됐는지 확인해 주세요.'),
+              },
+            );
+          }}
+        >
+          {downloadPdf.isPending ? '내보내는 중…' : 'PDF로 내보내기'}
+        </Button>
+      </div>
+      {pdfError ? (
+        <span style={{ fontSize: 13, color: 'var(--status-error)' }}>{pdfError}</span>
+      ) : null}
+      <div
+        style={{
+          background: 'var(--hero-surface)',
+          color: 'var(--hero-fg)',
+          border: '1px solid var(--hero-border)',
+          borderRadius: 16,
+          padding: 28,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
+        <span
+          style={{
+            alignSelf: 'flex-start',
+            background: 'var(--accent)',
+            color: '#ffffff',
+            borderRadius: 999,
+            padding: '4px 14px',
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+          }}
+        >
+          SEMESTER SUMMARY
+        </span>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--hero-fg)', margin: 0 }}>
+          학기 전체 학습 요약
+        </h2>
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.65, color: 'var(--hero-fg-muted)', maxWidth: 720 }}>
+          {report.userName} · {className} · {report.sessionCount}개 세션 리포트 집계
+        </p>
+        <span style={{ fontSize: 12.5, color: 'var(--hero-fg-muted)' }}>발급 {issued}</span>
+      </div>
+    </>
+  );
+}
+
+function SemesterSummarySection({ userId, classId, className }: { userId: number; classId: number; className: string }) {
+  const { data: report } = useGetUserReport(userId, classId);
+  return <SemesterSummaryHero report={report} className={className} />;
 }
 
 function formatPct(value: number | null | undefined): string {
@@ -72,12 +257,6 @@ type SessionReportRow = {
   accuracy: number | null;
   quizRating: number | null;
   issuedAt: string | null;
-  /** null = 요약 텍스트 없음(실데이터) — 상세 화면의 aiComment 로 확인한다. */
-  aiSummary: string | null;
-  /** null = 요약 응답에 quizSetId 가 없어 목록에서 퀴즈 열람을 제공하지 않는다. */
-  quizSetId: number | null;
-  demoOnly: boolean;
-  scoreLabel?: string;
 };
 
 function toRowsFromReports(reports: SessionReportSummaryResponse[]): SessionReportRow[] {
@@ -88,37 +267,16 @@ function toRowsFromReports(reports: SessionReportSummaryResponse[]): SessionRepo
     accuracy: s.accuracy,
     quizRating: s.quizRating,
     issuedAt: s.issuedAt,
-    aiSummary: null,
-    quizSetId: null,
-    demoOnly: false,
-    scoreLabel: s.accuracy != null ? `${Math.round(Number(s.accuracy))}% 정답` : undefined,
-  }));
-}
-
-function toRowsFromMocks(mocks: PastSessionMock[]): SessionReportRow[] {
-  return mocks.map((s) => ({
-    key: `mock-${s.sessionId}`,
-    sessionId: s.sessionId,
-    title: s.title,
-    accuracy: s.scoreTotal > 0 ? (s.scoreCorrect / s.scoreTotal) * 100 : null,
-    quizRating: null,
-    issuedAt: s.endedAt,
-    aiSummary: s.aiSummary,
-    quizSetId: s.quizSetId,
-    demoOnly: true,
-    scoreLabel: `${s.scoreCorrect}/${s.scoreTotal} 정답`,
   }));
 }
 
 function SessionReportTable({
   rows,
   onOpen,
-  onQuiz,
   onGoDashboard,
 }: {
   rows: SessionReportRow[];
   onOpen: (sessionId: number) => void;
-  onQuiz: (quizSetId: number) => void;
   onGoDashboard: () => void;
 }) {
   return (
@@ -152,9 +310,6 @@ function SessionReportTable({
         >
           세션 리포트
         </span>
-        {rows.some((r) => r.demoOnly) ? (
-          <Badge status="neutral">데모 · AI 연동 예정</Badge>
-        ) : null}
       </div>
       {rows.length === 0 ? (
         <div style={{ padding: '8px 24px 24px' }}>
@@ -195,35 +350,12 @@ function SessionReportTable({
                     {s.quizRating != null ? ` · 평점 ${formatRating(s.quizRating)}` : ''}
                   </span>
                 </div>
-                {s.scoreLabel ? <Badge status="accent">{s.scoreLabel}</Badge> : null}
               </div>
-
-              {s.aiSummary ? (
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 13,
-                    lineHeight: 1.55,
-                    color: 'var(--text-secondary)',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {s.aiSummary}
-                </p>
-              ) : null}
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Button variant="secondary" size="sm" onClick={() => onOpen(s.sessionId)}>
                   상세
                 </Button>
-                {s.quizSetId != null ? (
-                  <Button variant="ghost" size="sm" onClick={() => onQuiz(s.quizSetId as number)}>
-                    퀴즈 열람
-                  </Button>
-                ) : null}
                 <button
                   type="button"
                   onClick={() => onOpen(s.sessionId)}
@@ -254,44 +386,43 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
   const { data: me } = useMe();
   const { data: reports } = useGetUserSessionReports(me.id);
 
-  const sessionRows = useMemo(() => {
-    if (reports.length > 0) return toRowsFromReports(reports);
-    // 실데이터가 없을 때만 시연용 목업을 보여 빈 화면을 피한다.
-    return toRowsFromMocks(getPastSessionsMock());
-  }, [reports]);
+  const sessionRows = useMemo(() => toRowsFromReports(reports), [reports]);
 
-  const kpis = useMemo(() => {
+  const barItems = useMemo((): BarItem[] => {
     const accuracies = reports
       .map((r) => (r.accuracy != null ? Number(r.accuracy) : null))
-      .filter((v): v is number => v != null);
-    const ratings = reports
-      .map((r) => (r.quizRating != null ? Number(r.quizRating) : null))
       .filter((v): v is number => v != null);
     const completions = reports
       .map((r) => (r.completionRate != null ? Number(r.completionRate) : null))
       .filter((v): v is number => v != null);
+    const ratings = reports
+      .map((r) => (r.quizRating != null ? Number(r.quizRating) : null))
+      .filter((v): v is number => v != null);
+
+    const accuracy = avg(accuracies);
+    const completion = avg(completions);
+    const rating = avg(ratings);
 
     return [
       {
         label: '종합 정답률',
-        value: formatPct(avg(accuracies)),
-        caption: '세션 리포트 기준',
-        accent: true as const,
+        display: formatPct(accuracy),
+        pct: accuracy ?? 0,
       },
       {
         label: '퀴즈 완료율',
-        value: formatPct(avg(completions)),
-        caption: '세션 리포트 기준',
+        display: formatPct(completion),
+        pct: completion ?? 0,
       },
       {
         label: '세션 참여',
-        value: String(reports.length),
-        caption: '발급된 리포트',
+        display: `${reports.length}회`,
+        pct: reports.length > 0 ? Math.min(100, reports.length * 12) : 0,
       },
       {
         label: '누적 평점',
-        value: formatRating(avg(ratings)),
-        caption: '5.0 만점',
+        display: formatRating(rating),
+        pct: rating != null ? (rating / 5) * 100 : 0,
       },
     ];
   }, [reports]);
@@ -325,37 +456,24 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
       </div>
 
       {classId != null ? (
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            boxShadow: 'var(--shadow-card)',
-            padding: '18px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 16,
-            flexWrap: 'wrap',
-          }}
+        <QueryAsyncBoundary
+          suspenseFallback={<Skeleton width="100%" height={120} radius={16} />}
+          errorFallback={null}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>학기 전체 종합 리포트</span>
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-              세션 리포트를 합산한 학기 요약을 확인하고 PDF로 내보낼 수 있어요.
-            </span>
-          </div>
-          <Button variant="primary" size="sm" onClick={() => navigate('/app/report/summary')}>
-            종합 리포트 열람
-          </Button>
-        </div>
+          <SemesterSummarySection userId={me.id} classId={classId} className={className} />
+        </QueryAsyncBoundary>
       ) : null}
 
-      <StatCardRow>
-        {kpis.map((item, i) => (
-          <StatCard key={i} {...item} />
-        ))}
-      </StatCardRow>
+      <SimpleBars items={barItems} />
+
+      {classId != null ? (
+        <QueryAsyncBoundary
+          suspenseFallback={<Skeleton width="100%" height={120} radius={16} />}
+          errorFallback={null}
+        >
+          <InstructorCommentsSection userId={me.id} classId={classId} />
+        </QueryAsyncBoundary>
+      ) : null}
 
       {reports.length > 0 ? (
         <div
@@ -390,7 +508,6 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
       <SessionReportTable
         rows={sessionRows}
         onOpen={(sessionId) => navigate(`/session/${sessionId}/report`)}
-        onQuiz={(quizSetId) => navigate(`/app/quizzes/${quizSetId}`)}
         onGoDashboard={() => navigate('/app')}
       />
     </>

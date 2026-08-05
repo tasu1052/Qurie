@@ -18,6 +18,7 @@ class PipelineState(TypedDict, total=False):
     approved_pool: list[dict[str, Any]]
     rejected_pool: list[dict[str, Any]]
     last_approved: int
+    retry_notes: str
     user_prompt: str | None
     # 재생성 시 중복 출제를 피할 이전 문항 목록 (백엔드 avoid_questions)
     avoid_questions: list[str]

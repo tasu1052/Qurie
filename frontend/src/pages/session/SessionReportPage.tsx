@@ -1,6 +1,5 @@
-import { StudentShell, PageMain } from '../../components/layout/StudentShell';
-import { ManagerShell } from '../../components/layout/ManagerShell';
-import { MasterShell } from '../../components/layout/MasterShell';
+import { AppShell } from '../../components/layout/AppShell';
+import { PageMain } from '../../components/layout/PageMain';
 import {
   Badge,
   Button,
@@ -25,6 +24,7 @@ import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Download, RefreshCw, TriangleAlert } from 'lucide-react';
+import { ApiIntegrationPanel } from '../../components/feedback/ApiIntegrationPanel';
 
 function ReportSkeleton() {
   return (
@@ -105,13 +105,13 @@ function conceptBars(stats: Record<string, unknown> | null) {
 
 function SessionReportBody({
   report,
-  backTo,
   sessionId,
+  backTo,
   userRole,
 }: {
   report: SessionReportDetailResponse;
-  backTo: string;
   sessionId: number;
+  backTo: string;
   userRole: string;
 }) {
   const navigate = useNavigate();
@@ -127,6 +127,10 @@ function SessionReportBody({
         ? `/app/quizzes/${report.quizSetId}`
         : `/manager/quizzes/${report.quizSetId}`;
   const isManager = userRole === 'MANAGER' || userRole === 'MASTER';
+  const aiStrengths = report.aiStrengths ?? [];
+  const aiImprovements = report.aiImprovements ?? [];
+  const hasAiBlock =
+    Boolean(report.aiComment?.trim()) || aiStrengths.length > 0 || aiImprovements.length > 0;
   const segments = useMemo(() => difficultySegments(report.difficultyRatio), [report.difficultyRatio]);
   const categories = useMemo(() => conceptBars(report.conceptStats), [report.conceptStats]);
   const hardSeg = segments.find((s) => s.label === 'HARD');
@@ -261,7 +265,7 @@ function SessionReportBody({
         />
       </StatCardRow>
 
-      {report.aiComment?.trim() ? (
+      {hasAiBlock ? (
         <div
           style={{
             background: 'var(--surface-card)',
@@ -285,13 +289,52 @@ function SessionReportBody({
           >
             AI 리포트
           </span>
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--ink)', fontWeight: 600 }}>
-            {report.aiComment.trim()}
-          </p>
+          {report.aiComment?.trim() ? (
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--ink)', fontWeight: 600 }}>
+              {report.aiComment}
+            </p>
+          ) : null}
+          {(aiStrengths.length > 0 || aiImprovements.length > 0) ? (
+            <div className="qurie-app-split" style={{ alignItems: 'start' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>강점</span>
+                {aiStrengths.length === 0 ? (
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</span>
+                ) : (
+                  aiStrengths.map((s) => (
+                    <div key={s} style={{ display: 'flex', gap: 8 }}>
+                      <CheckCircle2 size={14} style={{ color: 'var(--status-success)', flexShrink: 0, marginTop: 2 }} />
+                      <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>개선점</span>
+                {aiImprovements.length === 0 ? (
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</span>
+                ) : (
+                  aiImprovements.map((s) => (
+                    <div key={s} style={{ display: 'flex', gap: 8 }}>
+                      <TriangleAlert size={14} style={{ color: 'var(--status-warning)', flexShrink: 0, marginTop: 2 }} />
+                      <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : null}
+          {report.managerComment?.trim() ? (
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
+              강사 코멘트: {report.managerComment}
+            </p>
+          ) : null}
         </div>
-      ) : null}
+      ) : (
+        <ApiIntegrationPanel groupId="sessionReportAi" variant="compact" title="AI 리포트 API" />
+      )}
 
-      <div className="qurie-master-split">
+      <div className="qurie-app-split">
         <div
           style={{
             background: 'var(--surface-card)',
@@ -390,7 +433,7 @@ function SessionReportBody({
         </div>
       </div>
 
-      <div className="qurie-master-split" style={{ alignItems: 'start' }}>
+      <div className="qurie-app-split" style={{ alignItems: 'start' }}>
         <div
           style={{
             background: 'var(--surface-card)',
@@ -504,8 +547,8 @@ function SessionReportLoader({
   return (
     <SessionReportBody
       report={report}
-      backTo={backTo}
       sessionId={sessionId}
+      backTo={backTo}
       userRole={userRole}
     />
   );
@@ -536,27 +579,11 @@ export default function SessionReportPage() {
   const breadcrumbs =
     me.role === 'STUDENT' ? ['리포트', '세션 리포트'] : ['세션', '세션 리포트'];
 
-  const wrap = (children: ReactNode) => {
-    if (me.role === 'MANAGER') {
-      return (
-        <ManagerShell activeKey={activeKey} breadcrumbs={breadcrumbs}>
-          <PageMain>{children}</PageMain>
-        </ManagerShell>
-      );
-    }
-    if (me.role === 'MASTER') {
-      return (
-        <MasterShell activeKey={activeKey} breadcrumbs={breadcrumbs}>
-          <PageMain>{children}</PageMain>
-        </MasterShell>
-      );
-    }
-    return (
-      <StudentShell activeKey={activeKey} breadcrumbs={breadcrumbs}>
-        <PageMain>{children}</PageMain>
-      </StudentShell>
-    );
-  };
+  const wrap = (children: ReactNode) => (
+    <AppShell role={me.role} activeKey={activeKey} breadcrumbs={breadcrumbs}>
+      <PageMain>{children}</PageMain>
+    </AppShell>
+  );
 
   if (!Number.isFinite(sessionId) || sessionId <= 0) {
     return wrap(

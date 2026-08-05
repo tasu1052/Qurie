@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
-import { ChevronRight, Mail, Search, UserPlus } from 'lucide-react';
+import { ChevronRight, Mail, Search, UserPlus, Users } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
@@ -12,8 +12,10 @@ import {
   FileDropzone,
   Input,
   Modal,
+  Pagination,
   RowErrorFallback,
   Skeleton,
+  SortableHeader,
   UploadRow,
 } from '../../ds';
 import {
@@ -27,11 +29,27 @@ import {
   type ClassMemberResponse,
   type GroupResponse,
 } from '../../data';
+import { getUserProfileExtras } from '../../utils/userProfileExtras';
+import { validateInviteFile } from '../../utils/validateInviteFile';
+
+const MEMBERS_PAGE_SIZE = 20;
+
+type StudentSortKey = 'name' | 'group' | 'role';
+
+function studentRoleLabel(_role: ClassMemberResponse['role'], groupName: string | null): string {
+  return groupName ? '학생' : '미배정';
+}
 
 function apiErrorMessage(error: unknown, fallback: string): string {
   if (isAxiosError(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) return message;
+    const data = error.response?.data;
+    if (typeof data === 'object' && data !== null) {
+      const message = (data as { message?: unknown }).message;
+      if (typeof message === 'string' && message.trim()) return message;
+    }
+    if (typeof error.message === 'string' && error.message.trim() && error.message !== 'Network Error') {
+      return error.message;
+    }
   }
   return fallback;
 }
@@ -157,6 +175,11 @@ function MembersTable({
 }) {
   const navigate = useNavigate();
   const debouncedQuery = useDebouncedValue(query, 300);
+  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<{ key: StudentSortKey; dir: 'asc' | 'desc' } | null>({
+    key: 'name',
+    dir: 'asc',
+  });
   const students = useMemo(() => members.filter((m) => m.role === 'STUDENT'), [members]);
   const filtered = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
@@ -165,18 +188,52 @@ function MembersTable({
       return m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q);
     });
   }, [students, debouncedQuery]);
+  const sorted = useMemo(() => {
+    const key = sort?.key ?? 'name';
+    const dir = sort?.dir === 'desc' ? -1 : 1;
+    return [...filtered].sort((a, b) => {
+      if (key === 'group') {
+        const ga = a.groupName ?? '';
+        const gb = b.groupName ?? '';
+        return ga.localeCompare(gb, 'ko') * dir || a.name.localeCompare(b.name, 'ko');
+      }
+      if (key === 'role') {
+        const ra = studentRoleLabel(a.role, a.groupName);
+        const rb = studentRoleLabel(b.role, b.groupName);
+        return ra.localeCompare(rb, 'ko') * dir || a.name.localeCompare(b.name, 'ko');
+      }
+      return a.name.localeCompare(b.name, 'ko') * dir;
+    });
+  }, [filtered, sort]);
+  const pageCount = Math.max(1, Math.ceil(sorted.length / MEMBERS_PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageItems = sorted.slice(
+    (safePage - 1) * MEMBERS_PAGE_SIZE,
+    safePage * MEMBERS_PAGE_SIZE,
+  );
+  const rangeStart = sorted.length === 0 ? 0 : (safePage - 1) * MEMBERS_PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safePage * MEMBERS_PAGE_SIZE, sorted.length);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedQuery]);
+
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
+
+  const onSort = (next: { key: string; dir: 'asc' | 'desc' } | null) => {
+    if (!next) {
+      setSort(null);
+      return;
+    }
+    if (next.key === 'name' || next.key === 'group' || next.key === 'role') {
+      setSort({ key: next.key, dir: next.dir });
+    }
+  };
 
   return (
-    <div
-      style={{
-        background: 'var(--surface-card)',
-        border: '1px solid var(--border)',
-        borderRadius: 16,
-        boxShadow: 'var(--shadow-card)',
-        overflow: 'hidden',
-        minWidth: 0,
-      }}
-    >
+    <div className="qurie-table-card">
       <div
         style={{
           display: 'flex',
@@ -194,76 +251,102 @@ function MembersTable({
           width={220}
         />
       </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1.8fr 1.2fr',
-          padding: '10px 24px',
-          borderBottom: '1px solid var(--divider)',
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-          color: 'var(--text-muted)',
-        }}
-      >
-        <span>학생</span>
-        <span>그룹</span>
-      </div>
-      {filtered.length === 0 ? (
-        <div style={{ padding: 32 }}>
-        <EmptyState
-          message={students.length === 0 ? '학생이 없습니다' : '검색 결과가 없습니다'}
-          description={
-            students.length === 0
-              ? '클래스에 배정된 학생이 없습니다.'
-              : '이름·이메일을 바꿔 검색해 보세요.'
-          }
-          actionLabel="그룹 관리"
-          onAction={() => navigate('/manager/groups')}
-        />
-        </div>
-      ) : (
-        filtered.map((m) => (
+      <div className="qurie-table-scroll">
+        <div style={{ minWidth: 640 }} className="qurie-table-inner">
           <div
-            key={m.userId}
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate(`/manager/students/detail/${m.userId}`)}
-            onKeyDown={(e) =>
-              e.key === 'Enter' && navigate(`/manager/students/detail/${m.userId}`)
-            }
+            className="qurie-table-grid"
             style={{
-              display: 'grid',
-              gridTemplateColumns: '1.8fr 1.2fr',
-              padding: '13px 24px',
+              gridTemplateColumns: '1.6fr 0.7fr 1fr 1fr',
+              padding: '10px 24px',
               borderBottom: '1px solid var(--divider)',
-              fontSize: 13,
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
               alignItems: 'center',
-              cursor: 'pointer',
             }}
           >
-            <span style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
-              <span
+            <SortableHeader label="학생" sortKey="name" sort={sort} onSort={onSort} />
+            <SortableHeader label="역할" sortKey="role" sort={sort} onSort={onSort} />
+            <SortableHeader label="그룹" sortKey="group" sort={sort} onSort={onSort} />
+            <span>연락처</span>
+          </div>
+          {filtered.length === 0 ? (
+            <div style={{ padding: 32 }}>
+              <EmptyState
+                message={students.length === 0 ? '학생이 없습니다' : '검색 결과가 없습니다'}
+                description={
+                  students.length === 0
+                    ? '클래스에 배정된 학생이 없습니다.'
+                    : '이름·이메일을 바꿔 검색해 보세요.'
+                }
+                actionLabel="그룹 관리"
+                onAction={() => navigate('/manager/groups')}
+              />
+            </div>
+          ) : (
+            pageItems.map((m) => (
+              <div
+                key={m.userId}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/manager/students/detail/${m.userId}`)}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' && navigate(`/manager/students/detail/${m.userId}`)
+                }
+                className="qurie-table-grid"
                 style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 12,
-                  color: 'var(--text-muted)',
+                  gridTemplateColumns: '1.6fr 0.7fr 1fr 1fr',
+                  padding: '13px 24px',
+                  borderBottom: '1px solid var(--divider)',
+                  fontSize: 13,
+                  alignItems: 'center',
+                  cursor: 'pointer',
                 }}
               >
-                {m.email}
-              </span>
-            </span>
-            <span style={{ color: 'var(--text-secondary)' }}>{m.groupName ?? '—'}</span>
-          </div>
-        ))
-      )}
+                <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                  <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 12,
+                      color: 'var(--text-muted)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {m.email}
+                  </span>
+                </span>
+                <span style={{ color: 'var(--text-secondary)' }}>{studentRoleLabel(m.role, m.groupName)}</span>
+                <span style={{ color: 'var(--text-secondary)' }}>{m.groupName ?? '—'}</span>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  {getUserProfileExtras(m.email).phone ?? '—'}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+      {sorted.length > MEMBERS_PAGE_SIZE ? (
+        <div style={{ padding: '14px 24px', borderTop: '1px solid var(--divider)' }}>
+          <Pagination
+            page={safePage}
+            pageCount={pageCount}
+            pageSize={MEMBERS_PAGE_SIZE}
+            rangeLabel={`${rangeStart}–${rangeEnd} / ${sorted.length}명`}
+            onPage={setPage}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function StudentManagementBody({ classId }: { classId: number }) {
+  const navigate = useNavigate();
   const { data: cls } = useGetClass(classId);
   const { data: membersPage } = useGetClassMembers(classId, { size: 100 });
   const [query, setQuery] = useState('');
@@ -314,6 +397,11 @@ function StudentManagementBody({ classId }: { classId: number }) {
       setInviteError('업로드할 파일을 선택하세요.');
       return;
     }
+    const fileError = validateInviteFile(bulkFile);
+    if (fileError) {
+      setInviteError(fileError);
+      return;
+    }
     createBulk.mutate(
       { file: bulkFile, classId, role: 'STUDENT' },
       {
@@ -345,6 +433,15 @@ function StudentManagementBody({ classId }: { classId: number }) {
         style={{ display: 'none' }}
         onChange={(e) => {
           const file = e.target.files?.[0] ?? null;
+          if (file) {
+            const err = validateInviteFile(file);
+            if (err) {
+              setInviteError(err);
+              setBulkFile(null);
+              e.target.value = '';
+              return;
+            }
+          }
           setBulkFile(file);
           setInviteEmail('');
           resetInviteMessages();
@@ -358,22 +455,31 @@ function StudentManagementBody({ classId }: { classId: number }) {
             {cls.name} · 학생 {studentCount}명
           </span>
         </div>
-        <Button
-          variant="primary"
-          icon={<UserPlus size={15} strokeWidth={1.75} />}
-          onClick={() => {
-            setInviteEmail('');
-            setBulkFile(null);
-            resetInviteMessages();
-            setInviteOpen(true);
-          }}
-        >
-          학생 초대
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Button
+            variant="secondary"
+            icon={<Users size={15} strokeWidth={1.75} />}
+            onClick={() => navigate('/manager/groups')}
+          >
+            그룹 관리
+          </Button>
+          <Button
+            variant="primary"
+            icon={<UserPlus size={15} strokeWidth={1.75} />}
+            onClick={() => {
+              setInviteEmail('');
+              setBulkFile(null);
+              resetInviteMessages();
+              setInviteOpen(true);
+            }}
+          >
+            학생 초대
+          </Button>
+        </div>
       </div>
 
       <div
-        className="qurie-master-split"
+        className="qurie-app-split"
         style={{ gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)' }}
       >
         <MembersTable
@@ -407,19 +513,6 @@ function StudentManagementBody({ classId }: { classId: number }) {
           >
             <GroupsSidePanel classId={classId} />
           </QueryAsyncBoundary>
-          <div
-            style={{
-              background: 'var(--accent-softer)',
-              border: '1px solid var(--accent-soft)',
-              borderRadius: 12,
-              padding: 14,
-              fontSize: 12.5,
-              lineHeight: 1.6,
-              color: 'var(--text-body)',
-            }}
-          >
-            엑셀·CSV로 학생을 일괄 초대할 수 있어요. 이메일 열이 포함된 파일을 사용하세요.
-          </div>
         </div>
       </div>
 
@@ -443,7 +536,7 @@ function StudentManagementBody({ classId }: { classId: number }) {
         width={520}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {inviteError ? <AlertBanner tone="error" title="초대 실패" description={inviteError} /> : null}
+          {inviteError ? <AlertBanner tone="error" title={inviteError} /> : null}
           {inviteOk ? <AlertBanner tone="success" title="초대 발송 완료" description={inviteOk} /> : null}
           {bulkSummary ? (
             <AlertBanner tone="success" title="일괄 초대 결과" description={bulkSummary} />

@@ -123,6 +123,7 @@ export const useUpdateSession = () => {
         mutationFn: ({ id, ...body }: SessionUpdateRequest & { id: number }) =>
             updateSession(id, body),
         onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
             queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(data.id) });
             queryClient.invalidateQueries({ queryKey: queryKeys.sessions.list(data.classId) });
         },
@@ -135,6 +136,7 @@ export const useDeleteSession = () => {
     return useMutation({
         mutationFn: ({ id }: { id: number; classId: number }) => deleteSession(id),
         onSuccess: (_, { id, classId }) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
             queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(id) });
             queryClient.invalidateQueries({ queryKey: queryKeys.sessions.list(classId) });
         },

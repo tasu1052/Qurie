@@ -2,18 +2,25 @@ import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { DashboardNoticesSection } from '../../components/notices/DashboardNoticesSection';
-import { Badge, Chevron, RowErrorFallback, Skeleton, StatCard, StatCardRow } from '../../ds';
-import {
-  QueryAsyncBoundary,
-  useGetAnalyticsOverview,
-  useGetTracks,
-  useGetUsers,
-} from '../../data';
-import type { TrackCard } from '../../data';
+import { Badge, Chevron, RowErrorFallback, Skeleton } from '../../ds';
+import { QueryAsyncBoundary, useGetTracks, useGetUsers } from '../../data';
+import type { TrackSummaryResponse } from '../../data';
+
+type TrackCard = {
+  id: string;
+  name: string;
+  tech: 'java' | 'python' | 'database';
+  status: 'active' | 'scheduled';
+  statusLabel: string;
+  meta: string;
+  metricValue: string;
+  metricLabel: string;
+  accentMetric?: boolean;
+};
+
 import javaTech from '../../ds/assets/tech/java_50.png';
 import pythonTech from '../../ds/assets/tech/python_50.png';
 import dbTech from '../../ds/assets/tech/database_50.png';
-import type { TrackSummaryResponse } from '../../data';
 
 const techImg: Record<string, string> = { java: javaTech, python: pythonTech, database: dbTech };
 
@@ -30,42 +37,17 @@ function toTrackCard(t: TrackSummaryResponse): TrackCard {
     name: t.name,
     tech: normalizeTech(t.tech),
     status: 'active',
-    statusLabel: '진행 중',
-    meta: t.description || `클래스 ${t.classCount}`,
-    metricValue: String(t.classCount),
-    metricLabel: '클래스',
-    accentMetric: t.classCount > 0,
+    statusLabel: '활성',
+    meta: `클래스 ${t.classCount}`,
+    metricValue: '',
+    metricLabel: '',
+    accentMetric: false,
   };
-}
-
-function KpiSkeleton() {
-  return (
-    <StatCardRow>
-      {[0, 1, 2, 3].map((i) => (
-        <div
-          key={i}
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--card-radius)',
-            padding: 'var(--stat-card-padding)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-          }}
-        >
-          <Skeleton width={36} height={36} radius={10} delay={i * 0.08} />
-          <Skeleton width="60%" height={14} delay={i * 0.08 + 0.04} />
-          <Skeleton width="40%" height={12} delay={i * 0.08 + 0.08} />
-        </div>
-      ))}
-    </StatCardRow>
-  );
 }
 
 function TracksSkeleton() {
   return (
-    <div className="qurie-master-split">
+    <div className="qurie-app-split">
       <div
         style={{
           background: 'var(--surface-card)',
@@ -100,17 +82,6 @@ function TracksSkeleton() {
             ))}
           </div>
         </div>
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            padding: 24,
-            minWidth: 0,
-          }}
-        >
-          <Skeleton width="100%" height={60} radius={6} />
-        </div>
       </div>
     </div>
   );
@@ -135,6 +106,7 @@ function TrackCardItem({ track, onClick }: { track: TrackCard; onClick: () => vo
       }}
     >
       <span
+        className="tech-icon-wrap"
         style={{
           width: 38,
           height: 38,
@@ -150,42 +122,30 @@ function TrackCardItem({ track, onClick }: { track: TrackCard; onClick: () => vo
           width={22}
           height={22}
           alt={track.tech}
+          className="tech-icon"
           style={{ objectFit: 'contain' }}
         />
       </span>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{track.name}</span>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <span
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: 'var(--ink)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {track.name}
+          </span>
           <Badge status={active ? 'success' : 'neutral'}>{track.statusLabel}</Badge>
         </div>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{track.meta}</span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-        <span
-          style={{
-            fontSize: 14,
-            fontWeight: 700,
-            color: track.accentMetric ? 'var(--accent)' : 'var(--ink)',
-          }}
-        >
-          {track.metricValue}
-        </span>
-        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{track.metricLabel}</span>
-      </div>
-      <Chevron size={12} color="var(--accent)" />
+      <Chevron size={12} color="var(--accent)" style={{ flexShrink: 0 }} />
     </div>
-  );
-}
-
-function KpiRow() {
-  const { data } = useGetAnalyticsOverview();
-  return (
-    <StatCardRow>
-      <StatCard label="트랙" value={String(data.trackCount)} caption="전체 트랙" />
-      <StatCard label="진행 중 클래스" value={String(data.activeClassCount)} caption="active" accent />
-      <StatCard label="매니저" value={String(data.managerCount)} caption="MANAGER" />
-      <StatCard label="학생" value={String(data.studentCount)} caption="STUDENT" />
-    </StatCardRow>
   );
 }
 
@@ -202,7 +162,7 @@ function TracksAndManagers({
   const managers = managersPage.data;
 
   return (
-    <div className="qurie-master-split">
+    <div className="qurie-app-split">
       <div
         style={{
           background: 'var(--surface-card)',
@@ -278,7 +238,7 @@ function TracksAndManagers({
                 color: 'var(--text-secondary)',
               }}
             >
-              매니저 액티비티
+              매니저 목록
             </span>
           </div>
           {managers.length === 0 ? (
@@ -306,9 +266,6 @@ function TracksAndManagers({
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{m.name}</div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{m.email}</div>
                 </div>
-                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                  주간 세션 {m.weeklySessionCount}
-                </span>
               </div>
             ))
           )}
@@ -320,7 +277,6 @@ function TracksAndManagers({
 
 export default function MasterDashboardPage() {
   const navigate = useNavigate();
-  const [kpiKey, setKpiKey] = useState(0);
   const [tracksKey, setTracksKey] = useState(0);
 
   return (
@@ -334,25 +290,12 @@ export default function MasterDashboardPage() {
         </div>
 
         <QueryAsyncBoundary
-          key={kpiKey}
-          suspenseFallback={<KpiSkeleton />}
-          errorFallback={
-            <RowErrorFallback
-              onRetry={() => setKpiKey((k) => k + 1)}
-              title="KPI를 불러오지 못했습니다"
-            />
-          }
-        >
-          <KpiRow />
-        </QueryAsyncBoundary>
-
-        <QueryAsyncBoundary
           key={tracksKey}
           suspenseFallback={<TracksSkeleton />}
           errorFallback={
             <RowErrorFallback
               onRetry={() => setTracksKey((k) => k + 1)}
-              title="트랙 현황을 불러오지 못했습니다"
+              title="트랙 목록을 불러오지 못했습니다"
             />
           }
         >

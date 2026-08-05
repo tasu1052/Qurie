@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, LogOut } from 'lucide-react';
-import { Button, Sidebar, Topbar } from '../../ds';
+import { Building2 } from 'lucide-react';
+import { Sidebar, Topbar } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
-import { getAdminSession, logoutAdmin } from '../../data';
-import { PageMain } from './MasterShell';
+import { PageMain } from './PageMain';
 
 const iconProps = { size: 16, strokeWidth: 1.75 } as const;
 
@@ -20,16 +19,10 @@ const adminNav = [
 
 export function AdminShell({ activeKey, breadcrumbs, children }: AdminShellProps) {
   const navigate = useNavigate();
-  const session = getAdminSession();
-  const name = session?.name ?? '관리자';
-  const email = session?.email ?? '';
+  const name = '어드민';
+  const email = 'staff@qurie.com';
   const initial = name.slice(0, 1);
   const items = adminNav.map(({ key, label, icon }) => ({ key, label, icon }));
-
-  const onLogout = () => {
-    logoutAdmin();
-    navigate('/admin/login', { replace: true });
-  };
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-app)', fontFamily: 'var(--font-sans)' }}>
@@ -74,21 +67,6 @@ export function AdminShell({ activeKey, breadcrumbs, children }: AdminShellProps
                 {email}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={onLogout}
-              title="로그아웃"
-              style={{
-                border: 'none',
-                background: 'transparent',
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                padding: 4,
-              }}
-            >
-              <LogOut size={14} strokeWidth={1.75} />
-            </button>
           </div>
         }
       />
@@ -96,13 +74,8 @@ export function AdminShell({ activeKey, breadcrumbs, children }: AdminShellProps
         <Topbar
           breadcrumbs={breadcrumbs}
           userName={name}
-          userRole="ADMIN"
+          userEmail={email}
           hideSearch
-          actions={
-            <Button variant="ghost" size="sm" onClick={onLogout}>
-              로그아웃
-            </Button>
-          }
         />
         {children}
       </div>

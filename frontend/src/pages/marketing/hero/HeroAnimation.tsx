@@ -20,7 +20,7 @@ const ACCENT = '#6366F1';
 const MUTED = '#6B7280';
 const BORDER = '#E8E8EA';
 const FONT = "var(--font-sans), 'Noto Sans KR', sans-serif";
-const CTA_LABEL = '데모 요청하기';
+const CTA_LABEL = '도입 문의하기';
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 const seg = (p: number, a: number, b: number) => clamp((p - a) / (b - a), 0, 1);
@@ -148,13 +148,13 @@ function Headline({ on, pulse = 0 }: { on: number; pulse?: number }) {
             letterSpacing: '0.02em',
           }}
         >
-          실시간 코드 리뷰 × AI 퀴즈
+          함께 코딩 × AI 퀴즈
         </div>
         <div style={{ fontSize: 30, fontWeight: 700, color: INK, marginTop: 10, letterSpacing: '-0.01em' }}>
-          함께 리뷰하고, AI 퀴즈로 확인하세요
+          함께 코드를 보며, AI 퀴즈로 확인하세요
         </div>
         <div style={{ fontSize: 15, color: MUTED, marginTop: 8 }}>
-          실시간 코드 리뷰 룸에서 함께 배우고, AI 퀴즈로 이해도를 측정합니다
+          같은 화면에서 함께 배우고, AI 퀴즈로 얼마나 이해했는지 확인해요
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16 }}>
           <div
@@ -181,7 +181,7 @@ function Headline({ on, pulse = 0 }: { on: number; pulse?: number }) {
               fontWeight: 600,
             }}
           >
-            데모 보기
+            기능 살펴보기
           </div>
         </div>
       </div>
@@ -193,9 +193,9 @@ function QuizCard({ p }: { p: number }) {
   const pop = MOTION.pop(seg(p, 0.04, 0.18));
   if (pop <= 0) return null;
   const opts = [
-    { label: 'O(n)', at: 0.24 },
-    { label: 'O(n log n)', at: 0.32, correct: true },
-    { label: 'O(n²)', at: 0.4 },
+    { label: '변수 선언 부분', at: 0.24 },
+    { label: '반복문으로 목록을 처리하는 부분', at: 0.32, correct: true },
+    { label: '주석 처리된 코드', at: 0.4 },
   ];
   const picked = seg(p, 0.55, 0.62) > 0;
   const done = MOTION.enter(seg(p, 0.74, 0.84));
@@ -235,7 +235,7 @@ function QuizCard({ p }: { p: number }) {
         </div>
       </div>
       <div style={{ fontSize: 15, fontWeight: 700, color: INK, marginTop: 12, lineHeight: 1.45 }}>
-        Q. 방금 리뷰한 정렬 함수의 시간 복잡도는?
+        Q. 방금 함께 본 코드에서, 가장 핵심이 되는 부분은?
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
         {opts.map((o) => {
@@ -255,7 +255,7 @@ function QuizCard({ p }: { p: number }) {
                 fontSize: 13.5,
                 fontWeight: 600,
                 color: INK,
-                fontFamily: 'var(--font-mono)',
+                fontFamily: 'var(--font-sans)',
                 opacity: oe,
                 transform: `translateY(${(1 - oe) * 10}px)`,
               }}
@@ -294,7 +294,7 @@ function QuizCard({ p }: { p: number }) {
             transform: `translateY(${(1 - done) * 8}px)`,
           }}
         >
-          ✓ 정답입니다 · 이해도 92%
+          ✓ 정답이에요 · 이해도 92%
         </div>
       )}
     </div>
@@ -330,7 +330,7 @@ function SceneReview() {
   return (
     <>
       <Camera cam={STATIC_CAM} />
-      <Caption text="같은 코드를 보며 실시간으로 리뷰합니다" on={capOn} />
+      <Caption text="같은 코드를 보며 실시간으로 피드백합니다" on={capOn} />
     </>
   );
 }
@@ -342,7 +342,7 @@ function SceneQuiz() {
     <>
       <Camera cam={STATIC_CAM} />
       <QuizCard p={p} />
-      <Caption text="리뷰한 내용, AI 퀴즈로 확인합니다" on={capOn} />
+      <Caption text="배운 내용을 AI 퀴즈로 확인합니다" on={capOn} />
     </>
   );
 }

@@ -36,10 +36,12 @@ def _build_code_section(files: dict[str, str], primary_file: str) -> str:
 
 
 def _build_avoid_section(avoid_questions: list[str] | None) -> str:
-    """이미 출제된 문항 목록을 '중복 금지' 지시로 렌더링한다.
+    """백엔드가 보낸 '이전 세트에서 이미 출제된 문항'을 '중복 금지' 지시로 렌더링한다.
 
     USER_HINT(untrusted)와 달리 이 목록은 백엔드 DB에서 온 신뢰 데이터라
-    지시문 구간에 넣는다. 항목이 많아도 전체 길이 상한을 지킨다.
+    지시문 구간에 넣는다. 이번 실행에서 만든 문항은 _existing_block 이 담당하고,
+    이 섹션은 실행을 넘어선(cross-generation) 이력만 담는다.
+    항목이 많아도 전체 길이 상한을 지킨다.
     """
     items = [q.strip() for q in avoid_questions or [] if q and q.strip()]
     if not items:
@@ -57,7 +59,12 @@ def _build_avoid_section(avoid_questions: list[str] | None) -> str:
 
 
 def _build_critiques_section(critiques_note: str | None) -> str:
-    """재시도 라운드의 judge 반려 사유. user_prompt(untrusted)와 분리된 신뢰 구간이다."""
+    """호출자가 라운드를 넘어 직접 누적해 온 judge 반려 사유.
+
+    파이프라인 내부에서는 retry_notes(_retry_block)가 같은 역할을 하므로 그쪽을 쓴다.
+    이 파라미터는 외부에서 누적 노트를 통째로 넘기는 경로용이며, 어느 쪽이든
+    user_prompt(untrusted)와 분리된 신뢰 구간에 렌더링된다는 점은 같다.
+    """
     note = (critiques_note or "").strip()
     if not note:
         return ""
@@ -65,6 +72,44 @@ def _build_critiques_section(critiques_note: str | None) -> str:
         "\n[이전 시도 반려 사유 — 반복 금지]\n"
         f"{note}\n"
     )
+
+
+# 이미 출제된 문항 목록의 상한. 라운드가 쌓여도 프롬프트가 무한정 길어지지 않게 한다.
+_MAX_EXISTING = 30
+
+
+def _existing_block(existing: list[dict] | None) -> str:
+    """이미 만든 문항을 알려 준다.
+
+    재생성 라운드는 같은 코드와 같은 지시를 다시 받으므로, 알려 주지 않으면
+    가장 먼저 떠오르는 문항을 또 만든다. temperature 가 낮을수록 더 똑같아진다.
+    승인분뿐 아니라 탈락분도 넣는다 — 탈락한 문항을 또 만들면 또 탈락한다.
+    """
+    if not existing:
+        return ""
+    lines = []
+    for q in existing[:_MAX_EXISTING]:
+        question = (q.get("question") or "").replace("\n", " ").strip()
+        if question:
+            lines.append(f"- ({q.get('tested_concept') or '?'}) {question}")
+    if not lines:
+        return ""
+    return (
+        "\n[이미 출제된 문항 — 아래와 겹치는 문항을 내지 마세요]\n"
+        + "\n".join(lines)
+        + "\n같은 개념이라도 **묻는 각도가 다르면** 됩니다. 표현만 바꾼 사실상 같은 문항은 금지입니다.\n"
+    )
+
+
+def _retry_block(retry_notes: str | None) -> str:
+    """이전 라운드 탈락 사유. USER_HINT 밖에 둔다.
+
+    시스템이 만든 피드백을 untrusted 블록에 넣으면 "무시해도 되는 힌트"로
+    라벨링되어 모델이 따르지 않는다. 사용자 입력과 섞여 누적되는 문제도 있다.
+    """
+    if not retry_notes:
+        return ""
+    return f"\n[이전 라운드 탈락 사유 — 같은 실수를 반복하지 마세요]\n{retry_notes}\n"
 
 
 def build_generate_prompt(
@@ -75,6 +120,8 @@ def build_generate_prompt(
     purpose_counts: dict[str, int],
     mode: str,
     user_prompt: str | None,
+    existing: list[dict] | None = None,
+    retry_notes: str | None = None,
     avoid_questions: list[str] | None = None,
     critiques_note: str | None = None,
 ) -> str:
@@ -82,6 +129,7 @@ def build_generate_prompt(
     file_list = ", ".join(f'"{p}"' for p in files)
     conceptual_n = purpose_counts.get("conceptual", 0)
     micro_n = purpose_counts.get("micro", 0)
+    already = _existing_block(existing) + _retry_block(retry_notes)
 
     avoid_block = _build_avoid_section(avoid_questions)
     critique_block = _build_critiques_section(critiques_note)
@@ -133,10 +181,10 @@ def build_generate_prompt(
 - choices 정확히 4개, answer_index 0~3, tested_concept 최대 60자.
 - purpose는 CONCEPTUAL 또는 MICRO만 사용.
 - 코드에 정의 없는 외부 함수의 내부 동작은 묻지 마세요.
-{avoid_block}{critique_block}
+{avoid_block}{critique_block}{already}
 {hint}
 [출력]
-emit_quizzes 도구로만 답하세요. quizzes 배열 길이는 정확히 {requested_count}개.
+지정된 출력 형식에 맞춰서만 답하세요. quizzes 배열 길이는 정확히 {requested_count}개.
 예시 (MICRO는 값을 채우고, CONCEPTUAL은 null):
   {{"purpose":"MICRO","difficulty":"NORMAL","tested_concept":"","question":"","choices":["","","",""],"answer_index":0,"explanation":"","file_path":"{primary_file}","line_start":1,"line_end":3}}
   {{"purpose":"CONCEPTUAL","difficulty":"EASY","tested_concept":"","question":"","choices":["","","",""],"answer_index":0,"explanation":"","file_path":null,"line_start":null,"line_end":null}}

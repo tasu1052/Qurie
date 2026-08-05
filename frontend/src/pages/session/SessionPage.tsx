@@ -19,6 +19,7 @@ import { AlertBanner, Button, LiveBadge, Modal } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
 import { CollabMonacoEditor } from '../../collab/CollabMonacoEditor';
 import { useCollabSession } from '../../collab/useCollabSession';
+import { getOrCreateFileYText } from '../../collab/fileYText';
 import {
   getProjectFileContent,
   getProjectFiles,
@@ -62,10 +63,12 @@ import {
   usePointerDrag,
   useSessionPanelSizes,
   useViewportWidth,
+  type SessionMobileView,
 } from '../../components/session/sessionPanelLayout';
+import { SessionBottomNav } from '../../components/session/SessionBottomNav';
 import type * as Y from 'yjs';
 
-type LeftTab = 'explorer' | 'materials';
+type LeftTab = 'explorer';
 type RightTab = 'community' | 'quiz';
 
 /** 공유 Y.Text 가 비어 있을 때만 DB 스냅샷을 넣는다. 이미 원격 편집이 있으면 덮지 않는다. */
@@ -158,9 +161,12 @@ export default function SessionPage() {
     initialActiveFile ? languageFromPath(initialActiveFile) : 'plaintext',
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mobileView, setMobileView] = useState<SessionMobileView>('editor');
   const [activeFile, setActiveFile] = useState<string | null>(initialActiveFile);
   /** 리더가 다시 가져오기 중일 때만 true — 서버 프로젝트가 있어도 ImportPanel 을 연다. */
   const [reimportMode, setReimportMode] = useState(false);
+  const [importAutoOpen, setImportAutoOpen] = useState<'file' | 'folder' | null>(null);
+  const [activeFileReady, setActiveFileReady] = useState(false);
   const hydratedActiveFileRef = useRef(false);
   const [pendingImport, setPendingImport] = useState<ProjectImportResponse | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
@@ -221,8 +227,20 @@ export default function SessionPage() {
     );
   }, [meQuery.data?.role, groupId, groupDetailQuery.data?.members, myUserId]);
 
+  const isGroupLeader = useMemo(() => {
+    if (meQuery.data?.role === 'MANAGER' || meQuery.data?.role === 'MASTER') return false;
+    if (groupId == null || myUserId == null) return false;
+    return (
+      groupDetailQuery.data?.members.some(
+        (m) => m.userId === myUserId && m.role === 'LEADER',
+      ) ?? false
+    );
+  }, [meQuery.data?.role, groupId, groupDetailQuery.data?.members, myUserId]);
+
   const isSessionManager =
     meQuery.data?.role === 'MANAGER' || meQuery.data?.role === 'MASTER';
+
+  const canGenerateQuiz = isSessionManager || isGroupLeader;
 
   const onAskHelp = () => {
     if (!hasSessionId) return;
@@ -242,10 +260,23 @@ export default function SessionPage() {
     !groupDetailQuery.data &&
     (groupDetailQuery.isPending || groupDetailQuery.isFetching);
 
-  const { ytext, provider, status: collabStatus, synced: collabSynced } = useCollabSession(
+  const { ydoc, provider, status: collabStatus, synced: collabSynced } = useCollabSession(
     hasSessionId ? String(sessionId) : 'demo',
     collabUser,
   );
+
+  const editorYText = useMemo(() => {
+    if (!activeFile) return null;
+    return getOrCreateFileYText(ydoc, activeFile);
+  }, [ydoc, activeFile]);
+
+  const editorContentStamp = editorYText?.length ?? 0;
+
+  /** ydoc 이 교체되면(과거 provider 재생성 등) 파일 hydrate 를 다시 시도한다. */
+  useEffect(() => {
+    hydratedActiveFileRef.current = false;
+    setActiveFileReady(false);
+  }, [ydoc]);
 
   /**
    * 트리 바인딩의 단일 소스: GET /projects/current (폴링·STOMP).
@@ -282,6 +313,12 @@ export default function SessionPage() {
       versionHash: remote.versionHash ?? '',
     });
   }, [hasSessionId, sessionId, sessionProjectQuery.data]);
+
+  useEffect(() => {
+    if (!importNotice) return;
+    const timer = window.setTimeout(() => setImportNotice(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [importNotice]);
 
   /** 채팅 · 참여자 · 퀴즈 · 프로젝트 · 음성 채널 STOMP. 세션 id 없으면 연결하지 않는다. */
   const chat = useSessionSocket(hasSessionId ? sessionId : null, {
@@ -360,22 +397,23 @@ export default function SessionPage() {
     path: string,
     options?: { replaceSharedDoc?: boolean },
   ) => {
-    const previousPath = activeFile;
+    setActiveFileReady(false);
     setActiveFile(path);
     applyLanguageFromPath(path);
     if (hasSessionId) saveSessionActiveFile(sessionId, path);
     try {
       const file = await getProjectFileContent(projectId, path);
-      const switchingFile = previousPath != null && previousPath !== path;
-      if (options?.replaceSharedDoc || switchingFile) {
-        // 임포트 확정·다른 파일 선택 시 에디터 내용을 교체한다.
-        replaceYText(ytext, file.content);
+      const fileYText = getOrCreateFileYText(ydoc, path);
+      if (options?.replaceSharedDoc) {
+        replaceYText(fileYText, file.content);
       } else {
-        // 같은 파일 hydrate: 방에 이미 편집본이 있으면 DB 원본으로 덮지 않는다.
-        seedYTextIfEmpty(ytext, file.content);
+        seedYTextIfEmpty(fileYText, file.content);
       }
+      setActiveFileReady(true);
     } catch {
       setImportNotice(`파일을 열지 못했습니다: ${path}`);
+      const fileYText = getOrCreateFileYText(ydoc, path);
+      setActiveFileReady(fileYText.length > 0);
     }
   };
 
@@ -386,25 +424,26 @@ export default function SessionPage() {
    */
   useEffect(() => {
     if (!hasSessionId || !projectRef || !collabSynced || hydratedActiveFileRef.current) return;
-    hydratedActiveFileRef.current = true;
     const path = activeFile ?? loadSessionActiveFile(sessionId);
     const projectId = projectRef.projectId;
-    // openFile 의 setState 가 effect 본문에서 동기 실행되지 않도록 microtask 로 미룬다.
     void (async () => {
-      if (path) {
-        await openFile(projectId, path);
-        return;
-      }
       try {
-        const files = await getProjectFiles(projectId);
-        const first = [...files].map((f) => f.path).sort((a, b) => a.localeCompare(b))[0];
-        if (first) await openFile(projectId, first);
+        if (path) {
+          await openFile(projectId, path);
+        } else {
+          const files = await getProjectFiles(projectId);
+          const first = [...files].map((f) => f.path).sort((a, b) => a.localeCompare(b))[0];
+          if (first) await openFile(projectId, first);
+        }
+        hydratedActiveFileRef.current = true;
       } catch {
-        // 목록 실패해도 세션은 유지
+        hydratedActiveFileRef.current = false;
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync 완료 후 1회만
-  }, [hasSessionId, sessionId, projectRef?.projectId, collabSynced]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync·ydoc·project 준비 후 hydrate
+  }, [hasSessionId, sessionId, projectRef?.projectId, collabSynced, ydoc]);
+
+  const clearImportAutoOpen = useCallback(() => setImportAutoOpen(null), []);
 
   /**
    * 활성 파일의 공유 문서(Yjs) 내용을 스냅샷 DB에 저장한다.
@@ -418,9 +457,10 @@ export default function SessionPage() {
   const saveFilePending = saveFile.isPending;
 
   const onSaveActiveFile = useCallback(() => {
-    if (!projectRef || !activeFile || saveFilePending) return;
+    // 파일별 공유 문서(editorYText)가 준비된 뒤에만 저장한다.
+    if (!projectRef || !activeFile || !editorYText || saveFilePending) return;
     saveFileMutate(
-      { projectId: projectRef.projectId, path: activeFile, content: ytext.toString() },
+      { projectId: projectRef.projectId, path: activeFile, content: editorYText.toString() },
       {
         onSuccess: () => {
           setSaveFlash('저장됨');
@@ -432,7 +472,7 @@ export default function SessionPage() {
         },
       },
     );
-  }, [projectRef, activeFile, saveFilePending, saveFileMutate, ytext]);
+  }, [projectRef, activeFile, saveFilePending, saveFileMutate, editorYText]);
 
   /** 에디터 어디서든 Ctrl/Cmd+S 로 저장한다. 브라우저 기본 저장 다이얼로그는 막는다. */
   useEffect(() => {
@@ -491,27 +531,39 @@ export default function SessionPage() {
     setImportNotice('임포트를 취소했습니다. 다시 가져와 주세요.');
   };
 
-  const startReimport = () => {
+  const startReimport = (picker?: 'file' | 'folder') => {
     if (!canImportProject) return;
     setPendingImport(null);
     setReimportMode(true);
     setActiveFile(null);
+    setActiveFileReady(false);
     hydratedActiveFileRef.current = false;
     if (hasSessionId) clearSessionProject(sessionId);
     setImportNotice(null);
+    setImportAutoOpen(picker ?? null);
     setLeftTab('explorer');
+    if (chrome.stacked) setMobileView('explorer');
   };
 
   const cancelReimport = () => {
     setReimportMode(false);
     setPendingImport(null);
     setImportNotice(null);
+    setImportAutoOpen(null);
   };
 
   const onSelectFile = (path: string) => {
     if (!projectRef) return;
     void openFile(projectRef.projectId, path);
+    if (chrome.stacked) setMobileView('editor');
   };
+
+  const showExplorerPanel =
+    (!chrome.stacked && chrome.showLeft) || (chrome.stacked && mobileView === 'explorer');
+  const editorVisible = !chrome.stacked || mobileView === 'editor';
+  const showRightPanel =
+    (!chrome.stacked && chrome.showRight) ||
+    (chrome.stacked && (mobileView === 'community' || mobileView === 'quiz'));
 
   const onEndSession = () => {
     if (!hasSessionId) return;
@@ -523,6 +575,12 @@ export default function SessionPage() {
       {
         onSuccess: () => {
           setEndConfirmOpen(false);
+          queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
+          if (sessionMetaQuery.data?.classId != null) {
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.sessions.list(sessionMetaQuery.data.classId),
+            });
+          }
           leaveDestination();
         },
         onError: (err) => {
@@ -596,7 +654,8 @@ export default function SessionPage() {
         display: 'flex',
         flexDirection: 'column',
         background: 'var(--bg-app)',
-        height: '100vh',
+        height: chrome.stacked ? '100dvh' : '100vh',
+        maxHeight: chrome.stacked ? '100dvh' : '100vh',
         fontFamily: 'var(--font-sans)',
         color: 'var(--ink)',
         overflow: 'hidden',
@@ -634,9 +693,10 @@ export default function SessionPage() {
             <Button
               variant="secondary"
               style={{ borderRadius: 999 }}
+              disabled={createReportsForAll.isPending}
               onClick={() => setReportConfirmOpen(true)}
             >
-              {chrome.compactHeader ? '리포트' : '리포트 생성'}
+              {createReportsForAll.isPending ? '생성 중…' : chrome.compactHeader ? '리포트' : '리포트 생성'}
             </Button>
           ) : null}
           {!chrome.narrowHeader ? (
@@ -689,24 +749,51 @@ export default function SessionPage() {
                   zIndex: 8,
                 }}
               >
-                <MenuAction
-                  label="세션 종료"
-                  disabled={!hasSessionId || updateSession.isPending}
-                  onClick={() => {
-                    setSettingsOpen(false);
-                    setEndConfirmOpen(true);
-                  }}
-                />
-                <MenuAction
-                  label="세션 삭제"
-                  danger
-                  disabled={!hasSessionId || deleteSession.isPending}
-                  onClick={() => {
-                    setSettingsOpen(false);
-                    setDeleteConfirmOpen(true);
-                  }}
-                />
-                <span style={{ height: 1, background: 'var(--divider)', margin: '4px 6px' }} />
+                {isSessionManager ? (
+                  <>
+                    <MenuAction
+                      label="세션 종료"
+                      disabled={!hasSessionId || updateSession.isPending}
+                      onClick={() => {
+                        setSettingsOpen(false);
+                        setEndConfirmOpen(true);
+                      }}
+                    />
+                    <MenuAction
+                      label="세션 삭제"
+                      danger
+                      disabled={!hasSessionId || deleteSession.isPending}
+                      onClick={() => {
+                        setSettingsOpen(false);
+                        setDeleteConfirmOpen(true);
+                      }}
+                    />
+                    <span style={{ height: 1, background: 'var(--divider)', margin: '4px 6px' }} />
+                  </>
+                ) : null}
+                {chrome.narrowHeader && hasSessionId ? (
+                  <>
+                    <MenuAction
+                      label="질문하기"
+                      disabled={askHelp.isPending}
+                      onClick={() => {
+                        setSettingsOpen(false);
+                        onAskHelp();
+                      }}
+                    />
+                    {isSessionManager ? (
+                      <MenuAction
+                        label={createReportsForAll.isPending ? '리포트 생성 중…' : '리포트 생성'}
+                        disabled={createReportsForAll.isPending}
+                        onClick={() => {
+                          setSettingsOpen(false);
+                          setReportConfirmOpen(true);
+                        }}
+                      />
+                    ) : null}
+                    <span style={{ height: 1, background: 'var(--divider)', margin: '4px 6px' }} />
+                  </>
+                ) : null}
                 <MenuAction
                   label="나가기"
                   onClick={() => {
@@ -761,28 +848,29 @@ export default function SessionPage() {
         />
       ) : null}
 
-      <div style={{ flex: 1, display: 'flex', minHeight: 0, minWidth: 0 }}>
-        {chrome.showLeft ? (
+      <div style={{ flex: 1, display: 'flex', minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
+        {showExplorerPanel ? (
           <>
             <aside
               style={{
-                width: leftWidth,
-                minWidth: leftWidth,
-                maxWidth: leftWidth,
+                ...(chrome.stacked
+                  ? { flex: 1, width: '100%', minWidth: 0, maxWidth: 'none' }
+                  : {
+                      width: leftWidth,
+                      minWidth: leftWidth,
+                      maxWidth: leftWidth,
+                    }),
                 background: 'var(--surface-card)',
                 display: 'flex',
                 flexDirection: 'column',
-                flexShrink: 0,
+                flexShrink: chrome.stacked ? 1 : 0,
                 minHeight: 0,
                 overflow: 'hidden',
               }}
             >
               <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-                <button type="button" style={tabBtn(leftTab === 'explorer')} onClick={() => setLeftTab('explorer')}>
+                <button type="button" style={tabBtn(true)} onClick={() => setLeftTab('explorer')}>
                   탐색기
-                </button>
-                <button type="button" style={tabBtn(leftTab === 'materials')} onClick={() => setLeftTab('materials')}>
-                  강의자료
                 </button>
               </div>
               <div
@@ -824,8 +912,8 @@ export default function SessionPage() {
                           <>
                             <button
                               type="button"
-                              title="다시 가져오기"
-                              onClick={startReimport}
+                              title="파일 다시 선택"
+                              onClick={() => startReimport('file')}
                               disabled={!hasSessionId}
                               style={{
                                 border: 'none',
@@ -843,7 +931,7 @@ export default function SessionPage() {
                             <button
                               type="button"
                               title="폴더 다시 선택"
-                              onClick={startReimport}
+                              onClick={() => startReimport('folder')}
                               disabled={!hasSessionId}
                               style={{
                                 border: 'none',
@@ -906,7 +994,12 @@ export default function SessionPage() {
                               </button>
                             </div>
                           ) : null}
-                          <ProjectImportPanel sessionId={sessionId} onImported={onImported} />
+                          <ProjectImportPanel
+                            sessionId={sessionId}
+                            onImported={onImported}
+                            autoOpenPicker={importAutoOpen}
+                            onAutoOpenHandled={clearImportAutoOpen}
+                          />
                         </div>
                       ) : (
                         <p style={{ margin: '8px 6px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
@@ -921,11 +1014,7 @@ export default function SessionPage() {
                       />
                     )}
                   </>
-                ) : (
-                  <p style={{ margin: '8px 6px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                    API 미구현: 강의자료 패널 연동 전입니다.
-                  </p>
-                )}
+                ) : null}
               </div>
               <div
                 style={{
@@ -936,6 +1025,9 @@ export default function SessionPage() {
                   flexDirection: 'column',
                   gap: 10,
                   flexShrink: 0,
+                  maxHeight: 280,
+                  overflow: 'auto',
+                  minHeight: 0,
                 }}
               >
                 <div
@@ -1055,7 +1147,7 @@ export default function SessionPage() {
                 >
                   음성 채널 · {chat.voiceParticipants.length}명
                 </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflow: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {chat.voiceParticipants.length === 0 ? (
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                       음성 채널에 아무도 없습니다.
@@ -1138,7 +1230,7 @@ export default function SessionPage() {
                 >
                   접속 중 · {chat.participants.length}명
                 </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 120, overflow: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {chat.participants.length === 0 ? (
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>아직 접속자가 없습니다.</span>
                   ) : (
@@ -1154,20 +1246,30 @@ export default function SessionPage() {
                 </div>
               </div>
             </aside>
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="탐색기 너비 조절"
-              onPointerDown={leftDrag.onPointerDown}
-              onPointerMove={leftDrag.onPointerMove}
-              onPointerUp={leftDrag.onPointerUp}
-              onPointerCancel={leftDrag.onPointerUp}
-              style={resizeHandleStyle('vertical', leftDrag.dragging)}
-            />
+            {!chrome.stacked ? (
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="탐색기 너비 조절"
+                onPointerDown={leftDrag.onPointerDown}
+                onPointerMove={leftDrag.onPointerMove}
+                onPointerUp={leftDrag.onPointerUp}
+                onPointerCancel={leftDrag.onPointerUp}
+                style={resizeHandleStyle('vertical', leftDrag.dragging)}
+              />
+            ) : null}
           </>
         ) : null}
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+        <div
+          style={{
+            flex: 1,
+            display: editorVisible ? 'flex' : 'none',
+            flexDirection: 'column',
+            minWidth: 0,
+            minHeight: 0,
+          }}
+        >
           <div
             style={{
               display: 'flex',
@@ -1302,57 +1404,92 @@ export default function SessionPage() {
                   : '연결 끊김 — 변경 사항은 로컬에 보관되며 재연결 시 동기화됩니다.'}
               </div>
             ) : null}
-            {provider ? (
+            {provider && editorYText && activeFile && collabSynced && activeFileReady ? (
               <CollabMonacoEditor
-                ytext={ytext}
+                key={`${activeFile}:${editorContentStamp}`}
+                ytext={editorYText}
                 provider={provider}
                 language={editorLanguage}
                 onlineUserIds={onlineUserIds}
+                compact={chrome.isMobile}
+                visible={editorVisible}
               />
             ) : (
-              <div style={{ flex: 1 }} />
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.55 }}>
+                  {!collabSynced
+                    ? '동기화 연결 중…'
+                    : activeFile && !activeFileReady
+                      ? '파일을 불러오는 중…'
+                      : projectRef
+                        ? '탐색기에서 파일을 선택하세요.'
+                        : pendingImport
+                          ? '프로젝트 미리보기 중입니다.'
+                          : '프로젝트를 연결한 뒤 파일을 열어 주세요.'}
+                </span>
+              </div>
             )}
           </div>
         </div>
 
-        {chrome.showRight ? (
+        {showRightPanel ? (
           <>
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="사이드 패널 너비 조절"
-              onPointerDown={rightDrag.onPointerDown}
-              onPointerMove={rightDrag.onPointerMove}
-              onPointerUp={rightDrag.onPointerUp}
-              onPointerCancel={rightDrag.onPointerUp}
-              style={resizeHandleStyle('vertical', rightDrag.dragging)}
-            />
+            {!chrome.stacked ? (
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="사이드 패널 너비 조절"
+                onPointerDown={rightDrag.onPointerDown}
+                onPointerMove={rightDrag.onPointerMove}
+                onPointerUp={rightDrag.onPointerUp}
+                onPointerCancel={rightDrag.onPointerUp}
+                style={resizeHandleStyle('vertical', rightDrag.dragging)}
+              />
+            ) : null}
             <aside
               style={{
-                width: rightWidth,
-                minWidth: rightWidth,
-                maxWidth: rightWidth,
+                ...(chrome.stacked
+                  ? { flex: 1, width: '100%', minWidth: 0, maxWidth: 'none' }
+                  : {
+                      width: rightWidth,
+                      minWidth: rightWidth,
+                      maxWidth: rightWidth,
+                    }),
                 background: 'var(--surface-card)',
                 display: 'flex',
                 flexDirection: 'column',
-                flexShrink: 0,
+                flexShrink: chrome.stacked ? 1 : 0,
                 minHeight: 0,
                 overflow: 'hidden',
               }}
             >
-              <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-                <button
-                  type="button"
-                  style={tabBtn(rightTab === 'community')}
-                  onClick={() => setRightTab('community')}
-                >
-                  커뮤니티
-                </button>
-                <button type="button" style={tabBtn(rightTab === 'quiz')} onClick={() => setRightTab('quiz')}>
-                  퀴즈
-                </button>
-              </div>
-              {rightTab === 'community' ? (
+              {!chrome.stacked ? (
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    style={tabBtn(rightTab === 'community')}
+                    onClick={() => setRightTab('community')}
+                  >
+                    커뮤니티
+                  </button>
+                  <button type="button" style={tabBtn(rightTab === 'quiz')} onClick={() => setRightTab('quiz')}>
+                    퀴즈
+                  </button>
+                </div>
+              ) : null}
+              {chrome.stacked ? (
+                mobileView === 'community' ? (
+                  <SessionChatPanel chat={chat} hasSessionId={hasSessionId} />
+                ) : (
+                  <SessionQuizPanel
+                    sessionId={sessionId}
+                    projectId={projectRef?.projectId ?? null}
+                    versionHash={projectRef?.versionHash ?? null}
+                    pushedQuizSetId={chat.lastQuizNotification?.quizSetId ?? null}
+                    canGenerateQuiz={canGenerateQuiz}
+                  />
+                )
+              ) : rightTab === 'community' ? (
                 <SessionChatPanel chat={chat} hasSessionId={hasSessionId} />
               ) : (
                 <SessionQuizPanel
@@ -1360,6 +1497,7 @@ export default function SessionPage() {
                   projectId={projectRef?.projectId ?? null}
                   versionHash={projectRef?.versionHash ?? null}
                   pushedQuizSetId={chat.lastQuizNotification?.quizSetId ?? null}
+                  canGenerateQuiz={canGenerateQuiz}
                 />
               )}
             </aside>
@@ -1367,6 +1505,16 @@ export default function SessionPage() {
         ) : null}
       </div>
 
+      {chrome.stacked ? (
+        <SessionBottomNav
+          active={mobileView}
+          onChange={(view) => {
+            setMobileView(view);
+            if (view === 'community') setRightTab('community');
+            if (view === 'quiz') setRightTab('quiz');
+          }}
+        />
+      ) : (
       <footer
         style={{
           height: 30,
@@ -1396,6 +1544,7 @@ export default function SessionPage() {
           <span style={{ color: 'var(--accent)', whiteSpace: 'nowrap' }}>{editorLanguage}</span>
         </span>
       </footer>
+      )}
 
       {/* 강사(혹은 다른 관리자)가 세션을 닫았을 때 참가자를 안내 후 내보낸다 — 닫기(X)로도 나가진다. */}
       <Modal

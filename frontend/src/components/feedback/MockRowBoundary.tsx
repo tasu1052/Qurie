@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { EmptyState, RowErrorFallback, RowSection, RowSkeleton } from '../../ds';
 import { QueryAsyncBoundary } from '../../network/boundaries/QueryAsyncBoundary';
-import type { RowStatus } from '../../data';
+import type { RowStatus } from '../../mocks/fixtures';
 
 type MockRowBoundaryProps = {
   status: RowStatus;

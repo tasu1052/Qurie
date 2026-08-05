@@ -1,8 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { Pin } from 'lucide-react';
-import { MasterShell, PageMain as MasterPageMain } from '../../components/layout/MasterShell';
-import { ManagerShell, PageMain as ManagerPageMain } from '../../components/layout/ManagerShell';
-import { StudentShell, PageMain as StudentPageMain } from '../../components/layout/StudentShell';
+import { AppShell } from '../../components/layout/AppShell';
+import { PageMain } from '../../components/layout/PageMain';
 import { noticeListPath } from '../../hooks/useOpenNoticeDetail';
 import {
   QueryAsyncBoundary,
@@ -22,7 +21,7 @@ function scopeLabel(scope: NoticeScope): string {
 
 function DetailSkeleton() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 720 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 800, width: '100%' }}>
       <Skeleton width="40%" height={28} radius={8} />
       <Skeleton width="100%" height={200} radius={16} />
     </div>
@@ -39,7 +38,7 @@ function NoticeDetailContent({
   backLabel: string;
 }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 720 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 800, width: '100%' }}>
       <div>
         <Button variant="ghost" size="sm" onClick={onBack}>
           {backLabel}
@@ -56,6 +55,7 @@ function NoticeDetailContent({
           display: 'flex',
           flexDirection: 'column',
           gap: 14,
+          minHeight: 240,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -82,6 +82,8 @@ function NoticeDetailContent({
             whiteSpace: 'pre-wrap',
             // 공백 없는 긴 문자열(URL 등)이 카드 밖으로 넘치지 않게 강제 줄바꿈
             overflowWrap: 'anywhere',
+            minHeight: 120,
+            flex: 1,
           }}
         >
           {notice.body}
@@ -152,25 +154,12 @@ export default function NoticeDetailPage() {
 
   const body = <NoticeDetailGate onBack={onBack} backLabel={backLabel} />;
 
-  if (role === 'MASTER') {
-    return (
-      <MasterShell activeKey="announcements" breadcrumbs={['공지사항', '상세']}>
-        <MasterPageMain>{body}</MasterPageMain>
-      </MasterShell>
-    );
-  }
-
-  if (role === 'MANAGER') {
-    return (
-      <ManagerShell activeKey="announcements" breadcrumbs={['공지사항', '상세']}>
-        <ManagerPageMain>{body}</ManagerPageMain>
-      </ManagerShell>
-    );
-  }
+  const activeKey = role === 'STUDENT' ? 'dashboard' : 'announcements';
+  const breadcrumbs = role === 'STUDENT' ? ['공지', '상세'] : ['공지사항', '상세'];
 
   return (
-    <StudentShell activeKey="dashboard" breadcrumbs={['공지', '상세']}>
-      <StudentPageMain>{body}</StudentPageMain>
-    </StudentShell>
+    <AppShell role={role} activeKey={activeKey} breadcrumbs={breadcrumbs}>
+      <PageMain>{body}</PageMain>
+    </AppShell>
   );
 }

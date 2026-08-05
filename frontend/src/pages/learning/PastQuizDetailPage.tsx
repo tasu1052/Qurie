@@ -1,29 +1,20 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Badge, Button, EmptyState } from '../../ds';
-import { getPastQuizSetMock, type PastQuizItem } from '../../mocks/pastLearning';
+import { Badge, Button, EmptyState, RowErrorFallback, Skeleton } from '../../ds';
+import {
+  QueryAsyncBoundary,
+  useGetQuizProgress,
+  useGetQuizSet,
+  type QuizItem,
+  type QuizProgressItem,
+} from '../../data';
 import { PastQuizShell } from './pastQuizShell';
-import { usePastQuizBasePath, type PastQuizBasePath } from './pastQuizPaths';
+import { SESSION_LIST_PAGE_TITLE, usePastQuizBasePath, type PastQuizBasePath } from './pastQuizPaths';
 
-type FilterKey = 'all' | 'correct' | 'wrong';
-type ModeKey = 'view' | 'retry';
 
-const filterChips: { key: FilterKey; label: string }[] = [
-  { key: 'all', label: '전체' },
-  { key: 'correct', label: '맞춘 문항' },
-  { key: 'wrong', label: '틀린 문항' },
-];
-
-const modeChips: { key: ModeKey; label: string }[] = [
-  { key: 'view', label: '열람' },
-  { key: 'retry', label: '오답 재풀이' },
-];
-
-function filterItems(items: PastQuizItem[], filter: FilterKey): PastQuizItem[] {
-  if (filter === 'correct') return items.filter((i) => i.isCorrect === true);
-  if (filter === 'wrong') return items.filter((i) => i.isCorrect === false);
-  return items;
+function correctChoiceIdx(item: QuizItem): number {
+  return item.choices.find((c) => c.answer)?.idx ?? 0;
 }
 
 function ChoiceRow({
@@ -67,6 +58,8 @@ function ChoiceRow({
         background,
         fontSize: 13,
         color: 'var(--ink)',
+        width: '100%',
+        boxSizing: 'border-box',
       }}
     >
       {showResult && isCorrect ? (
@@ -96,20 +89,21 @@ function ChoiceRow({
   );
 }
 
-function RetryQuestion({
+function QuestionCard({
   item,
-  selectedIdx,
-  submitted,
-  onSelect,
-  onSubmit,
+  progress,
 }: {
-  item: PastQuizItem;
-  selectedIdx: number | null;
-  submitted: boolean;
-  onSelect: (idx: number) => void;
-  onSubmit: () => void;
+  item: QuizItem;
+  progress?: QuizProgressItem;
 }) {
-  const isCorrect = submitted && selectedIdx === item.correctIdx;
+  const correctIdx = correctChoiceIdx(item);
+  const savedChoice = progress?.chosenChoiceIdx ?? null;
+  const savedCorrect = progress?.isCorrect;
+  const [pickedIdx, setPickedIdx] = useState<number | null>(savedChoice);
+  const showResult = pickedIdx != null || savedChoice != null;
+  const userChoiceIdx = pickedIdx ?? savedChoice;
+  const isCorrect =
+    savedCorrect != null ? savedCorrect : userChoiceIdx != null ? userChoiceIdx === correctIdx : null;
 
   return (
     <div
@@ -123,64 +117,119 @@ function RetryQuestion({
         gap: 12,
       }}
     >
-      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>
-        Q{item.orderNo}
-      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>
+          Q{item.orderNo}
+        </span>
+        {isCorrect === true ? <Badge status="success">정답</Badge> : null}
+        {isCorrect === false ? <Badge status="error">오답</Badge> : null}
+      </div>
       <p style={{ margin: 0, fontSize: 14, fontWeight: 600, lineHeight: 1.5, color: 'var(--ink)' }}>
         {item.question}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {item.choices.map((c) => {
-          const picked = selectedIdx === c.idx;
-          const showAnswer = submitted;
-          const isAnswer = c.idx === item.correctIdx;
-          let border = picked ? 'var(--accent)' : 'var(--border)';
-          let background = picked ? 'var(--accent-softer)' : 'var(--surface-sunken)';
-          if (showAnswer && isAnswer) {
-            border = 'var(--status-success)';
-            background = 'var(--status-success-bg)';
-          } else if (showAnswer && picked && !isAnswer) {
-            border = 'var(--status-error)';
-            background = 'var(--status-error-bg)';
-          }
-          return (
-            <button
-              key={c.idx}
-              type="button"
-              disabled={submitted}
-              onClick={() => onSelect(c.idx)}
-              style={{
-                textAlign: 'left',
-                padding: '10px 12px',
-                borderRadius: 10,
-                border: `1px solid ${border}`,
-                background,
-                fontSize: 13,
-                cursor: submitted ? 'default' : 'pointer',
-                fontFamily: 'var(--font-sans)',
-                color: 'var(--ink)',
-              }}
-            >
-              {c.content}
-            </button>
-          );
-        })}
+        {item.choices.map((c) => (
+          <button
+            key={c.idx}
+            type="button"
+            disabled={showResult}
+            onClick={() => setPickedIdx(c.idx)}
+            style={{
+              border: 'none',
+              padding: 0,
+              background: 'transparent',
+              cursor: showResult ? 'default' : 'pointer',
+              fontFamily: 'var(--font-sans)',
+              textAlign: 'left',
+            }}
+          >
+            <ChoiceRow
+              choice={c}
+              correctIdx={correctIdx}
+              userChoiceIdx={userChoiceIdx}
+              showResult={showResult}
+            />
+          </button>
+        ))}
       </div>
-      {!submitted ? (
-        <Button variant="secondary" size="sm" disabled={selectedIdx == null} onClick={onSubmit}>
-          제출
-        </Button>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <Badge status={isCorrect ? 'success' : 'error'}>
-            {isCorrect ? '정답입니다' : '오답입니다'}
-          </Badge>
-          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
-            {item.explanation}
-          </p>
-        </div>
-      )}
+      {showResult && item.explanation ? (
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
+          {progress?.explanation?.trim() || item.explanation}
+        </p>
+      ) : null}
     </div>
+  );
+}
+
+function QuizDetailSkeleton() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {[0, 1, 2].map((i) => (
+        <Skeleton key={i} width="100%" height={180} radius={16} delay={i * 0.06} />
+      ))}
+    </div>
+  );
+}
+
+function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: PastQuizBasePath }) {
+  const navigate = useNavigate();
+  const { data: quizSet } = useGetQuizSet(quizSetId);
+  const { data: progressSummary } = useGetQuizProgress(quizSetId);
+
+  const progressItems = progressSummary?.items ?? [];
+  const progressByQuizId = useMemo(() => {
+    const map = new Map<number, QuizProgressItem>();
+    for (const item of progressItems) {
+      map.set(item.quizId, item);
+    }
+    return map;
+  }, [progressItems]);
+
+  const items = useMemo(
+    () => [...quizSet.quizzes].sort((a, b) => a.orderNo - b.orderNo),
+    [quizSet.quizzes],
+  );
+
+  const displayItems = items;
+
+  const correctCount = items.filter((item) => progressByQuizId.get(item.id)?.isCorrect === true).length;
+
+  return (
+    <>
+      <div>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={<ArrowLeft size={14} />}
+          onClick={() => navigate(`${basePath}/quizzes`)}
+        >
+          목록으로
+        </Button>
+        <h1 style={{ fontSize: 22, fontWeight: 700, margin: '8px 0 0' }}>
+          퀴즈 세트 #{quizSet.quizSetId}
+        </h1>
+        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+          {correctCount}/{items.length} 정답 · 상태 {quizSet.status}
+        </span>
+      </div>
+
+      <div className="qurie-app-split" style={{ alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+          {displayItems.length === 0 ? (
+            <EmptyState
+              message="표시할 문항이 없습니다"
+              description="퀴즈 문항이 아직 생성되지 않았어요."
+              actionLabel="목록으로"
+              onAction={() => navigate(`${basePath}/quizzes`)}
+            />
+          ) : (
+            displayItems.map((item) => (
+              <QuestionCard key={item.id} item={item} progress={progressByQuizId.get(item.id)} />
+            ))
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -193,27 +242,12 @@ export default function PastQuizDetailPage({ basePath: basePathProp }: PastQuizD
   const { quizSetId: quizSetIdParam } = useParams<{ quizSetId: string }>();
   const basePath = usePastQuizBasePath(basePathProp);
   const quizSetId = Number(quizSetIdParam);
-  const quizSet = Number.isFinite(quizSetId) ? getPastQuizSetMock(quizSetId) : undefined;
+  const validId = Number.isFinite(quizSetId) && quizSetId > 0;
+  const [rowKey, setRowKey] = useState(0);
 
-  const [filter, setFilter] = useState<FilterKey>('all');
-  const [mode, setMode] = useState<ModeKey>('view');
-  const [retryAnswers, setRetryAnswers] = useState<Record<number, number | null>>({});
-  const [retrySubmitted, setRetrySubmitted] = useState<Record<number, boolean>>({});
-
-  const wrongItems = useMemo(
-    () => (quizSet ? quizSet.items.filter((i) => i.isCorrect === false) : []),
-    [quizSet],
-  );
-
-  const displayItems = useMemo(() => {
-    if (!quizSet) return [];
-    if (mode === 'retry') return wrongItems;
-    return filterItems(quizSet.items, filter);
-  }, [quizSet, mode, filter, wrongItems]);
-
-  if (!quizSet) {
+  if (!validId) {
     return (
-      <PastQuizShell basePath={basePath} breadcrumbs={['지난 퀴즈', '상세']}>
+      <PastQuizShell basePath={basePath} breadcrumbs={[SESSION_LIST_PAGE_TITLE, '상세']}>
         <EmptyState
           message="퀴즈 세트를 찾을 수 없습니다"
           actionLabel="목록으로"
@@ -224,198 +258,20 @@ export default function PastQuizDetailPage({ basePath: basePathProp }: PastQuizD
   }
 
   return (
-    <PastQuizShell basePath={basePath} breadcrumbs={['지난 퀴즈', quizSet.sessionTitle]}>
-      <div>
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={<ArrowLeft size={14} />}
-          onClick={() => navigate(`${basePath}/quizzes`)}
-        >
-          목록으로
-        </Button>
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: '8px 0 0' }}>{quizSet.sessionTitle}</h1>
-        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-          {quizSet.scoreCorrect}/{quizSet.scoreTotal} 정답 ·{' '}
-          {new Date(quizSet.endedAt).toLocaleDateString('ko-KR')}
-        </span>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        {modeChips.map((c) => {
-          const active = mode === c.key;
-          return (
-            <button
-              key={c.key}
-              type="button"
-              onClick={() => setMode(c.key)}
-              style={{
-                borderRadius: 999,
-                padding: '6px 14px',
-                fontSize: 12,
-                fontWeight: active ? 600 : 400,
-                cursor: 'pointer',
-                fontFamily: 'var(--font-sans)',
-                border: `1px solid ${active ? 'var(--accent)' : 'var(--border-strong)'}`,
-                background: active ? 'var(--accent-softer)' : 'var(--surface-card)',
-                color: active ? 'var(--accent)' : 'var(--text-secondary)',
-              }}
-            >
-              {c.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {mode === 'view' ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {filterChips.map((c) => {
-            const active = filter === c.key;
-            return (
-              <button
-                key={c.key}
-                type="button"
-                onClick={() => setFilter(c.key)}
-                style={{
-                  borderRadius: 999,
-                  padding: '6px 14px',
-                  fontSize: 12,
-                  fontWeight: active ? 600 : 400,
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                  border: `1px solid ${active ? 'var(--ink)' : 'var(--border-strong)'}`,
-                  background: active ? 'var(--surface-sunken)' : 'var(--surface-card)',
-                  color: active ? 'var(--ink)' : 'var(--text-secondary)',
-                }}
-              >
-                {c.label}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-
-      <div className="qurie-master-split" style={{ alignItems: 'start' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
-          {mode === 'retry' && wrongItems.length === 0 ? (
-            <EmptyState
-              message="틀린 문항이 없습니다"
-              description="모든 문항을 맞혔어요."
-              actionLabel="열람으로 보기"
-              onAction={() => setMode('view')}
-            />
-          ) : displayItems.length === 0 ? (
-            <EmptyState
-              message="표시할 문항이 없습니다"
-              actionLabel="전체 보기"
-              onAction={() => setFilter('all')}
-            />
-          ) : mode === 'view' ? (
-            displayItems.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  background: 'var(--surface-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 16,
-                  padding: 20,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 12,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Q{item.orderNo}
-                  </span>
-                  {item.isCorrect === true ? (
-                    <Badge status="success">정답</Badge>
-                  ) : item.isCorrect === false ? (
-                    <Badge status="error">오답</Badge>
-                  ) : null}
-                </div>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, lineHeight: 1.5, color: 'var(--ink)' }}>
-                  {item.question}
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {item.choices.map((c) => (
-                    <ChoiceRow
-                      key={c.idx}
-                      choice={c}
-                      correctIdx={item.correctIdx}
-                      userChoiceIdx={item.userChoiceIdx}
-                      showResult
-                    />
-                  ))}
-                </div>
-                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
-                  {item.explanation}
-                </p>
-              </div>
-            ))
-          ) : (
-            displayItems.map((item) => (
-              <RetryQuestion
-                key={item.id}
-                item={item}
-                selectedIdx={retryAnswers[item.id] ?? null}
-                submitted={retrySubmitted[item.id] ?? false}
-                onSelect={(idx) =>
-                  setRetryAnswers((prev) => ({ ...prev, [item.id]: idx }))
-                }
-                onSubmit={() =>
-                  setRetrySubmitted((prev) => ({ ...prev, [item.id]: true }))
-                }
-              />
-            ))
-          )}
-        </div>
-
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            boxShadow: 'var(--shadow-card)',
-            padding: 20,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            minWidth: 0,
-            position: 'sticky',
-            top: 16,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              AI 오답 유형 분석
-            </span>
-            <Badge status="neutral">데모 · AI 연동 예정</Badge>
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {quizSet.wrongTypeTags.length === 0 ? (
-              <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>오답 유형 없음</span>
-            ) : (
-              quizSet.wrongTypeTags.map((tag) => (
-                <Badge key={tag} status="warning">
-                  {tag}
-                </Badge>
-              ))
-            )}
-          </div>
-          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-            {quizSet.aiWrongAnalysis}
-          </p>
-        </div>
-      </div>
+    <PastQuizShell basePath={basePath} breadcrumbs={[SESSION_LIST_PAGE_TITLE, `퀴즈 #${quizSetId}`]}>
+      <QueryAsyncBoundary
+        key={rowKey}
+        suspenseFallback={<QuizDetailSkeleton />}
+        errorFallback={
+          <RowErrorFallback
+            onRetry={() => setRowKey((k) => k + 1)}
+            title="퀴즈를 불러오지 못했습니다"
+            description="GET /quiz/{quizSetId} 또는 progress API를 확인해 주세요."
+          />
+        }
+      >
+        <QuizDetailBody quizSetId={quizSetId} basePath={basePath} />
+      </QueryAsyncBoundary>
     </PastQuizShell>
   );
 }

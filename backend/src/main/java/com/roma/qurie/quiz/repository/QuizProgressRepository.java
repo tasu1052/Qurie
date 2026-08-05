@@ -45,4 +45,13 @@ public interface QuizProgressRepository extends JpaRepository<QuizProgress, Long
 			group by qp.user.id
 			""")
 	List<Object[]> countProgressByQuizSetIdGroupByUser(@Param("quizSetId") Long quizSetId);
+
+	@Query("""
+			select qp from QuizProgress qp
+			join fetch qp.quiz q
+			left join fetch qp.chosenChoice
+			where q.quizSet.id = :quizSetId and qp.user.id = :userId and qp.isCorrect = false
+			""")
+	List<QuizProgress> findIncorrectWithQuizByQuizSetIdAndUserId(
+			@Param("quizSetId") Long quizSetId, @Param("userId") Long userId);
 }

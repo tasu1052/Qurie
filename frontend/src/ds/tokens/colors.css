@@ -26,6 +26,11 @@
 --surface-sunken:var(--tertiary-100);/* #F8FAFC */
 --surface-hover:rgb(246,246,247);
 --surface-ink:var(--secondary-700);
+/* hero / KPI strip — dark band in light mode, elevated card in dark mode */
+--hero-surface:var(--secondary-700);
+--hero-fg:#ffffff;
+--hero-fg-muted:color-mix(in srgb,#ffffff 72%,transparent);
+--hero-border:transparent;
 /* borders */
 --border:rgba(17,17,17,0.07);
 --border-strong:var(--grey-100);/* #ebebec */
@@ -66,6 +71,10 @@ color-scheme:light;
 --surface-sunken:rgba(255,255,255,0.04);
 --surface-hover:rgba(255,255,255,0.09);
 --surface-ink:#F5F5F6;
+--hero-surface:var(--surface-card-solid);
+--hero-fg:var(--text-body);
+--hero-fg-muted:var(--text-secondary);
+--hero-border:var(--border);
 --border:rgba(255,255,255,0.12);
 --border-strong:rgba(255,255,255,0.18);
 --divider:rgba(255,255,255,0.08);
