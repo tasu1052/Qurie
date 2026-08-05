@@ -111,6 +111,7 @@ pnpm-debug.log*
 # ==================================================
 # AI Server - Python / FastAPI
 # ==================================================
+# 실제 디렉터리명은 ai_service — 과거 ai-server 경로는 이력 호환을 위해 남겨 둔다
 
 ai-server/.venv/
 ai-server/venv/
@@ -127,6 +128,30 @@ ai-server/.coverage
 ai-server/.env
 ai-server/.env.*
 !ai-server/.env.example
+
+ai_service/.venv/
+ai_service/venv/
+ai_service/env/
+
+__pycache__/
+ai_service/**/*.py[cod]
+ai_service/.pytest_cache/
+ai_service/.mypy_cache/
+ai_service/.ruff_cache/
+ai_service/htmlcov/
+ai_service/.coverage
+
+ai_service/.env
+ai_service/.env.*
+!ai_service/.env.example
+
+
+# ==================================================
+# Claude Code
+# ==================================================
+# launch.json(개발 서버 실행 설정)은 공유하고, 개인 권한 설정은 제외한다
+
+.claude/settings.local.json
 
 
 # ==================================================
