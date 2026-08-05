@@ -27,7 +27,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 	 */
 	@Query(value = """
 			select new com.roma.qurie.user.dto.UserSummaryResponse(
-					u.id, u.name, u.email, u.role,
+					u.id, u.name, u.email, u.role, u.phone, u.region, u.gender,
 					(select count(recent.id) from Session recent
 						where recent.createdBy = u.id and recent.createdAt >= :activitySince),
 					(select max(latest.createdAt) from Session latest where latest.createdBy = u.id))

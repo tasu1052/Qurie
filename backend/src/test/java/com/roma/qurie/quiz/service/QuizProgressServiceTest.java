@@ -3,6 +3,7 @@ package com.roma.qurie.quiz.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -13,6 +14,7 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -20,11 +22,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.roma.qurie.project.Project;
 import com.roma.qurie.project.ProjectRepository;
+import com.roma.qurie.quiz.dto.QuizProgressNotification;
 import com.roma.qurie.quiz.dto.QuizProgressResponse;
 import com.roma.qurie.quiz.dto.QuizProgressSubmitRequest;
 import com.roma.qurie.quiz.dto.QuizProgressSummaryResponse;
@@ -41,6 +45,9 @@ import com.roma.qurie.quiz.repository.QuizProgressRepository;
 import com.roma.qurie.quiz.repository.QuizRepository;
 import com.roma.qurie.quiz.repository.QuizSetRepository;
 import com.roma.qurie.security.AuthUser;
+import com.roma.qurie.session.core.Session;
+import com.roma.qurie.session.core.SessionRepository;
+import com.roma.qurie.session.participant.SessionParticipantResolver;
 import com.roma.qurie.session.participant.SessionParticipantService;
 import com.roma.qurie.user.entity.User;
 import com.roma.qurie.user.entity.UserRole;
@@ -73,6 +80,15 @@ class QuizProgressServiceTest {
 
 	@Mock
 	private SessionParticipantService participantService;
+
+	@Mock
+	private SessionParticipantResolver participantResolver;
+
+	@Mock
+	private SessionRepository sessionRepository;
+
+	@Mock
+	private SimpMessagingTemplate messagingTemplate;
 
 	@InjectMocks
 	private QuizProgressService quizProgressService;
@@ -184,6 +200,74 @@ class QuizProgressServiceTest {
 	}
 
 	@Test
+	void submitBroadcastsCompletionWhenUserFinishesWholeQuizSet() {
+		QuizSet quizSet = quizSet();
+		quizSet.addQuiz(quizWithChoices());
+		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(quizSet));
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
+		given(quizRepository.findByIdAndQuizSetId(QUIZ_ID, QUIZ_SET_ID)).willReturn(Optional.of(quizWithChoices()));
+		given(userRepository.findById(STUDENT.id())).willReturn(Optional.of(student()));
+		given(quizProgressRepository.save(any(QuizProgress.class))).willAnswer(invocation -> invocation.getArgument(0));
+		given(quizProgressRepository.countByQuizSetIdAndUserId(QUIZ_SET_ID, STUDENT.id())).willReturn(1L);
+		Session session = sessionOfClass();
+		given(sessionRepository.findById(SESSION_ID)).willReturn(Optional.of(session));
+		given(participantResolver.resolveStudentIds(session)).willReturn(List.of(STUDENT.id(), 8L));
+		given(quizProgressRepository.countProgressByQuizSetIdGroupByUser(QUIZ_SET_ID))
+				.willReturn(List.<Object[]>of(new Object[] {STUDENT.id(), 1L}, new Object[] {8L, 0L}));
+
+		quizProgressService.submit(QUIZ_SET_ID, QUIZ_ID, STUDENT, attemptRequest(2));
+
+		ArgumentCaptor<QuizProgressNotification> captor = ArgumentCaptor.forClass(QuizProgressNotification.class);
+		verify(messagingTemplate)
+				.convertAndSend(eq("/topic/sessions/" + SESSION_ID + "/quiz-progress"), captor.capture());
+		assertThat(captor.getValue().quizSetId()).isEqualTo(QUIZ_SET_ID);
+		assertThat(captor.getValue().completedStudentCount()).isEqualTo(1);
+		assertThat(captor.getValue().totalStudentCount()).isEqualTo(2);
+		assertThat(captor.getValue().allCompleted()).isFalse();
+	}
+
+	@Test
+	void submitBroadcastsAllCompletedWhenEveryStudentFinished() {
+		QuizSet quizSet = quizSet();
+		quizSet.addQuiz(quizWithChoices());
+		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(quizSet));
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
+		given(quizRepository.findByIdAndQuizSetId(QUIZ_ID, QUIZ_SET_ID)).willReturn(Optional.of(quizWithChoices()));
+		given(userRepository.findById(STUDENT.id())).willReturn(Optional.of(student()));
+		given(quizProgressRepository.save(any(QuizProgress.class))).willAnswer(invocation -> invocation.getArgument(0));
+		given(quizProgressRepository.countByQuizSetIdAndUserId(QUIZ_SET_ID, STUDENT.id())).willReturn(1L);
+		Session session = sessionOfClass();
+		given(sessionRepository.findById(SESSION_ID)).willReturn(Optional.of(session));
+		given(participantResolver.resolveStudentIds(session)).willReturn(List.of(STUDENT.id()));
+		given(quizProgressRepository.countProgressByQuizSetIdGroupByUser(QUIZ_SET_ID))
+				.willReturn(List.<Object[]>of(new Object[] {STUDENT.id(), 1L}));
+
+		quizProgressService.submit(QUIZ_SET_ID, QUIZ_ID, STUDENT, attemptRequest(2));
+
+		ArgumentCaptor<QuizProgressNotification> captor = ArgumentCaptor.forClass(QuizProgressNotification.class);
+		verify(messagingTemplate)
+				.convertAndSend(eq("/topic/sessions/" + SESSION_ID + "/quiz-progress"), captor.capture());
+		assertThat(captor.getValue().allCompleted()).isTrue();
+	}
+
+	@Test
+	void submitDoesNotBroadcastWhenQuizSetIsNotFinishedYet() {
+		QuizSet quizSet = quizSet();
+		quizSet.addQuiz(quizWithChoices());
+		quizSet.addQuiz(quizWithChoices());
+		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(quizSet));
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
+		given(quizRepository.findByIdAndQuizSetId(QUIZ_ID, QUIZ_SET_ID)).willReturn(Optional.of(quizWithChoices()));
+		given(userRepository.findById(STUDENT.id())).willReturn(Optional.of(student()));
+		given(quizProgressRepository.save(any(QuizProgress.class))).willAnswer(invocation -> invocation.getArgument(0));
+		given(quizProgressRepository.countByQuizSetIdAndUserId(QUIZ_SET_ID, STUDENT.id())).willReturn(1L);
+
+		quizProgressService.submit(QUIZ_SET_ID, QUIZ_ID, STUDENT, attemptRequest(2));
+
+		verify(messagingTemplate, never()).convertAndSend(any(String.class), any(Object.class));
+	}
+
+	@Test
 	void getSummaryCountsAttemptedAndCorrect() {
 		QuizSet quizSet = quizSet();
 		quizSet.addQuiz(quizWithChoices());
@@ -263,5 +347,9 @@ class QuizProgressServiceTest {
 
 	private Project project() {
 		return new Project(SESSION_ID, null, 2L);
+	}
+
+	private Session sessionOfClass() {
+		return new Session(5L, null, "수업 방", 2L, true);
 	}
 }

@@ -42,8 +42,10 @@ import com.roma.qurie.quiz.dto.QuizQuestionsResponse;
 import com.roma.qurie.quiz.dto.QuizSetDetailResponse;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.session.participant.SessionParticipantService;
+import com.roma.qurie.quiz.entity.Quiz;
 import com.roma.qurie.quiz.entity.QuizDifficulty;
 import com.roma.qurie.quiz.entity.QuizGenerationMode;
+import com.roma.qurie.quiz.entity.QuizPurpose;
 import com.roma.qurie.quiz.entity.QuizSet;
 import com.roma.qurie.quiz.entity.QuizSetStatus;
 import com.roma.qurie.quiz.entity.QuizType;
@@ -124,6 +126,8 @@ class QuizServiceTest {
 		assertThat(aiRequest.versionHash()).isEqualTo("abc123");
 		assertThat(aiRequest.files()).containsEntry("src/Main.java", "public class Main {}");
 		assertThat(aiRequest.callbackUrl()).isEqualTo(CALLBACK_BASE_URL + "/api/quiz/" + QUIZ_SET_ID + "/callback");
+		// 이전 퀴즈셋이 없으면 avoid_questions 는 빈 배열로 나간다 — null 이면 AI 접수(422)에서 깨진다.
+		assertThat(aiRequest.avoidQuestions()).isEmpty();
 
 		assertThat(response.quizSetId()).isEqualTo(QUIZ_SET_ID);
 		assertThat(response.status()).isEqualTo(QuizSetStatus.GENERATING);
@@ -157,6 +161,48 @@ class QuizServiceTest {
 		org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(quizProgressRepository, quizSetRepository);
 		inOrder.verify(quizProgressRepository).deleteAllByQuizSetProjectId(PROJECT_ID);
 		inOrder.verify(quizSetRepository).deleteAll(previousSets);
+	}
+
+	@Test
+	void requestQuizGenerationPassesPreviousQuestionsToAiAsAvoidList() {
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
+		QuizSet previousSet = generatingQuizSet();
+		previousSet.addQuiz(quiz("동시성 제어", "이 코드에서 락 획득 순서는?"));
+		previousSet.addQuiz(quiz(null, "개념 없는 문항은 질문만 실린다"));
+		given(quizSetRepository.findByProjectIdOrderByIdDesc(PROJECT_ID)).willReturn(List.of(previousSet));
+		given(quizSetRepository.save(any(QuizSet.class))).willAnswer(invocation -> invocation.getArgument(0));
+		given(quizAiClient.createQuizSet(eq(PROJECT_ID), any(AiQuizCreateRequest.class)))
+				.willReturn(new AiQuizSetAccepted(AI_QUIZ_SET_ID, "1", "PENDING"));
+
+		quizService.requestQuizGeneration(PROJECT_ID, generateRequest(), MANAGER);
+
+		ArgumentCaptor<AiQuizCreateRequest> captor = ArgumentCaptor.forClass(AiQuizCreateRequest.class);
+		org.mockito.Mockito.verify(quizAiClient).createQuizSet(eq(PROJECT_ID), captor.capture());
+		assertThat(captor.getValue().avoidQuestions()).containsExactly(
+				"[동시성 제어] 이 코드에서 락 획득 순서는?",
+				"개념 없는 문항은 질문만 실린다");
+	}
+
+	@Test
+	void requestQuizGenerationTruncatesAndCapsAvoidQuestions() {
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
+		QuizSet previousSet = generatingQuizSet();
+		for (int i = 0; i < 45; i++) {
+			previousSet.addQuiz(quiz("개념" + i, "질문 ".repeat(100) + i));
+		}
+		given(quizSetRepository.findByProjectIdOrderByIdDesc(PROJECT_ID)).willReturn(List.of(previousSet));
+		given(quizSetRepository.save(any(QuizSet.class))).willAnswer(invocation -> invocation.getArgument(0));
+		given(quizAiClient.createQuizSet(eq(PROJECT_ID), any(AiQuizCreateRequest.class)))
+				.willReturn(new AiQuizSetAccepted(AI_QUIZ_SET_ID, "1", "PENDING"));
+
+		quizService.requestQuizGeneration(PROJECT_ID, generateRequest(), MANAGER);
+
+		ArgumentCaptor<AiQuizCreateRequest> captor = ArgumentCaptor.forClass(AiQuizCreateRequest.class);
+		org.mockito.Mockito.verify(quizAiClient).createQuizSet(eq(PROJECT_ID), captor.capture());
+		List<String> avoidQuestions = captor.getValue().avoidQuestions();
+		assertThat(avoidQuestions).hasSize(40);
+		assertThat(avoidQuestions).allSatisfy(entry -> assertThat(entry.length()).isLessThanOrEqualTo(200));
+		assertThat(avoidQuestions.get(0)).startsWith("[개념0] 질문");
 	}
 
 	@Test
@@ -366,6 +412,18 @@ class QuizServiceTest {
 				"abc123",
 				List.of(),
 				Map.of("src/Main.java", "public class Main {}"));
+	}
+
+	private Quiz quiz(String testedConcept, String question) {
+		return Quiz.builder()
+				.type(QuizType.MULTIPLE_CHOICE)
+				.purpose(QuizPurpose.CONCEPTUAL)
+				.difficulty(QuizDifficulty.NORMAL)
+				.testedConcept(testedConcept)
+				.question(question)
+				.timeLimitSec(60)
+				.orderNo(1)
+				.build();
 	}
 
 	private QuizSet generatingQuizSet() {

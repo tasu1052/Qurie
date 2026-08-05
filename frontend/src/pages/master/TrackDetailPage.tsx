@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Settings, TriangleAlert } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { MockRowBoundary } from '../../components/feedback/MockRowBoundary';
 import {
@@ -222,59 +222,6 @@ export default function TrackDetailPage() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
-                  <div
-                    style={{
-                      background: 'var(--surface-card)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 16,
-                      boxShadow: 'var(--shadow-card)',
-                      padding: 24,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 12,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <TriangleAlert size={16} strokeWidth={1.75} style={{ color: 'var(--status-warning)' }} />
-                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>주의가 필요한 클래스</span>
-                    </div>
-                    {row.data.alerts.map((a) => (
-                      <div
-                        key={a.id}
-                        style={{
-                          border: `1px solid ${a.severity === 'warning' ? 'var(--status-warning-bg)' : 'var(--border)'}`,
-                          background: a.severity === 'warning' ? 'var(--status-warning-bg)' : 'transparent',
-                          borderRadius: 12,
-                          padding: 14,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 6,
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{a.className}</span>
-                          <span
-                            style={{
-                              marginLeft: 'auto',
-                              fontSize: 11,
-                              fontWeight: 700,
-                              color: a.severity === 'warning' ? 'var(--status-warning)' : 'var(--status-error)',
-                            }}
-                          >
-                            {a.label}
-                          </span>
-                        </div>
-                        <span style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--text-secondary)' }}>{a.body}</span>
-                        <Link
-                          to={`/master/analytics/${a.classId}`}
-                          style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', textDecoration: 'none' }}
-                        >
-                          클래스 분석 보기 <span style={{ fontWeight: 800 }}>&gt;</span>
-                        </Link>
-                      </div>
-                    ))}
-                  </div>
-
                   <div
                     style={{
                       background: 'var(--surface-card)',

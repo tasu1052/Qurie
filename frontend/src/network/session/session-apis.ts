@@ -101,10 +101,20 @@ export const getSession = async (sessionId: number): Promise<SessionResponse> =>
     return data;
 };
 
-/** userId 를 주면 그 학생 기준(반 공개 + 그 학생 그룹의 세션)으로 걸러진다 — 본인 외 지정은 매니저/마스터만. */
-export const getSessions = async (classId: number, userId?: number): Promise<SessionResponse[]> => {
+/**
+ * userId 를 주면 그 학생 기준(반 공개 + 그 학생 그룹의 세션)으로 걸러진다 — 본인 외 지정은 매니저/마스터만.
+ * includeEnded 는 종료된 세션까지 포함한다(세션 목록의 지난 세션 표시용, 기본 false).
+ */
+export const getSessions = async (
+    classId: number,
+    opts: { userId?: number; includeEnded?: boolean } = {},
+): Promise<SessionResponse[]> => {
     const { data } = await axiosInstance.get<SessionResponse[]>('/sessions', {
-        params: userId != null ? { classId, userId } : { classId },
+        params: {
+            classId,
+            ...(opts.userId != null ? { userId: opts.userId } : {}),
+            ...(opts.includeEnded ? { activeOnly: false } : {}),
+        },
     });
     return data;
 };
@@ -148,6 +158,26 @@ export const createSessionReport = async (
     const { data } = await axiosInstance.post<SessionReportCreateResponse>(
         `/sessions/${sessionId}/reports`,
         body,
+    );
+    return data;
+};
+
+export interface SessionReportBulkResponse {
+    sessionId: number;
+    issuedCount: number;
+}
+
+/**
+ * 세션 참가 학생 전원의 리포트를 한 번에 발급한다(기존 리포트는 갈아엎고 재발급 — 409 없음).
+ * 강사(MANAGER/MASTER) 전용. 집계가 걸릴 수 있어 타임아웃을 늘린다.
+ */
+export const createSessionReportsForAll = async (
+    sessionId: number,
+): Promise<SessionReportBulkResponse> => {
+    const { data } = await axiosInstance.post<SessionReportBulkResponse>(
+        `/sessions/${sessionId}/reports/all`,
+        undefined,
+        { timeout: 60_000 },
     );
     return data;
 };

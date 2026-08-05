@@ -22,6 +22,9 @@ export interface UserProfileResponse {
     email: string;
     name: string;
     role: UserRole;
+    phone?: string | null;
+    region?: string | null;
+    gender?: string | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -30,6 +33,10 @@ export interface UserProfileUpdateRequest {
     name?: string;
     currentPassword?: string;
     newPassword?: string;
+    /** 빈 문자열을 보내면 값을 지운다 (PATCH: 보내지 않으면 유지). */
+    phone?: string | null;
+    region?: string | null;
+    gender?: string | null;
 }
 
 export interface UserSummaryResponse {
@@ -37,6 +44,9 @@ export interface UserSummaryResponse {
     name: string;
     email: string;
     role: UserRole;
+    phone?: string | null;
+    region?: string | null;
+    gender?: string | null;
     weeklySessionCount: number;
     lastSessionCreatedAt: string | null;
 }

@@ -86,14 +86,16 @@ def node_refine(state: PipelineState) -> PipelineState:
         q for q in state.get("quizzes", []) if q.get("status") != "APPROVED"
     ]
 
+    # 반려 사유는 user_prompt(untrusted 구간)가 아니라 별도 신뢰 노트에 쌓는다.
+    # user_prompt에 섞으면 judge 출력이 USER_HINT로 재주입되는 경로가 생긴다.
     critiques = [
         q.get("reject_reason") or ""
         for q in state.get("quizzes", [])
         if q.get("status") == "REJECTED"
     ]
-    extra = "이전 실패 사유(반복 금지): " + " | ".join(c for c in critiques if c)[:500]
-    prev = state.get("user_prompt") or ""
-    state["user_prompt"] = (prev + "\n" + extra).strip()
+    fresh = " | ".join(c for c in critiques if c)
+    prev = state.get("critiques_note") or ""
+    state["critiques_note"] = " | ".join(x for x in (prev, fresh) if x)[:500]
     state["retry_count"] = state.get("retry_count", 0) + 1
     return state
 

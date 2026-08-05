@@ -19,6 +19,7 @@ import {
   Skeleton,
 } from '../../ds';
 import {
+  humanizeApiError,
   QueryAsyncBoundary,
   useCreateSession,
   useDeleteSession,
@@ -29,7 +30,9 @@ import {
 import { queryKeys } from '../../network/core/queryKeys';
 import { getGroups } from '../../network/group/group-apis';
 import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
-import { resolvePastSessionMock } from '../../mocks/pastLearning';
+
+/** 한 페이지에 보여줄 세션 수 — 종료 세션까지 포함하면 목록이 길어지므로 클라이언트에서 잘라 보여준다. */
+const PAGE_SIZE = 10;
 
 function TableSkeleton() {
   return (
@@ -63,7 +66,6 @@ function SessionTable({
   onEmptyCreate,
   onEnter,
   onReport,
-  onQuiz,
   onDelete,
 }: {
   classId: number;
@@ -74,10 +76,10 @@ function SessionTable({
   onEmptyCreate: () => void;
   onEnter: (sessionId: number, title: string) => void;
   onReport: (sessionId: number) => void;
-  onQuiz: (quizSetId: number) => void;
   onDelete: (session: SessionResponse) => void;
 }) {
-  const { data: sessions } = useGetSessions(classId);
+  // 종료된 세션까지 받아야 '전체/종료' 칩이 실제 데이터를 보여준다
+  const { data: sessions } = useGetSessions(classId, { includeEnded: true });
   const debouncedQuery = useDebouncedValue(query, 300);
 
   const filtered = sessions.filter((s) => {
@@ -97,6 +99,12 @@ function SessionTable({
       />
     );
   }
+
+  // 필터/검색으로 목록이 줄면 현재 페이지가 범위를 벗어날 수 있어 마지막 페이지로 눌러 준다
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const pageRows = filtered.slice(pageStart, pageStart + PAGE_SIZE);
 
   return (
     <RowSection style={{ gap: 24 }}>
@@ -128,9 +136,8 @@ function SessionTable({
           <span>상태</span>
           <span style={{ textAlign: 'right' }}>액션</span>
         </div>
-        {filtered.map((s) => {
+        {pageRows.map((s) => {
           const status = sessionStatus(s);
-          const pastMock = status === '종료' ? resolvePastSessionMock(s.id) : null;
           return (
             <div
               key={s.id}
@@ -151,22 +158,15 @@ function SessionTable({
                     <Badge status="neutral">그룹 #{s.groupId}</Badge>
                   ) : null}
                 </span>
-                {pastMock ? (
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: 'var(--text-muted)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {pastMock.aiSummary}
+              </span>
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 2, color: 'var(--text-secondary)' }}>
+                <span>{new Date(s.createdAt).toLocaleString('ko-KR', { hour12: false })}</span>
+                {/* 종료 세션은 언제 끝났는지가 더 중요하므로 종료 시각을 함께 보여준다 */}
+                {s.endedAt ? (
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    종료 {new Date(s.endedAt).toLocaleString('ko-KR', { hour12: false })}
                   </span>
                 ) : null}
-              </span>
-              <span style={{ color: 'var(--text-secondary)' }}>
-                {new Date(s.createdAt).toLocaleString('ko-KR', { hour12: false })}
               </span>
               <span style={{ color: 'var(--ink)' }}>—</span>
               {status === 'LIVE' ? (
@@ -185,11 +185,6 @@ function SessionTable({
                 >
                   {status === '종료' ? '리포트' : status === 'LIVE' ? '입장' : '편집'}
                 </Button>
-                {status === '종료' && pastMock ? (
-                  <Button variant="ghost" size="sm" onClick={() => onQuiz(pastMock.quizSetId)}>
-                    퀴즈
-                  </Button>
-                ) : null}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -203,10 +198,10 @@ function SessionTable({
         })}
       </div>
       <Pagination
-        page={page}
-        pageCount={1}
-        pageSize={10}
-        rangeLabel={`1–${filtered.length} / ${filtered.length}개`}
+        page={safePage}
+        pageCount={pageCount}
+        pageSize={PAGE_SIZE}
+        rangeLabel={`${pageStart + 1}–${pageStart + pageRows.length} / ${filtered.length}개`}
         onPage={onPage}
       />
     </RowSection>
@@ -220,7 +215,8 @@ export default function SessionListPage() {
   const hasValidClassId = typeof classId === 'number' && Number.isFinite(classId) && classId > 0;
   const createSession = useCreateSession();
   const deleteSession = useDeleteSession();
-  const [status, setStatus] = useState('전체');
+  // 기본은 '진행' 보기 — 종료 세션이 쌓여도 첫 화면이 지난 세션으로 덮이지 않게
+  const [status, setStatus] = useState('진행');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
@@ -282,7 +278,7 @@ export default function SessionListPage() {
           openSessionInNewTab(created.id, created.title);
         },
         onError: (err) => {
-          setCreateError(err instanceof Error ? err.message : '세션 생성에 실패했습니다.');
+          setCreateError(humanizeApiError(err, '세션 생성에 실패했습니다.'));
         },
       },
     );
@@ -324,7 +320,11 @@ export default function SessionListPage() {
               <button
                 key={c}
                 type="button"
-                onClick={() => setStatus(c)}
+                onClick={() => {
+                  setStatus(c);
+                  // 필터가 바뀌면 목록이 달라지므로 첫 페이지부터 다시 본다
+                  setPage(1);
+                }}
                 style={{
                   borderRadius: 999,
                   padding: '6px 14px',
@@ -345,7 +345,11 @@ export default function SessionListPage() {
             placeholder="세션 검색…"
             icon={<Search size={14} strokeWidth={1.75} />}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              // 검색어가 바뀌면 결과 집합이 달라지므로 첫 페이지로 되돌린다
+              setPage(1);
+            }}
             width={220}
             style={{ marginLeft: 'auto' }}
           />
@@ -379,7 +383,6 @@ export default function SessionListPage() {
               onEmptyCreate={() => setCreateOpen(true)}
               onEnter={openSessionInNewTab}
               onReport={(sessionId) => navigate(`/session/${sessionId}/report`)}
-              onQuiz={(quizSetId) => navigate(`/manager/quizzes/${quizSetId}`)}
               onDelete={setDeleteTarget}
             />
           </QueryAsyncBoundary>

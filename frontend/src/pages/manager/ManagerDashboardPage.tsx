@@ -21,6 +21,7 @@ import {
   useMe,
 } from '../../data';
 import { DashboardNoticesSection } from '../../components/notices/DashboardNoticesSection';
+import { ClassMaterialsCard } from '../../components/materials/ClassMaterialsCard';
 import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
 
 function DashSkeleton() {
@@ -254,6 +255,9 @@ function ManagerDashBody({ classId }: { classId: number }) {
           )}
         </div>
       </div>
+
+      {/* 세션에서 자료 열람이 빠져서, 강사는 여기서 바로 업로드·관리한다. */}
+      <ClassMaterialsCard classId={classId} canManage title="강의자료" />
 
       <DashboardNoticesSection role="MANAGER" classId={classId} size={5} />
     </>

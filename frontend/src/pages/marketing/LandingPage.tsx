@@ -15,8 +15,9 @@ export default function LandingPage() {
   /** 엔터프라이즈 랜딩은 항상 라이트 모드로 보여 줘요. */
   useMarketingLightTheme();
 
+  // 배경을 --bg-app 그라디언트로 둬야 반투명 헤더의 backdrop blur(글래스)가 눈에 보인다
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--surface-card)', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-app)', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
       {/* Topbar — mockup 1a */}
       <header
         style={{

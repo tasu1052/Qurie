@@ -74,4 +74,9 @@ public class Project {
         this.versionHash = versionHash;
         this.fileCount = fileCount;
     }
+
+    /** 파일 저장으로 스냅샷 내용이 바뀌면 해시도 함께 갱신해야 퀴즈 version_hash 가 실제 코드와 일치한다. */
+    public void updateVersionHash(String versionHash) {
+        this.versionHash = versionHash;
+    }
 }

@@ -116,7 +116,27 @@ def test_refine_preserves_approved_and_asks_only_for_shortfall():
     assert out["purpose_counts"]["conceptual"] == 1
     assert out["purpose_counts"]["micro"] == 2
     assert out["retry_count"] == 1
-    assert "SOLVER_MISMATCH" in out["user_prompt"]
+    # 반려 사유는 신뢰 노트에 쌓이고, untrusted 구간인 user_prompt는 건드리지 않는다
+    assert "SOLVER_MISMATCH" in out["critiques_note"]
+    assert "user_prompt" not in out
+
+
+def test_refine_appends_new_critiques_to_existing_note():
+    state = {
+        "requested_count": 5,
+        "purpose_target": {"conceptual": 2, "micro": 3},
+        "purpose_counts": {"conceptual": 2, "micro": 3},
+        "ratio_target": {"easy": 1, "normal": 3, "hard": 1},
+        "ratio_counts": {"easy": 1, "normal": 3, "hard": 1},
+        "critiques_note": "ROUND1_REASON",
+        "quizzes": [_q("REJECTED", reason="ROUND2_REASON"), _q("APPROVED")],
+        "retry_count": 1,
+        "last_approved": 0,
+    }
+    out = node_refine(state)
+    assert "ROUND1_REASON" in out["critiques_note"]
+    assert "ROUND2_REASON" in out["critiques_note"]
+    assert len(out["critiques_note"]) <= 500
 
 
 def test_refine_uses_original_target_not_previous_round():

@@ -20,11 +20,7 @@ import {
   useMe,
   type SessionReportSummaryResponse,
 } from '../../data';
-import {
-  getPastSessionsMock,
-  resolvePastSessionMock,
-  type PastSessionMock,
-} from '../../mocks/pastLearning';
+import { getPastSessionsMock, type PastSessionMock } from '../../mocks/pastLearning';
 
 function ReportSkeleton() {
   return (
@@ -76,28 +72,27 @@ type SessionReportRow = {
   accuracy: number | null;
   quizRating: number | null;
   issuedAt: string | null;
-  aiSummary: string;
-  quizSetId: number;
+  /** null = 요약 텍스트 없음(실데이터) — 상세 화면의 aiComment 로 확인한다. */
+  aiSummary: string | null;
+  /** null = 요약 응답에 quizSetId 가 없어 목록에서 퀴즈 열람을 제공하지 않는다. */
+  quizSetId: number | null;
   demoOnly: boolean;
   scoreLabel?: string;
 };
 
 function toRowsFromReports(reports: SessionReportSummaryResponse[]): SessionReportRow[] {
-  return reports.map((s) => {
-    const mock = resolvePastSessionMock(s.sessionId);
-    return {
-      key: `report-${s.sessionReportId}`,
-      sessionId: s.sessionId,
-      title: s.sessionTitle,
-      accuracy: s.accuracy,
-      quizRating: s.quizRating,
-      issuedAt: s.issuedAt,
-      aiSummary: mock.aiSummary,
-      quizSetId: mock.quizSetId,
-      demoOnly: false,
-      scoreLabel: `${mock.scoreCorrect}/${mock.scoreTotal} 정답`,
-    };
-  });
+  return reports.map((s) => ({
+    key: `report-${s.sessionReportId}`,
+    sessionId: s.sessionId,
+    title: s.sessionTitle,
+    accuracy: s.accuracy,
+    quizRating: s.quizRating,
+    issuedAt: s.issuedAt,
+    aiSummary: null,
+    quizSetId: null,
+    demoOnly: false,
+    scoreLabel: s.accuracy != null ? `${Math.round(Number(s.accuracy))}% 정답` : undefined,
+  }));
 }
 
 function toRowsFromMocks(mocks: PastSessionMock[]): SessionReportRow[] {
@@ -203,28 +198,32 @@ function SessionReportTable({
                 {s.scoreLabel ? <Badge status="accent">{s.scoreLabel}</Badge> : null}
               </div>
 
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 13,
-                  lineHeight: 1.55,
-                  color: 'var(--text-secondary)',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 3,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                }}
-              >
-                {s.aiSummary}
-              </p>
+              {s.aiSummary ? (
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 13,
+                    lineHeight: 1.55,
+                    color: 'var(--text-secondary)',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {s.aiSummary}
+                </p>
+              ) : null}
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Button variant="secondary" size="sm" onClick={() => onOpen(s.sessionId)}>
                   상세
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => onQuiz(s.quizSetId)}>
-                  퀴즈 열람
-                </Button>
+                {s.quizSetId != null ? (
+                  <Button variant="ghost" size="sm" onClick={() => onQuiz(s.quizSetId as number)}>
+                    퀴즈 열람
+                  </Button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => onOpen(s.sessionId)}

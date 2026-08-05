@@ -9,6 +9,7 @@ import com.roma.qurie.quiz.entity.QuizSet;
 import com.roma.qurie.quiz.entity.QuizSetStatus;
 import com.roma.qurie.quiz.repository.QuizProgressRepository;
 import com.roma.qurie.quiz.repository.QuizSetRepository;
+import com.roma.qurie.report.dto.SessionReportBulkResponse;
 import com.roma.qurie.report.dto.SessionReportCreateRequest;
 import com.roma.qurie.report.dto.SessionReportCreateResponse;
 import com.roma.qurie.report.dto.SessionReportDetailResponse;
@@ -41,6 +42,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class SessionReportService {
 
+    private static final String MANAGER_ROLE = "MANAGER";
+    private static final String MASTER_ROLE = "MASTER";
+
     private final SessionReportRepository sessionReportRepository;
     private final SessionRepository sessionRepository;
     private final UserRepository userRepository;
@@ -53,18 +57,54 @@ public class SessionReportService {
     /**
      * 세션 리포트 발급. 정량 지표는 quiz_progress 에서 서버가 집계한다 —
      * 클라이언트가 보낸 숫자를 저장하면 조회 화면과 어긋나거나 조작될 수 있다.
-     * 발급 대상은 편성(그룹/반 명단) 기준 참여 학생으로 제한한다.
+     * 발급 대상은 편성(그룹/반 명단) 기준 참여 학생으로 제한하고, 발급 자체는 같은 반 강사에게만 허용한다.
      */
     @Transactional
-    public SessionReportCreateResponse createSessionReport(Long sessionId, SessionReportCreateRequest request) {
-        Session session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "방을 찾을 수 없습니다."));
+    public SessionReportCreateResponse createSessionReport(
+            Long sessionId, SessionReportCreateRequest request, AuthUser requester) {
+        requireInstructor(sessionId, requester);
+        Session session = findSessionOrThrow(sessionId);
         if (!participantResolver.isParticipantStudent(session, request.ordinaryUserId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "세션 참여 대상 학생이 아닙니다.");
         }
-        if (sessionReportRepository.existsBySessionIdAndOrdinaryUserId(sessionId, request.ordinaryUserId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 발급된 세션 리포트가 있습니다.");
+        return issueReport(sessionId, request);
+    }
+
+    /**
+     * 세션 참여 학생 전원의 리포트 일괄 발급. 정성 항목(AI 코멘트·평점) 없이 정량 지표만 담긴다.
+     * 이미 발급된 학생도 새 스냅샷으로 대체되므로 여러 번 눌러도 결과는 최신 집계 하나만 남는다.
+     */
+    @Transactional
+    public SessionReportBulkResponse createSessionReportsForAll(Long sessionId, AuthUser requester) {
+        requireInstructor(sessionId, requester);
+        Session session = findSessionOrThrow(sessionId);
+
+        int issuedCount = 0;
+        for (Long studentId : participantResolver.resolveStudentIds(session)) {
+            issueReport(sessionId, new SessionReportCreateRequest(studentId, null, null, null, null));
+            issuedCount++;
         }
+        return new SessionReportBulkResponse(sessionId, issuedCount);
+    }
+
+    /** 리포트 발급은 학생 지표를 확정하는 조작이라 조회보다 좁게, 매니저·마스터에게만 허용한다. */
+    private void requireInstructor(Long sessionId, AuthUser requester) {
+        if (requester == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+        }
+        sessionParticipantService.verifySessionClassMember(sessionId, requester);
+        if (!MANAGER_ROLE.equals(requester.role()) && !MASTER_ROLE.equals(requester.role())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "세션 리포트는 강사만 발급할 수 있습니다.");
+        }
+    }
+
+    /**
+     * 재발급은 기존 리포트를 새 스냅샷으로 대체한다. (session_id, ordinary_user_id) 유니크 제약이 있고
+     * Hibernate 가 insert 를 delete 보다 먼저 내보내므로, 삭제가 저장보다 먼저 DB 에 반영되도록 flush 한다.
+     */
+    private SessionReportCreateResponse issueReport(Long sessionId, SessionReportCreateRequest request) {
+        sessionReportRepository.deleteBySessionIdAndOrdinaryUserId(sessionId, request.ordinaryUserId());
+        sessionReportRepository.flush();
 
         QuizResultAggregate aggregate = aggregateQuizResults(sessionId, request.ordinaryUserId());
 
@@ -89,6 +129,11 @@ public class SessionReportService {
                 .build();
 
         return SessionReportCreateResponse.from(sessionReportRepository.save(sessionReport));
+    }
+
+    private Session findSessionOrThrow(Long sessionId) {
+        return sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "방을 찾을 수 없습니다."));
     }
 
     /**

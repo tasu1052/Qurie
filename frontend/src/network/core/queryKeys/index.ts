@@ -4,6 +4,7 @@ import { classKeys } from './class.keys';
 import { commentKeys } from './comment.keys';
 import { groupKeys } from './group.keys';
 import { invitationKeys } from './invitation.keys';
+import { materialKeys } from './material.keys';
 import { noticeKeys } from './notice.keys';
 import { projectKeys } from './project.keys';
 import { quizKeys } from './quiz.keys';
@@ -19,6 +20,7 @@ export const queryKeys = {
     comments: commentKeys,
     groups: groupKeys,
     invitations: invitationKeys,
+    materials: materialKeys,
     notices: noticeKeys,
     projects: projectKeys,
     quiz: quizKeys,
@@ -35,6 +37,7 @@ export {
     commentKeys,
     groupKeys,
     invitationKeys,
+    materialKeys,
     noticeKeys,
     projectKeys,
     quizKeys,

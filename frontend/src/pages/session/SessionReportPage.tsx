@@ -14,6 +14,8 @@ import {
 } from '../../ds';
 import {
   QueryAsyncBoundary,
+  humanizeApiError,
+  useCreateSessionReportsForAll,
   useDownloadSessionReportPdf,
   useGetSessionReport,
   useMe,
@@ -22,8 +24,7 @@ import {
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Download, TriangleAlert } from 'lucide-react';
-import { resolvePastSessionMock } from '../../mocks/pastLearning';
+import { ArrowLeft, CheckCircle2, Download, RefreshCw, TriangleAlert } from 'lucide-react';
 
 function ReportSkeleton() {
   return (
@@ -114,13 +115,18 @@ function SessionReportBody({
   userRole: string;
 }) {
   const navigate = useNavigate();
-  const pastMock = resolvePastSessionMock(sessionId);
   const downloadPdf = useDownloadSessionReportPdf();
+  const reissueReports = useCreateSessionReportsForAll();
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [reissueError, setReissueError] = useState<string | null>(null);
+  // 실제 리포트의 quizSetId 가 없으면 퀴즈 열람을 제공하지 않는다(목업 id 사용 금지).
   const quizPath =
-    userRole === 'STUDENT'
-      ? `/app/quizzes/${pastMock.quizSetId}`
-      : `/manager/quizzes/${pastMock.quizSetId}`;
+    report.quizSetId == null
+      ? null
+      : userRole === 'STUDENT'
+        ? `/app/quizzes/${report.quizSetId}`
+        : `/manager/quizzes/${report.quizSetId}`;
+  const isManager = userRole === 'MANAGER' || userRole === 'MASTER';
   const segments = useMemo(() => difficultySegments(report.difficultyRatio), [report.difficultyRatio]);
   const categories = useMemo(() => conceptBars(report.conceptStats), [report.conceptStats]);
   const hardSeg = segments.find((s) => s.label === 'HARD');
@@ -143,6 +149,30 @@ function SessionReportBody({
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {quizPath != null ? (
+            <Button variant="secondary" size="sm" onClick={() => navigate(quizPath)}>
+              퀴즈 열람
+            </Button>
+          ) : null}
+          {isManager ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<RefreshCw size={14} strokeWidth={1.75} />}
+              disabled={reissueReports.isPending}
+              onClick={() => {
+                setReissueError(null);
+                // 성공 시 훅이 sessions.detail(sessionId) 를 무효화하고,
+                // report 쿼리 키가 그 하위라 이 화면 데이터도 함께 갱신된다.
+                reissueReports.mutate(sessionId, {
+                  onError: (err) =>
+                    setReissueError(humanizeApiError(err, '리포트 재발급에 실패했습니다.')),
+                });
+              }}
+            >
+              {reissueReports.isPending ? '재발급 중…' : '리포트 재발급'}
+            </Button>
+          ) : null}
           <Button
             variant="secondary"
             size="sm"
@@ -166,6 +196,9 @@ function SessionReportBody({
 
       {pdfError ? (
         <span style={{ fontSize: 13, color: 'var(--status-error)' }}>{pdfError}</span>
+      ) : null}
+      {reissueError ? (
+        <span style={{ fontSize: 13, color: 'var(--status-error)' }}>{reissueError}</span>
       ) : null}
       <div
         style={{
@@ -228,64 +261,35 @@ function SessionReportBody({
         />
       </StatCardRow>
 
-      <div
-        style={{
-          background: 'var(--surface-card)',
-          border: '1px solid var(--border)',
-          borderRadius: 16,
-          boxShadow: 'var(--shadow-card)',
-          padding: 24,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 14,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              AI 리포트
-            </span>
-            <Badge status="neutral">데모</Badge>
-          </div>
-          <Button variant="secondary" size="sm" onClick={() => navigate(quizPath)}>
-            퀴즈 열람
-          </Button>
+      {report.aiComment?.trim() ? (
+        <div
+          style={{
+            background: 'var(--surface-card)',
+            border: '1px solid var(--border)',
+            borderRadius: 16,
+            boxShadow: 'var(--shadow-card)',
+            padding: 24,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 14,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            AI 리포트
+          </span>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--ink)', fontWeight: 600 }}>
+            {report.aiComment.trim()}
+          </p>
         </div>
-        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--ink)', fontWeight: 600 }}>
-          {pastMock.reportHighlights.overall}
-        </p>
-        <div className="qurie-master-split" style={{ alignItems: 'start' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>강점</span>
-            {pastMock.reportHighlights.strengths.map((s) => (
-              <div key={s} style={{ display: 'flex', gap: 8 }}>
-                <CheckCircle2 size={14} style={{ color: 'var(--status-success)', flexShrink: 0, marginTop: 2 }} />
-                <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>개선점</span>
-            {pastMock.reportHighlights.improvements.map((s) => (
-              <div key={s} style={{ display: 'flex', gap: 8 }}>
-                <TriangleAlert size={14} style={{ color: 'var(--status-warning)', flexShrink: 0, marginTop: 2 }} />
-                <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
-          {pastMock.reportHighlights.nextSuggestion}
-        </p>
-      </div>
+      ) : null}
 
       <div className="qurie-master-split">
         <div

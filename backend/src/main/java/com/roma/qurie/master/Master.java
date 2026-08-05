@@ -48,11 +48,40 @@ public class Master extends BaseTimeEntity {
     @Column(name = "name", nullable = false, length = 50)
     private String name;
 
+    /*
+     * 마이페이지 화면을 매니저/학생(ordinary_users)과 공유하므로 부가 정보 컬럼도 같은 이름·크기로 맞춘다.
+     * 선택 입력 값이라 항상 null 을 허용한다.
+     */
+    @Column(name = "phone", length = 30)
+    private String phone;
+
+    @Column(name = "region", length = 50)
+    private String region;
+
+    @Column(name = "gender", length = 10)
+    private String gender;
+
     public Master(Enterprise enterprise, String email, String password, String name) {
         this.enterprise = enterprise;
         this.email = email;
         this.password = password;
         this.name = name;
+    }
+
+    public void updateName(String name) {
+        this.name = name;
+    }
+
+    public void updatePhone(String phone) {
+        this.phone = phone;
+    }
+
+    public void updateRegion(String region) {
+        this.region = region;
+    }
+
+    public void updateGender(String gender) {
+        this.gender = gender;
     }
 
     /**

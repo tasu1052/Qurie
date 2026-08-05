@@ -21,10 +21,12 @@ public record AiQuizCreateRequest(
 		@JsonProperty("user_prompt") String userPrompt,
 		@JsonProperty("version_hash") String versionHash,
 		@JsonProperty("target_files") List<String> targetFiles,
+		@JsonProperty("avoid_questions") List<String> avoidQuestions,
 		Map<String, String> files,
 		@JsonProperty("callback_url") String callbackUrl) {
 
-	public static AiQuizCreateRequest from(QuizGenerateRequest request, String callbackUrl) {
+	public static AiQuizCreateRequest from(
+			QuizGenerateRequest request, List<String> avoidQuestions, String callbackUrl) {
 		return new AiQuizCreateRequest(
 				request.mode(),
 				request.count(),
@@ -33,6 +35,8 @@ public record AiQuizCreateRequest(
 				request.versionHash(),
 				// AI 쪽 target_files 는 Optional 이 아니라 기본값 있는 list 다 — 생략은 되지만 null 은 422 다.
 				request.targetFiles() == null ? List.of() : request.targetFiles(),
+				// 재생성 시 중복 출제를 막는 이전 문항 목록. target_files 와 같은 이유로 null 대신 빈 배열.
+				avoidQuestions == null ? List.of() : avoidQuestions,
 				request.files(),
 				callbackUrl);
 	}

@@ -16,6 +16,7 @@ import {
   useGetGroups,
   useGetSessions,
 } from '../../data';
+import { ClassMaterialsCard } from '../../components/materials/ClassMaterialsCard';
 import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
 
 function LobbySkeleton() {
@@ -200,40 +201,7 @@ function ClassLobbyBody({ classId }: { classId: number }) {
             )}
           </div>
 
-          <div
-            style={{
-              background: 'var(--surface-card)',
-              border: '1px solid var(--border)',
-              borderRadius: 16,
-              boxShadow: 'var(--shadow-card)',
-              padding: 24,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              학습자료
-            </span>
-            <Badge status="warning">API 미구현</Badge>
-            <span style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              API 미구현: 강사가 업로드한 교육/학습자료 목록 연동 전입니다.
-            </span>
-            <EmptyState
-              message="API 미구현"
-              description="자료 조회 API가 구현되면 업로드된 교육/학습자료 카드가 표시됩니다."
-              actionLabel="대시보드"
-              onAction={() => navigate('/app')}
-            />
-          </div>
+          <ClassMaterialsCard classId={classId} />
         </div>
       </div>
     </>

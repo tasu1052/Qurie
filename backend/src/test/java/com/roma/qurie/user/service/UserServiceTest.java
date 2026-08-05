@@ -29,6 +29,8 @@ import com.roma.qurie.classes.ClassUserRepository;
 import com.roma.qurie.enterprise.Enterprise;
 import com.roma.qurie.invitation.Invitation;
 import com.roma.qurie.invitation.InvitationService;
+import com.roma.qurie.master.Master;
+import com.roma.qurie.master.MasterRepository;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.track.Track;
 import com.roma.qurie.user.dto.UserProfileResponse;
@@ -43,6 +45,7 @@ import com.roma.qurie.user.repository.UserRepository;
 class UserServiceTest {
 
 	private static final Long USER_ID = 10L;
+	private static final Long MASTER_ID = 1L;
 	private static final Long ENTERPRISE_ID = 1L;
 	private static final Long CLASS_ID = 5L;
 	private static final String TOKEN = "invite-token";
@@ -55,6 +58,9 @@ class UserServiceTest {
 
 	@Mock
 	private UserRepository userRepository;
+
+	@Mock
+	private MasterRepository masterRepository;
 
 	@Mock
 	private PasswordEncoder passwordEncoder;
@@ -157,7 +163,7 @@ class UserServiceTest {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
 
 		UserProfileResponse response = userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest("김태수2", null, null), self());
+				USER_ID, new UserProfileUpdateRequest("김태수2", null, null, null, null, null), self());
 
 		assertThat(user.getName()).isEqualTo("김태수2");
 		assertThat(user.getPassword()).isEqualTo(ENCODED_PASSWORD);
@@ -173,7 +179,7 @@ class UserServiceTest {
 		given(passwordEncoder.encode(NEW_RAW_PASSWORD)).willReturn(NEW_ENCODED_PASSWORD);
 
 		userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest(null, RAW_PASSWORD, NEW_RAW_PASSWORD), self());
+				USER_ID, new UserProfileUpdateRequest(null, RAW_PASSWORD, NEW_RAW_PASSWORD, null, null, null), self());
 
 		assertThat(user.getPassword()).isEqualTo(NEW_ENCODED_PASSWORD);
 		assertThat(user.getName()).isEqualTo(NAME);
@@ -186,7 +192,7 @@ class UserServiceTest {
 		given(passwordEncoder.matches("wrongPassword", ENCODED_PASSWORD)).willReturn(false);
 
 		assertThatThrownBy(() -> userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest(null, "wrongPassword", NEW_RAW_PASSWORD), self()))
+				USER_ID, new UserProfileUpdateRequest(null, "wrongPassword", NEW_RAW_PASSWORD, null, null, null), self()))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(UserServiceTest::statusOf)
 				.isEqualTo(HttpStatus.BAD_REQUEST);
@@ -199,7 +205,7 @@ class UserServiceTest {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(existingUser()));
 
 		assertThatThrownBy(() -> userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest(null, null, null), self()))
+				USER_ID, new UserProfileUpdateRequest(null, null, null, null, null, null), self()))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(UserServiceTest::statusOf)
 				.isEqualTo(HttpStatus.BAD_REQUEST);
@@ -211,7 +217,7 @@ class UserServiceTest {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
 
 		assertThatThrownBy(() -> userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest("   ", null, null), self()))
+				USER_ID, new UserProfileUpdateRequest("   ", null, null, null, null, null), self()))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(UserServiceTest::statusOf)
 				.isEqualTo(HttpStatus.BAD_REQUEST);
@@ -226,7 +232,7 @@ class UserServiceTest {
 		AuthUser other = new AuthUser(99L, UserRole.STUDENT.name(), ENTERPRISE_ID, "other@qurie.com", "다른사람", null);
 
 		assertThatThrownBy(() -> userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest("해킹", null, null), other))
+				USER_ID, new UserProfileUpdateRequest("해킹", null, null, null, null, null), other))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(UserServiceTest::statusOf)
 				.isEqualTo(HttpStatus.FORBIDDEN);
@@ -239,7 +245,7 @@ class UserServiceTest {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(existingUser()));
 
 		assertThatThrownBy(() -> userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest("김태수2", null, null), null))
+				USER_ID, new UserProfileUpdateRequest("김태수2", null, null, null, null, null), null))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(UserServiceTest::statusOf)
 				.isEqualTo(HttpStatus.UNAUTHORIZED);
@@ -252,7 +258,7 @@ class UserServiceTest {
 		given(passwordEncoder.encode(NEW_RAW_PASSWORD)).willReturn(NEW_ENCODED_PASSWORD);
 
 		userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest(null, null, NEW_RAW_PASSWORD), master(ENTERPRISE_ID));
+				USER_ID, new UserProfileUpdateRequest(null, null, NEW_RAW_PASSWORD, null, null, null), master(ENTERPRISE_ID));
 
 		assertThat(user.getPassword()).isEqualTo(NEW_ENCODED_PASSWORD);
 	}
@@ -263,12 +269,98 @@ class UserServiceTest {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
 
 		assertThatThrownBy(() -> userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest("김태수2", null, null), master(2L)))
+				USER_ID, new UserProfileUpdateRequest("김태수2", null, null, null, null, null), master(2L)))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(UserServiceTest::statusOf)
 				.isEqualTo(HttpStatus.FORBIDDEN);
 
 		assertThat(user.getName()).isEqualTo(NAME);
+	}
+
+	@Test
+	void getProfileRoutesMasterSelfRequestToMastersTable() {
+		given(masterRepository.findById(MASTER_ID)).willReturn(Optional.of(existingMaster()));
+
+		UserProfileResponse response = userService.getProfile(MASTER_ID, master(ENTERPRISE_ID));
+
+		assertThat(response.userId()).isEqualTo(MASTER_ID);
+		assertThat(response.role()).isEqualTo("MASTER");
+		// 같은 id 의 매니저/학생 프로필이 노출되지 않도록 ordinary_users 는 조회하지 않는다.
+		verify(userRepository, never()).findById(any());
+	}
+
+	@Test
+	void updateProfileRoutesMasterSelfRequestToMastersTableEvenWhenOrdinaryUserIdCollides() {
+		Master master = existingMaster();
+		given(masterRepository.findById(MASTER_ID)).willReturn(Optional.of(master));
+
+		UserProfileResponse response = userService.updateProfile(
+				MASTER_ID, new UserProfileUpdateRequest("새마스터", null, null, null, null, null),
+				master(ENTERPRISE_ID));
+
+		assertThat(master.getName()).isEqualTo("새마스터");
+		assertThat(response.role()).isEqualTo("MASTER");
+		// masters.id 와 같은 id 의 매니저/학생이 있어도 그 계정을 건드리면 안 된다.
+		verify(userRepository, never()).findById(any());
+		verify(masterRepository).flush();
+	}
+
+	@Test
+	void updateProfileChangesMasterOwnPasswordWhenCurrentPasswordMatches() {
+		Master master = existingMaster();
+		given(masterRepository.findById(MASTER_ID)).willReturn(Optional.of(master));
+		given(passwordEncoder.matches(RAW_PASSWORD, ENCODED_PASSWORD)).willReturn(true);
+		given(passwordEncoder.encode(NEW_RAW_PASSWORD)).willReturn(NEW_ENCODED_PASSWORD);
+
+		userService.updateProfile(
+				MASTER_ID, new UserProfileUpdateRequest(null, RAW_PASSWORD, NEW_RAW_PASSWORD, null, null, null),
+				master(ENTERPRISE_ID));
+
+		assertThat(master.getPassword()).isEqualTo(NEW_ENCODED_PASSWORD);
+	}
+
+	@Test
+	void updateProfileThrowsBadRequestWhenMasterOwnCurrentPasswordDoesNotMatch() {
+		Master master = existingMaster();
+		given(masterRepository.findById(MASTER_ID)).willReturn(Optional.of(master));
+		given(passwordEncoder.matches("wrongPassword", ENCODED_PASSWORD)).willReturn(false);
+
+		assertThatThrownBy(() -> userService.updateProfile(
+				MASTER_ID, new UserProfileUpdateRequest(null, "wrongPassword", NEW_RAW_PASSWORD, null, null, null),
+				master(ENTERPRISE_ID)))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(UserServiceTest::statusOf)
+				.isEqualTo(HttpStatus.BAD_REQUEST);
+
+		assertThat(master.getPassword()).isEqualTo(ENCODED_PASSWORD);
+	}
+
+	@Test
+	void updateProfileAppliesPhoneRegionGender() {
+		User user = existingUser();
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+
+		UserProfileResponse response = userService.updateProfile(
+				USER_ID, new UserProfileUpdateRequest(null, null, null, "010-1234-5678", "서울", "MALE"), self());
+
+		assertThat(user.getPhone()).isEqualTo("010-1234-5678");
+		assertThat(user.getRegion()).isEqualTo("서울");
+		assertThat(user.getGender()).isEqualTo("MALE");
+		assertThat(response.phone()).isEqualTo("010-1234-5678");
+		assertThat(response.region()).isEqualTo("서울");
+		assertThat(response.gender()).isEqualTo("MALE");
+	}
+
+	@Test
+	void updateProfileClearsOptionalFieldWhenBlankIsSent() {
+		User user = existingUser();
+		user.updatePhone("010-1234-5678");
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+
+		userService.updateProfile(
+				USER_ID, new UserProfileUpdateRequest(null, null, null, "", null, null), self());
+
+		assertThat(user.getPhone()).isNull();
 	}
 
 	private static HttpStatusCode statusOf(Throwable throwable) {
@@ -314,7 +406,15 @@ class UserServiceTest {
 		return new AuthUser(USER_ID, UserRole.MANAGER.name(), ENTERPRISE_ID, EMAIL, NAME, null);
 	}
 
+	private Master existingMaster() {
+		Enterprise enterprise = new Enterprise("SSAFY");
+		ReflectionTestUtils.setField(enterprise, "id", ENTERPRISE_ID);
+		Master master = new Master(enterprise, "master@qurie.com", ENCODED_PASSWORD, "마스터");
+		ReflectionTestUtils.setField(master, "id", MASTER_ID);
+		return master;
+	}
+
 	private AuthUser master(Long enterpriseId) {
-		return new AuthUser(1L, "MASTER", enterpriseId, "master@qurie.com", "마스터", null);
+		return new AuthUser(MASTER_ID, "MASTER", enterpriseId, "master@qurie.com", "마스터", null);
 	}
 }

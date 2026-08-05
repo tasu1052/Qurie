@@ -6,6 +6,9 @@ from app.engine.purpose import mode_display
 # 멀티 파일 컨텍스트 상한 — 토큰 폭주 방지 (대략 코드 위주)
 _MAX_CODE_CHARS = 30_000
 
+# 이전 출제 이력(중복 금지 목록) 렌더링 상한 — 프롬프트가 이력에 잡아먹히지 않게 자른다
+_MAX_AVOID_CHARS = 4_000
+
 
 def _build_code_section(files: dict[str, str], primary_file: str) -> str:
     """primary 를 앞에 두고 나머지 파일을 이어 붙인다. 총 길이 상한을 지킨다."""
@@ -32,6 +35,38 @@ def _build_code_section(files: dict[str, str], primary_file: str) -> str:
     return "\n\n".join(parts)
 
 
+def _build_avoid_section(avoid_questions: list[str] | None) -> str:
+    """이미 출제된 문항 목록을 '중복 금지' 지시로 렌더링한다.
+
+    USER_HINT(untrusted)와 달리 이 목록은 백엔드 DB에서 온 신뢰 데이터라
+    지시문 구간에 넣는다. 항목이 많아도 전체 길이 상한을 지킨다.
+    """
+    items = [q.strip() for q in avoid_questions or [] if q and q.strip()]
+    if not items:
+        return ""
+    body = "\n".join(f"- {q}" for q in items)
+    if len(body) > _MAX_AVOID_CHARS:
+        body = body[:_MAX_AVOID_CHARS] + "\n… (truncated)"
+    return (
+        "\n[기존 출제 이력 — 중복 금지]\n"
+        "아래는 같은 프로젝트에서 이미 출제됐던 문항이다. "
+        "동일하거나 사실상 같은 개념·정답을 묻는 문항을 다시 만들지 마라. "
+        "새 문항은 다른 개념이나 다른 코드 지점을 겨냥하라.\n"
+        f"{body}\n"
+    )
+
+
+def _build_critiques_section(critiques_note: str | None) -> str:
+    """재시도 라운드의 judge 반려 사유. user_prompt(untrusted)와 분리된 신뢰 구간이다."""
+    note = (critiques_note or "").strip()
+    if not note:
+        return ""
+    return (
+        "\n[이전 시도 반려 사유 — 반복 금지]\n"
+        f"{note}\n"
+    )
+
+
 def build_generate_prompt(
     files: dict[str, str],
     primary_file: str,
@@ -40,11 +75,16 @@ def build_generate_prompt(
     purpose_counts: dict[str, int],
     mode: str,
     user_prompt: str | None,
+    avoid_questions: list[str] | None = None,
+    critiques_note: str | None = None,
 ) -> str:
     code_block = _build_code_section(files, primary_file)
     file_list = ", ".join(f'"{p}"' for p in files)
     conceptual_n = purpose_counts.get("conceptual", 0)
     micro_n = purpose_counts.get("micro", 0)
+
+    avoid_block = _build_avoid_section(avoid_questions)
+    critique_block = _build_critiques_section(critiques_note)
 
     hint = ""
     if user_prompt:
@@ -93,7 +133,7 @@ def build_generate_prompt(
 - choices 정확히 4개, answer_index 0~3, tested_concept 최대 60자.
 - purpose는 CONCEPTUAL 또는 MICRO만 사용.
 - 코드에 정의 없는 외부 함수의 내부 동작은 묻지 마세요.
-
+{avoid_block}{critique_block}
 {hint}
 [출력]
 emit_quizzes 도구로만 답하세요. quizzes 배열 길이는 정확히 {requested_count}개.

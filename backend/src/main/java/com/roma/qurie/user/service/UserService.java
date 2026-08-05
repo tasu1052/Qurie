@@ -1,6 +1,7 @@
 package com.roma.qurie.user.service;
 
 import java.time.LocalDateTime;
+import java.util.function.Consumer;
 
 import lombok.RequiredArgsConstructor;
 
@@ -19,6 +20,8 @@ import com.roma.qurie.classes.ClassUserRepository;
 import com.roma.qurie.common.dto.PageResponse;
 import com.roma.qurie.invitation.Invitation;
 import com.roma.qurie.invitation.InvitationService;
+import com.roma.qurie.master.Master;
+import com.roma.qurie.master.MasterRepository;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.user.dto.UserProfileResponse;
 import com.roma.qurie.user.dto.UserProfileUpdateRequest;
@@ -41,6 +44,7 @@ public class UserService {
 	private static final int ACTIVITY_WINDOW_DAYS = 7;
 
 	private final UserRepository userRepository;
+	private final MasterRepository masterRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final InvitationService invitationService;
 	private final ClassUserRepository classUserRepository;
@@ -81,6 +85,10 @@ public class UserService {
 	 */
 	@Transactional(readOnly = true)
 	public UserProfileResponse getProfile(Long userId, AuthUser requester) {
+		if (isMasterSelf(userId, requester)) {
+			return UserProfileResponse.from(findMaster(userId));
+		}
+
 		User user = findUser(userId);
 		verifyAccessible(user, requester);
 
@@ -92,16 +100,22 @@ public class UserService {
 	 */
 	@Transactional
 	public UserProfileResponse updateProfile(Long userId, UserProfileUpdateRequest request, AuthUser requester) {
+		if (isMasterSelf(userId, requester)) {
+			return updateMasterProfile(userId, request);
+		}
+
 		User user = findUser(userId);
 		verifyAccessible(user, requester);
 
-		if (!request.hasName() && !request.hasNewPassword()) {
+		if (!request.hasAnyUpdate()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "수정할 항목이 없습니다.");
 		}
 
 		if (request.hasName()) {
 			user.updateName(requireNotBlankName(request.name()));
 		}
+
+		applyOptionalFields(request, user::updatePhone, user::updateRegion, user::updateGender);
 
 		if (request.hasNewPassword()) {
 			verifyCurrentPassword(user, request.currentPassword(), requester);
@@ -112,6 +126,51 @@ public class UserService {
 		userRepository.flush();
 
 		return UserProfileResponse.from(user);
+	}
+
+	/**
+	 * 마스터 본인의 마이페이지 수정. 마스터는 ordinary_users 가 아니라 masters 에 있으므로 여기서 처리한다.
+	 * 비밀번호 변경은 본인 확인이 가능하므로(대상이 자기 자신) 매니저/학생과 동일하게 현재 비밀번호를 검증한다.
+	 */
+	private UserProfileResponse updateMasterProfile(Long masterId, UserProfileUpdateRequest request) {
+		Master master = findMaster(masterId);
+
+		if (!request.hasAnyUpdate()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "수정할 항목이 없습니다.");
+		}
+
+		if (request.hasName()) {
+			master.updateName(requireNotBlankName(request.name()));
+		}
+
+		applyOptionalFields(request, master::updatePhone, master::updateRegion, master::updateGender);
+
+		if (request.hasNewPassword()) {
+			if (request.currentPassword() == null
+					|| !passwordEncoder.matches(request.currentPassword(), master.getPassword())) {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 비밀번호가 올바르지 않습니다.");
+			}
+			master.changePassword(passwordEncoder.encode(request.newPassword()));
+		}
+
+		// updatedAt 은 flush 시점에 채워지므로, 응답에 갱신된 값을 담기 위해 먼저 반영한다.
+		masterRepository.flush();
+
+		return UserProfileResponse.from(master);
+	}
+
+	/* phone/region/gender 는 선택 항목이라 빈 문자열은 값을 지우는 요청으로 보고 null 로 저장한다. */
+	private void applyOptionalFields(UserProfileUpdateRequest request,
+			Consumer<String> phoneUpdater, Consumer<String> regionUpdater, Consumer<String> genderUpdater) {
+		if (request.hasPhone()) {
+			phoneUpdater.accept(blankToNull(request.phone()));
+		}
+		if (request.hasRegion()) {
+			regionUpdater.accept(blankToNull(request.region()));
+		}
+		if (request.hasGender()) {
+			genderUpdater.accept(blankToNull(request.gender()));
+		}
 	}
 
 	/**
@@ -161,6 +220,20 @@ public class UserService {
 	private User findUser(Long userId) {
 		return userRepository.findById(userId)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, USER_NOT_FOUND_MESSAGE));
+	}
+
+	private Master findMaster(Long masterId) {
+		return masterRepository.findById(masterId)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, USER_NOT_FOUND_MESSAGE));
+	}
+
+	/*
+	 * 마스터의 id 는 masters 테이블 기준이라 ordinary_users 에 같은 id 를 가진 무관한 사용자가 있을 수 있다.
+	 * verifyAccessible 은 회원 관리를 위해 마스터가 기업 내 사용자를 수정하는 것을 허용하므로, 마스터가 "내 프로필"을
+	 * 고치려던 요청이 동일 id 의 매니저/학생을 덮어쓰는 사고를 막으려면 본인 id 요청은 항상 masters 로 보내야 한다.
+	 */
+	private boolean isMasterSelf(Long userId, AuthUser requester) {
+		return requester != null && isMaster(requester) && userId.equals(requester.id());
 	}
 
 	private void verifyAccessible(User user, AuthUser requester) {

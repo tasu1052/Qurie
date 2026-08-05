@@ -144,7 +144,17 @@ function NoticeCard({
         ) : null}
       </div>
       <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{item.title}</span>
-      <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+      {/* overflowWrap: 공백 없는 긴 문자열(URL 등)이 카드 밖으로 넘치지 않게 강제 줄바꿈 */}
+      <p
+        style={{
+          margin: 0,
+          fontSize: 13,
+          color: 'var(--text-secondary)',
+          lineHeight: 1.55,
+          whiteSpace: 'pre-wrap',
+          overflowWrap: 'anywhere',
+        }}
+      >
         {item.body}
       </p>
       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>작성: {item.authorName}</span>

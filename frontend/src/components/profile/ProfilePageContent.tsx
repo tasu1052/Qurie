@@ -1,12 +1,28 @@
-import { useState } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Badge, Button, RowSection, StatCard, StatCardRow } from '../../ds';
+import { Badge, Button, RowSection, Select, StatCard, StatCardRow } from '../../ds';
 import {
+  humanizeApiError,
   useGetUserProfile,
   useLogout,
   useMe,
   useUpdateUserProfile,
 } from '../../data';
+
+const editInputStyle: CSSProperties = {
+  border: '1px solid var(--border-strong)',
+  borderRadius: 8,
+  padding: '6px 10px',
+  fontFamily: 'var(--font-sans)',
+  fontSize: 13,
+  minWidth: 160,
+};
+
+function genderLabel(gender?: string | null): string {
+  if (gender === 'MALE') return '남';
+  if (gender === 'FEMALE') return '여';
+  return '—';
+}
 
 /** Shared profile body for student / master / manager my pages. */
 export function ProfilePageContent() {
@@ -17,6 +33,10 @@ export function ProfilePageContent() {
   const logout = useLogout();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(profile.name);
+  const [phone, setPhone] = useState(profile.phone ?? '');
+  const [region, setRegion] = useState(profile.region ?? '');
+  const [gender, setGender] = useState(profile.gender ?? '');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [pwOpen, setPwOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -30,11 +50,26 @@ export function ProfilePageContent() {
     });
   };
 
+  const onToggleEdit = () => {
+    if (!editing) {
+      // 취소 후 다시 열 때 이전 편집 값이 남지 않도록 서버 값으로 되돌린다.
+      setName(profile.name);
+      setPhone(profile.phone ?? '');
+      setRegion(profile.region ?? '');
+      setGender(profile.gender ?? '');
+    }
+    setSaveError(null);
+    setEditing((v) => !v);
+  };
+
   const onSave = () => {
+    setSaveError(null);
     updateProfile.mutate(
-      { userId: me.id, name },
+      // 빈 문자열은 "값 지우기" — PATCH 에서 보내지 않은 항목만 유지되므로 세 항목은 항상 보낸다.
+      { userId: me.id, name, phone: phone.trim(), region: region.trim(), gender },
       {
         onSuccess: () => setEditing(false),
+        onError: (err) => setSaveError(humanizeApiError(err, '프로필 저장에 실패했습니다.')),
       },
     );
   };
@@ -58,7 +93,7 @@ export function ProfilePageContent() {
           setNewPassword('');
         },
         onError: (err) => {
-          setPwError(err instanceof Error ? err.message : '비밀번호 변경에 실패했습니다.');
+          setPwError(humanizeApiError(err, '비밀번호 변경에 실패했습니다.'));
         },
       },
     );
@@ -105,7 +140,7 @@ export function ProfilePageContent() {
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button variant="secondary" onClick={() => setEditing((v) => !v)}>
+          <Button variant="secondary" onClick={onToggleEdit}>
             {editing ? '취소' : '수정'}
           </Button>
           <Button variant="ghost" onClick={onLogout} disabled={logout.isPending}>
@@ -151,11 +186,57 @@ export function ProfilePageContent() {
           >
             계정 정보
           </span>
-          {[
-            { label: '이름', value: editing ? undefined : profile.name },
-            { label: '이메일', value: profile.email },
-            { label: '시스템 역할', value: profile.role },
-          ].map((rowItem) => (
+          {(
+            [
+              {
+                label: '이름',
+                value: profile.name,
+                editor: <input value={name} onChange={(e) => setName(e.target.value)} style={editInputStyle} />,
+              },
+              { label: '이메일', value: profile.email, mono: true },
+              { label: '시스템 역할', value: profile.role },
+              {
+                label: '전화번호',
+                value: profile.phone || '—',
+                editor: (
+                  <input
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="010-0000-0000"
+                    style={editInputStyle}
+                  />
+                ),
+              },
+              {
+                label: '지역',
+                value: profile.region || '—',
+                editor: (
+                  <input
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                    placeholder="예: 서울"
+                    style={editInputStyle}
+                  />
+                ),
+              },
+              {
+                label: '성별',
+                value: genderLabel(profile.gender),
+                editor: (
+                  <Select
+                    size="sm"
+                    options={[
+                      { value: '', label: '선택 안 함' },
+                      { value: 'MALE', label: '남' },
+                      { value: 'FEMALE', label: '여' },
+                    ]}
+                    value={gender}
+                    onChange={setGender}
+                  />
+                ),
+              },
+            ] as { label: string; value: string; mono?: boolean; editor?: ReactNode }[]
+          ).map((rowItem) => (
             <div
               key={rowItem.label}
               style={{
@@ -169,25 +250,14 @@ export function ProfilePageContent() {
               }}
             >
               <span style={{ color: 'var(--text-muted)' }}>{rowItem.label}</span>
-              {rowItem.label === '이름' && editing ? (
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  style={{
-                    border: '1px solid var(--border-strong)',
-                    borderRadius: 8,
-                    padding: '6px 10px',
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 13,
-                    minWidth: 160,
-                  }}
-                />
+              {editing && rowItem.editor ? (
+                rowItem.editor
               ) : (
                 <span
                   style={{
                     fontWeight: 600,
                     color: 'var(--ink)',
-                    fontFamily: rowItem.label === '이메일' ? 'var(--font-mono)' : undefined,
+                    fontFamily: rowItem.mono ? 'var(--font-mono)' : undefined,
                   }}
                 >
                   {rowItem.value}
@@ -196,15 +266,20 @@ export function ProfilePageContent() {
             </div>
           ))}
           {editing && (
-            <div style={{ marginTop: 16 }}>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={onSave}
-                disabled={updateProfile.isPending || !name.trim()}
-              >
-                {updateProfile.isPending ? '저장 중…' : '이름 저장'}
-              </Button>
+            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {saveError ? (
+                <span style={{ fontSize: 12, color: 'var(--status-error)' }}>{saveError}</span>
+              ) : null}
+              <div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={onSave}
+                  disabled={updateProfile.isPending || !name.trim()}
+                >
+                  {updateProfile.isPending ? '저장 중…' : '저장'}
+                </Button>
+              </div>
             </div>
           )}
         </div>

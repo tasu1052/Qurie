@@ -3,6 +3,8 @@ package com.roma.qurie.session.core;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -15,6 +17,7 @@ import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.session.chat.ChatService;
 import com.roma.qurie.session.core.dto.SessionCreateRequest;
 import com.roma.qurie.session.core.dto.SessionResponse;
+import com.roma.qurie.session.core.dto.SessionStatusNotification;
 import com.roma.qurie.session.core.dto.SessionUpdateRequest;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,6 +29,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
@@ -52,6 +56,9 @@ class SessionServiceTest {
 
 	@Mock
 	private ClassUserRepository classUserRepository;
+
+	@Mock
+	private SimpMessagingTemplate messagingTemplate;
 
 	@InjectMocks
 	private SessionService sessionService;
@@ -171,6 +178,21 @@ class SessionServiceTest {
 	}
 
 	@Test
+	void closingSessionBroadcastsEndedStatusToSessionTopic() {
+		givenExistingSession();
+		givenClassMember(MANAGER);
+
+		sessionService.update(1L, new SessionUpdateRequest(null, false), MANAGER);
+
+		ArgumentCaptor<SessionStatusNotification> captor =
+				ArgumentCaptor.forClass(SessionStatusNotification.class);
+		verify(messagingTemplate).convertAndSend(eq("/topic/sessions/1/status"), captor.capture());
+		assertThat(captor.getValue().sessionId()).isEqualTo(1L);
+		assertThat(captor.getValue().active()).isFalse();
+		assertThat(captor.getValue().endedAt()).isNotNull();
+	}
+
+	@Test
 	void renamingSessionKeepsChatMessages() {
 		Session session = givenExistingSession();
 		givenClassMember(MANAGER);
@@ -179,6 +201,7 @@ class SessionServiceTest {
 
 		assertThat(session.isActive()).isTrue();
 		verify(chatService, never()).deleteBySession(any());
+		verify(messagingTemplate, never()).convertAndSend(any(String.class), any(Object.class));
 	}
 
 	@Test
@@ -277,6 +300,40 @@ class SessionServiceTest {
 		List<SessionResponse> sessions = sessionService.getOpenSessions(CLASS_ID, MANAGER, targetUserId);
 
 		assertThat(sessions).extracting(SessionResponse::title).containsExactly("수업 방", "그 학생 그룹 방");
+	}
+
+	@Test
+	void managerSeesEndedSessionsWhenActiveOnlyIsFalse() {
+		Session closed = new Session(CLASS_ID, GROUP_ID, "끝난 방", MANAGER.id(), false);
+		closed.close();
+		given(sessionRepository.findByClassIdOrderByIdDesc(CLASS_ID))
+				.willReturn(List.of(
+						new Session(CLASS_ID, GROUP_ID, "열린 방", MANAGER.id(), false),
+						closed));
+
+		List<SessionResponse> sessions = sessionService.getSessions(CLASS_ID, MANAGER, null, false);
+
+		assertThat(sessions).extracting(SessionResponse::title).containsExactly("열린 방", "끝난 방");
+		verify(sessionRepository, never()).findByClassIdAndActive(any(), anyBoolean());
+	}
+
+	@Test
+	void studentSeesEndedSessionsOnlyForClassPublicAndOwnGroups() {
+		Session endedOwnGroup = new Session(CLASS_ID, GROUP_ID, "끝난 우리 그룹 방", MANAGER.id(), false);
+		endedOwnGroup.close();
+		Session endedOtherGroup = new Session(CLASS_ID, 99L, "끝난 남의 그룹 방", MANAGER.id(), false);
+		endedOtherGroup.close();
+		given(sessionRepository.findByClassIdOrderByIdDesc(CLASS_ID))
+				.willReturn(List.of(
+						new Session(CLASS_ID, null, "수업 방", MANAGER.id(), true),
+						endedOwnGroup,
+						endedOtherGroup));
+		given(groupParticipantRepository.findGroupIdsByClassIdAndUserId(CLASS_ID, STUDENT.id()))
+				.willReturn(List.of(GROUP_ID));
+
+		List<SessionResponse> sessions = sessionService.getSessions(CLASS_ID, STUDENT, null, false);
+
+		assertThat(sessions).extracting(SessionResponse::title).containsExactly("수업 방", "끝난 우리 그룹 방");
 	}
 
 	@Test

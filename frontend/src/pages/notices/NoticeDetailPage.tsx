@@ -80,6 +80,8 @@ function NoticeDetailContent({
             lineHeight: 1.7,
             color: 'var(--text-secondary)',
             whiteSpace: 'pre-wrap',
+            // 공백 없는 긴 문자열(URL 등)이 카드 밖으로 넘치지 않게 강제 줄바꿈
+            overflowWrap: 'anywhere',
           }}
         >
           {notice.body}

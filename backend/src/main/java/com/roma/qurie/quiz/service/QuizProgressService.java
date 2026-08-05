@@ -1,15 +1,19 @@
 package com.roma.qurie.quiz.service;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.roma.qurie.project.Project;
 import com.roma.qurie.project.ProjectRepository;
+import com.roma.qurie.quiz.dto.QuizProgressNotification;
 import com.roma.qurie.quiz.dto.QuizProgressResponse;
 import com.roma.qurie.quiz.dto.QuizProgressSubmitRequest;
 import com.roma.qurie.quiz.dto.QuizProgressSummaryResponse;
@@ -22,6 +26,9 @@ import com.roma.qurie.quiz.repository.QuizProgressRepository;
 import com.roma.qurie.quiz.repository.QuizRepository;
 import com.roma.qurie.quiz.repository.QuizSetRepository;
 import com.roma.qurie.security.AuthUser;
+import com.roma.qurie.session.core.Session;
+import com.roma.qurie.session.core.SessionRepository;
+import com.roma.qurie.session.participant.SessionParticipantResolver;
 import com.roma.qurie.session.participant.SessionParticipantService;
 import com.roma.qurie.user.entity.User;
 import com.roma.qurie.user.repository.UserRepository;
@@ -41,12 +48,16 @@ public class QuizProgressService {
 	private final UserRepository userRepository;
 	private final ProjectRepository projectRepository;
 	private final SessionParticipantService participantService;
+	private final SessionParticipantResolver participantResolver;
+	private final SessionRepository sessionRepository;
+	private final SimpMessagingTemplate messagingTemplate;
 
 	@Transactional
 	public QuizProgressResponse submit(
 			Long quizSetId, Long quizId, AuthUser requester, QuizProgressSubmitRequest request) {
 		QuizSet quizSet = findQuizSetOrThrow(quizSetId);
-		participantService.verifySessionClassMember(sessionIdOf(quizSet), requester);
+		Long sessionId = sessionIdOf(quizSet);
+		participantService.verifySessionClassMember(sessionId, requester);
 
 		Quiz quiz = quizRepository.findByIdAndQuizSetId(quizId, quizSetId)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "문항을 찾을 수 없습니다: " + quizId));
@@ -70,7 +81,44 @@ public class QuizProgressService {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
 		}
 
+		notifyIfQuizSetCompleted(quizSet, sessionId, requester.id());
 		return QuizProgressResponse.from(saved);
+	}
+
+	/**
+	 * 이번 제출로 사용자가 세트의 모든 문항을 마쳤으면 세션에 완주 현황을 웹소켓으로 알린다.
+	 * 강사 화면이 폴링 없이 "몇 명이 다 풀었는지"를 갱신하기 위한 알림이라 완주가 아닌 제출에는 보내지 않는다.
+	 */
+	private void notifyIfQuizSetCompleted(QuizSet quizSet, Long sessionId, Long userId) {
+		int totalQuizCount = quizSet.getQuizzes().size();
+		if (totalQuizCount == 0) {
+			return;
+		}
+		if (quizProgressRepository.countByQuizSetIdAndUserId(quizSet.getId(), userId) < totalQuizCount) {
+			return;
+		}
+		Session session = sessionRepository.findById(sessionId).orElse(null);
+		if (session == null) {
+			return;
+		}
+
+		List<Long> studentIds = participantResolver.resolveStudentIds(session);
+		// 강사 등 편성 밖 사용자의 응시가 섞여도 분자·분모가 어긋나지 않도록 참여 학생 기준으로만 센다.
+		Set<Long> completedUserIds = quizProgressRepository.countProgressByQuizSetIdGroupByUser(quizSet.getId())
+				.stream()
+				.filter(row -> ((Long) row[1]) >= totalQuizCount)
+				.map(row -> (Long) row[0])
+				.collect(Collectors.toSet());
+		int completedStudentCount = (int) studentIds.stream().filter(completedUserIds::contains).count();
+		int totalStudentCount = studentIds.size();
+
+		messagingTemplate.convertAndSend(
+				"/topic/sessions/" + sessionId + "/quiz-progress",
+				new QuizProgressNotification(
+						quizSet.getId(),
+						completedStudentCount,
+						totalStudentCount,
+						totalStudentCount > 0 && completedStudentCount == totalStudentCount));
 	}
 
 	@Transactional(readOnly = true)

@@ -90,6 +90,22 @@ export const getProjectFiles = async (
     return data;
 };
 
+/**
+ * 세션 편집기(Yjs 공유 문서)의 편집본을 스냅샷 DB에 저장한다.
+ * 갱신된 versionHash 를 담은 프로젝트를 돌려주므로, 이후 퀴즈 생성이 편집된 코드를 기준으로 한다.
+ */
+export const updateProjectFileContent = async (
+    projectId: number,
+    path: string,
+    content: string,
+): Promise<ProjectResponse> => {
+    const { data } = await axiosInstance.put<ProjectResponse>(
+        `/projects/${projectId}/files/content`,
+        { path, content },
+    );
+    return data;
+};
+
 export const getProjectFileContent = async (
     projectId: number,
     path: string,

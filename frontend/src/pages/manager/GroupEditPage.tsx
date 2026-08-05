@@ -78,7 +78,8 @@ function dateInputToLocalEnd(dateStr: string): string {
 
 function EditSkeleton() {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+    // 실제 편집 화면과 같은 반응형 그리드 — 960px 이하에서 한 열로 쌓여 스켈레톤이 화면을 넘치지 않는다
+    <div className="qurie-master-split">
       <Skeleton width="100%" height={420} radius={16} />
       <Skeleton width="100%" height={420} radius={16} delay={0.08} />
     </div>
@@ -372,6 +373,8 @@ function GroupEditForm({
     flexDirection: 'column',
     gap: 16,
     minHeight: 480,
+    // 그리드 자식은 기본 min-width:auto 라 긴 이메일이 열을 밀어낸다 — 0으로 눌러 칸 안에서 줄어들게
+    minWidth: 0,
   };
 
   const cardBase: CSSProperties = {
@@ -442,13 +445,8 @@ function GroupEditForm({
               <AlertBanner tone="error" title="저장 실패" description={saveError} />
             ) : null}
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
-                gap: 24,
-              }}
-            >
+            {/* 좁은 화면(960px 이하)에서는 두 패널이 세로로 쌓인다 — 드래그 대상 패널이 화면 밖으로 밀리지 않게 */}
+            <div className="qurie-master-split">
               <div
                 ref={membersPanelRef}
                 style={{
@@ -501,7 +499,7 @@ function GroupEditForm({
                   />
                 </label>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 12 }}>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <span
                       style={{

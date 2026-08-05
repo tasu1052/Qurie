@@ -189,7 +189,13 @@ function KpiRow() {
   );
 }
 
-function TracksAndManagers({ onOpenTrack }: { onOpenTrack: (id: string) => void }) {
+function TracksAndManagers({
+  onOpenTrack,
+  onMoreTracks,
+}: {
+  onOpenTrack: (id: string) => void;
+  onMoreTracks: () => void;
+}) {
   const { data: tracksPage } = useGetTracks({ size: 5, sort: 'classCount,desc' });
   const { data: managersPage } = useGetUsers({ role: 'MANAGER', size: 5 });
   const tracks = tracksPage.data.map(toTrackCard);
@@ -222,9 +228,23 @@ function TracksAndManagers({ onOpenTrack }: { onOpenTrack: (id: string) => void 
           >
             트랙 현황
           </span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            카드를 클릭하면 트랙 상세로 이동합니다
-          </span>
+          {/* 대시보드에는 상위 5개만 보여준다 — 전체 목록은 트랙 관리로 넘겨 카드 열이 무한히 길어지지 않게 */}
+          <button
+            type="button"
+            onClick={onMoreTracks}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--accent)',
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+              padding: 0,
+            }}
+          >
+            더보기
+          </button>
         </div>
         {tracks.length === 0 ? (
           <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>등록된 트랙이 없습니다.</span>
@@ -336,7 +356,10 @@ export default function MasterDashboardPage() {
             />
           }
         >
-          <TracksAndManagers onOpenTrack={(id) => navigate(`/master/tracks/${id}`)} />
+          <TracksAndManagers
+            onOpenTrack={(id) => navigate(`/master/tracks/${id}`)}
+            onMoreTracks={() => navigate('/master/tracks')}
+          />
         </QueryAsyncBoundary>
 
         <DashboardNoticesSection role="MASTER" size={5} />

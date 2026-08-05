@@ -8,6 +8,7 @@ import {
   useGetNotices,
   useMeOptional,
   type HelpRequestResponse,
+  type NoticeListFilters,
   type NoticeResponse,
   type UserRole,
 } from '../../data';
@@ -16,7 +17,11 @@ import { Skeleton } from '../../ds';
 
 const READ_KEY = 'qurie-notice-read-ids';
 
-/** 뒤 화면은 강하게 뭉개고, 패널 본문은 읽히게 높은 불투명도 유지 */
+/**
+ * 패널 배경은 불투명한 --surface-modal 이라 backdrop-filter 가 시각 효과 없이
+ * Topbar(자체 backdrop-filter 보유)와 중첩돼 상단바가 어둡게 재합성되는 아티팩트만 냈다.
+ * 그래서 패널에는 blur 를 걸지 않는다.
+ */
 const panelShellStyle: CSSProperties = {
   position: 'absolute',
   right: 0,
@@ -31,8 +36,6 @@ const panelShellStyle: CSSProperties = {
   zIndex: 800,
   display: 'flex',
   flexDirection: 'column',
-  backdropFilter: 'blur(48px) saturate(1.45)',
-  WebkitBackdropFilter: 'blur(48px) saturate(1.45)',
   color: 'var(--ink)',
 };
 
@@ -50,6 +53,24 @@ function readIds(): Set<number> {
 
 function writeIds(ids: Set<number>) {
   localStorage.setItem(READ_KEY, JSON.stringify([...ids]));
+}
+
+function markRead(id: number) {
+  const ids = readIds();
+  ids.add(id);
+  writeIds(ids);
+}
+
+/**
+ * MASTER 외 역할이 forAudience 없이 조회하면 대상이 아닌 반의 공지까지 내려와
+ * 상세 진입 시 404가 난다. BellPanel·UnreadBadge 두 호출부가 같은 캐시 엔트리를
+ * 쓰도록 필터 객체를 모듈 상수로 공유한다.
+ */
+const MASTER_NOTICE_FILTERS: NoticeListFilters = { size: 8 };
+const AUDIENCE_NOTICE_FILTERS: NoticeListFilters = { size: 8, forAudience: true };
+
+function bellNoticeFilters(role: UserRole): NoticeListFilters {
+  return role === 'MASTER' ? MASTER_NOTICE_FILTERS : AUDIENCE_NOTICE_FILTERS;
 }
 
 function scopeLabel(scope: NoticeResponse['scope']): string {
@@ -157,48 +178,52 @@ function HelpRequestRows({
   );
 }
 
-function BellPanel({
+function PanelHeader({
   role,
-  classId,
   onClose,
+  onMarkAllRead,
 }: {
   role: UserRole;
-  classId: number | null;
   onClose: () => void;
+  onMarkAllRead?: () => void;
 }) {
   const navigate = useNavigate();
-  const openNotice = useOpenNoticeDetail();
-  const { data } = useGetNotices({ size: 8 });
-  const helpQuery = useGetClassHelpRequests(
-    role === 'MANAGER' || role === 'MASTER' ? classId : null,
-  );
-  const notices = data.data;
-  const helpRequests = helpQuery.data ?? [];
   const morePath = noticeListPath(role);
 
-  useEffect(() => {
-    if (notices.length === 0) return;
-    const ids = readIds();
-    for (const n of notices) ids.add(n.id);
-    writeIds(ids);
-  }, [notices]);
-
   return (
-    <div role="dialog" aria-label="알림" style={panelShellStyle}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 14px',
-          borderBottom: '1px solid var(--divider)',
-          background: 'var(--surface-modal)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 1,
-        }}
-      >
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>알림</span>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '12px 14px',
+        borderBottom: '1px solid var(--divider)',
+        background: 'var(--surface-modal)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 1,
+      }}
+    >
+      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>알림</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {onMarkAllRead ? (
+          <button
+            type="button"
+            onClick={onMarkAllRead}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--text-secondary)',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+              padding: 0,
+            }}
+          >
+            모두 읽음
+          </button>
+        ) : null}
         {morePath ? (
           <button
             type="button"
@@ -221,6 +246,52 @@ function BellPanel({
           </button>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/** forAudience=true 조회는 classId 없는 계정에서 400 이라 공지 요청 자체를 생략한다. */
+function BellPanelNoClass({ role, onClose }: { role: UserRole; onClose: () => void }) {
+  return (
+    <div role="dialog" aria-label="알림" style={panelShellStyle}>
+      <PanelHeader role={role} onClose={onClose} />
+      <div style={{ padding: '16px 14px 20px', fontSize: 13, color: 'var(--text-muted)' }}>
+        소속 클래스가 지정되면 공지를 볼 수 있어요.
+      </div>
+    </div>
+  );
+}
+
+function BellPanel({
+  role,
+  classId,
+  onClose,
+  onRead,
+}: {
+  role: UserRole;
+  classId: number | null;
+  onClose: () => void;
+  onRead: () => void;
+}) {
+  const openNotice = useOpenNoticeDetail();
+  const { data } = useGetNotices(bellNoticeFilters(role));
+  const helpQuery = useGetClassHelpRequests(
+    role === 'MANAGER' || role === 'MASTER' ? classId : null,
+  );
+  const notices = data.data;
+  const helpRequests = helpQuery.data ?? [];
+
+  const markAllRead = () => {
+    if (notices.length === 0) return;
+    const ids = readIds();
+    for (const n of notices) ids.add(n.id);
+    writeIds(ids);
+    onRead();
+  };
+
+  return (
+    <div role="dialog" aria-label="알림" style={panelShellStyle}>
+      <PanelHeader role={role} onClose={onClose} onMarkAllRead={markAllRead} />
 
       <HelpRequestRows requests={helpRequests} onClose={onClose} />
 
@@ -246,6 +317,8 @@ function BellPanel({
             key={n.id}
             type="button"
             onClick={() => {
+              markRead(n.id);
+              onRead();
               onClose();
               openNotice(n.id);
             }}
@@ -313,14 +386,23 @@ function UnreadBadge({
   classId: number | null;
   role: UserRole;
 }) {
-  const { data } = useGetNotices({ size: 8 });
+  const { data } = useGetNotices(bellNoticeFilters(role));
   const helpQuery = useGetClassHelpRequests(
     role === 'MANAGER' || role === 'MASTER' ? classId : null,
   );
   void version;
   const unreadNotices = data.data.filter((n) => !readIds().has(n.id)).length;
   const helpCount = helpQuery.data?.length ?? 0;
-  const unread = unreadNotices + helpCount;
+  return <BadgeDot unread={unreadNotices + helpCount} />;
+}
+
+/** classId 없는 계정은 forAudience 공지 조회가 400 이라 도움 요청 수만 배지에 반영한다. */
+function HelpOnlyBadge({ classId, role }: { classId: number | null; role: UserRole }) {
+  const helpQuery = useGetClassHelpRequests(role === 'MANAGER' ? classId : null);
+  return <BadgeDot unread={helpQuery.data?.length ?? 0} />;
+}
+
+function BadgeDot({ unread }: { unread: number }) {
   if (unread <= 0) return null;
   return (
     <span
@@ -360,6 +442,10 @@ export function NotificationBell({ role }: NotificationBellProps) {
   const panelId = useId();
   const meQuery = useMeOptional();
   const classId = meQuery.data?.classId ?? null;
+  // forAudience=true 는 classId 없는 계정에서 400 이라 MASTER 외에는 classId 확보 후에만 공지를 조회한다.
+  const canFetchNotices = role === 'MASTER' || classId != null;
+
+  const bumpReadVersion = () => setReadVersion((v) => v + 1);
 
   const close = () => {
     setOpen(false);
@@ -408,7 +494,11 @@ export function NotificationBell({ role }: NotificationBellProps) {
       >
         <Bell size={17} strokeWidth={1.75} />
         <QueryAsyncBoundary suspenseFallback={null} errorFallback={null}>
-          <UnreadBadge version={readVersion} classId={classId} role={role} />
+          {canFetchNotices ? (
+            <UnreadBadge version={readVersion} classId={classId} role={role} />
+          ) : (
+            <HelpOnlyBadge classId={classId} role={role} />
+          )}
         </QueryAsyncBoundary>
       </button>
       {open ? (
@@ -425,7 +515,11 @@ export function NotificationBell({ role }: NotificationBellProps) {
               </div>
             }
           >
-            <BellPanel role={role} classId={classId} onClose={close} />
+            {canFetchNotices ? (
+              <BellPanel role={role} classId={classId} onClose={close} onRead={bumpReadVersion} />
+            ) : (
+              <BellPanelNoClass role={role} onClose={close} />
+            )}
           </QueryAsyncBoundary>
         </div>
       ) : null}

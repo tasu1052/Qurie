@@ -78,7 +78,7 @@ function NoticeCard({
         cursor: 'pointer',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         {item.pinned ? (
           <>
             <Pin size={14} strokeWidth={1.75} style={{ color: 'var(--accent)' }} />
@@ -143,7 +143,21 @@ function NoticeCard({
         </button>
       </div>
       <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>{item.title}</h3>
-      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+      {/* overflowWrap: 공백 없는 긴 문자열(URL 등)이 카드 밖으로 넘치지 않게 강제 줄바꿈 */}
+      <p
+        style={{
+          margin: 0,
+          fontSize: 13,
+          lineHeight: 1.6,
+          color: 'var(--text-secondary)',
+          whiteSpace: 'pre-wrap',
+          overflowWrap: 'anywhere',
+          display: '-webkit-box',
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+        }}
+      >
         {item.body}
       </p>
       <div style={{ display: 'flex', gap: 14, fontSize: 12, color: 'var(--text-muted)' }}>
@@ -257,14 +271,22 @@ function AnnouncementsBody() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, position: 'relative' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+          flexWrap: 'wrap',
+        }}
+      >
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>공지사항</h1>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
             전체 · 트랙 · 클래스 단위로 공지를 관리해요.
           </span>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {(
             [
               { key: '전체', label: '전체' },
@@ -409,7 +431,25 @@ function AnnouncementsBody() {
             </>
           ) : null}
           <Input placeholder="제목" value={title} onChange={(e) => setTitle(e.target.value)} width="100%" />
-          <Input placeholder="본문" value={body} onChange={(e) => setBody(e.target.value)} width="100%" />
+          <textarea
+            placeholder="본문"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={6}
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              border: '1px solid var(--border-strong)',
+              borderRadius: 'var(--radius-control)',
+              padding: '10px 14px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 14,
+              color: 'var(--ink)',
+              background: 'var(--surface-card)',
+              resize: 'vertical',
+              lineHeight: 1.5,
+            }}
+          />
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
             <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
             상단 고정

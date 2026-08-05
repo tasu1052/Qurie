@@ -3,6 +3,7 @@ package com.roma.qurie.project;
 import com.roma.qurie.project.dto.ProjectCreateRequest;
 import com.roma.qurie.project.dto.ProjectFileContentResponse;
 import com.roma.qurie.project.dto.ProjectFileSummaryResponse;
+import com.roma.qurie.project.dto.ProjectFileUpdateRequest;
 import com.roma.qurie.project.dto.ProjectImportGitRequest;
 import com.roma.qurie.project.dto.ProjectImportLocalRequest;
 import com.roma.qurie.project.dto.ProjectImportResponse;
@@ -17,6 +18,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -75,5 +77,14 @@ public class ProjectController {
             @PathVariable("projectId") Long projectId,
             @RequestParam("path") String path) {
         return projectService.getFileContent(requester, projectId, path);
+    }
+
+    /** 파일 내용 저장. 세션 편집기의 편집본을 스냅샷에 반영한다 (세션 구성원). 갱신된 versionHash 를 돌려준다 */
+    @PutMapping("/{projectId}/files/content")
+    public ProjectResponse updateFileContent(
+            @AuthenticationPrincipal AuthUser requester,
+            @PathVariable("projectId") Long projectId,
+            @Valid @RequestBody ProjectFileUpdateRequest request) {
+        return projectService.updateFileContent(requester, projectId, request);
     }
 }

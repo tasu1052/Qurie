@@ -5,7 +5,8 @@ export type ChatMessageListParams = {
 
 export const sessionKeys = {
     all: ['sessions'] as const,
-    list: (classId: number) => [...sessionKeys.all, 'list', { classId }] as const,
+    list: (classId: number, includeEnded = false) =>
+        [...sessionKeys.all, 'list', { classId, includeEnded }] as const,
     detail: (sessionId: number) => [...sessionKeys.all, 'detail', sessionId] as const,
     participants: (sessionId: number) =>
         [...sessionKeys.detail(sessionId), 'participants'] as const,

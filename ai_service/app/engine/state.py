@@ -19,6 +19,10 @@ class PipelineState(TypedDict, total=False):
     rejected_pool: list[dict[str, Any]]
     last_approved: int
     user_prompt: str | None
+    # 재생성 시 중복 출제를 피할 이전 문항 목록 (백엔드 avoid_questions)
+    avoid_questions: list[str]
+    # 재시도 라운드에서 judge 반려 사유를 모아 두는 신뢰 구간 노트 (user_prompt와 분리)
+    critiques_note: str
     version_hash: str
     files: dict[str, str]
     primary_file: str

@@ -30,6 +30,19 @@ def normalize_micro(q: dict, primary_file: str) -> dict:
     return {**q, "file_path": q.get("file_path") or primary_file}
 
 
+def _avoid_questions(state: PipelineState) -> list[str]:
+    """중복 금지 목록 = 백엔드가 보낸 이전 세트 문항 + 이번 실행에서 이미 승인된 문항.
+
+    approved_pool을 합치지 않으면 재시도 라운드가 1라운드에서 승인된 문항과
+    사실상 같은 문항을 다시 만들어 최종 세트 안에서 중복이 난다.
+    """
+    avoid = list(state.get("avoid_questions") or [])
+    for q in state.get("approved_pool") or []:
+        if isinstance(q, dict) and q.get("question"):
+            avoid.append(str(q["question"]))
+    return avoid
+
+
 def node_generate(state: PipelineState) -> PipelineState:
     # 재시도 라운드에서는 이미 확보한 문항을 빼고 부족분만 뽑는다.
     count = state.get("gen_count") or state["requested_count"]
@@ -41,6 +54,8 @@ def node_generate(state: PipelineState) -> PipelineState:
         state["purpose_counts"],
         state["mode"],
         state.get("user_prompt"),
+        avoid_questions=_avoid_questions(state),
+        critiques_note=state.get("critiques_note"),
     )
     data = call_llm_json(
         config.GEN_MODEL, prompt, state["meter"], "GENERATE",

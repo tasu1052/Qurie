@@ -87,10 +87,19 @@ type MemberRow = {
   name: string;
   email: string;
   role: UserRole;
+  phone?: string | null;
+  region?: string | null;
+  gender?: string | null;
   weeklySessionCount?: number;
   lastSessionCreatedAt?: string | null;
   groupName?: string | null;
 };
+
+function genderLabel(gender?: string | null): string {
+  if (gender === 'MALE') return '남';
+  if (gender === 'FEMALE') return '여';
+  return '—';
+}
 
 function toRowFromUser(u: UserSummaryResponse): MemberRow {
   return {
@@ -98,6 +107,9 @@ function toRowFromUser(u: UserSummaryResponse): MemberRow {
     name: u.name,
     email: u.email,
     role: u.role,
+    phone: u.phone,
+    region: u.region,
+    gender: u.gender,
     weeklySessionCount: u.weeklySessionCount,
     lastSessionCreatedAt: u.lastSessionCreatedAt,
   };
@@ -180,12 +192,12 @@ function MembersChrome({
     });
   }, [members, debouncedQuery, roleFilter]);
 
+  // 마스터는 masters 테이블로 분리되어 회원 목록 API에 나오지 않으므로 KPI·필터에서 다루지 않는다.
   const counts = useMemo(
     () => ({
       total: totalCaption,
       managers: members.filter((u) => u.role === 'MANAGER').length,
       students: members.filter((u) => u.role === 'STUDENT').length,
-      masters: members.filter((u) => u.role === 'MASTER').length,
     }),
     [members, totalCaption],
   );
@@ -216,7 +228,6 @@ function MembersChrome({
 
       <StatCardRow>
         <StatCard label="전체" value={String(counts.total)} caption="users" />
-        <StatCard label="마스터" value={String(counts.masters)} caption="MASTER" />
         <StatCard label="매니저" value={String(counts.managers)} caption="MANAGER" accent />
         <StatCard label="학생" value={String(counts.students)} caption="STUDENT" />
       </StatCardRow>
@@ -232,7 +243,6 @@ function MembersChrome({
         <Select
           options={[
             { value: 'all', label: '전체 역할' },
-            { value: 'MASTER', label: 'MASTER' },
             { value: 'MANAGER', label: 'MANAGER' },
             { value: 'STUDENT', label: 'STUDENT' },
           ]}
@@ -258,7 +268,8 @@ function MembersChrome({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: classFilter === 'all' ? '2fr 1.1fr 1.2fr 1fr' : '2fr 1.1fr 1.2fr',
+            gridTemplateColumns:
+              classFilter === 'all' ? '2fr 0.9fr 1.1fr 0.8fr 0.6fr 0.8fr 1fr' : '2fr 1.1fr 1.2fr',
             padding: '12px 24px',
             borderBottom: '1px solid var(--divider)',
             fontSize: 11,
@@ -272,6 +283,9 @@ function MembersChrome({
           <span>역할</span>
           {classFilter === 'all' ? (
             <>
+              <span>전화번호</span>
+              <span>지역</span>
+              <span>성별</span>
               <span>주간 세션</span>
               <span style={{ textAlign: 'right' }}>최근 세션</span>
             </>
@@ -287,7 +301,8 @@ function MembersChrome({
               key={m.id}
               style={{
                 display: 'grid',
-                gridTemplateColumns: classFilter === 'all' ? '2fr 1.1fr 1.2fr 1fr' : '2fr 1.1fr 1.2fr',
+                gridTemplateColumns:
+                  classFilter === 'all' ? '2fr 0.9fr 1.1fr 0.8fr 0.6fr 0.8fr 1fr' : '2fr 1.1fr 1.2fr',
                 padding: '13px 24px',
                 borderBottom: '1px solid var(--divider)',
                 fontSize: 13,
@@ -321,6 +336,11 @@ function MembersChrome({
               <span style={{ display: 'inline-flex', justifySelf: 'start' }}>{roleBadge(m.role)}</span>
               {classFilter === 'all' ? (
                 <>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
+                    {m.phone || '—'}
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{m.region || '—'}</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{genderLabel(m.gender)}</span>
                   <span>{m.weeklySessionCount ?? '—'}</span>
                   <span style={{ textAlign: 'right', color: 'var(--text-muted)' }}>
                     {m.lastSessionCreatedAt

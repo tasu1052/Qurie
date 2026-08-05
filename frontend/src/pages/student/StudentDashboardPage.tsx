@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StudentShell, PageMain } from '../../components/layout/StudentShell';
 import {
@@ -14,6 +14,7 @@ import {
   QueryAsyncBoundary,
   useGetMyClasses,
   useGetMyGroups,
+  useGetSessionPresence,
   useGetSessions,
   useMe,
   type GroupDetailResponse,
@@ -21,6 +22,7 @@ import {
   type SessionResponse,
 } from '../../data';
 import { DashboardNoticesSection } from '../../components/notices/DashboardNoticesSection';
+import { ClassMaterialsCard } from '../../components/materials/ClassMaterialsCard';
 import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
 
 function DashSkeleton() {
@@ -183,26 +185,46 @@ function StudentDashWithClass({ classId }: { classId: number }) {
   const { data: sessions } = useGetSessions(classId);
   const { data: myGroups } = useGetMyGroups(classId);
   const [popupBlockedSessionId, setPopupBlockedSessionId] = useState<number | null>(null);
+  const [newGroupSession, setNewGroupSession] = useState<SessionResponse | null>(null);
+  // 첫 로드에 이미 열려 있던 그룹 세션은 알리지 않는다 — 새로 시작된 세션만 배너로 알린다
+  const seenGroupSessionIdsRef = useRef<Set<number> | null>(null);
 
   const className = myClasses.find((c) => c.id === classId)?.name ?? '내 클래스';
   const myGroup = myGroups[0] ?? null;
-  const myGroupId = myGroup?.id ?? null;
 
   const activeSessions = useMemo(() => sessions.filter((s) => s.active), [sessions]);
+  // 서버는 내 모든 그룹의 세션 입장을 허용하므로 첫 그룹만이 아니라 소속 그룹 전체를 본다
   const joinableSessions = useMemo(
     () =>
       activeSessions.filter(
-        (s) => s.classPublic || (myGroupId != null && s.groupId === myGroupId),
+        (s) => s.classPublic || myGroups.some((g) => g.id === s.groupId),
       ),
-    [activeSessions, myGroupId],
+    [activeSessions, myGroups],
   );
   const heroSession = useMemo(
     () => joinableSessions.find((s) => s.classPublic) ?? joinableSessions[0] ?? null,
     [joinableSessions],
   );
 
-  /** 활성 세션 참가 여부는 목록만으로는 알 수 없어, 같은 그룹 멤버를 표시하고 접속 표시는 추후 소켓으로 확장. */
-  const onlineUserIds = useMemo(() => new Set<number>(), []);
+  /** 접속 표시는 히어로(대표) 세션의 참가자 명단 기준 — 세션이 없으면 전원 오프라인으로 보인다. */
+  const presenceQuery = useGetSessionPresence(heroSession?.id ?? null);
+  const onlineUserIds = useMemo(
+    () => new Set<number>((presenceQuery.data ?? []).map((p) => p.userId)),
+    [presenceQuery.data],
+  );
+
+  useEffect(() => {
+    const groupSessions = joinableSessions.filter((s) => !s.classPublic);
+    if (seenGroupSessionIdsRef.current == null) {
+      // 첫 로드는 기준 집합만 기록하고 알림은 띄우지 않는다
+      seenGroupSessionIdsRef.current = new Set(groupSessions.map((s) => s.id));
+      return;
+    }
+    const seen = seenGroupSessionIdsRef.current;
+    const fresh = groupSessions.find((s) => !seen.has(s.id));
+    for (const s of groupSessions) seen.add(s.id);
+    if (fresh) setNewGroupSession(fresh);
+  }, [joinableSessions]);
 
   return (
     <>
@@ -247,6 +269,20 @@ function StudentDashWithClass({ classId }: { classId: number }) {
           description="브라우저의 팝업 차단을 해제한 뒤 다시 시도해 주세요."
           actionLabel="확인"
           onAction={() => setPopupBlockedSessionId(null)}
+        />
+      ) : null}
+
+      {/* 폴링으로 새 그룹 세션이 감지되면 배너로 알린다 — AlertBanner 는 액션이 하나뿐이라 입장이 곧 닫기 역할도 한다 */}
+      {newGroupSession ? (
+        <AlertBanner
+          tone="info"
+          title="그룹 세션이 시작됐어요"
+          description={`${newGroupSession.title} — 지금 바로 입장할 수 있어요.`}
+          actionLabel="세션 입장"
+          onAction={() => {
+            openSessionInNewTab(newGroupSession.id, newGroupSession.title, setPopupBlockedSessionId);
+            setNewGroupSession(null);
+          }}
         />
       ) : null}
 
@@ -318,33 +354,7 @@ function StudentDashWithClass({ classId }: { classId: number }) {
 
       <DashboardNoticesSection role="STUDENT" classId={classId} size={5} />
 
-      <div
-        style={{
-          background: 'var(--surface-card)',
-          border: '1px solid var(--border)',
-          borderRadius: 16,
-          boxShadow: 'var(--shadow-card)',
-          padding: 24,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          학습자료
-        </span>
-        <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-          학습자료 API가 준비되면 이 영역에 자료 목록이 표시돼요.
-        </p>
-      </div>
+      <ClassMaterialsCard classId={classId} />
     </>
   );
 }
