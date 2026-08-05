@@ -16,6 +16,7 @@ import {
   humanizeApiError,
   useCreateSessionReportsForAll,
   useDownloadSessionReportPdf,
+  useGetClassMembers,
   useGetSessionReport,
   useMe,
   type SessionReportDetailResponse,
@@ -532,6 +533,87 @@ function SessionReportBody({
   );
 }
 
+/**
+ * 강사(매니저·마스터)용 학생 선택 화면.
+ * 세션 리포트는 학생 단위로 발급되므로, userId 없이 들어온 강사에게
+ * 본인 리포트를 조회(항상 404)하는 대신 어떤 학생의 리포트를 볼지 고르게 한다.
+ */
+function ManagerStudentPicker({
+  sessionId,
+  classId,
+  backTo,
+}: {
+  sessionId: number;
+  classId: number;
+  backTo: string;
+}) {
+  const navigate = useNavigate();
+  const { data: membersPage } = useGetClassMembers(classId, { size: 100 });
+  const students = membersPage.data.filter((m) => m.role === 'STUDENT');
+
+  return (
+    <>
+      <div>
+        <Button variant="ghost" size="sm" icon={<ArrowLeft size={14} />} onClick={() => navigate(backTo)}>
+          목록으로
+        </Button>
+        <h1 style={{ fontSize: 22, fontWeight: 700, margin: '8px 0 0' }}>세션 리포트</h1>
+        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+          리포트를 확인할 학생을 선택하세요.
+        </span>
+      </div>
+      {students.length === 0 ? (
+        <EmptyState message="반에 학생이 없습니다" />
+      ) : (
+        <div
+          style={{
+            background: 'var(--surface-card)',
+            border: '1px solid var(--border)',
+            borderRadius: 16,
+            boxShadow: 'var(--shadow-card)',
+            overflow: 'hidden',
+          }}
+        >
+          {students.map((m) => (
+            <div
+              key={m.userId}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                padding: '13px 24px',
+                borderBottom: '1px solid var(--divider)',
+              }}
+            >
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: 'var(--text-muted)',
+                    fontFamily: 'var(--font-mono)',
+                    wordBreak: 'break-all',
+                  }}
+                >
+                  {m.email}
+                </span>
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate(`/session/${sessionId}/report?userId=${m.userId}`)}
+              >
+                리포트 보기
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 function SessionReportLoader({
   sessionId,
   userId,
@@ -592,6 +674,35 @@ export default function SessionReportPage() {
         actionLabel="돌아가기"
         onAction={() => navigate(backTo)}
       />,
+    );
+  }
+
+  // 강사가 userId 없이 접근하면 본인 리포트 조회가 되어 항상 404 가 난다 — 학생 선택 화면을 먼저 보여준다.
+  if (me.role !== 'STUDENT' && (userId == null || !Number.isFinite(userId))) {
+    const classId = me.classId;
+    if (typeof classId !== 'number' || !Number.isFinite(classId) || classId <= 0) {
+      return wrap(
+        <EmptyState
+          message="소속 클래스가 없습니다"
+          description="반 배정 후 세션 리포트를 볼 수 있습니다."
+          actionLabel="돌아가기"
+          onAction={() => navigate(backTo)}
+        />,
+      );
+    }
+    return wrap(
+      <QueryAsyncBoundary
+        key={`picker-${rowKey}-${sessionId}`}
+        suspenseFallback={<ReportSkeleton />}
+        errorFallback={
+          <RowErrorFallback
+            onRetry={() => setRowKey((k) => k + 1)}
+            title="학생 목록을 불러오지 못했습니다"
+          />
+        }
+      >
+        <ManagerStudentPicker sessionId={sessionId} classId={classId} backTo={backTo} />
+      </QueryAsyncBoundary>,
     );
   }
 

@@ -74,7 +74,8 @@ function MyGroupPanel({
         flexDirection: 'column',
         gap: 14,
         minWidth: 0,
-        height: DASH_PANEL_HEIGHT,
+        // 고정 높이 대신 상한만 둔다 — 내용이 짧을 때 불필요한 스크롤바가 생기지 않게
+        maxHeight: DASH_PANEL_HEIGHT,
         boxSizing: 'border-box',
         overflow: 'hidden',
       }}
@@ -305,7 +306,6 @@ function StudentDashWithClass({ classId }: { classId: number }) {
               border: '1px solid var(--border)',
               borderRadius: 16,
               padding: 24,
-              height: DASH_PANEL_HEIGHT,
               boxSizing: 'border-box',
             }}
           >
@@ -329,7 +329,7 @@ function StudentDashWithClass({ classId }: { classId: number }) {
             flexDirection: 'column',
             gap: 12,
             minWidth: 0,
-            height: DASH_PANEL_HEIGHT,
+            maxHeight: DASH_PANEL_HEIGHT,
             boxSizing: 'border-box',
             overflow: 'hidden',
           }}
