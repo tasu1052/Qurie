@@ -13,6 +13,8 @@ import {
 } from '../../ds';
 import {
   QueryAsyncBoundary,
+  humanizeApiError,
+  useCreateSessionReportsForAll,
   useDownloadSessionReportPdf,
   useGetSessionReport,
   useMe,
@@ -21,7 +23,7 @@ import {
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Download, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Download, RefreshCw, TriangleAlert } from 'lucide-react';
 import { ApiIntegrationPanel } from '../../components/feedback/ApiIntegrationPanel';
 
 function ReportSkeleton() {
@@ -103,22 +105,28 @@ function conceptBars(stats: Record<string, unknown> | null) {
 
 function SessionReportBody({
   report,
+  sessionId,
   backTo,
   userRole,
 }: {
   report: SessionReportDetailResponse;
+  sessionId: number;
   backTo: string;
   userRole: string;
 }) {
   const navigate = useNavigate();
   const downloadPdf = useDownloadSessionReportPdf();
+  const reissueReports = useCreateSessionReportsForAll();
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [reissueError, setReissueError] = useState<string | null>(null);
+  // 실제 리포트의 quizSetId 가 없으면 퀴즈 열람을 제공하지 않는다(목업 id 사용 금지).
   const quizPath =
-    report.quizSetId != null
-      ? userRole === 'STUDENT'
+    report.quizSetId == null
+      ? null
+      : userRole === 'STUDENT'
         ? `/app/quizzes/${report.quizSetId}`
-        : `/manager/quizzes/${report.quizSetId}`
-      : null;
+        : `/manager/quizzes/${report.quizSetId}`;
+  const isManager = userRole === 'MANAGER' || userRole === 'MASTER';
   const aiStrengths = report.aiStrengths ?? [];
   const aiImprovements = report.aiImprovements ?? [];
   const hasAiBlock =
@@ -145,6 +153,30 @@ function SessionReportBody({
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {quizPath != null ? (
+            <Button variant="secondary" size="sm" onClick={() => navigate(quizPath)}>
+              퀴즈 열람
+            </Button>
+          ) : null}
+          {isManager ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<RefreshCw size={14} strokeWidth={1.75} />}
+              disabled={reissueReports.isPending}
+              onClick={() => {
+                setReissueError(null);
+                // 성공 시 훅이 sessions.detail(sessionId) 를 무효화하고,
+                // report 쿼리 키가 그 하위라 이 화면 데이터도 함께 갱신된다.
+                reissueReports.mutate(sessionId, {
+                  onError: (err) =>
+                    setReissueError(humanizeApiError(err, '리포트 재발급에 실패했습니다.')),
+                });
+              }}
+            >
+              {reissueReports.isPending ? '재발급 중…' : '리포트 재발급'}
+            </Button>
+          ) : null}
           <Button
             variant="secondary"
             size="sm"
@@ -168,6 +200,9 @@ function SessionReportBody({
 
       {pdfError ? (
         <span style={{ fontSize: 13, color: 'var(--status-error)' }}>{pdfError}</span>
+      ) : null}
+      {reissueError ? (
+        <span style={{ fontSize: 13, color: 'var(--status-error)' }}>{reissueError}</span>
       ) : null}
       <div
         style={{
@@ -243,24 +278,17 @@ function SessionReportBody({
             gap: 14,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              AI 리포트
-            </span>
-            {quizPath ? (
-              <Button variant="secondary" size="sm" onClick={() => navigate(quizPath)}>
-                퀴즈 열람
-              </Button>
-            ) : null}
-          </div>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            AI 리포트
+          </span>
           {report.aiComment?.trim() ? (
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--ink)', fontWeight: 600 }}>
               {report.aiComment}
@@ -519,6 +547,7 @@ function SessionReportLoader({
   return (
     <SessionReportBody
       report={report}
+      sessionId={sessionId}
       backTo={backTo}
       userRole={userRole}
     />

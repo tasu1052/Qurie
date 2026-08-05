@@ -31,6 +31,20 @@ def normalize_micro(q: dict, primary_file: str) -> dict:
     return {**q, "file_path": q.get("file_path") or primary_file}
 
 
+def _avoid_questions(state: PipelineState) -> list[str]:
+    """중복 금지 텍스트 목록 = 백엔드가 보낸 이전 세트 문항 + 이번 실행에서 이미 승인된 문항.
+
+    계산 dedup(mark_duplicates)의 비교 대상으로 쓴다. approved_pool을 합치지 않으면
+    재시도 라운드가 1라운드에서 승인된 문항과 사실상 같은 문항을 다시 만들어
+    최종 세트 안에서 중복이 난다.
+    """
+    avoid = list(state.get("avoid_questions") or [])
+    for q in state.get("approved_pool") or []:
+        if isinstance(q, dict) and q.get("question"):
+            avoid.append(str(q["question"]))
+    return avoid
+
+
 def node_generate(state: PipelineState) -> PipelineState:
     # 재시도 라운드에서는 이미 확보한 문항을 빼고 부족분만 뽑는다.
     count = state.get("gen_count") or state["requested_count"]
@@ -46,6 +60,9 @@ def node_generate(state: PipelineState) -> PipelineState:
         state.get("user_prompt"),
         existing=existing,
         retry_notes=state.get("retry_notes"),
+        # 백엔드가 보낸 이전 세트 문항. 이번 실행분(existing)과 달리 실행을 넘어선 이력이라
+        # 별도의 신뢰 구간([기존 출제 이력])으로 렌더링된다. USER_HINT에는 절대 넣지 않는다.
+        avoid_questions=state.get("avoid_questions"),
     )
     data = call_llm_json(
         config.GEN_MODEL, prompt, state["meter"], "GENERATE",
@@ -88,6 +105,8 @@ def node_generate(state: PipelineState) -> PipelineState:
     validated = apply_validation(normalized, state["files"])
     # 프롬프트로 "겹치지 마세요"라고 해도 표현만 바꾼 문항이 나온다. 계산으로 자른다.
     # SOLVE/JUDGE 앞에서 걸러 중복 문항에 크레딧을 쓰지 않는다.
-    state["quizzes"] = mark_duplicates(validated, existing)
+    # 비교 대상 = 이번 실행 확보분(existing, span 비교까지 가능) + 백엔드 이전 세트 문항 텍스트.
+    history = [{"question": text} for text in _avoid_questions(state)]
+    state["quizzes"] = mark_duplicates(validated, existing + history)
     state["choice_perms"] = perms
     return state

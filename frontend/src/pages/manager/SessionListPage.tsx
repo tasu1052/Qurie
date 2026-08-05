@@ -107,7 +107,8 @@ function SessionTable({
   onReport: (sessionId: number) => void;
   onDelete: (session: SessionResponse) => void;
 }) {
-  const { data: sessions } = useGetSessions(classId);
+  // 종료된 세션까지 받아야 '전체/종료' 칩이 실제 데이터를 보여준다
+  const { data: sessions } = useGetSessions(classId, { includeEnded: true });
   const { data: groups } = useGetGroups(classId);
   const debouncedQuery = useDebouncedValue(query, 300);
   const groupNameById = useMemo(() => {
@@ -209,8 +210,14 @@ function SessionTable({
                       ) : null}
                     </span>
                   </span>
-                  <span style={{ color: 'var(--text-secondary)', minWidth: 0, wordBreak: 'break-word' }}>
-                    {formatSessionTime(s.createdAt)}
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 2, color: 'var(--text-secondary)', minWidth: 0, wordBreak: 'break-word' }}>
+                    <span>{formatSessionTime(s.createdAt)}</span>
+                    {/* 종료 세션은 언제 끝났는지가 더 중요하므로 종료 시각을 함께 보여준다 */}
+                    {s.endedAt ? (
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        종료 {formatSessionTime(s.endedAt)}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="qurie-table-status">
                     {status === 'LIVE' ? <LiveBadge /> : <Badge status="neutral">{status}</Badge>}
@@ -258,7 +265,8 @@ export default function SessionListPage() {
   const hasValidClassId = typeof classId === 'number' && Number.isFinite(classId) && classId > 0;
   const createSession = useCreateSession();
   const deleteSession = useDeleteSession();
-  const [status, setStatus] = useState('전체');
+  // 기본은 '진행' 보기 — 종료 세션이 쌓여도 첫 화면이 지난 세션으로 덮이지 않게
+  const [status, setStatus] = useState('진행');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);

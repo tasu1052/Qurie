@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import {
   Badge,
@@ -19,21 +18,7 @@ import {
   useMe,
 } from '../../data';
 import { DashboardNoticesSection } from '../../components/notices/DashboardNoticesSection';
-
-const DASH_PANEL_STYLE = {
-  background: 'var(--surface-card)',
-  border: '1px solid var(--border)',
-  borderRadius: 16,
-  boxShadow: 'var(--shadow-card)',
-  padding: 20,
-  display: 'flex',
-  flexDirection: 'column' as const,
-  gap: 12,
-  minWidth: 0,
-  minHeight: 280,
-  maxHeight: 320,
-  boxSizing: 'border-box' as const,
-};
+import { ClassMaterialsCard } from '../../components/materials/ClassMaterialsCard';
 
 function DashSkeleton() {
   return (
@@ -194,50 +179,8 @@ function ManagerDashBody({ classId }: { classId: number }) {
       >
         <DashboardNoticesSection role="MANAGER" classId={classId} size={4} compact />
 
-        <div style={{ ...DASH_PANEL_STYLE }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              학습 자료
-            </span>
-            <Badge status="neutral">준비 중</Badge>
-          </div>
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 12,
-              textAlign: 'center',
-              padding: '8px 12px',
-              borderRadius: 12,
-              border: '1px dashed var(--border-strong)',
-              background: 'var(--surface-sunken)',
-              minHeight: 0,
-            }}
-          >
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-              PDF·링크 등 학습 자료를 업로드할 수 있어요.
-            </span>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={<Upload size={14} strokeWidth={1.75} />}
-              onClick={() => navigate('/manager/sessions')}
-            >
-              세션에서 자료 관리
-            </Button>
-          </div>
-        </div>
+        {/* 세션에서 자료 열람이 빠져서, 강사는 여기서 바로 업로드·관리한다. */}
+        <ClassMaterialsCard classId={classId} canManage title="강의자료" />
       </div>
     </>
   );

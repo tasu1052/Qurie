@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
-import { Grid2x2, PlayCircle, Plus, Search, Users } from 'lucide-react';
+import { PlayCircle, Plus, Search, Users } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -157,9 +157,6 @@ function ClassCardView({
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <PlayCircle size={13} strokeWidth={1.75} />
           #{item.classNumber}
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <Grid2x2 size={13} strokeWidth={1.75} />—
         </span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', marginTop: 'auto' }}>

@@ -4,6 +4,7 @@ import type { ChatMessageListParams } from '../core/queryKeys/session.keys';
 import {
     createSession,
     createSessionReport,
+    createSessionReportsForAll,
     deleteSession,
     getSession,
     getSessionMessages,
@@ -33,10 +34,18 @@ export const useCreateSession = () => {
     });
 };
 
-export const useGetSessions = (classId: number) => {
+/**
+ * 세션 목록. 세션은 다른 탭(새 창)에서 종료되므로 포커스 복귀·주기 폴링으로 최신화한다 —
+ * 이게 없으면 종료된 세션에 LIVE 뱃지가 계속 남는다.
+ */
+export const useGetSessions = (classId: number, opts?: { includeEnded?: boolean }) => {
+    const includeEnded = opts?.includeEnded ?? false;
     return useSuspenseQuery({
-        queryKey: queryKeys.sessions.list(classId),
-        queryFn: () => getSessions(classId),
+        queryKey: queryKeys.sessions.list(classId, includeEnded),
+        queryFn: () => getSessions(classId, { includeEnded }),
+        staleTime: 5_000,
+        refetchOnWindowFocus: true,
+        refetchInterval: 15_000,
     });
 };
 
@@ -85,6 +94,18 @@ export const useCreateSessionReport = () => {
             ...body
         }: SessionReportCreateRequest & { sessionId: number }) =>
             createSessionReport(sessionId, body),
+    });
+};
+
+/** 세션 참가 학생 전원 리포트 일괄 발급(기존 리포트 대체). 성공 시 세션 리포트 캐시를 비운다. */
+export const useCreateSessionReportsForAll = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (sessionId: number) => createSessionReportsForAll(sessionId),
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(data.sessionId) });
+        },
     });
 };
 

@@ -53,4 +53,10 @@ public class ProjectFile extends BaseTimeEntity {
 		this.content = content;
 		this.byteSize = byteSize;
 	}
+
+	/** 세션 편집기에서 저장한 편집본으로 내용을 교체한다. */
+	public void updateContent(String content, long byteSize) {
+		this.content = content;
+		this.byteSize = byteSize;
+	}
 }

@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
@@ -22,9 +24,11 @@ import com.roma.qurie.quiz.entity.QuizSet;
 import com.roma.qurie.quiz.entity.QuizSetStatus;
 import com.roma.qurie.quiz.repository.QuizProgressRepository;
 import com.roma.qurie.quiz.repository.QuizSetRepository;
+import com.roma.qurie.report.dto.SessionReportBulkResponse;
 import com.roma.qurie.report.dto.SessionReportCreateRequest;
 import com.roma.qurie.report.entity.SessionReport;
 import com.roma.qurie.report.repository.SessionReportRepository;
+import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.session.core.Session;
 import com.roma.qurie.session.core.SessionRepository;
 import com.roma.qurie.session.participant.SessionParticipantResolver;
@@ -46,6 +50,10 @@ class SessionReportServiceTest {
 	private static final Long USER_ID = 7L;
 	private static final Long PROJECT_ID = 11L;
 	private static final Long QUIZ_SET_ID = 100L;
+	private static final AuthUser MANAGER =
+			new AuthUser(10L, "MANAGER", 1L, "manager@qurie.com", "매니저", 1L);
+	private static final AuthUser STUDENT =
+			new AuthUser(20L, "STUDENT", 1L, "student@qurie.com", "학생", 1L);
 
 	@Mock
 	private SessionReportRepository sessionReportRepository;
@@ -93,7 +101,7 @@ class SessionReportServiceTest {
 		given(quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(QUIZ_SET_ID, USER_ID))
 				.willReturn(List.of(correct, skipped, wrong));
 
-		sessionReportService.createSessionReport(SESSION_ID, request());
+		sessionReportService.createSessionReport(SESSION_ID, request(), MANAGER);
 
 		SessionReport saved = capturedReport();
 		assertThat(saved.getQuizSetId()).isEqualTo(QUIZ_SET_ID);
@@ -123,7 +131,7 @@ class SessionReportServiceTest {
 		given(quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(QUIZ_SET_ID, USER_ID))
 				.willReturn(progresses);
 
-		sessionReportService.createSessionReport(SESSION_ID, request());
+		sessionReportService.createSessionReport(SESSION_ID, request(), MANAGER);
 
 		SessionReport saved = capturedReport();
 		assertThat(saved.getDifficultyRatio()).containsOnlyKeys("EASY", "NORMAL", "HARD");
@@ -144,7 +152,7 @@ class SessionReportServiceTest {
 		givenIssuableSession();
 		given(projectRepository.findFirstBySessionIdOrderByIdDesc(SESSION_ID)).willReturn(Optional.empty());
 
-		sessionReportService.createSessionReport(SESSION_ID, request());
+		sessionReportService.createSessionReport(SESSION_ID, request(), MANAGER);
 
 		SessionReport saved = capturedReport();
 		assertThat(saved.getQuizSetId()).isNull();
@@ -158,36 +166,86 @@ class SessionReportServiceTest {
 	}
 
 	@Test
+	void 이미_발급된_리포트가_있으면_삭제하고_새_스냅샷으로_대체한다() {
+		givenIssuableSession();
+		given(projectRepository.findFirstBySessionIdOrderByIdDesc(SESSION_ID)).willReturn(Optional.empty());
+
+		sessionReportService.createSessionReport(SESSION_ID, request(), MANAGER);
+
+		verify(sessionReportRepository).deleteBySessionIdAndOrdinaryUserId(SESSION_ID, USER_ID);
+		verify(sessionReportRepository).save(any(SessionReport.class));
+	}
+
+	@Test
 	void 참여_대상_학생이_아니면_400_예외를_던진다() {
 		given(sessionRepository.findById(SESSION_ID)).willReturn(Optional.of(session));
 		given(participantResolver.isParticipantStudent(session, USER_ID)).willReturn(false);
 
-		assertThatThrownBy(() -> sessionReportService.createSessionReport(SESSION_ID, request()))
+		assertThatThrownBy(() -> sessionReportService.createSessionReport(SESSION_ID, request(), MANAGER))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
 				.isEqualTo(HttpStatus.BAD_REQUEST);
 	}
 
 	@Test
-	void 이미_발급된_리포트가_있으면_409_예외를_던진다() {
-		given(sessionRepository.findById(SESSION_ID)).willReturn(Optional.of(session));
-		given(participantResolver.isParticipantStudent(session, USER_ID)).willReturn(true);
-		given(sessionReportRepository.existsBySessionIdAndOrdinaryUserId(SESSION_ID, USER_ID)).willReturn(true);
-
-		assertThatThrownBy(() -> sessionReportService.createSessionReport(SESSION_ID, request()))
+	void 강사가_아니면_403_예외를_던진다() {
+		assertThatThrownBy(() -> sessionReportService.createSessionReport(SESSION_ID, request(), STUDENT))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
-				.isEqualTo(HttpStatus.CONFLICT);
+				.isEqualTo(HttpStatus.FORBIDDEN);
+		verify(sessionReportRepository, never()).save(any(SessionReport.class));
+	}
+
+	@Test
+	void 로그인하지_않으면_401_예외를_던진다() {
+		assertThatThrownBy(() -> sessionReportService.createSessionReport(SESSION_ID, request(), null))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
+				.isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
 
 	@Test
 	void 세션이_없으면_404_예외를_던진다() {
 		given(sessionRepository.findById(SESSION_ID)).willReturn(Optional.empty());
 
-		assertThatThrownBy(() -> sessionReportService.createSessionReport(SESSION_ID, request()))
+		assertThatThrownBy(() -> sessionReportService.createSessionReport(SESSION_ID, request(), MANAGER))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
 				.isEqualTo(HttpStatus.NOT_FOUND);
+	}
+
+	@Test
+	void 일괄_발급은_참여_학생_전원에게_정성_항목_없이_발급한다() {
+		Long otherStudentId = 8L;
+		given(sessionRepository.findById(SESSION_ID)).willReturn(Optional.of(session));
+		given(participantResolver.resolveStudentIds(session)).willReturn(List.of(USER_ID, otherStudentId));
+		given(projectRepository.findFirstBySessionIdOrderByIdDesc(SESSION_ID)).willReturn(Optional.empty());
+		given(sessionReportRepository.save(any(SessionReport.class)))
+				.willAnswer(invocation -> invocation.getArgument(0));
+
+		SessionReportBulkResponse response = sessionReportService.createSessionReportsForAll(SESSION_ID, MANAGER);
+
+		assertThat(response.sessionId()).isEqualTo(SESSION_ID);
+		assertThat(response.issuedCount()).isEqualTo(2);
+		verify(sessionReportRepository).deleteBySessionIdAndOrdinaryUserId(SESSION_ID, USER_ID);
+		verify(sessionReportRepository).deleteBySessionIdAndOrdinaryUserId(SESSION_ID, otherStudentId);
+		ArgumentCaptor<SessionReport> captor = ArgumentCaptor.forClass(SessionReport.class);
+		verify(sessionReportRepository, times(2)).save(captor.capture());
+		assertThat(captor.getAllValues())
+				.extracting(SessionReport::getOrdinaryUserId).containsExactly(USER_ID, otherStudentId);
+		assertThat(captor.getAllValues()).allSatisfy(report -> {
+			assertThat(report.getQuizRating()).isNull();
+			assertThat(report.getAiComment()).isNull();
+		});
+	}
+
+	@Test
+	void 일괄_발급도_강사만_할_수_있다() {
+		assertThatThrownBy(() -> sessionReportService.createSessionReportsForAll(SESSION_ID, STUDENT))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
+				.isEqualTo(HttpStatus.FORBIDDEN);
+		verify(sessionReportRepository, never()).save(any(SessionReport.class));
 	}
 
 	private SessionReportCreateRequest request() {
@@ -198,7 +256,6 @@ class SessionReportServiceTest {
 	private void givenIssuableSession() {
 		given(sessionRepository.findById(SESSION_ID)).willReturn(Optional.of(session));
 		given(participantResolver.isParticipantStudent(session, USER_ID)).willReturn(true);
-		given(sessionReportRepository.existsBySessionIdAndOrdinaryUserId(SESSION_ID, USER_ID)).willReturn(false);
 		given(sessionReportRepository.save(any(SessionReport.class)))
 				.willAnswer(invocation -> invocation.getArgument(0));
 	}

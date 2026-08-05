@@ -70,6 +70,24 @@ class SessionWebSocketAuthorizationInterceptorTest {
 	}
 
 	@Test
+	void subscribingStatusTopicVerifiesEntryPermission() {
+		interceptor.preSend(
+				message(StompCommand.SUBSCRIBE, "/topic/sessions/15/status"),
+				messageChannel);
+
+		verify(participantService).verifyCanEnter(15L, principal);
+	}
+
+	@Test
+	void subscribingQuizProgressTopicVerifiesEntryPermission() {
+		interceptor.preSend(
+				message(StompCommand.SUBSCRIBE, "/topic/sessions/15/quiz-progress"),
+				messageChannel);
+
+		verify(participantService).verifyCanEnter(15L, principal);
+	}
+
+	@Test
 	void sendingToQuizDestinationIsRejected() {
 		assertThatThrownBy(() -> interceptor.preSend(
 				message(StompCommand.SEND, "/app/sessions/15/quiz"),

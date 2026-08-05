@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -63,8 +64,9 @@ class QuizAiClientWireTest {
 
 	@Test
 	void createQuizSetSendsJsonBody() throws InterruptedException {
-		AiQuizSetAccepted accepted = new QuizAiClient(baseUrl)
-				.createQuizSet(1L, AiQuizCreateRequest.from(sampleRequest(), "http://backend:8080/api/quiz/3/callback"));
+		AiQuizSetAccepted accepted = new QuizAiClient(baseUrl).createQuizSet(
+				1L,
+				AiQuizCreateRequest.from(sampleRequest(), List.of(), "http://backend:8080/api/quiz/3/callback"));
 
 		assertThat(accepted.quizSetId()).isEqualTo(7L);
 
@@ -81,8 +83,9 @@ class QuizAiClientWireTest {
 	 */
 	@Test
 	void createQuizSetDoesNotAttemptProtocolUpgrade() throws InterruptedException {
-		new QuizAiClient(baseUrl)
-				.createQuizSet(1L, AiQuizCreateRequest.from(sampleRequest(), "http://backend:8080/api/quiz/3/callback"));
+		new QuizAiClient(baseUrl).createQuizSet(
+				1L,
+				AiQuizCreateRequest.from(sampleRequest(), List.of(), "http://backend:8080/api/quiz/3/callback"));
 
 		Headers headers = receivedHeaders.poll(5, TimeUnit.SECONDS);
 		assertThat(headers).isNotNull();

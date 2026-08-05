@@ -15,5 +15,8 @@ public record UserSummaryResponse(
 		String name,
 		String email,
 		UserRole role,
+		String phone,
+		String region,
+		String gender,
 		Long weeklySessionCount,
 		LocalDateTime lastSessionCreatedAt) {}

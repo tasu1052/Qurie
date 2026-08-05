@@ -6,6 +6,9 @@ from app.engine.purpose import mode_display
 # 멀티 파일 컨텍스트 상한 — 토큰 폭주 방지 (대략 코드 위주)
 _MAX_CODE_CHARS = 30_000
 
+# 이전 출제 이력(중복 금지 목록) 렌더링 상한 — 프롬프트가 이력에 잡아먹히지 않게 자른다
+_MAX_AVOID_CHARS = 4_000
+
 
 def _build_code_section(files: dict[str, str], primary_file: str) -> str:
     """primary 를 앞에 두고 나머지 파일을 이어 붙인다. 총 길이 상한을 지킨다."""
@@ -30,6 +33,45 @@ def _build_code_section(files: dict[str, str], primary_file: str) -> str:
         used += len(block) + 2
 
     return "\n\n".join(parts)
+
+
+def _build_avoid_section(avoid_questions: list[str] | None) -> str:
+    """백엔드가 보낸 '이전 세트에서 이미 출제된 문항'을 '중복 금지' 지시로 렌더링한다.
+
+    USER_HINT(untrusted)와 달리 이 목록은 백엔드 DB에서 온 신뢰 데이터라
+    지시문 구간에 넣는다. 이번 실행에서 만든 문항은 _existing_block 이 담당하고,
+    이 섹션은 실행을 넘어선(cross-generation) 이력만 담는다.
+    항목이 많아도 전체 길이 상한을 지킨다.
+    """
+    items = [q.strip() for q in avoid_questions or [] if q and q.strip()]
+    if not items:
+        return ""
+    body = "\n".join(f"- {q}" for q in items)
+    if len(body) > _MAX_AVOID_CHARS:
+        body = body[:_MAX_AVOID_CHARS] + "\n… (truncated)"
+    return (
+        "\n[기존 출제 이력 — 중복 금지]\n"
+        "아래는 같은 프로젝트에서 이미 출제됐던 문항이다. "
+        "동일하거나 사실상 같은 개념·정답을 묻는 문항을 다시 만들지 마라. "
+        "새 문항은 다른 개념이나 다른 코드 지점을 겨냥하라.\n"
+        f"{body}\n"
+    )
+
+
+def _build_critiques_section(critiques_note: str | None) -> str:
+    """호출자가 라운드를 넘어 직접 누적해 온 judge 반려 사유.
+
+    파이프라인 내부에서는 retry_notes(_retry_block)가 같은 역할을 하므로 그쪽을 쓴다.
+    이 파라미터는 외부에서 누적 노트를 통째로 넘기는 경로용이며, 어느 쪽이든
+    user_prompt(untrusted)와 분리된 신뢰 구간에 렌더링된다는 점은 같다.
+    """
+    note = (critiques_note or "").strip()
+    if not note:
+        return ""
+    return (
+        "\n[이전 시도 반려 사유 — 반복 금지]\n"
+        f"{note}\n"
+    )
 
 
 # 이미 출제된 문항 목록의 상한. 라운드가 쌓여도 프롬프트가 무한정 길어지지 않게 한다.
@@ -80,12 +122,17 @@ def build_generate_prompt(
     user_prompt: str | None,
     existing: list[dict] | None = None,
     retry_notes: str | None = None,
+    avoid_questions: list[str] | None = None,
+    critiques_note: str | None = None,
 ) -> str:
     code_block = _build_code_section(files, primary_file)
     file_list = ", ".join(f'"{p}"' for p in files)
     conceptual_n = purpose_counts.get("conceptual", 0)
     micro_n = purpose_counts.get("micro", 0)
     already = _existing_block(existing) + _retry_block(retry_notes)
+
+    avoid_block = _build_avoid_section(avoid_questions)
+    critique_block = _build_critiques_section(critiques_note)
 
     hint = ""
     if user_prompt:
@@ -134,7 +181,7 @@ def build_generate_prompt(
 - choices 정확히 4개, answer_index 0~3, tested_concept 최대 60자.
 - purpose는 CONCEPTUAL 또는 MICRO만 사용.
 - 코드에 정의 없는 외부 함수의 내부 동작은 묻지 마세요.
-{already}
+{avoid_block}{critique_block}{already}
 {hint}
 [출력]
 지정된 출력 형식에 맞춰서만 답하세요. quizzes 배열 길이는 정확히 {requested_count}개.

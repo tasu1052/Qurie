@@ -1,5 +1,6 @@
 package com.roma.qurie.session.core;
 
+import com.roma.qurie.report.dto.SessionReportBulkResponse;
 import com.roma.qurie.report.dto.SessionReportCreateRequest;
 import com.roma.qurie.report.dto.SessionReportCreateResponse;
 import com.roma.qurie.report.dto.SessionReportDetailResponse;
@@ -44,16 +45,18 @@ public class SessionController {
     }
 
     /**
-     * 클래스별 열린 세션 목록 조회. 닫힌 세션은 제외된다. 해당 반 소속만 볼 수 있다.
+     * 클래스별 세션 목록 조회. 기본은 열린 세션만 주고, activeOnly=false 면 종료된 세션까지 포함한다.
+     * 해당 반 소속만 볼 수 있다.
      * userId 를 주면 그 학생 기준(반 공개 + 그 학생 그룹의 세션)으로 거른다 — 본인 외 지정은 매니저/마스터만.
      */
     @GetMapping
     public List<SessionResponse> list(
             @RequestParam Long classId,
             @RequestParam(name = "userId", required = false) Long userId,
+            @RequestParam(name = "activeOnly", required = false, defaultValue = "true") boolean activeOnly,
             @AuthenticationPrincipal AuthUser requester) {
         sessionParticipantService.verifyClassMember(classId, requester);
-        return sessionService.getOpenSessions(classId, requester, userId);
+        return sessionService.getSessions(classId, requester, userId, activeOnly);
     }
 
     @GetMapping("/{id}/participants")
@@ -94,7 +97,8 @@ public class SessionController {
     }
 
     /**
-     * 세션 리포트 발급. 정량 지표(문항 수·정답률 등)는 서버가 quiz_progress 에서 집계한다.
+     * 세션 리포트 발급. 같은 반 강사만 할 수 있고, 이미 발급된 리포트는 새 스냅샷으로 대체된다.
+     * 정량 지표(문항 수·정답률 등)는 서버가 quiz_progress 에서 집계한다.
      *
      * @param sessionId: 리포트를 발급할 세션 id
      * @param request: 발급 대상 사용자와 정성 항목(AI 코멘트·평점)
@@ -102,8 +106,17 @@ public class SessionController {
     @PostMapping("{sessionId}/reports")
     @ResponseStatus(HttpStatus.CREATED)
     public SessionReportCreateResponse createSessionReport(@PathVariable Long sessionId,
-                                                           @Valid @RequestBody SessionReportCreateRequest request) {
-        return sessionReportService.createSessionReport(sessionId, request);
+                                                           @Valid @RequestBody SessionReportCreateRequest request,
+                                                           @AuthenticationPrincipal AuthUser requester) {
+        return sessionReportService.createSessionReport(sessionId, request, requester);
+    }
+
+    /** 세션 참여 학생 전원의 리포트 일괄 발급. 같은 반 강사만 할 수 있고, 정성 항목 없이 정량 지표만 담긴다. */
+    @PostMapping("{sessionId}/reports/all")
+    @ResponseStatus(HttpStatus.CREATED)
+    public SessionReportBulkResponse createSessionReportsForAll(@PathVariable Long sessionId,
+                                                                @AuthenticationPrincipal AuthUser requester) {
+        return sessionReportService.createSessionReportsForAll(sessionId, requester);
     }
 
     /**

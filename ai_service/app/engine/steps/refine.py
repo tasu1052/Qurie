@@ -66,12 +66,16 @@ def node_refine(state: PipelineState) -> PipelineState:
 
     # 탈락 사유는 user_prompt 에 섞지 않는다. 그쪽은 USER_HINT(untrusted) 블록으로
     # 들어가서 "무시해도 되는 힌트"로 라벨링되고, 사용자 입력과 뒤엉켜 누적된다.
+    # judge 출력이 USER_HINT로 재주입되는 경로를 막기 위해 별도 신뢰 노트에 담는다.
     critiques = [
         q.get("reject_reason") or ""
         for q in state.get("quizzes", [])
         if q.get("status") == "REJECTED"
     ]
-    state["retry_notes"] = " | ".join(c for c in critiques if c)[:500]
+    # 라운드를 넘어 누적한다 — 2라운드가 1라운드와 같은 이유로 또 떨어지는 것을 막는다.
+    fresh = " | ".join(c for c in critiques if c)
+    prev = state.get("retry_notes") or ""
+    state["retry_notes"] = " | ".join(x for x in (prev, fresh) if x)[:500]
     state["retry_count"] = state.get("retry_count", 0) + 1
     return state
 

@@ -8,9 +8,13 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.roma.qurie.config.SecurityConfig;
+import com.roma.qurie.report.dto.SessionReportBulkResponse;
+import com.roma.qurie.report.dto.SessionReportCreateRequest;
 import com.roma.qurie.report.service.SessionReportService;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.security.JwtTokenProvider;
@@ -22,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -80,6 +85,49 @@ class SessionControllerTest {
 
 		mockMvc.perform(get("/api/sessions/{id}/access", SESSION_ID))
 				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void 세션_목록은_기본으로_열린_세션만_조회한다() throws Exception {
+		mockMvc.perform(get("/api/sessions").param("classId", "1").cookie(accessTokenCookie()))
+				.andExpect(status().isOk());
+
+		verify(sessionService).getSessions(eq(1L), any(AuthUser.class), isNull(), eq(true));
+	}
+
+	@Test
+	void 세션_목록은_activeOnly_false_면_종료된_세션까지_조회한다() throws Exception {
+		mockMvc.perform(get("/api/sessions")
+						.param("classId", "1")
+						.param("activeOnly", "false")
+						.cookie(accessTokenCookie()))
+				.andExpect(status().isOk());
+
+		verify(sessionService).getSessions(eq(1L), any(AuthUser.class), isNull(), eq(false));
+	}
+
+	@Test
+	void 리포트_발급은_요청자를_서비스에_전달한다() throws Exception {
+		mockMvc.perform(post("/api/sessions/{sessionId}/reports", SESSION_ID)
+						.cookie(accessTokenCookie())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"ordinaryUserId\": 7}"))
+				.andExpect(status().isCreated());
+
+		ArgumentCaptor<AuthUser> captor = ArgumentCaptor.forClass(AuthUser.class);
+		verify(sessionReportService)
+				.createSessionReport(eq(SESSION_ID), any(SessionReportCreateRequest.class), captor.capture());
+		assertThat(captor.getValue().id()).isEqualTo(7L);
+	}
+
+	@Test
+	void 리포트_일괄_발급은_201과_발급_건수를_반환한다() throws Exception {
+		given(sessionReportService.createSessionReportsForAll(eq(SESSION_ID), any(AuthUser.class)))
+				.willReturn(new SessionReportBulkResponse(SESSION_ID, 3));
+
+		mockMvc.perform(post("/api/sessions/{sessionId}/reports/all", SESSION_ID).cookie(accessTokenCookie()))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.issuedCount").value(3));
 	}
 
 	private Cookie accessTokenCookie() {

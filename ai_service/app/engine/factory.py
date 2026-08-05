@@ -42,6 +42,8 @@ def build_pipeline_state(
         "ratio_target": ratio_target,
         "purpose_target": purpose_target,
         "user_prompt": body.user_prompt,
+        # 재생성 시 백엔드가 보낸 '이전 출제 문항'. 생성 프롬프트에 중복 금지 목록으로 실린다.
+        "avoid_questions": list(body.avoid_questions),
         "version_hash": body.version_hash,
         "files": files,
         "primary_file": pick_primary(body, files),

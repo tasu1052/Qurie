@@ -43,6 +43,7 @@ export type {
 export {
   useCreateSession,
   useCreateSessionReport,
+  useCreateSessionReportsForAll,
   useGetSessions,
   useGetSession,
   useGetSessionParticipants,
@@ -64,6 +65,7 @@ export type {
   ChatMessageListParams,
   SessionReportCreateRequest,
   SessionReportCreateResponse,
+  SessionReportBulkResponse,
   SessionReportDetailResponse,
   HelpRequestResponse,
 } from '../network/session';
@@ -132,6 +134,13 @@ export type {
   BulkInvitationResponse,
   BulkInvitationRowResult,
 } from '../network/invitation';
+export {
+  useGetClassMaterials,
+  useUploadClassMaterial,
+  useDeleteClassMaterial,
+  useDownloadClassMaterial,
+} from '../network/material';
+export type { ClassMaterialResponse } from '../network/material';
 export { useGetNotices, useGetNotice, useCreateNotice, useUpdateNotice, useDeleteNotice } from '../network/notice';
 export type {
   NoticeResponse,
@@ -150,6 +159,7 @@ export {
   useGetSessionProject,
   useGetProjectFiles,
   useGetProjectFileContent,
+  useUpdateProjectFileContent,
   getProjectFiles,
   getProjectFileContent,
 } from '../network/project';
@@ -241,3 +251,6 @@ export type {
 
 /** Teammate boundary — UI supplies fallbacks only. */
 export { QueryAsyncBoundary } from '../network/boundaries/QueryAsyncBoundary';
+
+/** HTTP 오류 → 비개발자용 한국어 문장. 화면에 err.message 를 그대로 노출하지 않는다. */
+export { humanizeApiError } from '../network/core/humanizeError';

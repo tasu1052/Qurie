@@ -7,4 +7,5 @@ export {
     useGetSessionProject,
     useImportProjectGit,
     useImportProjectLocal,
+    useUpdateProjectFileContent,
 } from './project-hooks';

@@ -22,7 +22,6 @@ import {
   type SessionReportSummaryResponse,
   type UserReportDetailResponse,
 } from '../../data';
-
 function InstructorCommentsSection({ userId, classId }: { userId: number; classId: number }) {
   const comments = useGetStudentComments(userId, classId).data ?? [];
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -12,6 +12,7 @@ import {
   MicOff,
   PhoneOff,
   Phone,
+  Save,
   Settings,
 } from 'lucide-react';
 import { AlertBanner, Button, LiveBadge, Modal } from '../../ds';
@@ -22,19 +23,25 @@ import { getOrCreateFileYText } from '../../collab/fileYText';
 import {
   getProjectFileContent,
   getProjectFiles,
+  humanizeApiError,
+  QueryAsyncBoundary,
   useAskSessionHelp,
-  useCreateSessionReport,
+  useCreateSessionReportsForAll,
+  useDeleteSession,
+  useGetSession,
   useGetSessionProject,
   useMeOptional,
   useSessionSocket,
   useSessionVoice,
+  useUpdateProjectFileContent,
   useUpdateSession,
   type ProjectImportResponse,
   type ProjectResponse,
 } from '../../data';
 import { queryKeys } from '../../network/core/queryKeys';
 import { getGroupDetail } from '../../network/group/group-apis';
-import { getSession, getSessionReport } from '../../network/session/session-apis';
+import { getSession } from '../../network/session/session-apis';
+import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
 import { ProjectImportPanel } from '../../components/session/ProjectImportPanel';
 import { SessionChatPanel } from '../../components/session/SessionChatPanel';
 import { SessionFileExplorer } from '../../components/session/SessionFileExplorer';
@@ -164,8 +171,15 @@ export default function SessionPage() {
   const [pendingImport, setPendingImport] = useState<ProjectImportResponse | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [endConfirmOpen, setEndConfirmOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [reportConfirmOpen, setReportConfirmOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [helpNotice, setHelpNotice] = useState<string | null>(null);
+  /**
+   * 내가 직접 종료를 눌렀으면 status 브로드캐스트가 돌아와도 종료 안내 모달을 띄우지 않는다.
+   * 렌더에서 판별해야 하므로 ref 가 아닌 state 로 둔다(react-hooks/refs).
+   */
+  const [endedBySelf, setEndedBySelf] = useState(false);
 
   const viewportWidth = useViewportWidth();
   const chrome = sessionChromeVisibility(viewportWidth);
@@ -185,8 +199,9 @@ export default function SessionPage() {
     [collabUserName, collabUserId],
   );
   const updateSession = useUpdateSession();
+  const deleteSession = useDeleteSession();
+  const createReportsForAll = useCreateSessionReportsForAll();
   const askHelp = useAskSessionHelp();
-  const createReport = useCreateSessionReport();
   const queryClient = useQueryClient();
   const sessionProjectQuery = useGetSessionProject(hasSessionId ? sessionId : null);
   const sessionMetaQuery = useQuery({
@@ -314,6 +329,18 @@ export default function SessionPage() {
     () => chat.participants.map((p) => p.userId),
     [chat.participants],
   );
+
+  /**
+   * 퀴즈 진행 배너(강사용) 닫기 — 이벤트 객체 identity 로 비교하므로
+   * 새 이벤트가 오면 닫았던 배너가 다시 표시된다.
+   */
+  const [dismissedQuizProgress, setDismissedQuizProgress] = useState<typeof chat.lastQuizProgress>(null);
+  const quizProgress = chat.lastQuizProgress;
+  const showQuizProgressBanner =
+    isSessionManager && quizProgress != null && quizProgress !== dismissedQuizProgress;
+
+  /** 서버가 세션 종료를 브로드캐스트했고, 종료를 누른 당사자가 아니면 안내 후 내보낸다. */
+  const sessionEndedRemotely = chat.sessionStatus?.active === false && !endedBySelf;
   const voiceJoined = chat.voiceJoined;
   const myVoice = chat.myVoice;
 
@@ -418,6 +445,54 @@ export default function SessionPage() {
 
   const clearImportAutoOpen = useCallback(() => setImportAutoOpen(null), []);
 
+  /**
+   * 활성 파일의 공유 문서(Yjs) 내용을 스냅샷 DB에 저장한다.
+   * 퀴즈 생성은 DB 스냅샷을 읽으므로, 저장해야 편집된 코드 기준으로 퀴즈가 나온다.
+   */
+  const saveFile = useUpdateProjectFileContent();
+  const [saveFlash, setSaveFlash] = useState<string | null>(null);
+  const saveFlashTimerRef = useRef<number | null>(null);
+  const canSaveFile = projectRef != null && activeFile != null;
+  const saveFileMutate = saveFile.mutate;
+  const saveFilePending = saveFile.isPending;
+
+  const onSaveActiveFile = useCallback(() => {
+    // 파일별 공유 문서(editorYText)가 준비된 뒤에만 저장한다.
+    if (!projectRef || !activeFile || !editorYText || saveFilePending) return;
+    saveFileMutate(
+      { projectId: projectRef.projectId, path: activeFile, content: editorYText.toString() },
+      {
+        onSuccess: () => {
+          setSaveFlash('저장됨');
+          if (saveFlashTimerRef.current != null) window.clearTimeout(saveFlashTimerRef.current);
+          saveFlashTimerRef.current = window.setTimeout(() => setSaveFlash(null), 2500);
+        },
+        onError: () => {
+          setActionError('파일 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        },
+      },
+    );
+  }, [projectRef, activeFile, saveFilePending, saveFileMutate, editorYText]);
+
+  /** 에디터 어디서든 Ctrl/Cmd+S 로 저장한다. 브라우저 기본 저장 다이얼로그는 막는다. */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        onSaveActiveFile();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onSaveActiveFile]);
+
+  useEffect(
+    () => () => {
+      if (saveFlashTimerRef.current != null) window.clearTimeout(saveFlashTimerRef.current);
+    },
+    [],
+  );
+
   const onImported = (result: ProjectImportResponse) => {
     setPendingImport(result);
     setImportNotice(null);
@@ -493,6 +568,8 @@ export default function SessionPage() {
   const onEndSession = () => {
     if (!hasSessionId) return;
     setActionError(null);
+    // 종료 브로드캐스트가 본인에게 되돌아와 '세션 종료' 안내 모달이 겹치지 않게 미리 표시한다.
+    setEndedBySelf(true);
     updateSession.mutate(
       { id: sessionId, active: false },
       {
@@ -507,41 +584,40 @@ export default function SessionPage() {
           leaveDestination();
         },
         onError: (err) => {
-          setActionError(err instanceof Error ? err.message : '세션 종료에 실패했습니다.');
+          setEndedBySelf(false);
+          setActionError(humanizeApiError(err, '세션 종료에 실패했습니다.'));
         },
       },
     );
   };
 
-  const onCreateReport = () => {
+  /** 리포트 생성 확정: 전원 발급 → 세션 종료(실패해도 계속) → 리포트 화면 이동. */
+  const onGenerateReports = () => {
     if (!hasSessionId) return;
     setActionError(null);
-    void (async () => {
-      try {
-        await getSessionReport(sessionId);
-        navigate(`/session/${sessionId}/report`);
-        return;
-      } catch {
-        // 리포트 없음 — 생성 후 이동
-      }
-      const students = chat.participants.filter((p) => p.role === 'STUDENT');
-      if (students.length === 0) {
-        setActionError('리포트를 생성할 학생이 없습니다.');
-        return;
-      }
-      const target = students[0];
-      createReport.mutate(
-        { sessionId, ordinaryUserId: target.userId },
-        {
-          onSuccess: () => {
-            navigate(`/session/${sessionId}/report?userId=${target.userId}`);
+    setEndedBySelf(true);
+    createReportsForAll.mutate(sessionId, {
+      onSuccess: () => {
+        // 종료 실패는 알리되 리포트는 이미 발급됐으므로 이동은 계속한다.
+        updateSession.mutate(
+          { id: sessionId, active: false },
+          {
+            onError: (err) => {
+              setActionError(humanizeApiError(err, '세션 종료에 실패했습니다. 리포트는 발급되었습니다.'));
+            },
+            onSettled: () => {
+              setReportConfirmOpen(false);
+              navigate(`/session/${sessionId}/report`);
+            },
           },
-          onError: (err) => {
-            setActionError(err instanceof Error ? err.message : '리포트 생성에 실패했습니다.');
-          },
-        },
-      );
-    })();
+        );
+      },
+      onError: (err) => {
+        setEndedBySelf(false);
+        setReportConfirmOpen(false);
+        setActionError(humanizeApiError(err, '리포트 생성에 실패했습니다.'));
+      },
+    });
   };
 
   const tabBtn = (active: boolean): CSSProperties => ({
@@ -617,10 +693,10 @@ export default function SessionPage() {
             <Button
               variant="secondary"
               style={{ borderRadius: 999 }}
-              disabled={createReport.isPending}
-              onClick={onCreateReport}
+              disabled={createReportsForAll.isPending}
+              onClick={() => setReportConfirmOpen(true)}
             >
-              {createReport.isPending ? '생성 중…' : chrome.compactHeader ? '리포트' : '리포트 생성'}
+              {createReportsForAll.isPending ? '생성 중…' : chrome.compactHeader ? '리포트' : '리포트 생성'}
             </Button>
           ) : null}
           {!chrome.narrowHeader ? (
@@ -683,6 +759,15 @@ export default function SessionPage() {
                         setEndConfirmOpen(true);
                       }}
                     />
+                    <MenuAction
+                      label="세션 삭제"
+                      danger
+                      disabled={!hasSessionId || deleteSession.isPending}
+                      onClick={() => {
+                        setSettingsOpen(false);
+                        setDeleteConfirmOpen(true);
+                      }}
+                    />
                     <span style={{ height: 1, background: 'var(--divider)', margin: '4px 6px' }} />
                   </>
                 ) : null}
@@ -698,11 +783,11 @@ export default function SessionPage() {
                     />
                     {isSessionManager ? (
                       <MenuAction
-                        label={createReport.isPending ? '리포트 생성 중…' : '리포트 생성'}
-                        disabled={createReport.isPending}
+                        label={createReportsForAll.isPending ? '리포트 생성 중…' : '리포트 생성'}
+                        disabled={createReportsForAll.isPending}
                         onClick={() => {
                           setSettingsOpen(false);
-                          onCreateReport();
+                          setReportConfirmOpen(true);
                         }}
                       />
                     ) : null}
@@ -738,6 +823,19 @@ export default function SessionPage() {
           description={helpNotice}
           actionLabel="닫기"
           onAction={() => setHelpNotice(null)}
+        />
+      ) : null}
+      {showQuizProgressBanner && quizProgress ? (
+        <AlertBanner
+          tone={quizProgress.allCompleted ? 'success' : 'info'}
+          title={quizProgress.allCompleted ? '퀴즈 완료' : '퀴즈 진행'}
+          description={
+            quizProgress.allCompleted
+              ? '모든 참가자가 퀴즈를 마쳤어요. 리포트를 생성해 주세요.'
+              : `퀴즈 완료 ${quizProgress.completedStudentCount}/${quizProgress.totalStudentCount}명`
+          }
+          actionLabel="닫기"
+          onAction={() => setDismissedQuizProgress(quizProgress)}
         />
       ) : null}
       {voiceRtc.error ? (
@@ -1208,6 +1306,37 @@ export default function SessionPage() {
               {activeFile ?? (projectRef ? '파일을 선택하세요' : pendingImport ? '미리보기 중' : '프로젝트 미연결')}
             </span>
             <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              {saveFlash ? (
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--status-success)', whiteSpace: 'nowrap' }}>
+                  {saveFlash}
+                </span>
+              ) : null}
+              <button
+                type="button"
+                title="저장 (Ctrl+S) — 저장된 코드 기준으로 퀴즈가 생성됩니다"
+                aria-label="파일 저장"
+                onClick={onSaveActiveFile}
+                disabled={!canSaveFile || saveFilePending}
+                style={{
+                  border: '1px solid var(--border)',
+                  background: 'transparent',
+                  color: canSaveFile ? 'var(--text-secondary)' : 'var(--text-muted)',
+                  cursor: canSaveFile ? 'pointer' : 'not-allowed',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '4px 9px',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-sans)',
+                  lineHeight: 1,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Save size={12} />
+                {saveFilePending ? '저장 중…' : '저장'}
+              </button>
               <span
                 style={{
                   fontSize: 12,
@@ -1417,6 +1546,31 @@ export default function SessionPage() {
       </footer>
       )}
 
+      {/* 강사(혹은 다른 관리자)가 세션을 닫았을 때 참가자를 안내 후 내보낸다 — 닫기(X)로도 나가진다. */}
+      <Modal
+        open={sessionEndedRemotely}
+        title="세션 종료"
+        description="세션이 종료되었습니다. 수고하셨어요!"
+        primaryLabel="확인"
+        onPrimary={leaveDestination}
+        onClose={leaveDestination}
+        width={420}
+      />
+
+      <Modal
+        open={reportConfirmOpen}
+        title="리포트 생성"
+        description="참가 학생 전원의 세션 리포트를 발급하고 세션을 종료합니다. 이미 발급된 리포트는 새로 발급됩니다."
+        primaryLabel={
+          createReportsForAll.isPending || updateSession.isPending ? '생성 중…' : '생성 및 종료'
+        }
+        secondaryLabel="취소"
+        onPrimary={onGenerateReports}
+        onSecondary={() => setReportConfirmOpen(false)}
+        onClose={() => setReportConfirmOpen(false)}
+        width={440}
+      />
+
       <Modal
         open={endConfirmOpen}
         title="세션 종료"
@@ -1465,7 +1619,96 @@ export default function SessionPage() {
           </div>
         ) : null}
       </Modal>
+
+      {hasSessionId ? (
+        <SessionDeleteGate
+          sessionId={sessionId}
+          open={deleteConfirmOpen}
+          onClose={() => setDeleteConfirmOpen(false)}
+          onError={setActionError}
+          onDeleted={leaveDestination}
+        />
+      ) : null}
     </div>
+  );
+}
+
+/** 삭제에 classId가 필요해 세션 detail을 읽은 뒤 ConfirmDeleteOverlay를 연다. */
+function SessionDeleteGate({
+  sessionId,
+  open,
+  onClose,
+  onError,
+  onDeleted,
+}: {
+  sessionId: number;
+  open: boolean;
+  onClose: () => void;
+  onError: (msg: string) => void;
+  onDeleted: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <QueryAsyncBoundary
+      suspenseFallback={null}
+      errorFallback={
+        <ConfirmDeleteOverlay
+          open
+          title="세션 삭제"
+          description="세션 정보를 불러오지 못했습니다. 그래도 삭제할까요?"
+          confirmText="삭제"
+          onClose={onClose}
+          onConfirm={() => onError('세션 정보를 불러올 수 없어 삭제할 수 없습니다.')}
+        />
+      }
+    >
+      <SessionDeleteConfirm sessionId={sessionId} onClose={onClose} onError={onError} onDeleted={onDeleted} />
+    </QueryAsyncBoundary>
+  );
+}
+
+function SessionDeleteConfirm({
+  sessionId,
+  onClose,
+  onError,
+  onDeleted,
+}: {
+  sessionId: number;
+  onClose: () => void;
+  onError: (msg: string) => void;
+  onDeleted: () => void;
+}) {
+  const { data: session } = useGetSession(sessionId);
+  const deleteSession = useDeleteSession();
+
+  return (
+    <ConfirmDeleteOverlay
+      open
+      title="세션 삭제"
+      description={
+        <>
+          이 작업은 되돌릴 수 없습니다.
+          <br />
+          세션 `<code>{session.title}</code>` 을(를) 삭제합니다.
+        </>
+      }
+      confirmText={session.title}
+      onClose={onClose}
+      onConfirm={() => {
+        deleteSession.mutate(
+          { id: session.id, classId: session.classId },
+          {
+            onSuccess: () => {
+              clearSessionProject(sessionId);
+              onDeleted();
+            },
+            onError: (err) => {
+              onError(humanizeApiError(err, '세션 삭제에 실패했습니다.'));
+            },
+          },
+        );
+      }}
+    />
   );
 }
 

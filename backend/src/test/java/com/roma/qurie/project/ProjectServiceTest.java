@@ -32,9 +32,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.roma.qurie.project.dto.ProjectFileContentResponse;
+import com.roma.qurie.project.dto.ProjectFileUpdateRequest;
 import com.roma.qurie.project.dto.ProjectImportGitRequest;
 import com.roma.qurie.project.dto.ProjectImportLocalRequest;
 import com.roma.qurie.project.dto.ProjectImportResponse;
+import com.roma.qurie.project.dto.ProjectResponse;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.session.participant.SessionParticipantService;
 
@@ -207,6 +209,54 @@ class ProjectServiceTest {
 
 		assertThat(response.content()).isEqualTo("class Main {}");
 		verify(participantService).verifyCanEnter(eq(SESSION_ID), any(AuthUser.class));
+	}
+
+	@Test
+	void updateFileContentReplacesContentAndRecomputesVersionHash() {
+		Project project = new Project(SESSION_ID, null, 7L, "old-hash", 2);
+		ReflectionTestUtils.setField(project, "id", PROJECT_ID);
+		ProjectFile target = new ProjectFile(PROJECT_ID, "src/Main.java", "class Main {}", 13);
+		ProjectFile other = new ProjectFile(PROJECT_ID, "README.md", "# readme", 8);
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project));
+		given(projectFileRepository.findByProjectIdAndPath(PROJECT_ID, "src/Main.java"))
+				.willReturn(Optional.of(target));
+		given(projectFileRepository.findAllByProjectId(PROJECT_ID)).willReturn(List.of(target, other));
+
+		ProjectResponse response = projectService.updateFileContent(student(), PROJECT_ID,
+				new ProjectFileUpdateRequest("src/Main.java", "class Main { int edited; }"));
+
+		assertThat(target.getContent()).isEqualTo("class Main { int edited; }");
+		assertThat(target.getByteSize()).isEqualTo("class Main { int edited; }".length());
+		assertThat(response.versionHash()).hasSize(64).isNotEqualTo("old-hash");
+		verify(participantService).verifyCanEnter(eq(SESSION_ID), any(AuthUser.class));
+	}
+
+	@Test
+	void updateFileContentThrowsNotFoundWhenPathMissing() {
+		given(projectRepository.findById(PROJECT_ID))
+				.willReturn(Optional.of(new Project(SESSION_ID, null, 7L)));
+		given(projectFileRepository.findByProjectIdAndPath(PROJECT_ID, "none.txt"))
+				.willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> projectService.updateFileContent(student(), PROJECT_ID,
+				new ProjectFileUpdateRequest("none.txt", "x")))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(ProjectServiceTest::statusOf)
+				.isEqualTo(HttpStatus.NOT_FOUND);
+	}
+
+	@Test
+	void updateFileContentRejectsOversizedContent() {
+		given(projectRepository.findById(PROJECT_ID))
+				.willReturn(Optional.of(new Project(SESSION_ID, null, 7L)));
+		given(projectFileRepository.findByProjectIdAndPath(PROJECT_ID, "big.txt"))
+				.willReturn(Optional.of(new ProjectFile(PROJECT_ID, "big.txt", "", 0)));
+
+		assertThatThrownBy(() -> projectService.updateFileContent(student(), PROJECT_ID,
+				new ProjectFileUpdateRequest("big.txt", "a".repeat(ImportedFileSanitizer.MAX_FILE_BYTES + 1))))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(ProjectServiceTest::statusOf)
+				.isEqualTo(HttpStatus.PAYLOAD_TOO_LARGE);
 	}
 
 	private static HttpStatusCode statusOf(Throwable throwable) {

@@ -43,6 +43,21 @@ export interface ProjectImportNotification {
   versionHash: string;
 }
 
+/** `/topic/sessions/{id}/status` 이벤트. 세션이 종료되면(active=false) 전 참가자에게 브로드캐스트된다. */
+export interface SessionStatusEvent {
+  sessionId: number;
+  active: boolean;
+  endedAt: string;
+}
+
+/** `/topic/sessions/{id}/quiz-progress` 이벤트. 학생이 퀴즈 전 문항을 완료할 때마다 집계가 온다. */
+export interface QuizProgressEvent {
+  quizSetId: number;
+  completedStudentCount: number;
+  totalStudentCount: number;
+  allCompleted: boolean;
+}
+
 interface ChatErrorPayload {
   message: string;
   occurredAt: string;
@@ -90,6 +105,9 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
   const [voiceParticipants, setVoiceParticipants] = useState<VoiceParticipantResponse[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastQuizNotification, setLastQuizNotification] = useState<QuizGenerationNotification | null>(null);
+  /** null = 아직 status 이벤트를 받지 못함 — 세션 종료 브로드캐스트가 오면 채워진다. */
+  const [sessionStatus, setSessionStatus] = useState<{ active: boolean; endedAt: string | null } | null>(null);
+  const [lastQuizProgress, setLastQuizProgress] = useState<QuizProgressEvent | null>(null);
   /** useSessionVoice 가 큐를 드레인할 때마다 올려 리렌더를 유도한다. */
   const [voiceSignalTick, setVoiceSignalTick] = useState(0);
 
@@ -163,6 +181,18 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
         queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(notification.projectId) });
       });
 
+      // 아래 두 토픽은 sessionDestinations 헬퍼가 아직 없어 기존 /topic/sessions/{id}/* 규칙대로 직접 조립한다.
+      client.subscribe(`/topic/sessions/${sessionId}/status`, (frame: IMessage) => {
+        const event = JSON.parse(frame.body) as SessionStatusEvent;
+        setSessionStatus({ active: event.active, endedAt: event.endedAt ?? null });
+        // LIVE 배지 등 세션 메타가 즉시 갱신되도록 detail 캐시를 비운다.
+        queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(sessionId) });
+      });
+
+      client.subscribe(`/topic/sessions/${sessionId}/quiz-progress`, (frame: IMessage) => {
+        setLastQuizProgress(JSON.parse(frame.body) as QuizProgressEvent);
+      });
+
       client.subscribe(sessionDestinations.voice(sessionId), (frame: IMessage) => {
         const event = JSON.parse(frame.body) as VoiceChannelEventResponse;
         setVoiceParticipants(event.participants);
@@ -231,6 +261,8 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
       setSocketParticipants(null);
       setVoiceParticipants(null);
       setVoiceSignalTick(0);
+      setSessionStatus(null);
+      setLastQuizProgress(null);
       setStatus('connecting');
     };
   }, [sessionId, queryClient]);
@@ -371,5 +403,7 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
     dismissError,
     sendMessage,
     lastQuizNotification,
+    sessionStatus,
+    lastQuizProgress,
   };
 }

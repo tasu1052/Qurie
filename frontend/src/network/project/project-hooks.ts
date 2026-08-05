@@ -8,6 +8,7 @@ import {
     getSessionProject,
     importProjectGit,
     importProjectLocal,
+    updateProjectFileContent,
     type ProjectCreateRequest,
     type ProjectImportGitRequest,
     type ProjectImportLocalRequest,
@@ -62,6 +63,23 @@ export const useGetSessionProject = (sessionId: number | null, opts?: { poll?: b
         staleTime: 0,
         refetchOnWindowFocus: true,
         refetchInterval: opts?.poll === false ? false : 3000,
+    });
+};
+
+/** 편집본 저장. versionHash 가 바뀌므로 프로젝트·파일 쿼리를 무효화해 퀴즈 생성 기준을 맞춘다. */
+export const useUpdateProjectFileContent = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ projectId, path, content }: { projectId: number; path: string; content: string }) =>
+            updateProjectFileContent(projectId, path, content),
+        onSuccess: (data, variables) => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.projects.bySession(data.sessionId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.projects.files(variables.projectId) });
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.projects.fileContent(variables.projectId, variables.path),
+            });
+        },
     });
 };
 

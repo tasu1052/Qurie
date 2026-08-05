@@ -119,6 +119,25 @@ def test_refine_preserves_approved_and_asks_only_for_shortfall():
     assert out["retry_count"] == 1
     # 탈락 사유는 user_prompt(USER_HINT)가 아니라 별도 필드로 넘긴다
     assert "SOLVER_MISMATCH" in out["retry_notes"]
+    assert "user_prompt" not in out
+
+
+def test_refine_appends_new_critiques_to_existing_note():
+    state = {
+        "requested_count": 5,
+        "purpose_target": {"conceptual": 2, "micro": 3},
+        "purpose_counts": {"conceptual": 2, "micro": 3},
+        "ratio_target": {"easy": 1, "normal": 3, "hard": 1},
+        "ratio_counts": {"easy": 1, "normal": 3, "hard": 1},
+        "retry_notes": "ROUND1_REASON",
+        "quizzes": [_q("REJECTED", reason="ROUND2_REASON"), _q("APPROVED")],
+        "retry_count": 1,
+        "last_approved": 0,
+    }
+    out = node_refine(state)
+    assert "ROUND1_REASON" in out["retry_notes"]
+    assert "ROUND2_REASON" in out["retry_notes"]
+    assert len(out["retry_notes"]) <= 500
 
 
 def test_refine_uses_original_target_not_previous_round():

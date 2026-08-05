@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -19,6 +20,7 @@ import com.roma.qurie.project.ImportedFileSanitizer.SkippedFile;
 import com.roma.qurie.project.dto.ProjectCreateRequest;
 import com.roma.qurie.project.dto.ProjectFileContentResponse;
 import com.roma.qurie.project.dto.ProjectFileSummaryResponse;
+import com.roma.qurie.project.dto.ProjectFileUpdateRequest;
 import com.roma.qurie.project.dto.ProjectImportGitRequest;
 import com.roma.qurie.project.dto.ProjectImportLocalRequest;
 import com.roma.qurie.project.dto.ProjectImportNotification;
@@ -109,6 +111,44 @@ public class ProjectService {
                 .map(ProjectFileContentResponse::from)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "프로젝트에 해당 파일이 없습니다: " + path));
+    }
+
+    /**
+     * 파일 내용 저장. 세션 편집기(Yjs)의 편집본을 스냅샷 DB에 반영해,
+     * 이후 퀴즈 생성이 편집된 코드를 기준으로 하게 한다.
+     * 편집은 세션 참가자 전원이 함께 하므로 저장 권한도 세션 입장 자격과 같다.
+     * 내용이 바뀌면 프로젝트 versionHash 를 전체 파일 기준으로 다시 계산한다.
+     */
+    @Transactional
+    public ProjectResponse updateFileContent(AuthUser requester, Long projectId, ProjectFileUpdateRequest request) {
+        Project project = findProject(projectId);
+        participantService.verifyCanEnter(project.getSessionId(), requester);
+
+        ProjectFile file = projectFileRepository.findByProjectIdAndPath(projectId, request.path())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "프로젝트에 해당 파일이 없습니다: " + request.path()));
+
+        String content = request.content();
+        if (content.indexOf('\0') >= 0) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "바이너리 내용은 저장할 수 없습니다.");
+        }
+        long byteSize = content.getBytes(StandardCharsets.UTF_8).length;
+        if (byteSize > ImportedFileSanitizer.MAX_FILE_BYTES) {
+            throw new ResponseStatusException(
+                    HttpStatus.PAYLOAD_TOO_LARGE,
+                    "파일당 크기 상한(" + ImportedFileSanitizer.MAX_FILE_BYTES / 1_000 + "KB)을 초과했습니다.");
+        }
+
+        file.updateContent(content, byteSize);
+
+        // 같은 영속성 컨텍스트라 방금 갱신한 내용이 목록 조회에 이미 반영되어 있다.
+        Map<String, String> files = new TreeMap<>();
+        for (ProjectFile projectFile : projectFileRepository.findAllByProjectId(projectId)) {
+            files.put(projectFile.getPath(), projectFile.getContent());
+        }
+        project.updateVersionHash(versionHashOf(files));
+
+        return ProjectResponse.from(project);
     }
 
     /** 프로젝트와 파일 저장을 한 트랜잭션으로 묶는다. 파일 저장이 실패하면 프로젝트 행도 남지 않는다. */

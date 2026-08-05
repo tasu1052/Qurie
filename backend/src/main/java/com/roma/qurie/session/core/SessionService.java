@@ -8,11 +8,13 @@ import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.session.chat.ChatService;
 import com.roma.qurie.session.core.dto.SessionCreateRequest;
 import com.roma.qurie.session.core.dto.SessionResponse;
+import com.roma.qurie.session.core.dto.SessionStatusNotification;
 import com.roma.qurie.session.core.dto.SessionUpdateRequest;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -29,6 +31,7 @@ public class SessionService {
     private final GroupRepository groupRepository;
     private final GroupParticipantRepository groupParticipantRepository;
     private final ClassUserRepository classUserRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /*
      * 방을 생성하는 함수. 생성자는 요청 본문이 아니라 인증된 사용자로 고정한다.
@@ -122,11 +125,22 @@ public class SessionService {
      */
     @Transactional(readOnly = true)
     public List<SessionResponse> getOpenSessions(Long classId, AuthUser requester, Long userId) {
+        return getSessions(classId, requester, userId, true);
+    }
+
+    /**
+     * activeOnly=false 면 종료된 세션까지 포함한다 — 세션이 끝난 뒤에도 리포트·퀴즈 결과 화면에서
+     * 지난 세션을 골라야 하기 때문이다. 노출 범위(강사는 반 전체 / 학생은 반 공개 + 자기 그룹)는 동일하다.
+     */
+    @Transactional(readOnly = true)
+    public List<SessionResponse> getSessions(Long classId, AuthUser requester, Long userId, boolean activeOnly) {
         requireCanListForUser(requester, userId);
 
-        List<Session> openSessions = sessionRepository.findByClassIdAndActive(classId, true);
+        List<Session> sessions = activeOnly
+                ? sessionRepository.findByClassIdAndActive(classId, true)
+                : sessionRepository.findByClassIdOrderByIdDesc(classId);
         if (userId == null && requester != null && MANAGER_ROLE.equals(requester.role())) {
-            return openSessions.stream().map(SessionResponse::from).toList();
+            return sessions.stream().map(SessionResponse::from).toList();
         }
 
         Long targetUserId = userId;
@@ -136,7 +150,7 @@ public class SessionService {
         Set<Long> groupIds = targetUserId == null
                 ? Set.of()
                 : Set.copyOf(groupParticipantRepository.findGroupIdsByClassIdAndUserId(classId, targetUserId));
-        return openSessions.stream()
+        return sessions.stream()
                 .filter(session -> session.getGroupId() == null || groupIds.contains(session.getGroupId()))
                 .map(SessionResponse::from)
                 .toList();
@@ -177,6 +191,10 @@ public class SessionService {
             session.close();
             // 방이 소멸하면 채팅도 함께 사라진다. 닫은 방은 다시 열 수 없으므로 복구 대상이 아니다.
             chatService.deleteBySession(id);
+            // 방에 남아 있는 구성원들이 새로고침 없이 종료를 알 수 있도록 웹소켓으로 알린다.
+            messagingTemplate.convertAndSend(
+                    "/topic/sessions/" + id + "/status",
+                    new SessionStatusNotification(id, session.isActive(), session.getEndedAt()));
         }
         return SessionResponse.from(session);
     }

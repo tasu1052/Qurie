@@ -44,6 +44,8 @@ class CreateQuizSetRequest(BaseModel):
     user_prompt: str | None = Field(default=None, max_length=500)
     version_hash: str = Field(min_length=1, max_length=64)
     target_files: list[str] = Field(default_factory=list, max_length=20)
+    # 재생성 시 이전에 출제됐던 문항 목록. 생성 프롬프트에 '중복 금지'로 실린다.
+    avoid_questions: list[str] = Field(default_factory=list, max_length=60)
     # 생성이 끝나면 이 주소로 결과를 POST한다. 없으면 폴링(GET /status)만 쓴다.
     callback_url: str | None = Field(default=None, max_length=500)
     # 필수. 기본값을 두면 필드를 생략했을 때 validator가 돌지 않아 그대로 통과한다.
@@ -61,6 +63,16 @@ class CreateQuizSetRequest(BaseModel):
     @classmethod
     def normalize_paths(cls, v: list[str]) -> list[str]:
         return [p.strip().replace("\\", "/") for p in v if p.strip()]
+
+    @field_validator("avoid_questions")
+    @classmethod
+    def normalize_avoid_questions(cls, v: list[str]) -> list[str]:
+        """빈 항목은 버리고, 항목이 길면 422 대신 잘라서 받는다.
+
+        이 필드는 '있으면 더 좋은' 힌트라 형식 문제로 생성 요청 전체를
+        거절하면 손해다. 프롬프트 폭주만 막으면 된다.
+        """
+        return [q.strip()[:200] for q in v if q.strip()]
 
     @field_validator("callback_url")
     @classmethod

@@ -3,6 +3,7 @@ export * from './session-apis';
 export {
     useCreateSession,
     useCreateSessionReport,
+    useCreateSessionReportsForAll,
     useDeleteSession,
     useGetSession,
     useGetSessionMessages,

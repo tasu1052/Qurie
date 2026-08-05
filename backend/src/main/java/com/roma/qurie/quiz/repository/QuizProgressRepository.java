@@ -31,6 +31,21 @@ public interface QuizProgressRepository extends JpaRepository<QuizProgress, Long
 	List<QuizProgress> findAllWithQuizByQuizSetIdAndUserId(
 			@Param("quizSetId") Long quizSetId, @Param("userId") Long userId);
 
+	/** 사용자가 세트에서 제출(응시·스킵 포함)한 문항 수. 세트 완주 판정에 쓴다. */
+	@Query("""
+			select count(qp) from QuizProgress qp
+			where qp.quiz.quizSet.id = :quizSetId and qp.user.id = :userId
+			""")
+	long countByQuizSetIdAndUserId(@Param("quizSetId") Long quizSetId, @Param("userId") Long userId);
+
+	/** 세트 완주 인원 집계용 — 사용자별 제출 문항 수를 [userId, count] 행으로 준다. */
+	@Query("""
+			select qp.user.id, count(qp) from QuizProgress qp
+			where qp.quiz.quizSet.id = :quizSetId
+			group by qp.user.id
+			""")
+	List<Object[]> countProgressByQuizSetIdGroupByUser(@Param("quizSetId") Long quizSetId);
+
 	@Query("""
 			select qp from QuizProgress qp
 			join fetch qp.quiz q

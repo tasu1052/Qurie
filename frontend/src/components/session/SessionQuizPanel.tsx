@@ -1500,6 +1500,11 @@ export function SessionQuizPanel({
           <Button variant="primary" disabled={!canGenerate} onClick={openSourcePicker}>
             {generateQuiz.isPending || generatingInFlight ? '생성 중…' : '퀴즈 생성'}
           </Button>
+          {latestSummary != null || activeQuizSetId != null ? (
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+              재생성 시 기존 퀴즈는 삭제되고, 이전 문항과 겹치지 않게 새로 출제됩니다.
+            </span>
+          ) : null}
           {lastSource ? (
             <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 }}>
               출제 대상:{' '}

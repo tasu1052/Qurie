@@ -49,6 +49,19 @@ public class User extends BaseTimeEntity {
 	@Column(name = "name", nullable = false, length = 50)
 	private String name;
 
+	/*
+	 * phone/region/gender 는 마이페이지에서 선택 입력하는 부가 정보라 가입 시점에는 비어 있고, 항상 null 을 허용한다.
+	 * gender 는 화면 select 값(MALE/FEMALE)을 그대로 저장하되 형식이 늘어날 수 있어 enum 대신 문자열로 둔다.
+	 */
+	@Column(name = "phone", length = 30)
+	private String phone;
+
+	@Column(name = "region", length = 50)
+	private String region;
+
+	@Column(name = "gender", length = 10)
+	private String gender;
+
 	@Builder
 	private User(Long enterpriseId, String email, UserRole role, String password, String name) {
 		this.enterpriseId = enterpriseId;
@@ -60,6 +73,18 @@ public class User extends BaseTimeEntity {
 
 	public void updateName(String name) {
 		this.name = name;
+	}
+
+	public void updatePhone(String phone) {
+		this.phone = phone;
+	}
+
+	public void updateRegion(String region) {
+		this.region = region;
+	}
+
+	public void updateGender(String gender) {
+		this.gender = gender;
 	}
 
 	/**

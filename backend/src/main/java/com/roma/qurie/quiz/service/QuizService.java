@@ -1,5 +1,6 @@
 package com.roma.qurie.quiz.service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -46,6 +47,10 @@ public class QuizService {
 
 	/** todo: 문항 제한 시간 정책이 정해지면 요청/난이도별 값으로 교체. */
 	private static final int DEFAULT_TIME_LIMIT_SEC = 60;
+	/** 재생성 시 AI 에 넘기는 '이전 문항' 한 건의 최대 길이. 프롬프트 폭주 방지용 상한이다. */
+	private static final int AVOID_QUESTION_MAX_CHARS = 200;
+	/** 재생성 시 AI 에 넘기는 '이전 문항' 목록 상한. 최신 세트부터 채운다. */
+	private static final int AVOID_QUESTIONS_LIMIT = 40;
 	private static final String MANAGER_ROLE = "MANAGER";
 	private static final String MASTER_ROLE = "MASTER";
 
@@ -85,10 +90,16 @@ public class QuizService {
 					HttpStatus.CONFLICT, "이미 생성 중인 퀴즈가 있습니다. 완료될 때까지 기다려 주세요.");
 		}
 
+		// 삭제 전에 이전 문항을 모아 AI 에 '중복 출제 금지' 목록으로 넘긴다. 트랜잭션 안에서
+		// 읽어야 lazy 문항 컬렉션 접근이 안전하고, 삭제 대상 조회와 같은 결과를 본다.
+		List<String> avoidQuestions = new ArrayList<>();
 		QuizSet quizSet = transactionTemplate.execute(status -> {
+			List<QuizSet> previousSets = quizSetRepository.findByProjectIdOrderByIdDesc(projectId);
+			avoidQuestions.addAll(collectAvoidQuestions(previousSets));
+
 			// 응시 기록은 문항 FK 에 물려 있어 퀴즈셋(cascade 로 문항·보기까지)보다 먼저 지운다.
 			quizProgressRepository.deleteAllByQuizSetProjectId(projectId);
-			quizSetRepository.deleteAll(quizSetRepository.findByProjectIdOrderByIdDesc(projectId));
+			quizSetRepository.deleteAll(previousSets);
 
 			return quizSetRepository.save(QuizSet.builder()
 					.projectId(projectId)
@@ -105,14 +116,36 @@ public class QuizService {
 
 		try {
 			String callbackUrl = callbackBaseUrl + "/api/quiz/" + quizSet.getId() + "/callback";
-			AiQuizSetAccepted accepted =
-					quizAiClient.createQuizSet(projectId, AiQuizCreateRequest.from(request, callbackUrl));
+			AiQuizSetAccepted accepted = quizAiClient.createQuizSet(
+					projectId, AiQuizCreateRequest.from(request, avoidQuestions, callbackUrl));
 			quizSet.markGenerating(accepted.quizSetId());
 		} catch (QuizAiException e) {
 			quizSet.fail(e.getMessage());
 		}
 
 		return QuizGenerateResponse.from(quizSetRepository.save(quizSet));
+	}
+
+	/**
+	 * 재생성 시 AI 가 피해야 할 '이전 출제 문항' 목록. 최신 세트부터 "[개념] 질문" 형태로 만들고,
+	 * 항목당 {@value #AVOID_QUESTION_MAX_CHARS}자·전체 {@value #AVOID_QUESTIONS_LIMIT}건으로 자른다.
+	 */
+	private List<String> collectAvoidQuestions(List<QuizSet> previousSets) {
+		return previousSets.stream()
+				.flatMap(set -> set.getQuizzes().stream())
+				.map(QuizService::formatAvoidQuestion)
+				.limit(AVOID_QUESTIONS_LIMIT)
+				.toList();
+	}
+
+	private static String formatAvoidQuestion(Quiz quiz) {
+		String concept = quiz.getTestedConcept();
+		String entry = (concept == null || concept.isBlank())
+				? quiz.getQuestion()
+				: "[" + concept + "] " + quiz.getQuestion();
+		return entry.length() > AVOID_QUESTION_MAX_CHARS
+				? entry.substring(0, AVOID_QUESTION_MAX_CHARS)
+				: entry;
 	}
 
 	/**
