@@ -16,6 +16,7 @@ import {
   type SessionResponse,
 } from '../../data';
 import { getSessionReport } from '../../network/session/session-apis';
+import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
 import { PastQuizShell } from './pastQuizShell';
 import { SESSION_LIST_PAGE_TITLE, usePastQuizBasePath, type PastQuizBasePath } from './pastQuizPaths';
 
@@ -69,16 +70,24 @@ function SessionListTable({
   statusFilter: string;
 }) {
   const navigate = useNavigate();
-  const { data: sessions } = useGetSessions(classId);
+  // 종료된 세션까지 받아야 '전체/종료' 칩이 실제 데이터를 보여준다
+  const { data: sessions } = useGetSessions(classId, { includeEnded: true });
   const [page, setPage] = useState(1);
 
   const filtered = useMemo(() => {
-    return sessions.filter((s) => {
+    const list = sessions.filter((s) => {
       const status = sessionStatus(s);
       if (statusFilter === '전체') return true;
       if (statusFilter === '진행중') return status === 'LIVE';
       if (statusFilter === '종료') return status === '종료';
       return true;
+    });
+    // 정렬: LIVE 먼저 → LIVE 안에서는 수업(클래스 공개) 세션 우선 → 생성일 최신순.
+    // 종료 세션은 그 뒤에 최신순으로 이어진다.
+    return [...list].sort((a, b) => {
+      if (a.active !== b.active) return a.active ? -1 : 1;
+      if (a.active && a.classPublic !== b.classPublic) return a.classPublic ? -1 : 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }, [sessions, statusFilter]);
 
@@ -98,6 +107,18 @@ function SessionListTable({
 
   const [quizLoadingId, setQuizLoadingId] = useState<number | null>(null);
 
+  /** LIVE 세션 입장 — 세션 화면은 새 탭에서 열리고, 팝업이 차단되면 현재 탭으로 이동한다. */
+  const enterSession = (s: SessionResponse) => {
+    saveSessionTitle(s.id, s.title);
+    const url = `/session/${s.id}?title=${encodeURIComponent(s.title)}`;
+    const win = window.open(url, '_blank');
+    if (!win) {
+      navigate(`/session/${s.id}?title=${encodeURIComponent(s.title)}`);
+      return;
+    }
+    win.opener = null;
+  };
+
   const openPastQuiz = async (sessionId: number) => {
     setQuizLoadingId(sessionId);
     try {
@@ -115,16 +136,14 @@ function SessionListTable({
   };
 
   if (filtered.length === 0) {
+    // 종료 필터의 빈 화면에서는 '세션 만들기' 같은 액션이 어울리지 않으므로 안내만 보여준다.
+    if (statusFilter === '종료') {
+      return <EmptyState message="종료된 세션이 없습니다" />;
+    }
     return (
       <EmptyState
-        message="세션이 없습니다"
-        description={
-          statusFilter === '종료'
-            ? '종료된 세션이 없습니다.'
-            : statusFilter === '진행중'
-              ? '진행 중인 세션이 없습니다.'
-              : '강사가 세션을 열면 여기에 표시돼요.'
-        }
+        message={statusFilter === '진행중' ? '진행 중인 세션이 없습니다' : '세션이 없습니다'}
+        description="강사가 세션을 열면 여기에 표시돼요."
         actionLabel={basePath === '/manager' ? '세션 만들기' : '대시보드'}
         onAction={() => navigate(basePath === '/manager' ? '/manager/sessions' : '/app')}
       />
@@ -197,21 +216,29 @@ function SessionListTable({
                   {status === 'LIVE' ? <LiveBadge /> : <Badge status="neutral">종료</Badge>}
                 </span>
                 <span className="qurie-table-actions">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    disabled={status !== '종료' || quizLoadingId === s.id}
-                    onClick={() => void openPastQuiz(s.id)}
-                  >
-                    {quizLoadingId === s.id ? '열기…' : '지난 퀴즈'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigate(`/session/${s.id}/report`)}
-                  >
-                    세션 리포트
-                  </Button>
+                  {status === 'LIVE' ? (
+                    <Button variant="secondary" size="sm" onClick={() => enterSession(s)}>
+                      입장
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={quizLoadingId === s.id}
+                        onClick={() => void openPastQuiz(s.id)}
+                      >
+                        {quizLoadingId === s.id ? '열기…' : '지난 퀴즈'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => navigate(`/session/${s.id}/report`)}
+                      >
+                        세션 리포트
+                      </Button>
+                    </>
+                  )}
                 </span>
               </div>
             );

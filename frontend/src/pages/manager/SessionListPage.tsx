@@ -75,11 +75,6 @@ function TableSkeleton() {
   );
 }
 
-function sessionStatus(s: SessionResponse): 'LIVE' | '종료' {
-  if (s.active) return 'LIVE';
-  return '종료';
-}
-
 const SESSION_PAGE_SIZE = 20;
 
 const SESSION_TABLE_MIN_WIDTH = 920;
@@ -88,27 +83,23 @@ const SESSION_TABLE_COLUMNS =
 
 function SessionTable({
   classId,
-  statusFilter,
   query,
   page,
   onPage,
   onEmptyCreate,
   onEnter,
-  onReport,
   onDelete,
 }: {
   classId: number;
-  statusFilter: string;
   query: string;
   page: number;
   onPage: (p: number) => void;
   onEmptyCreate: () => void;
   onEnter: (sessionId: number, title: string) => void;
-  onReport: (sessionId: number) => void;
   onDelete: (session: SessionResponse) => void;
 }) {
-  // 종료된 세션까지 받아야 '전체/종료' 칩이 실제 데이터를 보여준다
-  const { data: sessions } = useGetSessions(classId, { includeEnded: true });
+  // 세션 탭은 진행 중인 세션 관리 전용 — 종료된 세션은 '세션 목록' 탭에서 본다.
+  const { data: sessions } = useGetSessions(classId);
   const { data: groups } = useGetGroups(classId);
   const debouncedQuery = useDebouncedValue(query, 300);
   const groupNameById = useMemo(() => {
@@ -117,14 +108,17 @@ function SessionTable({
     return map;
   }, [groups]);
 
-  const filtered = sessions.filter((s) => {
-    const status = sessionStatus(s);
-    if (debouncedQuery && !s.title.toLowerCase().includes(debouncedQuery.toLowerCase())) return false;
-    if (statusFilter === '전체') return true;
-    if (statusFilter === '진행') return status === 'LIVE';
-    if (statusFilter === '종료') return status === '종료';
-    return true;
-  });
+  const filtered = sessions
+    .filter((s) => {
+      if (!s.active) return false;
+      if (debouncedQuery && !s.title.toLowerCase().includes(debouncedQuery.toLowerCase())) return false;
+      return true;
+    })
+    // 수업(클래스 공개) 세션 우선, 그다음 생성일 최신순
+    .sort((a, b) => {
+      if (a.classPublic !== b.classPublic) return a.classPublic ? -1 : 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / SESSION_PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -142,7 +136,8 @@ function SessionTable({
   if (filtered.length === 0) {
     return (
       <EmptyState
-        message="세션이 없습니다"
+        message="진행 중인 세션이 없습니다"
+        description="종료된 세션은 '세션 목록' 탭에서 볼 수 있어요."
         actionLabel="세션 만들기"
         onAction={onEmptyCreate}
       />
@@ -175,7 +170,6 @@ function SessionTable({
               <span style={{ textAlign: 'right' }}>액션</span>
             </div>
             {pageItems.map((s) => {
-              const status = sessionStatus(s);
               const groupLabel =
                 s.groupId != null ? groupNameById.get(s.groupId) ?? `그룹 #${s.groupId}` : null;
               return (
@@ -210,28 +204,15 @@ function SessionTable({
                       ) : null}
                     </span>
                   </span>
-                  <span style={{ display: 'flex', flexDirection: 'column', gap: 2, color: 'var(--text-secondary)', minWidth: 0, wordBreak: 'break-word' }}>
-                    <span>{formatSessionTime(s.createdAt)}</span>
-                    {/* 종료 세션은 언제 끝났는지가 더 중요하므로 종료 시각을 함께 보여준다 */}
-                    {s.endedAt ? (
-                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        종료 {formatSessionTime(s.endedAt)}
-                      </span>
-                    ) : null}
+                  <span style={{ color: 'var(--text-secondary)', minWidth: 0, wordBreak: 'break-word' }}>
+                    {formatSessionTime(s.createdAt)}
                   </span>
                   <span className="qurie-table-status">
-                    {status === 'LIVE' ? <LiveBadge /> : <Badge status="neutral">{status}</Badge>}
+                    <LiveBadge />
                   </span>
                   <span className="qurie-table-actions">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        if (status === '종료') onReport(s.id);
-                        else onEnter(s.id, s.title);
-                      }}
-                    >
-                      {status === '종료' ? '리포트' : '입장'}
+                    <Button variant="secondary" size="sm" onClick={() => onEnter(s.id, s.title)}>
+                      입장
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => onDelete(s)}>
                       삭제
@@ -265,8 +246,6 @@ export default function SessionListPage() {
   const hasValidClassId = typeof classId === 'number' && Number.isFinite(classId) && classId > 0;
   const createSession = useCreateSession();
   const deleteSession = useDeleteSession();
-  // 기본은 '진행' 보기 — 종료 세션이 쌓여도 첫 화면이 지난 세션으로 덮이지 않게
-  const [status, setStatus] = useState('진행');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
@@ -284,11 +263,9 @@ export default function SessionListPage() {
     enabled: createOpen && hasValidClassId,
   });
 
-  const chips = ['전체', '진행', '종료'];
-
   useEffect(() => {
     setPage(1);
-  }, [status, query]);
+  }, [query]);
 
   const openSessionInNewTab = (sessionId: number, title?: string) => {
     if (title) saveSessionTitle(sessionId, title);
@@ -396,29 +373,6 @@ export default function SessionListPage() {
         ) : null}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {chips.map((c) => {
-            const active = status === c;
-            return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setStatus(c)}
-                style={{
-                  borderRadius: 999,
-                  padding: '6px 14px',
-                  fontSize: 12,
-                  fontWeight: active ? 600 : 400,
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                  border: `1px solid ${active ? 'var(--accent)' : 'var(--border-strong)'}`,
-                  background: active ? 'var(--accent-softer)' : 'var(--surface-card)',
-                  color: active ? 'var(--accent)' : 'var(--text-secondary)',
-                }}
-              >
-                {c}
-              </button>
-            );
-          })}
           <Input
             placeholder="세션 검색…"
             icon={<Search size={14} strokeWidth={1.75} />}
@@ -450,13 +404,11 @@ export default function SessionListPage() {
           >
             <SessionTable
               classId={classId}
-              statusFilter={status}
               query={query}
               page={page}
               onPage={setPage}
               onEmptyCreate={() => setCreateOpen(true)}
               onEnter={openSessionInNewTab}
-              onReport={(sessionId) => navigate(`/session/${sessionId}/report`)}
               onDelete={setDeleteTarget}
             />
           </QueryAsyncBoundary>

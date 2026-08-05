@@ -45,9 +45,8 @@ function NoticesBody({
         flexDirection: 'column',
         gap: compact ? 8 : 12,
         minWidth: 0,
-        minHeight: compact ? 280 : maxHeight ? maxHeight : undefined,
+        // 높이는 상한만 캡한다 — 공지가 적을 때 카드가 내용만큼 줄어 불필요한 스크롤바가 생기지 않는다.
         maxHeight: compact ? 320 : maxHeight,
-        height: maxHeight ? maxHeight : undefined,
         boxSizing: 'border-box',
       }}
     >

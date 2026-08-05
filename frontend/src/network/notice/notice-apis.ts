@@ -51,7 +51,12 @@ export interface NoticeDetailResponse {
 export const getNotices = async (
     params?: NoticeListFilters,
 ): Promise<PageResponse<NoticeResponse>> => {
-    const { data } = await axiosInstance.get<PageResponse<NoticeResponse>>('/notices', { params });
+    // UI 는 1-베이스 페이지를 쓰지만 Spring Pageable 은 0-베이스라 여기서 변환한다.
+    // page=1 을 그대로 보내면 백엔드가 두 번째 페이지로 해석해 첫 페이지 공지가 통째로 빠진다.
+    const query = params?.page != null ? { ...params, page: params.page - 1 } : params;
+    const { data } = await axiosInstance.get<PageResponse<NoticeResponse>>('/notices', {
+        params: query,
+    });
     return data;
 };
 
