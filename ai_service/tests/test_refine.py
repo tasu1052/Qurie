@@ -2,8 +2,9 @@ import os
 os.environ["AI_MOCK"] = "1"
 
 from app.core import config
+from app.engine.quota import scale_counts as shortfall_counts
 from app.engine.steps.refine import (
-    approved_of, node_collect, node_refine, should_refine, shortfall_counts)
+    approved_of, node_collect, node_refine, should_refine)
 
 
 def _q(status, purpose="CONCEPTUAL", difficulty="EASY", reason=None):
@@ -109,12 +110,12 @@ def test_refine_preserves_approved_and_asks_only_for_shortfall():
     out = node_refine(state)
 
     assert len(out["approved_pool"]) == 2
-    assert out["gen_count"] == 3
-    assert sum(out["purpose_counts"].values()) == 3
-    assert sum(out["ratio_counts"].values()) == 3
-    # 이미 확보한 CONCEPTUAL/EASY는 덜 요청해야 한다
-    assert out["purpose_counts"]["conceptual"] == 1
-    assert out["purpose_counts"]["micro"] == 2
+    # 부족분 3 + 여유분 QUIZ_OVERSHOOT
+    assert out["gen_count"] == 3 + config.QUIZ_OVERSHOOT
+    assert sum(out["purpose_counts"].values()) == out["gen_count"]
+    assert sum(out["ratio_counts"].values()) == out["gen_count"]
+    # 이미 확보한 CONCEPTUAL/EASY는 상대적으로 덜 요청해야 한다
+    assert out["purpose_counts"]["micro"] > out["purpose_counts"]["conceptual"]
     assert out["retry_count"] == 1
     # 탈락 사유는 user_prompt(USER_HINT)가 아니라 별도 필드로 넘긴다
     assert "SOLVER_MISMATCH" in out["retry_notes"]
@@ -133,15 +134,99 @@ def test_refine_uses_original_target_not_previous_round():
         "retry_count": 1,
     }
     out = node_refine(state)
-    assert out["gen_count"] == 2
+    assert out["gen_count"] == 2 + config.QUIZ_OVERSHOOT
     # 목표 CONCEPTUAL 3개 중 0개 확보 → 부족분은 CONCEPTUAL 위주여야 한다
-    assert out["purpose_counts"]["conceptual"] == 2
+    assert out["purpose_counts"]["conceptual"] > out["purpose_counts"]["micro"]
 
 
 def test_collect_merges_pool_into_final_list():
-    state = {"approved_pool": [_q("APPROVED")] * 2,
+    state = {"requested_count": 3,
+             "approved_pool": [_q("APPROVED")] * 2,
              "quizzes": [_q("APPROVED"), _q("REJECTED")]}
     out = node_collect(state)
     assert len(out["quizzes"]) == 4
     assert len([q for q in out["quizzes"] if q["status"] == "APPROVED"]) == 3
     assert out["approved_pool"] == []
+
+
+# --- 여유분 생성 · 절삭 · 보충 ---------------------------------------------
+
+def _scored(score, reason=None, status="APPROVED"):
+    return {"status": status, "purpose": "MICRO", "difficulty": "EASY",
+            "question": f"q{score}", "judge_score": score, "reject_reason": reason}
+
+
+def test_first_round_generates_extra():
+    """1라운드부터 여유분을 더해 뽑는다."""
+    from app.engine.factory import build_pipeline_state
+    from app.quiz.dto.request import CreateQuizSetRequest
+
+    body = CreateQuizSetRequest(mode="ASSESSMENT", requested_count=10,
+                                version_hash="t", files={"a.py": "x = 1\n"})
+    state = build_pipeline_state(0, "p", body, body.files)
+
+    assert state["gen_count"] == 10 + config.QUIZ_OVERSHOOT
+    # 프롬프트의 난이도 합이 생성 개수와 맞아야 모델이 혼란스럽지 않다
+    assert sum(state["ratio_counts"].values()) == state["gen_count"]
+    assert sum(state["purpose_counts"].values()) == state["gen_count"]
+    # 목표는 요청 개수 그대로
+    assert sum(state["ratio_target"].values()) == 10
+
+
+def test_collect_trims_surplus_by_score():
+    """넘치면 점수 높은 순으로 남긴다."""
+    state = {"requested_count": 2,
+             "quizzes": [_scored(5), _scored(9), _scored(7)]}
+    out = node_collect(state)
+
+    approved = [q for q in out["quizzes"] if q["status"] == "APPROVED"]
+    assert [q["judge_score"] for q in approved] == [9, 7]
+    # 잘린 문항은 탈락이 아니라 '선발되지 않음'
+    dropped = [q for q in out["quizzes"] if q.get("reject_reason") == "NOT_SELECTED"]
+    assert [q["judge_score"] for q in dropped] == [5]
+
+
+def test_collect_backfills_from_judge_low():
+    """모자라면 Judge 점수가 있는 탈락분으로 채운다."""
+    state = {"requested_count": 3,
+             "quizzes": [_scored(9),
+                         _scored(6, "JUDGE: 보기가 약함", "REJECTED"),
+                         _scored(4, "JUDGE: 모호함", "REJECTED")]}
+    out = node_collect(state)
+
+    approved = [q for q in out["quizzes"] if q["status"] == "APPROVED"]
+    assert [q["judge_score"] for q in approved] == [9, 6, 4]
+    assert [q.get("backfilled") for q in approved] == [None, True, True]
+
+
+def test_backfill_never_uses_solver_mismatch():
+    """독립 모델이 다른 답을 냈다는 뜻이라 정답 자체가 틀렸을 수 있다."""
+    state = {"requested_count": 3,
+             "quizzes": [_scored(9),
+                         {"status": "REJECTED", "question": "x", "judge_score": None,
+                          "reject_reason": "SOLVER_MISMATCH"},
+                         {"status": "REJECTED", "question": "y", "judge_score": None,
+                          "reject_reason": "DUPLICATE"},
+                         {"status": "REJECTED", "question": "z", "judge_score": None,
+                          "reject_reason": "LINE_OOB"}]}
+    out = node_collect(state)
+
+    approved = [q for q in out["quizzes"] if q["status"] == "APPROVED"]
+    assert len(approved) == 1   # 채우지 못하고 1개로 끝난다
+
+
+def test_backfill_picks_highest_score_first():
+    state = {"requested_count": 2,
+             "quizzes": [_scored(3, "JUDGE: a", "REJECTED"),
+                         _scored(6, "JUDGE: b", "REJECTED"),
+                         _scored(5, "JUDGE: c", "REJECTED")]}
+    out = node_collect(state)
+    approved = [q for q in out["quizzes"] if q["status"] == "APPROVED"]
+    assert [q["judge_score"] for q in approved] == [6, 5]
+
+
+def test_backfilled_item_is_not_listed_twice():
+    state = {"requested_count": 2,
+             "quizzes": [_scored(9), _scored(6, "JUDGE: 약함", "REJECTED")]}
+    out = node_collect(state)
+    assert len(out["quizzes"]) == 2
