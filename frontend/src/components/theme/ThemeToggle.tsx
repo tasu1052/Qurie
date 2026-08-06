@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
+import { useMeOptional, useUpdateUserProfile } from '../../data';
 import { applyTheme, persistTheme, resolveInitialTheme } from '../../theme/theme';
 import { useThemeOptional } from '../../theme/useTheme';
 
@@ -28,6 +29,8 @@ export function ThemeToggle({
   style = {},
 }: ThemeToggleProps) {
   const ctx = useThemeOptional();
+  const me = useMeOptional();
+  const updateProfile = useUpdateUserProfile();
   const isControlled = checked != null;
 
   const [internal, setInternal] = useState(() => {
@@ -43,19 +46,28 @@ export function ThemeToggle({
     applyTheme(internal ? 'dark' : 'light');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- mount only for uncontrolled standalone
 
+  const persistRemoteTheme = (dark: boolean) => {
+    const userId = me.data?.id;
+    if (!userId) return;
+    updateProfile.mutate({ userId, theme: dark ? 'dark' : 'light' });
+  };
+
   const toggle = () => {
     const next = !on;
     if (isControlled) {
       onChange?.(next);
+      persistRemoteTheme(next);
       return;
     }
     if (ctx) {
       ctx.setTheme(next ? 'dark' : 'light');
+      persistRemoteTheme(next);
       return;
     }
     setInternal(next);
     applyTheme(next ? 'dark' : 'light');
     persistTheme(next ? 'dark' : 'light');
+    persistRemoteTheme(next);
   };
 
   const dims = size === 'sm' ? { w: 36, h: 20 } : { w: 44, h: 24 };

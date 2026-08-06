@@ -2,8 +2,9 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Input } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
-import { ApiIntegrationPanel } from '../../components/feedback/ApiIntegrationPanel';
 import { useMarketingLightTheme } from '../../hooks/useMarketingLightTheme';
+import { humanizeApiError } from '../../network/core/humanizeError';
+import { submitDemoRequest } from '../../network/marketing/marketing-apis';
 
 const USE_CASES = [
   { id: 'bootcamp', label: '부트캠프·교육 과정 운영' },
@@ -51,6 +52,7 @@ export default function DemoRequestPage() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const otherSelected = form.useCases.includes('other');
 
@@ -82,8 +84,20 @@ export default function DemoRequestPage() {
       setError('필수 항목을 모두 입력해 주세요.');
       return;
     }
-    // 백엔드 미연동 — UI만 제출 완료 처리
-    setSubmitted(true);
+    setSubmitting(true);
+    void submitDemoRequest({
+      lastName: form.lastName.trim(),
+      firstName: form.firstName.trim(),
+      workEmail: form.workEmail.trim(),
+      company: form.company.trim(),
+      title: form.title.trim(),
+      phone: form.phone.trim(),
+      useCases: form.useCases,
+      otherDetail: otherSelected ? form.otherDetail.trim() : undefined,
+    })
+      .then(() => setSubmitted(true))
+      .catch((err) => setError(humanizeApiError(err, '문의 접수에 실패했습니다. 잠시 후 다시 시도해 주세요.')))
+      .finally(() => setSubmitting(false));
   };
 
   return (
@@ -139,11 +153,9 @@ export default function DemoRequestPage() {
         <div>
           <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, letterSpacing: '-0.4px' }}>도입 문의</h1>
           <p style={{ margin: '10px 0 0', fontSize: 14, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
-            업무 정보를 남겨 주시면 도입 안내를 도와드려요. 아래 API 연동 후 제출 내용이 서버로 전송됩니다.
+            업무 정보를 남겨 주시면 도입 안내를 도와드려요. 제출하시면 담당자에게 이메일로 전달됩니다.
           </p>
         </div>
-
-        <ApiIntegrationPanel groupId="demoRequest" variant="compact" title="도입 문의 API" />
 
         {submitted ? (
           <div
@@ -160,8 +172,7 @@ export default function DemoRequestPage() {
           >
             <span style={{ fontSize: 16, fontWeight: 700 }}>요청이 접수되었습니다</span>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
-              {form.firstName}님, 남겨 주신 정보는 POST /marketing/leads API 연동 후 전달됩니다. 지금은 이 화면에서만
-              확인됩니다.
+              {form.firstName}님, 남겨 주신 정보는 담당자에게 이메일로 전달되었습니다. 확인 후 연락드릴게요.
             </p>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Link to="/" style={{ textDecoration: 'none' }}>
@@ -320,8 +331,8 @@ export default function DemoRequestPage() {
               <p style={{ margin: 0, fontSize: 13, color: 'var(--status-error)' }}>{error}</p>
             ) : null}
 
-            <Button variant="primary" style={{ alignSelf: 'flex-start' }}>
-              제출하기
+            <Button variant="primary" disabled={submitting} style={{ alignSelf: 'flex-start' }}>
+              {submitting ? '제출 중…' : '제출하기'}
             </Button>
           </form>
         )}

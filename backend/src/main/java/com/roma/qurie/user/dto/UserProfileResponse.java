@@ -19,6 +19,7 @@ public record UserProfileResponse(
 		String phone,
 		String region,
 		String gender,
+		String theme,
 		LocalDateTime createdAt,
 		LocalDateTime updatedAt) {
 
@@ -32,6 +33,7 @@ public record UserProfileResponse(
 				user.getPhone(),
 				user.getRegion(),
 				user.getGender(),
+				user.getTheme(),
 				user.getCreatedAt(),
 				user.getUpdatedAt());
 	}
@@ -46,6 +48,7 @@ public record UserProfileResponse(
 				master.getPhone(),
 				master.getRegion(),
 				master.getGender(),
+				master.getTheme(),
 				master.getCreatedAt(),
 				master.getUpdatedAt());
 	}

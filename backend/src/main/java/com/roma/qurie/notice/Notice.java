@@ -57,7 +57,8 @@ public class Notice extends BaseTimeEntity {
     @Column(name = "title", nullable = false, length = 200)
     private String title;
 
-    @Column(name = "body", nullable = false, columnDefinition = "text")
+    /* 긴 공지 본문 — VARCHAR 로 남아 있으면 수정 시 DataException(500) 이 난다. */
+    @Column(name = "body", nullable = false, columnDefinition = "MEDIUMTEXT")
     private String body;
 
     /**

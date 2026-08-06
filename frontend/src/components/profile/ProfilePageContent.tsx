@@ -96,7 +96,13 @@ export function ProfilePageContent() {
     setSaveError(null);
     updateProfile.mutate(
       // 빈 문자열은 "값 지우기" — PATCH 에서 보내지 않은 항목만 유지되므로 세 항목은 항상 보낸다.
-      { userId: me.id, name, phone: phone.trim(), region: region.trim(), gender },
+      {
+        userId: me.id,
+        name,
+        phone: phone.trim(),
+        region: region.trim(),
+        gender: gender === 'FEMALE' ? 'FEMALE' : 'MALE',
+      },
       {
         onSuccess: () => setEditing(false),
         onError: (err) => setSaveError(humanizeApiError(err, '프로필 저장에 실패했습니다.')),
@@ -245,11 +251,10 @@ export function ProfilePageContent() {
                   <Select
                     size="sm"
                     options={[
-                      { value: '', label: '선택 안 함' },
                       { value: 'MALE', label: '남' },
                       { value: 'FEMALE', label: '여' },
                     ]}
-                    value={gender}
+                    value={gender === 'FEMALE' ? 'FEMALE' : 'MALE'}
                     onChange={setGender}
                   />
                 ),

@@ -37,9 +37,16 @@ export const useUpdateUserProfile = () => {
     return useMutation({
         mutationFn: ({ userId, ...body }: UserProfileUpdateRequest & { userId: number }) =>
             updateUserProfile(userId, body),
-        onSuccess: async (data) => {
+        onSuccess: async (data, variables) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(data.userId) });
             queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+
+            // 테마만 바꾼 경우 /auth/me 갱신은 불필요하다.
+            if (variables.theme != null && !variables.name && !variables.newPassword
+                && variables.phone === undefined && variables.region === undefined
+                && variables.gender === undefined) {
+                return;
+            }
 
             const me = await refresh();
             queryClient.setQueryData(queryKeys.auth.me(), me);

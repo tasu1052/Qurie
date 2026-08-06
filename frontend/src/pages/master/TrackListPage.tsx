@@ -246,7 +246,10 @@ function TrackListBody() {
         <Button
           variant="primary"
           icon={<Plus size={15} strokeWidth={1.75} />}
-          onClick={() => setCreateOpen(true)}
+          onClick={() => {
+            setCreateError(null);
+            setCreateOpen(true);
+          }}
         >
           트랙 생성
         </Button>
@@ -308,7 +311,10 @@ function TrackListBody() {
           message="트랙이 없습니다"
           description="첫 트랙을 만들어 클래스를 배정해 보세요."
           actionLabel="트랙 생성"
-          onAction={() => setCreateOpen(true)}
+          onAction={() => {
+            setCreateError(null);
+            setCreateOpen(true);
+          }}
         />
         )
       ) : (
@@ -324,7 +330,10 @@ function TrackListBody() {
             ))}
             <button
               type="button"
-              onClick={() => setCreateOpen(true)}
+              onClick={() => {
+                setCreateError(null);
+                setCreateOpen(true);
+              }}
               style={{
                 border: '1.5px dashed var(--grey-100)',
                 borderRadius: 16,

@@ -303,10 +303,11 @@ export function MasterNoticesBody() {
       <ConfirmDeleteOverlay
         open={deleteTarget !== null}
         closeOnConfirm={false}
+        requireTyped={false}
         title="공지 삭제"
         description={
           deleteTarget
-            ? `「${deleteTarget.title}」 공지를 삭제합니다. 이 작업은 되돌릴 수 없습니다.`
+            ? `「${deleteTarget.title}」 공지를 삭제하시겠습니까?`
             : ''
         }
         confirmText={deleteTarget?.title ?? ''}

@@ -546,7 +546,14 @@ export default function GroupListPage() {
 
   const onCreate = () => {
     if (!hasValidClassId) return;
-    if (!groupName.trim() || !description.trim()) return;
+    if (!groupName.trim()) {
+      setCreateError('그룹 이름을 입력하세요.');
+      return;
+    }
+    if (!description.trim()) {
+      setCreateError('그룹 설명을 입력하세요.');
+      return;
+    }
     if (!startDate || !endDate) {
       setCreateError('시작일과 종료일을 선택하세요.');
       return;
@@ -603,7 +610,10 @@ export default function GroupListPage() {
             <Button
               variant="accent"
               icon={<Plus size={14} strokeWidth={1.75} />}
-              onClick={() => setCreateOpen(true)}
+              onClick={() => {
+                resetCreateForm();
+                setCreateOpen(true);
+              }}
               disabled={!hasValidClassId}
             >
               그룹 만들기
@@ -668,7 +678,10 @@ export default function GroupListPage() {
               classId={classId}
               statusFilter={status}
               query={query}
-              onOpenCreate={() => setCreateOpen(true)}
+              onOpenCreate={() => {
+                resetCreateForm();
+                setCreateOpen(true);
+              }}
               onRefresh={refresh}
             />
           </QueryAsyncBoundary>
@@ -774,6 +787,7 @@ export default function GroupListPage() {
                         type="checkbox"
                         checked={selectedMemberIds.includes(c.userId)}
                         onChange={() => toggleMember(c.userId)}
+                        onMouseDown={(e) => e.preventDefault()}
                       />
                       <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{c.name}</span>
                       <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>

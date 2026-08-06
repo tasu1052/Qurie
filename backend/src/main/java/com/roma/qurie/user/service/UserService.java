@@ -115,7 +115,7 @@ public class UserService {
 			user.updateName(requireNotBlankName(request.name()));
 		}
 
-		applyOptionalFields(request, user::updatePhone, user::updateRegion, user::updateGender);
+		applyOptionalFields(request, user::updatePhone, user::updateRegion, user::updateGender, user::updateTheme);
 
 		if (request.hasNewPassword()) {
 			verifyCurrentPassword(user, request.currentPassword(), requester);
@@ -143,7 +143,7 @@ public class UserService {
 			master.updateName(requireNotBlankName(request.name()));
 		}
 
-		applyOptionalFields(request, master::updatePhone, master::updateRegion, master::updateGender);
+		applyOptionalFields(request, master::updatePhone, master::updateRegion, master::updateGender, master::updateTheme);
 
 		if (request.hasNewPassword()) {
 			if (request.currentPassword() == null
@@ -160,8 +160,12 @@ public class UserService {
 	}
 
 	/* phone/region/gender 는 선택 항목이라 빈 문자열은 값을 지우는 요청으로 보고 null 로 저장한다. */
-	private void applyOptionalFields(UserProfileUpdateRequest request,
-			Consumer<String> phoneUpdater, Consumer<String> regionUpdater, Consumer<String> genderUpdater) {
+	private void applyOptionalFields(
+			UserProfileUpdateRequest request,
+			Consumer<String> phoneUpdater,
+			Consumer<String> regionUpdater,
+			Consumer<String> genderUpdater,
+			Consumer<String> themeUpdater) {
 		if (request.hasPhone()) {
 			phoneUpdater.accept(blankToNull(request.phone()));
 		}
@@ -171,6 +175,20 @@ public class UserService {
 		if (request.hasGender()) {
 			genderUpdater.accept(blankToNull(request.gender()));
 		}
+		if (request.hasTheme()) {
+			themeUpdater.accept(normalizeTheme(request.theme()));
+		}
+	}
+
+	private String normalizeTheme(String theme) {
+		if (theme == null || theme.isBlank()) {
+			return null;
+		}
+		String normalized = theme.trim().toLowerCase();
+		if (!normalized.equals("light") && !normalized.equals("dark")) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "테마는 light 또는 dark 만 사용할 수 있습니다.");
+		}
+		return normalized;
 	}
 
 	/**

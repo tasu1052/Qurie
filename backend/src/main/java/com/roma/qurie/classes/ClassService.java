@@ -58,14 +58,16 @@ public class ClassService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "다른 기업의 트랙에는 클래스를 만들 수 없습니다.");
         }
 
-        if (classRepository.existsByTrackIdAndClassNumber(request.trackId(), request.classNumber())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "같은 트랙에 동일한 반 번호가 이미 있습니다.");
+        // UI 가 이름에서 반 번호를 추정해 보내면 1 로 겹치는 경우가 많아, 충돌 시 다음 번호를 쓴다.
+        int classNumber = request.classNumber();
+        while (classRepository.existsByTrackIdAndClassNumber(request.trackId(), classNumber)) {
+            classNumber++;
         }
 
         ClassEntity classEntity =
                 ClassEntity.builder()
                         .track(track)
-                        .classNumber(request.classNumber())
+                        .classNumber(classNumber)
                         .name(request.name())
                         .capacity(request.capacity())
                         .description(request.description())
@@ -164,6 +166,12 @@ public class ClassService {
             classEntity.rename(request.name());
         }
         if (request.hasCapacity()) {
+            long memberCount = classUserRepository.countByClassEntityId(classId);
+            if (request.capacity() < memberCount) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "정원은 현재 인원(" + memberCount + "명) 이상이어야 합니다.");
+            }
             classEntity.changeCapacity(request.capacity());
         }
         if (request.hasDescription()) {

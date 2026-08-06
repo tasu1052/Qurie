@@ -6,6 +6,7 @@ import { Sidebar, Topbar } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
 import { useAccountIdentity } from '../../hooks/useAccountIdentity';
 import type { UserRole } from '../../network/core/types';
+import { useThemeOptional } from '../../theme/useTheme';
 import { NotificationBell } from '../notifications/NotificationBell';
 import { shellConfigByRole } from './shellConfig';
 import { SidebarAccountFooter } from './SidebarAccountFooter';
@@ -39,6 +40,7 @@ export function AppShell({ role, activeKey, breadcrumbs, children }: AppShellPro
   const navigate = useNavigate();
   const location = useLocation();
   const account = useAccountIdentity();
+  const theme = useThemeOptional()?.theme;
   const config = shellConfigByRole[role];
   const isMobile = useIsMobile();
   const [navOpen, setNavOpen] = useState(false);
@@ -94,7 +96,7 @@ export function AppShell({ role, activeKey, breadcrumbs, children }: AppShellPro
         <Sidebar
           items={items}
           activeKey={activeKey}
-          logoSrc={logoSrc}
+          logoSrc={theme === 'dark' ? null : logoSrc}
           onSelect={onNavSelect}
           footer={
             <SidebarAccountFooter name={account.name} email={account.email} onProfileClick={goMe} />

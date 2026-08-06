@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQueries } from '@tanstack/react-query';
-import { BookOpen, Settings, TriangleAlert } from 'lucide-react';
+import { BookOpen, Settings } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
 import {
@@ -30,7 +30,6 @@ import {
   useGetClasses,
   useGetTrack,
   useUpdateTrack,
-  type ClassResponse,
 } from '../../data';
 
 const techImg: Record<string, string> = { java: javaTech, python: pythonTech, database: dbTech };
@@ -63,59 +62,6 @@ function formatDate(iso: string): string {
 function toPct(value: number | null): number | null {
   if (value == null) return null;
   return value <= 1 ? value * 100 : value;
-}
-
-type ClassAlert = {
-  id: string;
-  classId: number;
-  className: string;
-  severity: 'warning' | 'error';
-  label: string;
-  body: string;
-};
-
-function deriveAlerts(classes: ClassResponse[]): ClassAlert[] {
-  const now = Date.now();
-  const fourteenDays = 14 * 24 * 60 * 60 * 1000;
-  const alerts: ClassAlert[] = [];
-
-  for (const cls of classes) {
-    if (cls.endedAt) {
-      const end = new Date(cls.endedAt).getTime();
-      if (end < now) {
-        alerts.push({
-          id: `${cls.id}-ended`,
-          classId: cls.id,
-          className: cls.name,
-          severity: 'error',
-          label: '종료됨',
-          body: `${formatDate(cls.endedAt)}에 종료된 클래스입니다. 후속 조치가 필요하면 클래스 설정을 확인하세요.`,
-        });
-      } else if (end - now <= fourteenDays) {
-        const daysLeft = Math.ceil((end - now) / (24 * 60 * 60 * 1000));
-        alerts.push({
-          id: `${cls.id}-ending`,
-          classId: cls.id,
-          className: cls.name,
-          severity: 'warning',
-          label: '곧 종료',
-          body: `종료일 ${formatDate(cls.endedAt)}까지 ${daysLeft}일 남았습니다. 일정·마감 안내를 검토하세요.`,
-        });
-      }
-    }
-    if (cls.capacity === 0) {
-      alerts.push({
-        id: `${cls.id}-capacity`,
-        classId: cls.id,
-        className: cls.name,
-        severity: 'warning',
-        label: '정원 미설정',
-        body: '정원이 0으로 설정되어 있습니다. 클래스 정원을 확인하세요.',
-      });
-    }
-  }
-
-  return alerts;
 }
 
 function DetailSkeleton() {
@@ -178,8 +124,6 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
   const activeClassCount = classes.filter((c) => classStatus(c.endedAt).active).length;
   const trackStatusLabel =
     classes.length === 0 ? '대기' : activeClassCount > 0 ? '진행 중' : '종료';
-  const alerts = useMemo(() => deriveAlerts(classes), [classes]);
-
   const openSettings = () => {
     setName(track.name);
     setDesc(track.description ?? '');
@@ -431,9 +375,9 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
                   color: 'var(--text-secondary)',
                 }}
               >
-                클래스별 지표 추이
+                클래스별 지표 비교
               </span>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>최대 5개 클래스 · 스냅샷 지표</span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>최대 5개 클래스 · 현재 집계</span>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {metricChips.map((chip) => {
@@ -477,80 +421,6 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
-          <div
-            style={{
-              background: 'var(--surface-card)',
-              border: '1px solid var(--border)',
-              borderRadius: 16,
-              boxShadow: 'var(--shadow-card)',
-              padding: 24,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <TriangleAlert size={16} strokeWidth={1.75} style={{ color: 'var(--status-warning)' }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>주의가 필요한 클래스</span>
-            </div>
-            {alerts.length === 0 ? (
-              <div
-                style={{
-                  borderRadius: 12,
-                  border: '1px dashed var(--border-strong)',
-                  background: 'var(--surface-sunken)',
-                  padding: '16px 14px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 4,
-                }}
-              >
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  확인할 항목 없음
-                </span>
-                <span style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--text-muted)' }}>
-                  종료 임박·정원 미설정 등 주의가 필요한 클래스가 없습니다.
-                </span>
-              </div>
-            ) : (
-              alerts.map((a) => (
-                <div
-                  key={a.id}
-                  style={{
-                    border: `1px solid ${a.severity === 'warning' ? 'var(--status-warning-bg)' : 'var(--border)'}`,
-                    background: a.severity === 'warning' ? 'var(--status-warning-bg)' : 'transparent',
-                    borderRadius: 12,
-                    padding: 14,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 6,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{a.className}</span>
-                    <span
-                      style={{
-                        marginLeft: 'auto',
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: a.severity === 'warning' ? 'var(--status-warning)' : 'var(--status-error)',
-                      }}
-                    >
-                      {a.label}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--text-secondary)' }}>{a.body}</span>
-                  <Link
-                    to={`/master/classes/${a.classId}`}
-                    style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', textDecoration: 'none' }}
-                  >
-                    클래스 상세 보기 <span style={{ fontWeight: 800 }}>&gt;</span>
-                  </Link>
-                </div>
-              ))
-            )}
-          </div>
-
           <div
             style={{
               background: 'var(--surface-card)',

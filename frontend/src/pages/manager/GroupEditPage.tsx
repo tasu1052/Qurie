@@ -151,7 +151,6 @@ function GroupEditForm({
       role: m.role,
     })),
   );
-  const [selected, setSelected] = useState<number[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [drag, setDrag] = useState<DragPayload | null>(null);
@@ -219,13 +218,11 @@ function GroupEditForm({
       }
       return next;
     });
-    setSelected((prev) => prev.filter((id) => !ids.includes(id)));
     setSaveError(null);
   };
 
   const removeMember = (userId: number) => {
     setMembers((prev) => prev.filter((m) => m.userId !== userId));
-    setSelected((prev) => prev.filter((id) => id !== userId));
   };
 
   const setLeader = (userId: number) => {
@@ -353,12 +350,6 @@ function GroupEditForm({
     );
   };
 
-  const toggleSelect = (userId: number) => {
-    setSelected((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
-    );
-  };
-
   const panelStyle: CSSProperties = {
     background: 'var(--surface-card)',
     border: '1px solid var(--border)',
@@ -401,7 +392,7 @@ function GroupEditForm({
               <div>
                 <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{name || detail.name}</h1>
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                  카드를 드래그해 멤버로 옮기거나 다시 풀로 빼세요. 저장을 눌러야 서버에 반영됩니다.
+                  카드를 드래그해 멤버로 옮기거나 미배정으로 빼세요. 저장을 눌러야 서버에 반영됩니다.
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -560,14 +551,14 @@ function GroupEditForm({
                   멤버 {members.length}
                 </span>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  오른쪽으로 드래그하면 멤버에서 빠집니다.
+                  아래 미배정 영역으로 드래그하면 멤버에서 빠집니다.
                 </span>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, overflow: 'auto' }}>
                   {members.length === 0 ? (
                     <EmptyState
                       message="멤버가 없습니다"
-                      description="오른쪽 미배정 학생을 여기로 드래그하세요."
+                      description="아래 미배정 학생을 여기로 드래그하세요."
                       actionLabel="목록으로"
                       onAction={() => navigate('/manager/groups')}
                     />
@@ -653,28 +644,11 @@ function GroupEditForm({
                   transition: 'outline 120ms ease-out',
                 }}
               >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 8,
-                  }}
-                >
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
-                    미배정 학생
-                  </span>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    disabled={selected.length === 0}
-                    onClick={() => addMembers(selected)}
-                  >
-                    선택 항목 추가{selected.length ? ` (${selected.length})` : ''}
-                  </Button>
-                </div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                  미배정 학생
+                </span>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  왼쪽으로 드래그하면 멤버로 들어갑니다. X로 빼면 여기로 바로 돌아옵니다.
+                  위 멤버 영역으로 드래그하면 배정됩니다. 멤버에서 X로 빼면 여기로 돌아옵니다.
                 </span>
 
                 <div
@@ -693,7 +667,7 @@ function GroupEditForm({
                   {poolStudents.length === 0 ? (
                     <EmptyState
                       message="미배정 학생이 없습니다"
-                      description="멤버를 오른쪽으로 드래그하거나 X로 빼면 여기에 나타납니다."
+                      description="멤버를 아래로 드래그하거나 X로 빼면 여기에 나타납니다."
                       actionLabel="목록으로"
                       onAction={() => navigate('/manager/groups')}
                     />
@@ -720,13 +694,6 @@ function GroupEditForm({
                             cursor: drag?.userId === c.userId ? 'grabbing' : 'grab',
                           }}
                         >
-                          <input
-                            type="checkbox"
-                            checked={selected.includes(c.userId)}
-                            onChange={() => toggleSelect(c.userId)}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            aria-label={`${c.name} 선택`}
-                          />
                           <StudentCardFace
                             name={c.name}
                             email={c.email}
@@ -766,15 +733,7 @@ function GroupEditForm({
             transition: 'box-shadow 120ms ease-out',
           }}
         >
-          <StudentCardFace
-            name={drag.name}
-            email={drag.email}
-            trailing={
-              <Badge status={drag.from === 'pool' ? 'success' : 'accent'}>
-                {drag.from === 'pool' ? '멤버로' : '풀로'}
-              </Badge>
-            }
-          />
+          <StudentCardFace name={drag.name} email={drag.email} />
         </div>
       ) : null}
 

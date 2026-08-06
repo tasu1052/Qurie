@@ -161,21 +161,23 @@ function TracksAndManagers({
   const tracks = tracksPage.data.map(toTrackCard);
   const managers = managersPage.data;
 
+  const panelStyle = {
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border)',
+    borderRadius: 16,
+    boxShadow: 'var(--shadow-card)',
+    padding: 24,
+    display: 'flex' as const,
+    flexDirection: 'column' as const,
+    gap: 14,
+    minWidth: 0,
+    height: '100%',
+    boxSizing: 'border-box' as const,
+  };
+
   return (
-    <div className="qurie-app-split">
-      <div
-        style={{
-          background: 'var(--surface-card)',
-          border: '1px solid var(--border)',
-          borderRadius: 16,
-          boxShadow: 'var(--shadow-card)',
-          padding: 24,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 14,
-          minWidth: 0,
-        }}
-      >
+    <div className="qurie-app-split" style={{ alignItems: 'stretch' }}>
+      <div style={panelStyle}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span
             style={{
@@ -206,41 +208,31 @@ function TracksAndManagers({
             더보기
           </button>
         </div>
-        {tracks.length === 0 ? (
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>등록된 트랙이 없습니다.</span>
-        ) : (
-          tracks.map((t) => (
-            <TrackCardItem key={t.id} track={t} onClick={() => onOpenTrack(t.id)} />
-          ))
-        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
+          {tracks.length === 0 ? (
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>등록된 트랙이 없습니다.</span>
+          ) : (
+            tracks.map((t) => (
+              <TrackCardItem key={t.id} track={t} onClick={() => onOpenTrack(t.id)} />
+            ))
+          )}
+        </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            boxShadow: 'var(--shadow-card)',
-            padding: 24,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 14,
-            minWidth: 0,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              매니저 목록
-            </span>
-          </div>
+      <div style={panelStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            매니저 목록
+          </span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
           {managers.length === 0 ? (
             <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>매니저가 없습니다.</span>
           ) : (

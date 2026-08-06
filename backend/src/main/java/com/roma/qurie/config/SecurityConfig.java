@@ -75,6 +75,7 @@ public class SecurityConfig {
                             .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                             .requestMatchers("/api/auth/**").permitAll()
+                            .requestMatchers(HttpMethod.POST, "/api/marketing/**").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/invitations/*").permitAll()
                             .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
                             .requestMatchers(HttpMethod.POST, "/api/quiz/*/callback").permitAll()
