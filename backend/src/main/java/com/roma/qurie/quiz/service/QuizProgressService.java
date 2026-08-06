@@ -122,13 +122,24 @@ public class QuizProgressService {
 						totalStudentCount > 0 && completedStudentCount == totalStudentCount));
 	}
 
+	/**
+	 * 응시 현황 조회. userId 가 없으면 본인 기록, 있으면 해당 사용자 기록(강사·마스터만).
+	 * 세션 리포트에서 학생별 선택 보기를 보여줄 때 쓴다.
+	 */
 	@Transactional(readOnly = true)
-	public QuizProgressSummaryResponse getSummary(Long quizSetId, AuthUser requester) {
+	public QuizProgressSummaryResponse getSummary(Long quizSetId, Long userId, AuthUser requester) {
 		QuizSet quizSet = findQuizSetOrThrow(quizSetId);
 		participantService.verifySessionClassMember(sessionIdOf(quizSet), requester);
 
+		Long targetUserId = userId != null ? userId : requester.id();
+		if (!targetUserId.equals(requester.id())
+				&& !"MANAGER".equals(requester.role())
+				&& !"MASTER".equals(requester.role())) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "다른 사용자의 응시 기록을 조회할 권한이 없습니다.");
+		}
+
 		List<QuizProgress> progresses =
-				quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(quizSetId, requester.id());
+				quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(quizSetId, targetUserId);
 		return QuizProgressSummaryResponse.from(quizSet, progresses);
 	}
 

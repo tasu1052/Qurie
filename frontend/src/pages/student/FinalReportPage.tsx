@@ -172,31 +172,40 @@ function SemesterSummaryHero({
         display: 'flex',
         flexDirection: 'column',
         gap: 10,
+        minHeight: 168,
       }}
     >
+      <span
+        style={{
+          alignSelf: 'flex-start',
+          background: 'var(--accent)',
+          color: '#ffffff',
+          borderRadius: 999,
+          padding: '4px 14px',
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.08em',
+        }}
+      >
+        SEMESTER SUMMARY
+      </span>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--hero-fg)', margin: 0 }}>
+        {report.userName}의 전체 리포트
+      </h2>
+      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.65, color: 'var(--hero-fg-muted)', maxWidth: 720 }}>
+        {className} · {report.sessionCount}개 세션 리포트 집계
+      </p>
       <div
         style={{
+          marginTop: 'auto',
           display: 'flex',
-          alignItems: 'flex-start',
+          alignItems: 'flex-end',
           justifyContent: 'space-between',
           gap: 12,
           flexWrap: 'wrap',
         }}
       >
-        <span
-          style={{
-            alignSelf: 'flex-start',
-            background: 'var(--accent)',
-            color: '#ffffff',
-            borderRadius: 999,
-            padding: '4px 14px',
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: '0.08em',
-          }}
-        >
-          SEMESTER SUMMARY
-        </span>
+        <span style={{ fontSize: 12.5, color: 'var(--hero-fg-muted)' }}>최근 갱신일 {issued}</span>
         <Button
           variant="secondary"
           size="sm"
@@ -216,15 +225,10 @@ function SemesterSummaryHero({
           {downloadPdf.isPending ? '내보내는 중…' : 'PDF로 내보내기'}
         </Button>
       </div>
-      <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--hero-fg)', margin: 0 }}>
-        학습 리포트
-      </h2>
-      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.65, color: 'var(--hero-fg-muted)', maxWidth: 720 }}>
-        {report.userName} · {className} · {report.sessionCount}개 세션 리포트 집계
-      </p>
-      <span style={{ fontSize: 12.5, color: 'var(--hero-fg-muted)' }}>발급 {issued}</span>
       {pdfError ? (
-        <span style={{ fontSize: 13, color: 'var(--status-error)' }}>{pdfError}</span>
+        <span style={{ fontSize: 13, color: 'var(--status-error)', alignSelf: 'flex-end' }}>
+          {pdfError}
+        </span>
       ) : null}
     </div>
   );
@@ -311,12 +315,12 @@ function SessionReportTable({
             color: 'var(--text-secondary)',
           }}
         >
-          세션 리포트
+          세션 목록
         </span>
       </div>
       {rows.length === 0 ? (
         <div style={{ padding: '4px 24px 20px' }}>
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>세션 기록이 없습니다.</span>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>참여한 세션 기록이 없습니다.</span>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -450,7 +454,10 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
         </QueryAsyncBoundary>
       ) : null}
 
-      <div className="qurie-app-split" style={{ alignItems: 'stretch' }}>
+      <div
+        className="qurie-app-split"
+        style={{ alignItems: 'stretch', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}
+      >
         <SimpleBars items={barItems} />
         {reports.length > 0 ? (
           <div
@@ -513,6 +520,11 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
         )}
       </div>
 
+      <SessionReportTable
+        rows={sessionRows}
+        onOpen={(sessionId) => navigate(`/session/${sessionId}/report`)}
+      />
+
       {classId != null ? (
         <QueryAsyncBoundary
           suspenseFallback={<Skeleton width="100%" height={120} radius={16} />}
@@ -521,11 +533,6 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
           <InstructorCommentsSection userId={me.id} classId={classId} />
         </QueryAsyncBoundary>
       ) : null}
-
-      <SessionReportTable
-        rows={sessionRows}
-        onOpen={(sessionId) => navigate(`/session/${sessionId}/report`)}
-      />
     </>
   );
 }

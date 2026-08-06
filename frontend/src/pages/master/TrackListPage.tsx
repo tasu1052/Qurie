@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { isAxiosError } from 'axios';
 import { BookOpen, Plus, Search } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
@@ -17,6 +16,7 @@ import {
   Skeleton,
 } from '../../ds';
 import {
+  humanizeApiError,
   QueryAsyncBoundary,
   useCreateTrack,
   useDeleteTrack,
@@ -28,14 +28,6 @@ import pythonTech from '../../ds/assets/tech/python_50.png';
 import dbTech from '../../ds/assets/tech/database_50.png';
 
 const techImg: Record<string, string> = { java: javaTech, python: pythonTech, database: dbTech };
-
-function apiErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) return message;
-  }
-  return fallback;
-}
 
 function normalizeTech(tech: string | null): 'java' | 'python' | 'database' | 'other' {
   const t = (tech ?? '').toLowerCase();
@@ -225,7 +217,7 @@ function TrackListBody() {
           setDesc('');
           setTech('java');
         },
-        onError: (err) => setCreateError(apiErrorMessage(err, '트랙 생성에 실패했습니다.')),
+        onError: (err) => setCreateError(humanizeApiError(err, '트랙 생성에 실패했습니다.')),
       },
     );
   };
@@ -237,7 +229,7 @@ function TrackListBody() {
       { trackId: deleteTarget.id },
       {
         onSuccess: () => setDeleteTarget(null),
-        onError: (err) => setDeleteError(apiErrorMessage(err, '트랙 삭제에 실패했습니다.')),
+        onError: (err) => setDeleteError(humanizeApiError(err, '트랙 삭제에 실패했습니다.')),
       },
     );
   };

@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { isAxiosError } from 'axios';
 import { Settings } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
@@ -17,6 +16,7 @@ import {
   StatCardRow,
 } from '../../ds';
 import {
+  humanizeApiError,
   QueryAsyncBoundary,
   useDeleteClass,
   useGetClass,
@@ -29,14 +29,6 @@ import {
 } from '../../data';
 
 const MEMBER_GRID = 'minmax(160px, 1.6fr) minmax(88px, 0.75fr) minmax(100px, 1fr) minmax(88px, 0.9fr)';
-
-function apiErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) return message;
-  }
-  return fallback;
-}
 
 function classStatus(endedAt: string | null): { active: boolean; label: string } {
   if (endedAt && new Date(endedAt).getTime() < Date.now()) {
@@ -259,7 +251,7 @@ function ClassDetailBody({ classId }: { classId: number }) {
       },
       {
         onSuccess: () => setSettingsOpen(false),
-        onError: (err) => setSaveError(apiErrorMessage(err, '클래스 저장에 실패했습니다.')),
+        onError: (err) => setSaveError(humanizeApiError(err, '클래스 저장에 실패했습니다.')),
       },
     );
   };
@@ -270,7 +262,7 @@ function ClassDetailBody({ classId }: { classId: number }) {
       { classId },
       {
         onSuccess: () => navigate('/master/classes', { replace: true }),
-        onError: (err) => setDeleteError(apiErrorMessage(err, '클래스 삭제에 실패했습니다.')),
+        onError: (err) => setDeleteError(humanizeApiError(err, '클래스 삭제에 실패했습니다.')),
       },
     );
   };

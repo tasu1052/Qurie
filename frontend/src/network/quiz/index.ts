@@ -6,6 +6,7 @@ export {
     useGetQuizQuestions,
     useGetQuizSet,
     useGetQuizProgress,
+    useGetQuizProgressSuspense,
     usePollQuizQuestions,
     usePollQuizSet,
     useQuizSetsByProject,

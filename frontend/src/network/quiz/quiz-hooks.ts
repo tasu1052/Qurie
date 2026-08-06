@@ -119,14 +119,24 @@ export const useSubmitQuizProgress = () => {
     });
 };
 
-/** 세션 재입장 시 본인 응시 기록 복원. */
-export const useGetQuizProgress = (quizSetId: number | null) => {
+/** 세션 재입장 시 본인 응시 기록 복원. userId 를 주면 해당 학생 기록(강사 조회). */
+export const useGetQuizProgress = (quizSetId: number | null, userId?: number | null) => {
     return useQuery({
         queryKey:
-            quizSetId != null ? queryKeys.quiz.progress(quizSetId) : (['quiz', 'progress', 'idle'] as const),
-        queryFn: () => getQuizProgress(quizSetId as number),
+            quizSetId != null
+                ? queryKeys.quiz.progress(quizSetId, userId)
+                : (['quiz', 'progress', 'idle'] as const),
+        queryFn: () => getQuizProgress(quizSetId as number, userId),
         enabled: quizSetId != null,
         staleTime: 0,
         refetchOnWindowFocus: true,
+    });
+};
+
+/** 세션 리포트 등 Suspense 경계 안에서 응시 기록을 읽을 때. */
+export const useGetQuizProgressSuspense = (quizSetId: number, userId?: number | null) => {
+    return useSuspenseQuery({
+        queryKey: queryKeys.quiz.progress(quizSetId, userId),
+        queryFn: () => getQuizProgress(quizSetId, userId),
     });
 };

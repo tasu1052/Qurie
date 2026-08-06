@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { isAxiosError } from 'axios';
 import { Filter, Mail, Search, UserPlus } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -17,6 +16,7 @@ import {
   UploadRow,
 } from '../../ds';
 import {
+  humanizeApiError,
   QueryAsyncBoundary,
   useCreateBulkInvitations,
   useCreateInvitation,
@@ -31,14 +31,6 @@ import {
   regionLabel,
 } from '../../utils/userProfileExtras';
 import { validateInviteFile } from '../../utils/validateInviteFile';
-
-function apiErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) return message;
-  }
-  return fallback;
-}
 
 function TableSkeleton() {
   return (
@@ -175,7 +167,7 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
           );
           setInviteEmail(emails.slice(1).join(', '));
         },
-        onError: (err) => setInviteError(apiErrorMessage(err, '초대에 실패했습니다.')),
+        onError: (err) => setInviteError(humanizeApiError(err, '초대에 실패했습니다.')),
       },
     );
   };
@@ -203,7 +195,7 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
           setBulkSummary(`전체 ${res.total}건 · 성공 ${res.invited} · 실패 ${res.failed}`);
           setBulkFile(null);
         },
-        onError: (err) => setInviteError(apiErrorMessage(err, '일괄 초대에 실패했습니다.')),
+        onError: (err) => setInviteError(humanizeApiError(err, '일괄 초대에 실패했습니다.')),
       },
     );
   };

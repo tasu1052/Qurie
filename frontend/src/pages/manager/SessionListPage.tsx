@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { isAxiosError } from 'axios';
 import { Plus, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
@@ -20,6 +19,7 @@ import {
   Skeleton,
 } from '../../ds';
 import {
+  humanizeApiError,
   QueryAsyncBoundary,
   useCreateSession,
   useDeleteSession,
@@ -30,22 +30,9 @@ import {
 } from '../../data';
 import { queryKeys } from '../../network/core/queryKeys';
 import { getGroups } from '../../network/group/group-apis';
-import { getSessionReport, getSessions } from '../../network/session/session-apis';
+import { getSessions } from '../../network/session/session-apis';
 import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
-
-function apiErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError(error)) {
-    const data = error.response?.data;
-    if (typeof data === 'object' && data !== null) {
-      const message = (data as { message?: unknown }).message;
-      if (typeof message === 'string' && message.trim()) return message;
-    }
-    if (typeof error.message === 'string' && error.message.trim() && error.message !== 'Network Error') {
-      return error.message;
-    }
-  }
-  return fallback;
-}
+import { resolveSessionQuizSetId } from '../learning/resolveSessionQuizSetId';
 
 function formatSessionTime(iso: string): string {
   return new Date(iso).toLocaleString('ko-KR', {
@@ -301,6 +288,7 @@ export default function SessionListPage() {
   const [deleteTarget, setDeleteTarget] = useState<SessionResponse | null>(null);
   const [popupBlockedSessionId, setPopupBlockedSessionId] = useState<number | null>(null);
   const [quizLoadingId, setQuizLoadingId] = useState<number | null>(null);
+  const [quizError, setQuizError] = useState<string | null>(null);
 
   const groupsQuery = useQuery({
     queryKey: hasValidClassId ? queryKeys.groups.list(classId) : ['groups', 'idle'],
@@ -316,15 +304,16 @@ export default function SessionListPage() {
 
   const openPastQuiz = async (sessionId: number) => {
     setQuizLoadingId(sessionId);
+    setQuizError(null);
     try {
-      const report = await getSessionReport(sessionId);
-      if (report.quizSetId != null) {
-        navigate(`/manager/quizzes/${report.quizSetId}`);
+      const quizSetId = await resolveSessionQuizSetId(sessionId);
+      if (quizSetId != null) {
+        navigate(`/manager/quizzes/${quizSetId}`);
         return;
       }
-      navigate(`/session/${sessionId}/report`);
-    } catch {
-      navigate(`/session/${sessionId}/report`);
+      setQuizError('이 세션에 생성된 퀴즈가 없어요. 세션에서 퀴즈를 만든 뒤 다시 시도해 주세요.');
+    } catch (err) {
+      setQuizError(humanizeApiError(err, '지난 퀴즈를 열지 못했어요.'));
     } finally {
       setQuizLoadingId(null);
     }
@@ -391,7 +380,7 @@ export default function SessionListPage() {
             openSessionInNewTab(created.id, created.title);
           },
           onError: (err) => {
-            const msg = apiErrorMessage(err, '세션 생성에 실패했습니다.');
+            const msg = humanizeApiError(err, '세션 생성에 실패했습니다.');
             if (classPublic && /public|공개|already|exist|duplicate|중복/i.test(msg)) {
               setCreateError(
                 '이미 진행 중인 수업 공개 세션이 있습니다. 기존 세션을 종료한 뒤 다시 시도해 주세요.',
@@ -432,6 +421,16 @@ export default function SessionListPage() {
             description="브라우저의 팝업 차단을 해제한 뒤 다시 시도해 주세요."
             actionLabel="확인"
             onAction={() => setPopupBlockedSessionId(null)}
+          />
+        ) : null}
+
+        {quizError ? (
+          <AlertBanner
+            tone="error"
+            title="지난 퀴즈"
+            description={quizError}
+            actionLabel="닫기"
+            onAction={() => setQuizError(null)}
           />
         ) : null}
 

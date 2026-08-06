@@ -4,8 +4,6 @@ import {
   AlertBanner,
   Badge,
   Button,
-  ChartLegend,
-  DonutChart,
   EmptyState,
   RowErrorFallback,
   Skeleton,
@@ -18,18 +16,22 @@ import {
   useCreateSessionReportsForAll,
   useDownloadSessionReportPdf,
   useGetClassMembers,
+  useGetQuizProgressSuspense,
+  useGetQuizQuestions,
   useGetSession,
   useGetSessionReport,
   useGetSessionReportRoster,
   useMe,
+  type QuizProgressItem,
+  type QuizQuestionChoiceItem,
+  type QuizQuestionItem,
   type SessionReportDetailResponse,
   type SessionReportRosterItemResponse,
 } from '../../data';
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Download, RefreshCw, TriangleAlert } from 'lucide-react';
-import { ApiIntegrationPanel } from '../../components/feedback/ApiIntegrationPanel';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, CheckCircle2, Download, RefreshCw, TriangleAlert, XCircle } from 'lucide-react';
 
 function ReportSkeleton() {
   return (
@@ -71,41 +73,286 @@ function formatDuration(ms: number | null | undefined): string {
   return `${minutes}분`;
 }
 
-function difficultySegments(ratio: Record<string, unknown> | null) {
-  if (!ratio) {
-    return [
-      { label: 'EASY', value: 0 },
-      { label: 'NORMAL', value: 0, accent: true },
-      { label: 'HARD', value: 0 },
-    ];
+function ReviewChoiceRow({
+  choice,
+  correctIdx,
+  userChoiceIdx,
+  revealed,
+}: {
+  choice: QuizQuestionChoiceItem;
+  correctIdx: number | null;
+  userChoiceIdx: number | null;
+  revealed: boolean;
+}) {
+  const isCorrect = correctIdx != null && choice.idx === correctIdx;
+  const isUserPick = userChoiceIdx === choice.idx;
+  let border = 'var(--border)';
+  let background = 'var(--surface-sunken)';
+  if (revealed) {
+    if (isCorrect) {
+      border = 'var(--status-success)';
+      background = 'var(--status-success-bg)';
+    } else if (isUserPick) {
+      border = 'var(--status-error)';
+      background = 'var(--status-error-bg)';
+    }
+  } else if (isUserPick) {
+    border = 'var(--accent)';
+    background = 'var(--accent-softer)';
   }
-  const easy = Number(ratio.EASY ?? ratio.easy ?? 0);
-  const normal = Number(ratio.NORMAL ?? ratio.normal ?? 0);
-  const hard = Number(ratio.HARD ?? ratio.hard ?? 0);
-  return [
-    { label: 'EASY', value: easy },
-    { label: 'NORMAL', value: normal, accent: true as const },
-    { label: 'HARD', value: hard },
-  ];
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '10px 12px',
+        borderRadius: 10,
+        border: `1px solid ${border}`,
+        background,
+        fontSize: 13,
+        color: 'var(--ink)',
+        width: '100%',
+        boxSizing: 'border-box',
+      }}
+    >
+      {revealed && isCorrect ? (
+        <CheckCircle2 size={14} style={{ color: 'var(--status-success)', flexShrink: 0 }} />
+      ) : revealed && isUserPick && !isCorrect ? (
+        <XCircle size={14} style={{ color: 'var(--status-error)', flexShrink: 0 }} />
+      ) : (
+        <span
+          style={{
+            width: 20,
+            height: 20,
+            borderRadius: '50%',
+            border: '1px solid var(--border-strong)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 11,
+            fontWeight: 600,
+            flexShrink: 0,
+          }}
+        >
+          {choice.idx + 1}
+        </span>
+      )}
+      <span style={{ flex: 1 }}>{choice.content}</span>
+      {isUserPick ? (
+        <Badge status={revealed && !isCorrect ? 'error' : 'accent'}>내 선택</Badge>
+      ) : null}
+    </div>
+  );
 }
 
-function conceptBars(stats: Record<string, unknown> | null) {
-  if (!stats) return [];
-  return Object.entries(stats)
-    .slice(0, 6)
-    .map(([label, raw], i) => {
-      const value =
-        typeof raw === 'number'
-          ? raw
-          : raw && typeof raw === 'object' && 'accuracy' in (raw as object)
-            ? Number((raw as { accuracy: unknown }).accuracy)
-            : Number(raw);
-      return {
-        label,
-        value: Number.isFinite(value) ? value : 0,
-        highlight: i === 0,
-      };
-    });
+function ReviewQuestionCard({
+  item,
+  progress,
+}: {
+  item: QuizQuestionItem;
+  progress?: QuizProgressItem;
+}) {
+  const userChoiceIdx = progress?.chosenChoiceIdx ?? null;
+  const correctIdx = progress?.correctChoiceIdx ?? null;
+  const revealed = progress != null && progress.status === 'ATTEMPTED';
+  const skipped = progress?.status === 'SKIPPED' || progress?.status === 'TIMEOUT';
+  const isCorrect = progress?.isCorrect;
+
+  return (
+    <div
+      style={{
+        background: 'var(--surface-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        padding: 20,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>Q{item.orderNo}</span>
+        {isCorrect === true ? <Badge status="success">정답</Badge> : null}
+        {isCorrect === false ? <Badge status="error">오답</Badge> : null}
+        {skipped ? <Badge status="neutral">건너뜀</Badge> : null}
+        {progress == null ? <Badge status="neutral">미응시</Badge> : null}
+      </div>
+      <p style={{ margin: 0, fontSize: 14, fontWeight: 600, lineHeight: 1.5, color: 'var(--ink)' }}>
+        {item.question}
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {item.choices.map((c) => (
+          <ReviewChoiceRow
+            key={c.idx}
+            choice={c}
+            correctIdx={correctIdx}
+            userChoiceIdx={userChoiceIdx}
+            revealed={revealed}
+          />
+        ))}
+      </div>
+      {revealed && progress?.explanation?.trim() ? (
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
+          {progress.explanation}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function QuizReviewColumn({ quizSetId, userId }: { quizSetId: number; userId: number }) {
+  const { data: questions } = useGetQuizQuestions(quizSetId);
+  const { data: progressSummary } = useGetQuizProgressSuspense(quizSetId, userId);
+  const progressByQuizId = useMemo(() => {
+    const map = new Map<number, QuizProgressItem>();
+    for (const item of progressSummary.items ?? []) {
+      map.set(item.quizId, item);
+    }
+    return map;
+  }, [progressSummary.items]);
+
+  const items = useMemo(
+    () => [...questions.quizzes].sort((a, b) => a.orderNo - b.orderNo),
+    [questions.quizzes],
+  );
+
+  if (items.length === 0) {
+    return (
+      <div
+        style={{
+          background: 'var(--surface-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          padding: 24,
+        }}
+      >
+        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>표시할 문항이 없습니다.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        문항 · 내 선택
+      </span>
+      {items.map((item) => (
+        <ReviewQuestionCard key={item.id} item={item} progress={progressByQuizId.get(item.id)} />
+      ))}
+    </div>
+  );
+}
+
+function StrengthImprovementColumn({
+  strengths,
+  improvements,
+  managerComment,
+}: {
+  strengths: string[];
+  improvements: string[];
+  managerComment: string | null;
+}) {
+  return (
+    <div
+      style={{
+        background: 'var(--surface-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        boxShadow: 'var(--shadow-card)',
+        padding: 24,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 20,
+        minWidth: 0,
+        alignSelf: 'start',
+        position: 'sticky',
+        top: 16,
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          강점
+        </span>
+        {strengths.length === 0 ? (
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>아직 정리된 강점이 없어요.</span>
+        ) : (
+          strengths.map((s) => (
+            <div key={s} style={{ display: 'flex', gap: 8 }}>
+              <CheckCircle2 size={15} style={{ color: 'var(--status-success)', flexShrink: 0, marginTop: 2 }} />
+              <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
+            </div>
+          ))
+        )}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          개선점
+        </span>
+        {improvements.length === 0 ? (
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>아직 정리된 개선점이 없어요.</span>
+        ) : (
+          improvements.map((s) => (
+            <div key={s} style={{ display: 'flex', gap: 8 }}>
+              <TriangleAlert size={15} style={{ color: 'var(--status-warning)', flexShrink: 0, marginTop: 2 }} />
+              <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
+            </div>
+          ))
+        )}
+      </div>
+      {managerComment?.trim() ? (
+        <div
+          style={{
+            borderTop: '1px solid var(--divider)',
+            paddingTop: 14,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            강사 코멘트
+          </span>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+            {managerComment}
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function SessionReportBody({
@@ -134,15 +381,10 @@ function SessionReportBody({
   const isManager = userRole === 'MANAGER' || userRole === 'MASTER';
   const aiStrengths = report.aiStrengths ?? [];
   const aiImprovements = report.aiImprovements ?? [];
-  const hasAiBlock =
-    Boolean(report.aiComment?.trim()) || aiStrengths.length > 0 || aiImprovements.length > 0;
-  const segments = useMemo(() => difficultySegments(report.difficultyRatio), [report.difficultyRatio]);
-  const categories = useMemo(() => conceptBars(report.conceptStats), [report.conceptStats]);
-  const hardSeg = segments.find((s) => s.label === 'HARD');
   const issued = report.issuedAt
     ? new Date(report.issuedAt).toLocaleString('ko-KR', { hour12: false })
     : '—';
-  // 퀴즈를 한 번도 풀지 않은 리포트는 지표·차트를 보여 주지 않고 안내만 한다.
+  // 퀴즈를 한 번도 풀지 않은 리포트는 지표·문항을 보여 주지 않고 안내만 한다.
   const hasQuizActivity = report.quizTotalCount > 0 || report.quizAttemptedCount > 0;
 
   if (!hasQuizActivity) {
@@ -296,268 +538,41 @@ function SessionReportBody({
         />
       </StatCardRow>
 
-      {hasAiBlock ? (
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            boxShadow: 'var(--shadow-card)',
-            padding: 24,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 14,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--text-secondary)',
-            }}
+      <div
+        className="qurie-app-split"
+        style={{
+          alignItems: 'start',
+          gridTemplateColumns: 'minmax(0, 1.4fr) minmax(280px, 0.9fr)',
+        }}
+      >
+        {report.quizSetId != null ? (
+          <QueryAsyncBoundary
+            suspenseFallback={<Skeleton width="100%" height={320} radius={16} />}
+            errorFallback={
+              <RowErrorFallback title="문항을 불러오지 못했습니다" description="퀴즈 응시 기록을 확인해 주세요." />
+            }
           >
-            AI 리포트
-          </span>
-          {report.aiComment?.trim() ? (
-            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--ink)', fontWeight: 600 }}>
-              {report.aiComment}
-            </p>
-          ) : null}
-          {(aiStrengths.length > 0 || aiImprovements.length > 0) ? (
-            <div className="qurie-app-split" style={{ alignItems: 'start' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>강점</span>
-                {aiStrengths.length === 0 ? (
-                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</span>
-                ) : (
-                  aiStrengths.map((s) => (
-                    <div key={s} style={{ display: 'flex', gap: 8 }}>
-                      <CheckCircle2 size={14} style={{ color: 'var(--status-success)', flexShrink: 0, marginTop: 2 }} />
-                      <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>개선점</span>
-                {aiImprovements.length === 0 ? (
-                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</span>
-                ) : (
-                  aiImprovements.map((s) => (
-                    <div key={s} style={{ display: 'flex', gap: 8 }}>
-                      <TriangleAlert size={14} style={{ color: 'var(--status-warning)', flexShrink: 0, marginTop: 2 }} />
-                      <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          ) : null}
-          {report.managerComment?.trim() ? (
-            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
-              강사 코멘트: {report.managerComment}
-            </p>
-          ) : null}
-        </div>
-      ) : (
-        <ApiIntegrationPanel groupId="sessionReportAi" variant="compact" title="AI 리포트 API" />
-      )}
-
-      <div className="qurie-app-split">
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            boxShadow: 'var(--shadow-card)',
-            padding: 24,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16,
-            minWidth: 0,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            난이도 비율
-          </span>
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0' }}>
-            <DonutChart
-              segments={segments}
-              size={140}
-              centerValue={hardSeg ? `H ${hardSeg.value}%` : '—'}
-              centerLabel="HARD 비중"
-            />
-          </div>
-        </div>
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            boxShadow: 'var(--shadow-card)',
-            padding: 24,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            minWidth: 0,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            카테고리별 정답률
-          </span>
-          {categories.length === 0 ? (
-            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-              카테고리 집계가 아직 없습니다.
-            </span>
-          ) : (
-            <>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {categories.map((c) => (
-                  <div key={c.label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}>
-                      <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{c.label}</span>
-                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                        {formatPct(c.value)}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        height: 8,
-                        borderRadius: 999,
-                        background: 'var(--surface-sunken)',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: `${Math.min(100, Math.max(0, c.value))}%`,
-                          height: '100%',
-                          background: c.highlight ? 'var(--accent)' : 'var(--ink)',
-                          borderRadius: 999,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <ChartLegend items={[{ label: '카테고리', accent: true }]} />
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="qurie-app-split" style={{ alignItems: 'start' }}>
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            boxShadow: 'var(--shadow-card)',
-            padding: 24,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            minWidth: 0,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            AI 피드백 요약
-          </span>
-          {(report.aiStrengths?.length ?? 0) === 0 && (report.aiImprovements?.length ?? 0) === 0 ? (
-            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-              AI 피드백이 아직 없습니다.
-            </span>
-          ) : (
-            <>
-              {(report.aiStrengths ?? []).map((s) => (
-                <div key={s} style={{ display: 'flex', gap: 10 }}>
-                  <CheckCircle2 size={15} style={{ color: 'var(--status-success)', flexShrink: 0, marginTop: 2 }} />
-                  <span style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--text-body)' }}>{s}</span>
-                </div>
-              ))}
-              {(report.aiImprovements ?? []).map((s) => (
-                <div key={s} style={{ display: 'flex', gap: 10 }}>
-                  <TriangleAlert size={15} style={{ color: 'var(--status-warning)', flexShrink: 0, marginTop: 2 }} />
-                  <span style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--text-body)' }}>{s}</span>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            boxShadow: 'var(--shadow-card)',
-            padding: 24,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            minWidth: 0,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            강사 코멘트
-          </span>
-          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-            {report.managerComment?.trim() || '등록된 강사 코멘트가 없습니다.'}
-          </p>
+            <QuizReviewColumn quizSetId={report.quizSetId} userId={report.ordinaryUserId} />
+          </QueryAsyncBoundary>
+        ) : (
           <div
             style={{
-              borderTop: '1px solid var(--divider)',
-              paddingTop: 10,
-              display: 'flex',
-              justifyContent: 'space-between',
-              fontSize: 12,
-              color: 'var(--text-muted)',
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 16,
+              padding: 24,
             }}
           >
-            <span style={{ fontFamily: 'var(--font-mono)' }}>SR-{report.sessionReportId}</span>
-            <span>발급 {issued}</span>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+              이 리포트에 연결된 퀴즈셋이 없어 문항을 표시할 수 없어요.
+            </span>
           </div>
-        </div>
-      </div>
-
-      <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
-        문항별 상세는 quiz_progress API가 준비되면 이 화면에 표시돼요.{' '}
-        <Link to={backTo} style={{ color: 'var(--accent)', fontWeight: 600 }}>
-          돌아가기
-        </Link>
+        )}
+        <StrengthImprovementColumn
+          strengths={aiStrengths}
+          improvements={aiImprovements}
+          managerComment={report.managerComment}
+        />
       </div>
     </>
   );

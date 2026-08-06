@@ -113,12 +113,13 @@ public class QuizController {
 	}
 
 	/**
-	 * 본인의 응시 현황 조회 — 응시 후 결과 화면에 쓴다.
+	 * 응시 현황 조회 — 기본은 본인. userId 를 주면 강사·마스터가 해당 학생 기록을 볼 수 있다(세션 리포트).
 	 */
 	@GetMapping("/{quizSetId}/progress")
 	public QuizProgressSummaryResponse getProgress(@PathVariable("quizSetId") Long quizSetId,
+			@RequestParam(value = "userId", required = false) Long userId,
 			@AuthenticationPrincipal AuthUser requester) {
-		return quizProgressService.getSummary(quizSetId, requester);
+		return quizProgressService.getSummary(quizSetId, userId, requester);
 	}
 
 	/**

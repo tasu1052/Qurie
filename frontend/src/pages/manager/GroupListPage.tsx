@@ -1,4 +1,3 @@
-import { isAxiosError } from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Calendar, Copy, Plus, Search, Shuffle, Trash2 } from 'lucide-react';
@@ -18,6 +17,7 @@ import {
   Skeleton,
 } from '../../ds';
 import {
+  humanizeApiError,
   QueryAsyncBoundary,
   useCreateGroup,
   useDeleteGroup,
@@ -33,14 +33,6 @@ import {
 } from '../../data';
 import { queryKeys } from '../../network/core/queryKeys';
 import { getGroupCandidates } from '../../network/group/group-apis';
-
-function apiErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) return message;
-  }
-  return fallback;
-}
 
 function pad2(n: number) {
   return String(n).padStart(2, '0');
@@ -221,7 +213,7 @@ function ShuffleModal({
       onClose();
       onDone();
     } catch (err) {
-      setError(apiErrorMessage(err, '셔플에 실패했습니다. 잠시 후 다시 시도해 주세요.'));
+      setError(humanizeApiError(err, '셔플에 실패했습니다. 잠시 후 다시 시도해 주세요.'));
     } finally {
       setBusy(false);
     }
@@ -584,7 +576,7 @@ export default function GroupListPage() {
         resetCreateForm();
         refresh();
       } catch (err) {
-        setCreateError(apiErrorMessage(err, '그룹 생성에 실패했습니다.'));
+        setCreateError(humanizeApiError(err, '그룹 생성에 실패했습니다.'));
       }
     })();
   };

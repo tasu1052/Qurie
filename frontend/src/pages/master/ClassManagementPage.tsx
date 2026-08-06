@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { isAxiosError } from 'axios';
 import { PlayCircle, Plus, Search, Users } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
@@ -17,6 +16,7 @@ import {
   Skeleton,
 } from '../../ds';
 import {
+  humanizeApiError,
   QueryAsyncBoundary,
   useCreateClass,
   useDeleteClass,
@@ -24,14 +24,6 @@ import {
   useGetTracks,
   type ClassResponse,
 } from '../../data';
-
-function apiErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) return message;
-  }
-  return fallback;
-}
 
 function formatPeriod(startedAt: string | null, endedAt: string | null): string {
   if (!startedAt && !endedAt) return '기간 미설정';
@@ -316,7 +308,7 @@ function ClassListBody() {
           setName('');
           setCapacity('45');
         },
-        onError: (err) => setCreateError(apiErrorMessage(err, '클래스 생성에 실패했습니다.')),
+        onError: (err) => setCreateError(humanizeApiError(err, '클래스 생성에 실패했습니다.')),
       },
     );
   };
@@ -328,7 +320,7 @@ function ClassListBody() {
       { classId: deleteTarget.id },
       {
         onSuccess: () => setDeleteTarget(null),
-        onError: (err) => setDeleteError(apiErrorMessage(err, '클래스 삭제에 실패했습니다.')),
+        onError: (err) => setDeleteError(humanizeApiError(err, '클래스 삭제에 실패했습니다.')),
       },
     );
   };

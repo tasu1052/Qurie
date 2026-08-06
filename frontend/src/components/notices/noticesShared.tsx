@@ -1,19 +1,12 @@
-import { isAxiosError } from 'axios';
 import { Pencil, Pin, Trash2 } from 'lucide-react';
 import { Badge, Pagination, Skeleton } from '../../ds';
-import type { NoticeResponse, NoticeScope } from '../../data';
+import { humanizeApiError, type NoticeResponse, type NoticeScope } from '../../data';
 
 export type ScopeFilter = '전체' | 'TRACK' | 'CLASS';
 
 export const NOTICE_LIST_PAGE_SIZE = 10;
 
-export function apiErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) return message;
-  }
-  return fallback;
-}
+export const apiErrorMessage = humanizeApiError;
 
 export function ListSkeleton() {
   return (

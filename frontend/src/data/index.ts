@@ -185,6 +185,7 @@ export {
   useQuizSetsByProject,
   useSubmitQuizProgress,
   useGetQuizProgress,
+  useGetQuizProgressSuspense,
   useSubmitQuizSatisfaction,
   formatQuizSource,
   normalizeQuizSetStatus,
