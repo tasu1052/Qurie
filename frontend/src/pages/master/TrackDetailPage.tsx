@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQueries } from '@tanstack/react-query';
-import { isAxiosError } from 'axios';
 import { BookOpen, Settings, TriangleAlert } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
@@ -25,6 +24,7 @@ import { getClassAnalytics } from '../../network/analytics/analytics-apis';
 import { getClassMembers } from '../../network/class/class-apis';
 import { queryKeys } from '../../network/core/queryKeys';
 import {
+  humanizeApiError,
   QueryAsyncBoundary,
   useDeleteTrack,
   useGetClasses,
@@ -39,14 +39,6 @@ const metricChips = [
   { key: 'accuracy' as const, label: '정답률' },
   { key: 'completion' as const, label: '완료율' },
 ];
-
-function apiErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) return message;
-  }
-  return fallback;
-}
 
 function normalizeTech(tech: string | null): 'java' | 'python' | 'database' | 'other' {
   const t = (tech ?? '').toLowerCase();
@@ -211,7 +203,7 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
       },
       {
         onSuccess: () => setSettingsOpen(false),
-        onError: (err) => setSaveError(apiErrorMessage(err, '트랙 저장에 실패했습니다.')),
+        onError: (err) => setSaveError(humanizeApiError(err, '트랙 저장에 실패했습니다.')),
       },
     );
   };
@@ -222,7 +214,7 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
       { trackId },
       {
         onSuccess: () => navigate('/master/tracks', { replace: true }),
-        onError: (err) => setDeleteError(apiErrorMessage(err, '트랙 삭제에 실패했습니다.')),
+        onError: (err) => setDeleteError(humanizeApiError(err, '트랙 삭제에 실패했습니다.')),
       },
     );
   };
@@ -472,6 +464,8 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
               <EmptyState
                 message="표시할 지표가 없습니다"
                 description="클래스 분석 데이터가 쌓이면 정답률·완료율을 비교할 수 있습니다."
+                actionLabel="클래스 관리"
+                onAction={() => navigate('/master/classes')}
               />
             ) : (
               <>

@@ -42,26 +42,27 @@ export function AppShell({ role, activeKey, breadcrumbs, children }: AppShellPro
   const config = shellConfigByRole[role];
   const isMobile = useIsMobile();
   const [navOpen, setNavOpen] = useState(false);
+  const [navPathname, setNavPathname] = useState(location.pathname);
 
   const items = config.nav.map(({ key, label, icon }) => ({ key, label, icon }));
   const goMe = () => navigate(config.mePath);
 
-  useEffect(() => {
+  // 경로 변경 시 드로어를 닫는다 (effect setState 대신 렌더 중 조정).
+  if (location.pathname !== navPathname) {
+    setNavPathname(location.pathname);
     setNavOpen(false);
-  }, [location.pathname]);
+  }
+
+  const drawerOpen = navOpen && isMobile;
 
   useEffect(() => {
-    if (!isMobile) setNavOpen(false);
-  }, [isMobile]);
-
-  useEffect(() => {
-    if (!navOpen) return;
+    if (!drawerOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [navOpen]);
+  }, [drawerOpen]);
 
   const onNavSelect = (key: string) => {
     const item = config.nav.find((n) => n.key === key);
@@ -72,7 +73,7 @@ export function AppShell({ role, activeKey, breadcrumbs, children }: AppShellPro
 
   return (
     <div
-      className={`qurie-app-shell${navOpen ? ' qurie-app-shell--nav-open' : ''}`}
+      className={`qurie-app-shell${drawerOpen ? ' qurie-app-shell--nav-open' : ''}`}
       style={{
         display: 'flex',
         height: '100dvh',
@@ -81,7 +82,7 @@ export function AppShell({ role, activeKey, breadcrumbs, children }: AppShellPro
         fontFamily: 'var(--font-sans)',
       }}
     >
-      {isMobile && navOpen ? (
+      {drawerOpen ? (
         <button
           type="button"
           className="qurie-app-shell__backdrop"
@@ -113,11 +114,11 @@ export function AppShell({ role, activeKey, breadcrumbs, children }: AppShellPro
               <button
                 type="button"
                 className="qurie-topbar__menu"
-                aria-label={navOpen ? '메뉴 닫기' : '메뉴 열기'}
-                aria-expanded={navOpen}
+                aria-label={drawerOpen ? '메뉴 닫기' : '메뉴 열기'}
+                aria-expanded={drawerOpen}
                 onClick={() => setNavOpen((v) => !v)}
               >
-                {navOpen ? <X size={18} strokeWidth={1.75} /> : <Menu size={18} strokeWidth={1.75} />}
+                {drawerOpen ? <X size={18} strokeWidth={1.75} /> : <Menu size={18} strokeWidth={1.75} />}
               </button>
             ) : null
           }

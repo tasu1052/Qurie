@@ -5,6 +5,7 @@ import {
   formatQuizSource,
   getProjectFileContent,
   getProjectFiles,
+  humanizeApiError,
   useGenerateQuiz,
   useGetQuizProgress,
   useMeOptional,
@@ -96,18 +97,6 @@ function isManagerSummary(
   summary: QuizSetDetailResponse | QuizQuestionsResponse,
 ): summary is QuizSetDetailResponse {
   return 'generatedCount' in summary;
-}
-
-function apiErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) return message;
-    if (error.response?.status === 401) {
-      return '로그인이 만료되었습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.';
-    }
-  }
-  if (error instanceof Error && error.message.trim()) return error.message;
-  return fallback;
 }
 
 /**
@@ -480,6 +469,7 @@ function SingleQuizPlayer({
   completeTotal,
   onReviewFromComplete,
   initialIndex = 0,
+  onFinish,
 }: {
   quizzes: PlayableQuiz[];
   requestedCount: number;
@@ -499,24 +489,13 @@ function SingleQuizPlayer({
   onReviewFromComplete: () => void;
   /** 서버 progress 복원 시 시작할 문항 인덱스 (마운트 시 1회) */
   initialIndex?: number;
+  /** 마지막 문항 채점/건너뛰기 후 완료 화면으로 넘어갈 때 */
+  onFinish?: () => void;
 }) {
   const totalSlots = Math.max(requestedCount, quizzes.length, 1);
   const [index, setIndex] = useState(() => Math.max(0, initialIndex));
   const [hovered, setHovered] = useState(false);
   const currentIndex = Math.min(index, Math.max(0, totalSlots - 1));
-
-  // 건너뛰기 성공 시 다음 준비된 문항으로 이동
-  useEffect(() => {
-    const onAdvance = () => {
-      setIndex((cur) => {
-        const next = cur + 1;
-        if (next < quizzes.length) return next;
-        return cur;
-      });
-    };
-    window.addEventListener('qurie-quiz-advance', onAdvance);
-    return () => window.removeEventListener('qurie-quiz-advance', onAdvance);
-  }, [quizzes.length]);
 
   const ready = currentIndex < quizzes.length;
   const q = ready ? quizzes[currentIndex] : null;
@@ -745,13 +724,19 @@ function SingleQuizPlayer({
                   {submitting ? '제출 중…' : '제출'}
                 </Button>
               </div>
-            ) : hasNextReady ? (
+            ) : (
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
-                <Button variant="primary" size="sm" onClick={() => tryGo(currentIndex + 1)}>
-                  다음 문항
-                </Button>
+                {hasNextReady ? (
+                  <Button variant="primary" size="sm" onClick={() => tryGo(currentIndex + 1)}>
+                    다음 문항
+                  </Button>
+                ) : (
+                  <Button variant="primary" size="sm" onClick={() => onFinish?.()}>
+                    결과 보기
+                  </Button>
+                )}
               </div>
-            ) : null}
+            )}
           </>
         )}
       </div>
@@ -945,6 +930,9 @@ export function SessionQuizPanel({
   const [resultsBySet, setResultsBySet] = useState<Record<number, Record<number, QuizResult>>>({});
   const [startedAtBySet, setStartedAtBySet] = useState<Record<number, Record<number, string>>>({});
   const [reviewingCompleteFor, setReviewingCompleteFor] = useState<number | null>(null);
+  /** 마지막 문항에서 「결과 보기」를 누른 뒤에만 완료 화면을 연다 — 정답/오답 확인 시간을 확보한다. */
+  const [readyForComplete, setReadyForComplete] = useState(false);
+  const [readyCompleteQuizSetId, setReadyCompleteQuizSetId] = useState<number | null>(null);
   const [conflictEpoch, setConflictEpoch] = useState(0);
 
   const projectQuizSets = useQuizSetsByProject(projectId);
@@ -962,6 +950,12 @@ export function SessionQuizPanel({
     if (activeQuizSetId == null) return;
     saveSessionQuizSetId(sessionId, activeQuizSetId);
   }, [sessionId, activeQuizSetId]);
+
+  if (activeQuizSetId !== readyCompleteQuizSetId) {
+    setReadyCompleteQuizSetId(activeQuizSetId);
+    setReadyForComplete(false);
+    setReviewingCompleteFor(null);
+  }
 
   const progressQuery = useGetQuizProgress(activeQuizSetId);
   const serverMaps = useMemo(
@@ -1030,8 +1024,26 @@ export function SessionQuizPanel({
     [results],
   );
 
+  // 재입장 시 서버에 이미 전부 응시된 세트는 완료 화면을 바로 연다 (풀이 중 마지막 제출과는 분리).
+  const serverAlreadyComplete = useMemo(() => {
+    if (activeQuizSetId == null) return false;
+    if (!progressQuery.isSuccess || playableQuizzes.length === 0) return false;
+    if (summary?.status !== 'COMPLETED') return false;
+    const serverResults = progressItemsToMaps(progressQuery.data?.items ?? []).results;
+    return playableQuizzes.every((q) => serverResults[q.id] != null);
+  }, [
+    activeQuizSetId,
+    playableQuizzes,
+    progressQuery.data?.items,
+    progressQuery.isSuccess,
+    summary?.status,
+  ]);
+
   const showCompleteScreen =
-    allHandled && activeQuizSetId != null && reviewingCompleteFor !== activeQuizSetId;
+    allHandled &&
+    (readyForComplete || serverAlreadyComplete) &&
+    activeQuizSetId != null &&
+    reviewingCompleteFor !== activeQuizSetId;
 
   const resumeIndex = useMemo(() => {
     if (playableQuizzes.length === 0) return 0;
@@ -1134,12 +1146,12 @@ export function SessionQuizPanel({
             setReviewingCompleteFor(null);
           },
           onError: (err) => {
-            setFormError(apiErrorMessage(err, '퀴즈 생성 요청에 실패했습니다.'));
+            setFormError(humanizeApiError(err, '퀴즈 생성 요청에 실패했습니다.'));
           },
         },
       );
     } catch (err) {
-      setFormError(apiErrorMessage(err, '프로젝트 파일을 불러오지 못했습니다.'));
+      setFormError(humanizeApiError(err, '프로젝트 파일을 불러오지 못했습니다.'));
     }
   };
 
@@ -1166,7 +1178,7 @@ export function SessionQuizPanel({
           dismissSatisfaction();
         },
         onError: (err) => {
-          setFormError(apiErrorMessage(err, '만족도 저장에 실패했습니다.'));
+          setFormError(humanizeApiError(err, '만족도 저장에 실패했습니다.'));
         },
       },
     );
@@ -1200,7 +1212,6 @@ export function SessionQuizPanel({
           [quiz.id]: gradeLocally(quiz, choiceIdx),
         },
       }));
-      window.dispatchEvent(new CustomEvent('qurie-quiz-advance'));
       // 재입장 복원을 위해 서버에도 응시 기록을 남긴다.
       submitProgress.mutate(
         {
@@ -1218,7 +1229,7 @@ export function SessionQuizPanel({
               return;
             }
             // 로컬 결과는 이미 반영됨 — 서버 저장 실패만 안내
-            setFormError(apiErrorMessage(err, '응시 기록 저장에 실패했습니다.'));
+            setFormError(humanizeApiError(err, '응시 기록 저장에 실패했습니다.'));
           },
         },
       );
@@ -1248,14 +1259,13 @@ export function SessionQuizPanel({
               },
             },
           }));
-          window.dispatchEvent(new CustomEvent('qurie-quiz-advance'));
         },
         onError: (err) => {
           if (isAxiosError(err) && err.response?.status === 409) {
             void onProgressConflict(activeQuizSetId);
             return;
           }
-          setFormError(apiErrorMessage(err, '제출에 실패했습니다.'));
+          setFormError(humanizeApiError(err, '제출에 실패했습니다.'));
         },
       },
     );
@@ -1281,7 +1291,6 @@ export function SessionQuizPanel({
           },
         },
       }));
-      window.dispatchEvent(new CustomEvent('qurie-quiz-advance'));
     };
 
     if (isInstructor) {
@@ -1322,7 +1331,7 @@ export function SessionQuizPanel({
             void onProgressConflict(activeQuizSetId);
             return;
           }
-          setFormError(apiErrorMessage(err, '건너뛰기에 실패했습니다.'));
+          setFormError(humanizeApiError(err, '건너뛰기에 실패했습니다.'));
         },
       },
     );
@@ -1476,6 +1485,7 @@ export function SessionQuizPanel({
           onReviewFromComplete={() => {
             if (activeQuizSetId != null) setReviewingCompleteFor(activeQuizSetId);
           }}
+          onFinish={() => setReadyForComplete(true)}
           initialIndex={inReviewMode ? 0 : resumeIndex}
         />
       ) : null}

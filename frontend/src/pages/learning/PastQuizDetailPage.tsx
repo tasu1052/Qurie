@@ -181,14 +181,13 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
   const { data: quizSet } = useGetQuizSet(quizSetId);
   const { data: progressSummary } = useGetQuizProgress(quizSetId);
 
-  const progressItems = progressSummary?.items ?? [];
   const progressByQuizId = useMemo(() => {
     const map = new Map<number, QuizProgressItem>();
-    for (const item of progressItems) {
+    for (const item of progressSummary?.items ?? []) {
       map.set(item.quizId, item);
     }
     return map;
-  }, [progressItems]);
+  }, [progressSummary?.items]);
 
   const items = useMemo(
     () => [...quizSet.quizzes].sort((a, b) => a.orderNo - b.orderNo),

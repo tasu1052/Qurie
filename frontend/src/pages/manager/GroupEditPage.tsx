@@ -1,4 +1,3 @@
-import { isAxiosError } from 'axios';
 import { useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { GripVertical, Trash2, X } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -16,6 +15,7 @@ import {
   AlertBanner,
 } from '../../ds';
 import {
+  humanizeApiError,
   QueryAsyncBoundary,
   useDeleteGroup,
   useEditGroup,
@@ -51,11 +51,7 @@ function avatarChar(name: string) {
 }
 
 function saveErrorMessage(error: unknown): string {
-  if (isAxiosError(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) return message;
-  }
-  return '저장에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+  return humanizeApiError(error, '저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
 }
 
 function pad2(n: number) {

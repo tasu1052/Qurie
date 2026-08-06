@@ -1,4 +1,5 @@
-/* Qurie color primitives — from Figma Variables (collection colorWheelPrimitives_1), via blunderblus/qurie_design_system. First mode = :root default. */
+/* Qurie color primitives — from Figma Variables (collection colorWheelPrimitives_1), via blunderblus/qurie_design_system.
+   DEMO TUNING: primary(연보라)·tertiary(푸른색) 명도·채도를 올려 발표/프로젝터에서 더 잘 보이게 한 임시 조정. */
 :root {
   --grey-100: rgb(235,235,236);
   --grey-200: rgb(195,195,198);
@@ -8,14 +9,15 @@
   --grey-600: rgb(51,51,57);
   --grey-700: rgb(22,22,25);
   --grey-base: rgb(119,119,126);
-  --primary-100: rgb(233,233,253);
-  --primary-200: rgb(189,190,250);
-  --primary-300: rgb(145,146,246);
-  --primary-400: rgb(99,102,241);
-  --primary-500: rgb(45,53,232);
-  --primary-600: rgb(21,27,157);
-  --primary-700: rgb(6,9,80);
-  --primary-base: rgb(99,102,241);
+  /* 연보라 — 발표용으로 더 선명·밝게 */
+  --primary-100: rgb(220,224,255);
+  --primary-200: rgb(160,170,255);
+  --primary-300: rgb(120,132,255);
+  --primary-400: rgb(79,96,255);
+  --primary-500: rgb(48,68,255);
+  --primary-600: rgb(30,42,210);
+  --primary-700: rgb(14,20,120);
+  --primary-base: rgb(79,96,255);
   --quaternary-100: rgb(226,230,238);
   --quaternary-200: rgb(178,191,211);
   --quaternary-300: rgb(132,153,183);
@@ -32,12 +34,13 @@
   --secondary-600: rgb(47,47,47);
   --secondary-700: rgb(17,17,17);
   --secondary-base: rgb(17,17,17);
-  --tertiary-100: rgb(248,250,252);
-  --tertiary-200: rgb(192,212,229);
-  --tertiary-300: rgb(136,175,205);
-  --tertiary-400: rgb(105,136,160);
-  --tertiary-500: rgb(76,100,118);
-  --tertiary-600: rgb(49,65,78);
-  --tertiary-700: rgb(24,34,41);
-  --tertiary-base: rgb(248,250,252);
+  /* 푸른색 — 카드용은 차분한 슬레이트 블루 (네온 스카이 톤다운) */
+  --tertiary-100: rgb(245,248,252);
+  --tertiary-200: rgb(198,214,230);
+  --tertiary-300: rgb(148,178,204);
+  --tertiary-400: rgb(112,142,168);
+  --tertiary-500: rgb(80,105,125);
+  --tertiary-600: rgb(52,70,84);
+  --tertiary-700: rgb(28,40,50);
+  --tertiary-base: rgb(245,248,252);
 }

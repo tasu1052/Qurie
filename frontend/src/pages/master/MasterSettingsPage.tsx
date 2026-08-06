@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { isAxiosError } from 'axios';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import {
   AlertBanner,
@@ -10,20 +9,13 @@ import {
   Skeleton,
 } from '../../ds';
 import {
+  humanizeApiError,
   QueryAsyncBoundary,
   useGetTracks,
   useMe,
   useUpdateTrack,
   type TrackSummaryResponse,
 } from '../../data';
-
-function apiErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) return message;
-  }
-  return fallback;
-}
 
 function SettingsSkeleton() {
   return (
@@ -60,7 +52,7 @@ function TrackEditRow({ track }: { track: TrackSummaryResponse }) {
       },
       {
         onSuccess: () => setSaved(true),
-        onError: (err) => setError(apiErrorMessage(err, '트랙 저장에 실패했습니다.')),
+        onError: (err) => setError(humanizeApiError(err, '트랙 저장에 실패했습니다.')),
       },
     );
   };

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  AlertBanner,
   Badge,
   Button,
   EmptyState,
@@ -10,15 +11,16 @@ import {
   Skeleton,
 } from '../../ds';
 import {
+  humanizeApiError,
   QueryAsyncBoundary,
   useGetSessions,
   useMe,
   type SessionResponse,
 } from '../../data';
-import { getSessionReport } from '../../network/session/session-apis';
 import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
 import { PastQuizShell } from './pastQuizShell';
 import { SESSION_LIST_PAGE_TITLE, usePastQuizBasePath, type PastQuizBasePath } from './pastQuizPaths';
+import { resolveSessionQuizSetId } from './resolveSessionQuizSetId';
 
 const PAGE_SIZE = 20;
 
@@ -64,10 +66,12 @@ function SessionListTable({
   classId,
   basePath,
   statusFilter,
+  onStatusFilterChange,
 }: {
   classId: number;
   basePath: PastQuizBasePath;
   statusFilter: string;
+  onStatusFilterChange: (status: string) => void;
 }) {
   const navigate = useNavigate();
   // 종료된 세션까지 받아야 '전체/종료' 칩이 실제 데이터를 보여준다
@@ -91,21 +95,20 @@ function SessionListTable({
     });
   }, [sessions, statusFilter]);
 
+  const [pageFilter, setPageFilter] = useState(statusFilter);
+  if (statusFilter !== pageFilter) {
+    setPageFilter(statusFilter);
+    setPage(1);
+  }
+
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
   const pageItems = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * PAGE_SIZE, filtered.length);
 
-  useEffect(() => {
-    setPage(1);
-  }, [statusFilter]);
-
-  useEffect(() => {
-    if (page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
-
   const [quizLoadingId, setQuizLoadingId] = useState<number | null>(null);
+  const [quizError, setQuizError] = useState<string | null>(null);
 
   /** LIVE 세션 입장 — 세션 화면은 새 탭에서 열리고, 팝업이 차단되면 현재 탭으로 이동한다. */
   const enterSession = (s: SessionResponse) => {
@@ -121,24 +124,31 @@ function SessionListTable({
 
   const openPastQuiz = async (sessionId: number) => {
     setQuizLoadingId(sessionId);
+    setQuizError(null);
     try {
-      const report = await getSessionReport(sessionId);
-      if (report.quizSetId != null) {
-        navigate(`${basePath}/quizzes/${report.quizSetId}`);
+      const quizSetId = await resolveSessionQuizSetId(sessionId);
+      if (quizSetId != null) {
+        navigate(`${basePath}/quizzes/${quizSetId}`);
         return;
       }
-      navigate(`/session/${sessionId}/report`);
-    } catch {
-      navigate(`/session/${sessionId}/report`);
+      setQuizError('이 세션에 생성된 퀴즈가 없어요. 세션에서 퀴즈를 만든 뒤 다시 시도해 주세요.');
+    } catch (err) {
+      setQuizError(humanizeApiError(err, '지난 퀴즈를 열지 못했어요.'));
     } finally {
       setQuizLoadingId(null);
     }
   };
 
   if (filtered.length === 0) {
-    // 종료 필터의 빈 화면에서는 '세션 만들기' 같은 액션이 어울리지 않으므로 안내만 보여준다.
     if (statusFilter === '종료') {
-      return <EmptyState message="종료된 세션이 없습니다" />;
+      return (
+        <EmptyState
+          message="종료된 세션이 없습니다"
+          description="아직 종료된 세션이 없어요. 전체 목록에서 확인해 보세요."
+          actionLabel="전체 보기"
+          onAction={() => onStatusFilterChange('전체')}
+        />
+      );
     }
     return (
       <EmptyState
@@ -152,6 +162,17 @@ function SessionListTable({
 
   return (
     <div className="qurie-table-card">
+      {quizError ? (
+        <div style={{ padding: '12px 24px 0' }}>
+          <AlertBanner
+            tone="error"
+            title="지난 퀴즈"
+            description={quizError}
+            actionLabel="닫기"
+            onAction={() => setQuizError(null)}
+          />
+        </div>
+      ) : null}
       <div className="qurie-table-scroll">
         <div
           className="qurie-table-inner"
@@ -328,7 +349,12 @@ export default function PastQuizListPage({ basePath: basePathProp }: PastQuizLis
             />
           }
         >
-          <SessionListTable classId={classId} basePath={basePath} statusFilter={status} />
+          <SessionListTable
+            classId={classId}
+            basePath={basePath}
+            statusFilter={status}
+            onStatusFilterChange={setStatus}
+          />
         </QueryAsyncBoundary>
       )}
       </div>

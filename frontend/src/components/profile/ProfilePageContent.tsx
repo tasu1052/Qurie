@@ -26,17 +26,17 @@ function passwordChangeError(error: unknown): string {
       lower.includes('incorrect password') ||
       lower.includes('wrong password')
     ) {
-      return '현재 비밀번호가 올바르지 않습니다.';
+      return '현재 비밀번호가 올바르지 않아요.';
     }
     if (status === 400) {
+      if (/[가-힣]/.test(message)) return message.trim();
       if (lower.includes('password') || lower.includes('비밀번호')) {
-        return message.trim() || '비밀번호 형식을 확인해 주세요.';
+        return '비밀번호 형식을 확인해 주세요.';
       }
-      return message.trim() || '입력값을 확인해 주세요.';
+      return '입력값을 확인해 주세요.';
     }
-    if (message.trim()) return message;
   }
-  return '비밀번호 변경에 실패했습니다.';
+  return humanizeApiError(error, '비밀번호 변경에 실패했습니다.');
 }
 
 const editInputStyle: CSSProperties = {

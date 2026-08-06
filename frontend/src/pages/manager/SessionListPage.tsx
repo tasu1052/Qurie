@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { isAxiosError } from 'axios';
 import { Plus, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
@@ -20,6 +19,7 @@ import {
   Skeleton,
 } from '../../ds';
 import {
+  humanizeApiError,
   QueryAsyncBoundary,
   useCreateSession,
   useDeleteSession,
@@ -30,22 +30,9 @@ import {
 } from '../../data';
 import { queryKeys } from '../../network/core/queryKeys';
 import { getGroups } from '../../network/group/group-apis';
-import { getSessionReport, getSessions } from '../../network/session/session-apis';
+import { getSessions } from '../../network/session/session-apis';
 import { saveSessionTitle } from '../../components/session/sessionProjectStorage';
-
-function apiErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError(error)) {
-    const data = error.response?.data;
-    if (typeof data === 'object' && data !== null) {
-      const message = (data as { message?: unknown }).message;
-      if (typeof message === 'string' && message.trim()) return message;
-    }
-    if (typeof error.message === 'string' && error.message.trim() && error.message !== 'Network Error') {
-      return error.message;
-    }
-  }
-  return fallback;
-}
+import { resolveSessionQuizSetId } from '../learning/resolveSessionQuizSetId';
 
 function formatSessionTime(iso: string): string {
   return new Date(iso).toLocaleString('ko-KR', {
@@ -99,6 +86,7 @@ function SessionTable({
   page,
   onPage,
   onEmptyCreate,
+  onShowAll,
   onEnter,
   onReport,
   onPastQuiz,
@@ -111,6 +99,7 @@ function SessionTable({
   page: number;
   onPage: (p: number) => void;
   onEmptyCreate: () => void;
+  onShowAll: () => void;
   onEnter: (sessionId: number, title: string) => void;
   onReport: (sessionId: number) => void;
   onPastQuiz: (sessionId: number) => void;
@@ -147,13 +136,16 @@ function SessionTable({
   const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * SESSION_PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * SESSION_PAGE_SIZE, filtered.length);
 
-  useEffect(() => {
-    if (page > pageCount) onPage(pageCount);
-  }, [page, pageCount, onPage]);
-
   if (filtered.length === 0) {
     if (statusFilter === '종료') {
-      return <EmptyState message="종료된 세션이 없습니다" />;
+      return (
+        <EmptyState
+          message="종료된 세션이 없습니다"
+          description="아직 종료된 세션이 없어요. 전체 목록에서 확인해 보세요."
+          actionLabel="전체 보기"
+          onAction={onShowAll}
+        />
+      );
     }
     return (
       <EmptyState
@@ -301,6 +293,7 @@ export default function SessionListPage() {
   const [deleteTarget, setDeleteTarget] = useState<SessionResponse | null>(null);
   const [popupBlockedSessionId, setPopupBlockedSessionId] = useState<number | null>(null);
   const [quizLoadingId, setQuizLoadingId] = useState<number | null>(null);
+  const [quizError, setQuizError] = useState<string | null>(null);
 
   const groupsQuery = useQuery({
     queryKey: hasValidClassId ? queryKeys.groups.list(classId) : ['groups', 'idle'],
@@ -310,21 +303,18 @@ export default function SessionListPage() {
 
   const chips = ['전체', '진행', '종료'];
 
-  useEffect(() => {
-    setPage(1);
-  }, [status, query]);
-
   const openPastQuiz = async (sessionId: number) => {
     setQuizLoadingId(sessionId);
+    setQuizError(null);
     try {
-      const report = await getSessionReport(sessionId);
-      if (report.quizSetId != null) {
-        navigate(`/manager/quizzes/${report.quizSetId}`);
+      const quizSetId = await resolveSessionQuizSetId(sessionId);
+      if (quizSetId != null) {
+        navigate(`/manager/quizzes/${quizSetId}`);
         return;
       }
-      navigate(`/session/${sessionId}/report`);
-    } catch {
-      navigate(`/session/${sessionId}/report`);
+      setQuizError('이 세션에 생성된 퀴즈가 없어요. 세션에서 퀴즈를 만든 뒤 다시 시도해 주세요.');
+    } catch (err) {
+      setQuizError(humanizeApiError(err, '지난 퀴즈를 열지 못했어요.'));
     } finally {
       setQuizLoadingId(null);
     }
@@ -391,7 +381,7 @@ export default function SessionListPage() {
             openSessionInNewTab(created.id, created.title);
           },
           onError: (err) => {
-            const msg = apiErrorMessage(err, '세션 생성에 실패했습니다.');
+            const msg = humanizeApiError(err, '세션 생성에 실패했습니다.');
             if (classPublic && /public|공개|already|exist|duplicate|중복/i.test(msg)) {
               setCreateError(
                 '이미 진행 중인 수업 공개 세션이 있습니다. 기존 세션을 종료한 뒤 다시 시도해 주세요.',
@@ -435,6 +425,16 @@ export default function SessionListPage() {
           />
         ) : null}
 
+        {quizError ? (
+          <AlertBanner
+            tone="error"
+            title="지난 퀴즈"
+            description={quizError}
+            actionLabel="닫기"
+            onAction={() => setQuizError(null)}
+          />
+        ) : null}
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {chips.map((c) => {
             const active = status === c;
@@ -442,7 +442,10 @@ export default function SessionListPage() {
               <button
                 key={c}
                 type="button"
-                onClick={() => setStatus(c)}
+                onClick={() => {
+                  setStatus(c);
+                  setPage(1);
+                }}
                 style={{
                   borderRadius: 999,
                   padding: '6px 14px',
@@ -463,7 +466,10 @@ export default function SessionListPage() {
             placeholder="세션 검색…"
             icon={<Search size={14} strokeWidth={1.75} />}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(1);
+            }}
             width={220}
             style={{ marginLeft: 'auto' }}
           />
@@ -495,6 +501,10 @@ export default function SessionListPage() {
               page={page}
               onPage={setPage}
               onEmptyCreate={() => setCreateOpen(true)}
+              onShowAll={() => {
+                setStatus('전체');
+                setPage(1);
+              }}
               onEnter={openSessionInNewTab}
               onReport={(sessionId) => navigate(`/session/${sessionId}/report`)}
               onPastQuiz={(sessionId) => void openPastQuiz(sessionId)}

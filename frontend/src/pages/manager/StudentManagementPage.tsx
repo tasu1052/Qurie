@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { isAxiosError } from 'axios';
 import { ChevronRight, Mail, Search, UserPlus, Users } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -19,6 +18,7 @@ import {
   UploadRow,
 } from '../../ds';
 import {
+  humanizeApiError,
   QueryAsyncBoundary,
   useCreateBulkInvitations,
   useCreateInvitation,
@@ -38,20 +38,6 @@ type StudentSortKey = 'name' | 'group' | 'role';
 
 function studentRoleLabel(_role: ClassMemberResponse['role'], groupName: string | null): string {
   return groupName ? '학생' : '미배정';
-}
-
-function apiErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError(error)) {
-    const data = error.response?.data;
-    if (typeof data === 'object' && data !== null) {
-      const message = (data as { message?: unknown }).message;
-      if (typeof message === 'string' && message.trim()) return message;
-    }
-    if (typeof error.message === 'string' && error.message.trim() && error.message !== 'Network Error') {
-      return error.message;
-    }
-  }
-  return fallback;
 }
 
 function TableSkeleton() {
@@ -205,6 +191,12 @@ function MembersTable({
       return a.name.localeCompare(b.name, 'ko') * dir;
     });
   }, [filtered, sort]);
+  const [pageQuery, setPageQuery] = useState(debouncedQuery);
+  if (debouncedQuery !== pageQuery) {
+    setPageQuery(debouncedQuery);
+    setPage(1);
+  }
+
   const pageCount = Math.max(1, Math.ceil(sorted.length / MEMBERS_PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
   const pageItems = sorted.slice(
@@ -213,14 +205,6 @@ function MembersTable({
   );
   const rangeStart = sorted.length === 0 ? 0 : (safePage - 1) * MEMBERS_PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * MEMBERS_PAGE_SIZE, sorted.length);
-
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedQuery]);
-
-  useEffect(() => {
-    if (page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
 
   const onSort = (next: { key: string; dir: 'asc' | 'desc' } | null) => {
     if (!next) {
@@ -386,7 +370,7 @@ function StudentManagementBody({ classId }: { classId: number }) {
           );
           setInviteEmail('');
         },
-        onError: (err) => setInviteError(apiErrorMessage(err, '초대에 실패했습니다.')),
+        onError: (err) => setInviteError(humanizeApiError(err, '초대에 실패했습니다.')),
       },
     );
   };
@@ -409,7 +393,7 @@ function StudentManagementBody({ classId }: { classId: number }) {
           setBulkSummary(`전체 ${res.total}건 · 성공 ${res.invited} · 실패 ${res.failed}`);
           setBulkFile(null);
         },
-        onError: (err) => setInviteError(apiErrorMessage(err, '일괄 초대에 실패했습니다.')),
+        onError: (err) => setInviteError(humanizeApiError(err, '일괄 초대에 실패했습니다.')),
       },
     );
   };

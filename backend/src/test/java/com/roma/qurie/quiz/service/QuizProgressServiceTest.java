@@ -281,7 +281,7 @@ class QuizProgressServiceTest {
 		given(quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(QUIZ_SET_ID, STUDENT.id()))
 				.willReturn(List.of(correct));
 
-		QuizProgressSummaryResponse response = quizProgressService.getSummary(QUIZ_SET_ID, STUDENT);
+		QuizProgressSummaryResponse response = quizProgressService.getSummary(QUIZ_SET_ID, null, STUDENT);
 
 		assertThat(response.totalCount()).isEqualTo(2);
 		assertThat(response.attemptedCount()).isEqualTo(1);

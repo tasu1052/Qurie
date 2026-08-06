@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { ConfirmDeleteOverlay } from '../overlays/ConfirmDeleteOverlay';
 import { AlertBanner, EmptyState, Input, Modal, Select } from '../../ds';
@@ -45,9 +45,10 @@ export function MasterNoticesBody() {
     [scope, page],
   );
 
-  useEffect(() => {
+  const onScopeChange = (next: ScopeFilter) => {
+    setScope(next);
     setPage(1);
-  }, [scope]);
+  };
 
   const { data: noticesPage } = useGetNotices(filters);
   const { data: tracksPage } = useGetTracks({ size: 100 });
@@ -59,11 +60,7 @@ export function MasterNoticesBody() {
   const totalNotices = noticesPage.meta.total;
   const tracks = tracksPage.data;
   const firstTrackId = tracks[0] ? String(tracks[0].id) : '';
-
-  useEffect(() => {
-    if (!open || editTarget || createScope !== 'TRACK') return;
-    if (!trackId && firstTrackId) setTrackId(firstTrackId);
-  }, [open, editTarget, createScope, trackId, firstTrackId]);
+  const resolvedTrackId = trackId || firstTrackId;
 
   const resetForm = () => {
     setTitle('');
@@ -108,7 +105,7 @@ export function MasterNoticesBody() {
       );
       return;
     }
-    if (createScope === 'TRACK' && !trackId) {
+    if (createScope === 'TRACK' && !resolvedTrackId) {
       setError('트랙을 선택하세요.');
       return;
     }
@@ -123,7 +120,7 @@ export function MasterNoticesBody() {
         title: title.trim(),
         body: body.trim(),
         pinned,
-        trackId: createScope === 'TRACK' ? Number(trackId) : undefined,
+        trackId: createScope === 'TRACK' ? Number(resolvedTrackId) : undefined,
         classId: createScope === 'CLASS' ? Number(classId) : undefined,
       },
       {
@@ -149,7 +146,7 @@ export function MasterNoticesBody() {
         </div>
         <ScopeFilterTabs
           scope={scope}
-          onChange={setScope}
+          onChange={onScopeChange}
           options={[
             { key: '전체', label: '모든 범위' },
             { key: 'TRACK', label: '트랙' },
@@ -244,7 +241,11 @@ export function MasterNoticesBody() {
                     { value: 'CLASS', label: '클래스' },
                   ]}
                   value={createScope}
-                  onChange={(v) => setCreateScope(v as NoticeScope)}
+                  onChange={(v) => {
+                    const next = v as NoticeScope;
+                    setCreateScope(next);
+                    if (next === 'TRACK' && !trackId && firstTrackId) setTrackId(firstTrackId);
+                  }}
                 />
               </label>
               {createScope === 'TRACK' ? (
@@ -252,7 +253,7 @@ export function MasterNoticesBody() {
                   <span style={{ fontSize: 13, fontWeight: 600 }}>트랙</span>
                   <Select
                     options={tracks.map((t) => ({ value: String(t.id), label: t.name }))}
-                    value={trackId}
+                    value={resolvedTrackId}
                     onChange={setTrackId}
                   />
                 </label>

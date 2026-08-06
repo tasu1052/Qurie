@@ -2,6 +2,7 @@ import { isAxiosError } from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import { AlertBanner, Button, FileDropzone, Input, Modal, UploadRow } from '../../ds';
 import {
+  humanizeApiError,
   useImportProjectGit,
   useImportProjectLocal,
   type ProjectImportResponse,
@@ -19,25 +20,17 @@ type ProjectImportPanelProps = {
 function apiErrorMessage(error: unknown, fallback: string): string {
   if (isAxiosError(error)) {
     const status = error.response?.status;
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) {
-      return message;
-    }
     if (status === 403) {
-      return '프로젝트 임포트는 그룹 리더만 할 수 있습니다.';
-    }
-    if (status === 401) {
-      return '로그인이 필요합니다. 다시 로그인해 주세요.';
+      return '프로젝트 가져오기는 그룹 리더만 할 수 있어요.';
     }
     if (status === 409) {
-      return '종료된 세션에는 프로젝트를 가져올 수 없습니다.';
+      return '종료된 세션에는 프로젝트를 가져올 수 없어요.';
     }
     if (status === 413) {
-      return '파일 개수 또는 용량 제한을 초과했습니다. (최대 500개 · 파일당 200KB · 합 10MB)';
+      return '파일 개수 또는 용량 제한을 초과했어요. (최대 500개 · 파일당 200KB · 합 10MB)';
     }
   }
-  if (error instanceof Error && error.message.trim()) return error.message;
-  return fallback;
+  return humanizeApiError(error, fallback);
 }
 
 export function ProjectImportPanel({

@@ -199,9 +199,11 @@ export const submitQuizProgress = async (
 
 export const getQuizProgress = async (
     quizSetId: number,
+    userId?: number | null,
 ): Promise<QuizProgressSummaryResponse> => {
     const { data } = await axiosInstance.get<QuizProgressSummaryResponse>(
         `/quiz/${quizSetId}/progress`,
+        { params: userId != null ? { userId } : undefined },
     );
     return {
         ...data,

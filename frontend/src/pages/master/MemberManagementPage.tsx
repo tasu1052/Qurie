@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { isAxiosError } from 'axios';
+import { useMemo, useRef, useState } from 'react';
 import { Filter, Mail, Search, UserPlus } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -17,6 +16,7 @@ import {
   UploadRow,
 } from '../../ds';
 import {
+  humanizeApiError,
   QueryAsyncBoundary,
   useCreateBulkInvitations,
   useCreateInvitation,
@@ -31,14 +31,6 @@ import {
   regionLabel,
 } from '../../utils/userProfileExtras';
 import { validateInviteFile } from '../../utils/validateInviteFile';
-
-function apiErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) return message;
-  }
-  return fallback;
-}
 
 function TableSkeleton() {
   return (
@@ -126,6 +118,17 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
     });
   }, [managers, debouncedQuery, regionFilter]);
 
+  const [pageQuery, setPageQuery] = useState(debouncedQuery);
+  const [pageRegion, setPageRegion] = useState(regionFilter);
+  if (debouncedQuery !== pageQuery) {
+    setPageQuery(debouncedQuery);
+    setPage(1);
+  }
+  if (regionFilter !== pageRegion) {
+    setPageRegion(regionFilter);
+    setPage(1);
+  }
+
   const pageCount = Math.max(1, Math.ceil(filtered.length / MANAGER_PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
   const pageItems = filtered.slice(
@@ -136,14 +139,6 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
   const rangeEnd = Math.min(safePage * MANAGER_PAGE_SIZE, filtered.length);
   const loadedCount = managers.length;
   const totalCount = usersPage.meta.total;
-
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedQuery, regionFilter]);
-
-  useEffect(() => {
-    if (page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
 
   const resetInviteMessages = () => {
     setInviteError(null);
@@ -175,7 +170,7 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
           );
           setInviteEmail(emails.slice(1).join(', '));
         },
-        onError: (err) => setInviteError(apiErrorMessage(err, '초대에 실패했습니다.')),
+        onError: (err) => setInviteError(humanizeApiError(err, '초대에 실패했습니다.')),
       },
     );
   };
@@ -203,7 +198,7 @@ function ManagersBody({ classes }: { classes: { id: number; name: string }[] }) 
           setBulkSummary(`전체 ${res.total}건 · 성공 ${res.invited} · 실패 ${res.failed}`);
           setBulkFile(null);
         },
-        onError: (err) => setInviteError(apiErrorMessage(err, '일괄 초대에 실패했습니다.')),
+        onError: (err) => setInviteError(humanizeApiError(err, '일괄 초대에 실패했습니다.')),
       },
     );
   };

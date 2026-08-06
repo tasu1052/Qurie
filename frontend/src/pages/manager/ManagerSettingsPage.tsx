@@ -1,23 +1,15 @@
 import { useState } from 'react';
-import { isAxiosError } from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import { AlertBanner, Button, EmptyState, RowErrorFallback, Skeleton } from '../../ds';
 import {
+  humanizeApiError,
   QueryAsyncBoundary,
   useGetClass,
   useMe,
   useUpdateClass,
   type ClassResponse,
 } from '../../data';
-
-function apiErrorMessage(error: unknown, fallback: string): string {
-  if (isAxiosError(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) return message;
-  }
-  return fallback;
-}
 
 function SettingsSkeleton() {
   return (
@@ -65,7 +57,7 @@ function ClassSettingsFormFields({ cls }: { cls: ClassResponse }) {
       },
       {
         onSuccess: () => setSaved(true),
-        onError: (err) => setError(apiErrorMessage(err, '클래스 저장에 실패했습니다.')),
+        onError: (err) => setError(humanizeApiError(err, '클래스 저장에 실패했습니다.')),
       },
     );
   };
