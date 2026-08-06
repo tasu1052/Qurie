@@ -33,9 +33,11 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -284,14 +286,16 @@ public class SessionReportService {
 
     /** choices fetch 조인으로 같은 응시 행이 여러 번 올 수 있어 quizId 기준으로 한 건만 남긴다. */
     private static List<QuizProgress> dedupeByQuizId(List<QuizProgress> progresses) {
-        Map<Long, QuizProgress> byQuizId = new LinkedHashMap<>();
+        Set<Long> seenQuizIds = new LinkedHashSet<>();
+        List<QuizProgress> unique = new ArrayList<>(progresses.size());
         for (QuizProgress progress : progresses) {
-            if (progress.getQuiz() == null || progress.getQuiz().getId() == null) {
-                continue;
+            Long quizId = progress.getQuiz() != null ? progress.getQuiz().getId() : null;
+            // id 가 없으면(테스트 mock 등) 중복 판정 불가 — 행을 유지한다.
+            if (quizId == null || seenQuizIds.add(quizId)) {
+                unique.add(progress);
             }
-            byQuizId.putIfAbsent(progress.getQuiz().getId(), progress);
         }
-        return new ArrayList<>(byQuizId.values());
+        return unique;
     }
 
     private static String conceptOf(Quiz quiz) {
