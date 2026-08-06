@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Download } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Download, TriangleAlert } from 'lucide-react';
 import { StudentShell, PageMain } from '../../components/layout/StudentShell';
 import {
   Badge,
@@ -225,9 +225,86 @@ function SemesterSummaryHero({
   );
 }
 
+/** 세션 리포트 화면의 AI 블록과 같은 구성 — 총평 문단 + 강점/개선점 2열. 값이 없으면 아예 그리지 않는다. */
+function AiFeedbackSection({ report }: { report: UserReportDetailResponse }) {
+  const strengths = report.aiStrengths ?? [];
+  const improvements = report.aiImprovements ?? [];
+  const hasBlock =
+    Boolean(report.aiComment?.trim()) || strengths.length > 0 || improvements.length > 0;
+
+  if (!hasBlock) return null;
+
+  return (
+    <div
+      style={{
+        background: 'var(--surface-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        boxShadow: 'var(--shadow-card)',
+        padding: 24,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        AI 리포트
+      </span>
+      {report.aiComment?.trim() ? (
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--ink)', fontWeight: 600 }}>
+          {report.aiComment}
+        </p>
+      ) : null}
+      {strengths.length > 0 || improvements.length > 0 ? (
+        <div className="qurie-app-split" style={{ alignItems: 'start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>강점</span>
+            {strengths.length === 0 ? (
+              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</span>
+            ) : (
+              strengths.map((s) => (
+                <div key={s} style={{ display: 'flex', gap: 8 }}>
+                  <CheckCircle2 size={14} style={{ color: 'var(--status-success)', flexShrink: 0, marginTop: 2 }} />
+                  <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
+                </div>
+              ))
+            )}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>개선점</span>
+            {improvements.length === 0 ? (
+              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</span>
+            ) : (
+              improvements.map((s) => (
+                <div key={s} style={{ display: 'flex', gap: 8 }}>
+                  <TriangleAlert size={14} style={{ color: 'var(--status-warning)', flexShrink: 0, marginTop: 2 }} />
+                  <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function SemesterSummarySection({ userId, classId, className }: { userId: number; classId: number; className: string }) {
   const { data: report } = useGetUserReport(userId, classId);
-  return <SemesterSummaryHero report={report} className={className} />;
+  return (
+    <>
+      <SemesterSummaryHero report={report} className={className} />
+      <AiFeedbackSection report={report} />
+    </>
+  );
 }
 
 function formatPct(value: number | null | undefined): string {

@@ -9,6 +9,7 @@ import com.roma.qurie.quiz.entity.QuizSet;
 import com.roma.qurie.quiz.entity.QuizSetStatus;
 import com.roma.qurie.quiz.repository.QuizProgressRepository;
 import com.roma.qurie.quiz.repository.QuizSetRepository;
+import com.roma.qurie.report.ai.AiReportSummary;
 import com.roma.qurie.report.dto.SessionReportBulkResponse;
 import com.roma.qurie.report.dto.SessionReportCreateRequest;
 import com.roma.qurie.report.dto.SessionReportCreateResponse;
@@ -36,6 +37,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -53,13 +55,15 @@ public class SessionReportService {
     private final ProjectRepository projectRepository;
     private final QuizSetRepository quizSetRepository;
     private final QuizProgressRepository quizProgressRepository;
+    private final ReportAiFeedbackService reportAiFeedbackService;
+    private final TransactionTemplate transactionTemplate;
 
     /**
      * 세션 리포트 발급. 정량 지표는 quiz_progress 에서 서버가 집계한다 —
      * 클라이언트가 보낸 숫자를 저장하면 조회 화면과 어긋나거나 조작될 수 있다.
+     * 정성 항목(AI 코멘트)은 요청에 없으면 서버가 AI 서버를 호출해 채운다.
      * 발급 대상은 편성(그룹/반 명단) 기준 참여 학생으로 제한하고, 발급 자체는 같은 반 강사에게만 허용한다.
      */
-    @Transactional
     public SessionReportCreateResponse createSessionReport(
             Long sessionId, SessionReportCreateRequest request, AuthUser requester) {
         requireInstructor(sessionId, requester);
@@ -71,10 +75,10 @@ public class SessionReportService {
     }
 
     /**
-     * 세션 참여 학생 전원의 리포트 일괄 발급. 정성 항목(AI 코멘트·평점) 없이 정량 지표만 담긴다.
+     * 세션 참여 학생 전원의 리포트 일괄 발급. 정량 지표는 서버 집계, AI 정성 항목은 학생별로 AI 서버를
+     * 호출해 채운다(실패한 학생만 AI 항목 없이 발급). 평점은 일괄 발급에선 담지 않는다.
      * 이미 발급된 학생도 새 스냅샷으로 대체되므로 여러 번 눌러도 결과는 최신 집계 하나만 남는다.
      */
-    @Transactional
     public SessionReportBulkResponse createSessionReportsForAll(Long sessionId, AuthUser requester) {
         requireInstructor(sessionId, requester);
         Session session = findSessionOrThrow(sessionId);
@@ -101,34 +105,68 @@ public class SessionReportService {
     /**
      * 재발급은 기존 리포트를 새 스냅샷으로 대체한다. (session_id, ordinary_user_id) 유니크 제약이 있고
      * Hibernate 가 insert 를 delete 보다 먼저 내보내므로, 삭제가 저장보다 먼저 DB 에 반영되도록 flush 한다.
+     *
+     * AI 호출(수 초)이 DB 커넥션을 점유하지 않도록 집계(읽기)와 저장(쓰기)만 각각 트랜잭션으로
+     * 묶는다 — QuizService.requestQuizGeneration 과 같은 이유다.
      */
     private SessionReportCreateResponse issueReport(Long sessionId, SessionReportCreateRequest request) {
-        sessionReportRepository.deleteBySessionIdAndOrdinaryUserId(sessionId, request.ordinaryUserId());
-        sessionReportRepository.flush();
+        QuizResultAggregate aggregate =
+                transactionTemplate.execute(status -> aggregateQuizResults(sessionId, request.ordinaryUserId()));
+        SessionReportCreateRequest enriched = enrichWithAiFeedback(sessionId, request, aggregate);
 
-        QuizResultAggregate aggregate = aggregateQuizResults(sessionId, request.ordinaryUserId());
+        return transactionTemplate.execute(status -> {
+            sessionReportRepository.deleteBySessionIdAndOrdinaryUserId(sessionId, request.ordinaryUserId());
+            sessionReportRepository.flush();
 
-        SessionReport sessionReport = SessionReport.builder()
-                .sessionId(sessionId)
-                .ordinaryUserId(request.ordinaryUserId())
-                .quizSetId(aggregate.quizSetId())
-                .quizTotalCount(aggregate.totalCount())
-                .quizAttemptedCount(aggregate.attemptedCount())
-                .quizCorrectCount(aggregate.correctCount())
-                .quizSkippedCount(aggregate.skippedCount())
-                .completionRate(aggregate.completionRate())
-                .accuracy(aggregate.accuracy())
-                .avgElapsedMs(aggregate.avgElapsedMs())
-                .difficultyRatio(aggregate.difficultyRatio())
-                .conceptStats(aggregate.conceptStats())
-                .quizRating(request.quizRating())
-                .aiComment(request.aiComment())
-                .aiStrengths(request.aiStrengths())
-                .aiImprovements(request.aiImprovements())
-                .issuedAt(LocalDateTime.now())
-                .build();
+            SessionReport sessionReport = SessionReport.builder()
+                    .sessionId(sessionId)
+                    .ordinaryUserId(request.ordinaryUserId())
+                    .quizSetId(aggregate.quizSetId())
+                    .quizTotalCount(aggregate.totalCount())
+                    .quizAttemptedCount(aggregate.attemptedCount())
+                    .quizCorrectCount(aggregate.correctCount())
+                    .quizSkippedCount(aggregate.skippedCount())
+                    .completionRate(aggregate.completionRate())
+                    .accuracy(aggregate.accuracy())
+                    .avgElapsedMs(aggregate.avgElapsedMs())
+                    .difficultyRatio(aggregate.difficultyRatio())
+                    .conceptStats(aggregate.conceptStats())
+                    .quizRating(enriched.quizRating())
+                    .aiComment(enriched.aiComment())
+                    .aiStrengths(enriched.aiStrengths())
+                    .aiImprovements(enriched.aiImprovements())
+                    .issuedAt(LocalDateTime.now())
+                    .build();
 
-        return SessionReportCreateResponse.from(sessionReportRepository.save(sessionReport));
+            return SessionReportCreateResponse.from(sessionReportRepository.save(sessionReport));
+        });
+    }
+
+    /**
+     * 요청에 AI 코멘트가 없으면 서버가 AI 서버를 호출해 채운다. 단건 발급이 직접 실어 보낸 정성
+     * 항목은 강사 입력일 수 있어 덮어쓰지 않는다. 생성 실패·스킵은 AI 항목 없는 발급으로 이어질
+     * 뿐 발급 자체를 막지 않는다.
+     */
+    private SessionReportCreateRequest enrichWithAiFeedback(
+            Long sessionId, SessionReportCreateRequest request, QuizResultAggregate aggregate) {
+        boolean hasClientFeedback = request.aiComment() != null && !request.aiComment().isBlank();
+        if (hasClientFeedback || aggregate.quizSetId() == null) {
+            return request;
+        }
+        String studentName = userRepository.findById(request.ordinaryUserId())
+                .map(User::getName)
+                .orElse("학생");
+        ReportAiFeedbackService.AiFeedback feedback = reportAiFeedbackService.generate(
+                studentName, sessionId, request.ordinaryUserId(), List.of(aggregate.quizSetId()),
+                new AiReportSummary(
+                        aggregate.totalCount(), aggregate.attemptedCount(), aggregate.correctCount(),
+                        aggregate.skippedCount(), aggregate.accuracy(), aggregate.completionRate(),
+                        aggregate.avgElapsedMs(), aggregate.difficultyRatio(), aggregate.conceptStats()));
+        if (feedback == null) {
+            return request;
+        }
+        return new SessionReportCreateRequest(request.ordinaryUserId(), request.quizRating(),
+                feedback.comment(), feedback.strengths(), feedback.improvements());
     }
 
     private Session findSessionOrThrow(Long sessionId) {

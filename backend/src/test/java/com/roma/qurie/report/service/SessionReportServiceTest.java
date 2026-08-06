@@ -3,6 +3,7 @@ package com.roma.qurie.report.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -41,6 +42,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
@@ -78,6 +82,12 @@ class SessionReportServiceTest {
 
 	@Mock
 	private QuizProgressRepository quizProgressRepository;
+
+	@Mock
+	private ReportAiFeedbackService reportAiFeedbackService;
+
+	@Mock
+	private TransactionTemplate transactionTemplate;
 
 	@Mock
 	private Session session;
@@ -214,9 +224,11 @@ class SessionReportServiceTest {
 				.isEqualTo(HttpStatus.NOT_FOUND);
 	}
 
+	/** 퀴즈셋이 없으면 AI 생성 대상도 아니므로 정성 항목 없이(평점은 일괄 발급에선 항상 없음) 발급된다. */
 	@Test
-	void 일괄_발급은_참여_학생_전원에게_정성_항목_없이_발급한다() {
+	void 일괄_발급은_참여_학생_전원에게_발급한다() {
 		Long otherStudentId = 8L;
+		passThroughTransaction();
 		given(sessionRepository.findById(SESSION_ID)).willReturn(Optional.of(session));
 		given(participantResolver.resolveStudentIds(session)).willReturn(List.of(USER_ID, otherStudentId));
 		given(projectRepository.findFirstBySessionIdOrderByIdDesc(SESSION_ID)).willReturn(Optional.empty());
@@ -248,16 +260,82 @@ class SessionReportServiceTest {
 		verify(sessionReportRepository, never()).save(any(SessionReport.class));
 	}
 
+	@Test
+	void 요청에_AI_코멘트가_없으면_AI_피드백을_생성해_채운다() {
+		givenIssuableSession();
+		Quiz easyCorrect = quiz(QuizDifficulty.EASY, "JPA");
+		givenCompletedQuizSet(List.of(easyCorrect));
+		QuizProgress correct = attempted(easyCorrect, true, 8_000L);
+		given(quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(QUIZ_SET_ID, USER_ID))
+				.willReturn(List.of(correct));
+		given(reportAiFeedbackService.generate(any(), any(), any(), any(), any()))
+				.willReturn(new ReportAiFeedbackService.AiFeedback(
+						"AI 총평", List.of("1번 문항: 강점"), List.of("1번 문항: 보완점")));
+
+		sessionReportService.createSessionReport(
+				SESSION_ID, new SessionReportCreateRequest(USER_ID, null, null, null, null), MANAGER);
+
+		SessionReport saved = capturedReport();
+		assertThat(saved.getAiComment()).isEqualTo("AI 총평");
+		assertThat(saved.getAiStrengths()).containsExactly("1번 문항: 강점");
+		assertThat(saved.getAiImprovements()).containsExactly("1번 문항: 보완점");
+		verify(reportAiFeedbackService)
+				.generate(any(), eq(SESSION_ID), eq(USER_ID), eq(List.of(QUIZ_SET_ID)), any());
+	}
+
+	/** 단건 발급이 직접 실어 보낸 정성 항목은 강사 입력일 수 있으므로 AI 생성으로 덮어쓰지 않는다. */
+	@Test
+	void 요청에_AI_코멘트가_있으면_AI_생성을_건너뛴다() {
+		givenIssuableSession();
+		Quiz easyCorrect = quiz(QuizDifficulty.EASY, "JPA");
+		givenCompletedQuizSet(List.of(easyCorrect));
+		QuizProgress correct = attempted(easyCorrect, true, 8_000L);
+		given(quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(QUIZ_SET_ID, USER_ID))
+				.willReturn(List.of(correct));
+
+		sessionReportService.createSessionReport(SESSION_ID, request(), MANAGER);
+
+		verify(reportAiFeedbackService, never()).generate(any(), any(), any(), any(), any());
+		assertThat(capturedReport().getAiComment()).isEqualTo("기초가 탄탄합니다.");
+	}
+
+	@Test
+	void AI_생성이_실패하면_AI_항목_없이_발급한다() {
+		givenIssuableSession();
+		Quiz easyCorrect = quiz(QuizDifficulty.EASY, "JPA");
+		givenCompletedQuizSet(List.of(easyCorrect));
+		QuizProgress correct = attempted(easyCorrect, true, 8_000L);
+		given(quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(QUIZ_SET_ID, USER_ID))
+				.willReturn(List.of(correct));
+		given(reportAiFeedbackService.generate(any(), any(), any(), any(), any())).willReturn(null);
+
+		sessionReportService.createSessionReport(
+				SESSION_ID, new SessionReportCreateRequest(USER_ID, null, null, null, null), MANAGER);
+
+		SessionReport saved = capturedReport();
+		assertThat(saved.getAiComment()).isNull();
+		assertThat(saved.getQuizCorrectCount()).isEqualTo(1);
+	}
+
 	private SessionReportCreateRequest request() {
 		return new SessionReportCreateRequest(
 				USER_ID, new BigDecimal("4.5"), "기초가 탄탄합니다.", List.of("강점"), List.of("보완점"));
 	}
 
 	private void givenIssuableSession() {
+		passThroughTransaction();
 		given(sessionRepository.findById(SESSION_ID)).willReturn(Optional.of(session));
 		given(participantResolver.isParticipantStudent(session, USER_ID)).willReturn(true);
 		given(sessionReportRepository.save(any(SessionReport.class)))
 				.willAnswer(invocation -> invocation.getArgument(0));
+	}
+
+	/** 발급 로직이 집계(읽기)·저장(쓰기)을 TransactionTemplate 로 감싸므로 콜백을 그대로 실행시킨다. */
+	private void passThroughTransaction() {
+		given(transactionTemplate.execute(any())).willAnswer(invocation -> {
+			TransactionCallback<?> callback = invocation.getArgument(0);
+			return callback.doInTransaction(mock(TransactionStatus.class));
+		});
 	}
 
 	/** 생성 중이던 옛 셋은 건너뛰고 최신 완료 셋을 집계 기준으로 잡는지 함께 검증한다. */

@@ -17,6 +17,7 @@ import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @Getter
@@ -81,6 +82,17 @@ public class UserReport extends BaseTimeEntity {
     @Column(name = "rating_formula_version", length = 20)
     private String ratingFormulaVersion;
 
+    @Column(name = "ai_comment", columnDefinition = "text")
+    private String aiComment;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "ai_strengths")
+    private List<String> aiStrengths;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "ai_improvements")
+    private List<String> aiImprovements;
+
     @Column(name = "issued_at")
     private LocalDateTime issuedAt;
 
@@ -89,7 +101,8 @@ public class UserReport extends BaseTimeEntity {
                        int quizAttemptedCount, int quizCorrectCount, int quizSkippedCount,
                        BigDecimal completionRate, BigDecimal accuracy, Integer avgElapsedMs,
                        Map<String, Object> difficultyRatio, Map<String, Object> conceptStats,
-                       BigDecimal rating, String ratingFormulaVersion, LocalDateTime issuedAt) {
+                       BigDecimal rating, String ratingFormulaVersion, String aiComment,
+                       List<String> aiStrengths, List<String> aiImprovements, LocalDateTime issuedAt) {
         this.ordinaryUserId = ordinaryUserId;
         this.classId = classId;
         this.sessionCount = sessionCount;
@@ -104,6 +117,9 @@ public class UserReport extends BaseTimeEntity {
         this.conceptStats = conceptStats;
         this.rating = rating;
         this.ratingFormulaVersion = ratingFormulaVersion;
+        this.aiComment = aiComment;
+        this.aiStrengths = aiStrengths;
+        this.aiImprovements = aiImprovements;
         this.issuedAt = issuedAt;
     }
 }
