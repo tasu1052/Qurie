@@ -41,6 +41,7 @@ export interface ClassMemberResponse {
     role: UserRole;
     groupId: number | null;
     groupName: string | null;
+    phone: string | null;
 }
 
 export const getMyClasses = async (): Promise<ClassResponse[]> => {

@@ -3,7 +3,6 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Settings } from 'lucide-react';
 import { MasterShell, PageMain } from '../../components/layout/MasterShell';
 import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
-import { getUserProfileExtras } from '../../utils/userProfileExtras';
 import {
   AlertBanner,
   Badge,
@@ -109,7 +108,6 @@ function MemberList({ members }: { members: ClassMemberResponse[] }) {
               <span>그룹</span>
             </div>
             {members.map((m) => {
-              const phone = getUserProfileExtras(m.email).phone;
               return (
                 <div
                   key={m.userId}
@@ -138,7 +136,7 @@ function MemberList({ members }: { members: ClassMemberResponse[] }) {
                   </span>
                   <span style={{ minWidth: 0 }}>{roleBadge(m.role)}</span>
                   <span style={{ color: 'var(--text-secondary)', minWidth: 0, wordBreak: 'break-word' }}>
-                    {phone || '—'}
+                    {m.phone?.trim() ? m.phone : '—'}
                   </span>
                   <span style={{ color: 'var(--text-secondary)', minWidth: 0, wordBreak: 'break-word' }}>
                     {m.groupName ?? '—'}
