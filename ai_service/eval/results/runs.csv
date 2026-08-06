@@ -1,0 +1,7 @@
+﻿run_id,timestamp,gen_model,solver_model,judge_model,temperature,sample,repeat,mode,requested_count,approved,rejected,fill_rate,rounds,input_tokens,output_tokens,latency_ms,status,error
+claude_fib_memo_1_1785919440,2026-08-05T17:44:32,claude-haiku-4-5-20251001,gpt-5.4-nano,gemini-2.5-flash-lite,0.3,fib_memo,1,ASSESSMENT,5,5,2,1.0,1,4249,3600,32671,READY,
+claude_binary_search_1_1785919472,2026-08-05T17:45:06,claude-haiku-4-5-20251001,gpt-5.4-nano,gemini-2.5-flash-lite,0.3,binary_search,1,ASSESSMENT,5,5,3,1.0,1,5616,4871,33492,READY,
+claude_nqueen_1_1785919506,2026-08-05T17:45:31,claude-haiku-4-5-20251001,gpt-5.4-nano,gemini-2.5-flash-lite,0.3,nqueen,1,ASSESSMENT,5,5,2,1.0,1,5096,3480,25242,READY,
+claude_fib_memo_1_1785919531,2026-08-05T17:47:12,claude-sonnet-4-6,gpt-5.4-nano,gemini-2.5-flash-lite,0.3,fib_memo,1,ASSESSMENT,5,5,7,1.0,2,7883,6707,101022,READY,
+claude_binary_search_1_1785919632,2026-08-05T17:48:16,claude-sonnet-4-6,gpt-5.4-nano,gemini-2.5-flash-lite,0.3,binary_search,1,ASSESSMENT,5,5,3,1.0,1,5361,4333,63957,READY,
+claude_nqueen_1_1785919696,2026-08-05T17:49:21,claude-sonnet-4-6,gpt-5.4-nano,gemini-2.5-flash-lite,0.3,nqueen,1,ASSESSMENT,5,5,3,1.0,1,5697,4438,64915,READY,
