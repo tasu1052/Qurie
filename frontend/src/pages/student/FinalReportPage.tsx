@@ -5,7 +5,6 @@ import { StudentShell, PageMain } from '../../components/layout/StudentShell';
 import {
   Button,
   ChartLegend,
-  EmptyState,
   LineChart,
   RowErrorFallback,
   Skeleton,
@@ -279,11 +278,9 @@ function toRowsFromReports(reports: SessionReportSummaryResponse[]): SessionRepo
 function SessionReportTable({
   rows,
   onOpen,
-  onGoDashboard,
 }: {
   rows: SessionReportRow[];
   onOpen: (sessionId: number) => void;
-  onGoDashboard: () => void;
 }) {
   return (
     <div
@@ -318,13 +315,8 @@ function SessionReportTable({
         </span>
       </div>
       {rows.length === 0 ? (
-        <div style={{ padding: '8px 24px 24px' }}>
-          <EmptyState
-            message="발급된 세션 리포트가 없습니다"
-            description="세션이 종료되고 리포트가 발급되면 여기에서 확인할 수 있어요."
-            actionLabel="대시보드"
-            onAction={onGoDashboard}
-          />
+        <div style={{ padding: '4px 24px 20px' }}>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>세션 기록이 없습니다.</span>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -533,7 +525,6 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
       <SessionReportTable
         rows={sessionRows}
         onOpen={(sessionId) => navigate(`/session/${sessionId}/report`)}
-        onGoDashboard={() => navigate('/app')}
       />
     </>
   );
