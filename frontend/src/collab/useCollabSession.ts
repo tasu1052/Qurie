@@ -116,7 +116,6 @@ export function useCollabSession(
       setProvider(null);
     };
     // user.name/id 변경 시 provider·ydoc 를 재생성하지 않는다 (새로고침 후 편집본 유실 방지).
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- room 단위 1 provider
   }, [roomId, ydoc]);
 
   /** 로그인 정보가 늦게 오면 awareness 만 갱신한다. */

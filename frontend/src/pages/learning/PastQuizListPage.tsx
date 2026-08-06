@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertBanner,
@@ -66,10 +66,12 @@ function SessionListTable({
   classId,
   basePath,
   statusFilter,
+  onStatusFilterChange,
 }: {
   classId: number;
   basePath: PastQuizBasePath;
   statusFilter: string;
+  onStatusFilterChange: (status: string) => void;
 }) {
   const navigate = useNavigate();
   // 종료된 세션까지 받아야 '전체/종료' 칩이 실제 데이터를 보여준다
@@ -93,19 +95,17 @@ function SessionListTable({
     });
   }, [sessions, statusFilter]);
 
+  const [pageFilter, setPageFilter] = useState(statusFilter);
+  if (statusFilter !== pageFilter) {
+    setPageFilter(statusFilter);
+    setPage(1);
+  }
+
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
   const pageItems = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * PAGE_SIZE, filtered.length);
-
-  useEffect(() => {
-    setPage(1);
-  }, [statusFilter]);
-
-  useEffect(() => {
-    if (page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
 
   const [quizLoadingId, setQuizLoadingId] = useState<number | null>(null);
   const [quizError, setQuizError] = useState<string | null>(null);
@@ -140,9 +140,15 @@ function SessionListTable({
   };
 
   if (filtered.length === 0) {
-    // 종료 필터의 빈 화면에서는 '세션 만들기' 같은 액션이 어울리지 않으므로 안내만 보여준다.
     if (statusFilter === '종료') {
-      return <EmptyState message="종료된 세션이 없습니다" />;
+      return (
+        <EmptyState
+          message="종료된 세션이 없습니다"
+          description="아직 종료된 세션이 없어요. 전체 목록에서 확인해 보세요."
+          actionLabel="전체 보기"
+          onAction={() => onStatusFilterChange('전체')}
+        />
+      );
     }
     return (
       <EmptyState
@@ -343,7 +349,12 @@ export default function PastQuizListPage({ basePath: basePathProp }: PastQuizLis
             />
           }
         >
-          <SessionListTable classId={classId} basePath={basePath} statusFilter={status} />
+          <SessionListTable
+            classId={classId}
+            basePath={basePath}
+            statusFilter={status}
+            onStatusFilterChange={setStatus}
+          />
         </QueryAsyncBoundary>
       )}
       </div>

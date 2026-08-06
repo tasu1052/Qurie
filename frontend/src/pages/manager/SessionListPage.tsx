@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -86,6 +86,7 @@ function SessionTable({
   page,
   onPage,
   onEmptyCreate,
+  onShowAll,
   onEnter,
   onReport,
   onPastQuiz,
@@ -98,6 +99,7 @@ function SessionTable({
   page: number;
   onPage: (p: number) => void;
   onEmptyCreate: () => void;
+  onShowAll: () => void;
   onEnter: (sessionId: number, title: string) => void;
   onReport: (sessionId: number) => void;
   onPastQuiz: (sessionId: number) => void;
@@ -134,13 +136,16 @@ function SessionTable({
   const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * SESSION_PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * SESSION_PAGE_SIZE, filtered.length);
 
-  useEffect(() => {
-    if (page > pageCount) onPage(pageCount);
-  }, [page, pageCount, onPage]);
-
   if (filtered.length === 0) {
     if (statusFilter === '종료') {
-      return <EmptyState message="종료된 세션이 없습니다" />;
+      return (
+        <EmptyState
+          message="종료된 세션이 없습니다"
+          description="아직 종료된 세션이 없어요. 전체 목록에서 확인해 보세요."
+          actionLabel="전체 보기"
+          onAction={onShowAll}
+        />
+      );
     }
     return (
       <EmptyState
@@ -298,10 +303,6 @@ export default function SessionListPage() {
 
   const chips = ['전체', '진행', '종료'];
 
-  useEffect(() => {
-    setPage(1);
-  }, [status, query]);
-
   const openPastQuiz = async (sessionId: number) => {
     setQuizLoadingId(sessionId);
     setQuizError(null);
@@ -441,7 +442,10 @@ export default function SessionListPage() {
               <button
                 key={c}
                 type="button"
-                onClick={() => setStatus(c)}
+                onClick={() => {
+                  setStatus(c);
+                  setPage(1);
+                }}
                 style={{
                   borderRadius: 999,
                   padding: '6px 14px',
@@ -462,7 +466,10 @@ export default function SessionListPage() {
             placeholder="세션 검색…"
             icon={<Search size={14} strokeWidth={1.75} />}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(1);
+            }}
             width={220}
             style={{ marginLeft: 'auto' }}
           />
@@ -494,6 +501,10 @@ export default function SessionListPage() {
               page={page}
               onPage={setPage}
               onEmptyCreate={() => setCreateOpen(true)}
+              onShowAll={() => {
+                setStatus('전체');
+                setPage(1);
+              }}
               onEnter={openSessionInNewTab}
               onReport={(sessionId) => navigate(`/session/${sessionId}/report`)}
               onPastQuiz={(sessionId) => void openPastQuiz(sessionId)}

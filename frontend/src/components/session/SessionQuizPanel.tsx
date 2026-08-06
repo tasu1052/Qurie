@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { isAxiosError } from 'axios';
 import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import {
@@ -932,8 +932,7 @@ export function SessionQuizPanel({
   const [reviewingCompleteFor, setReviewingCompleteFor] = useState<number | null>(null);
   /** 마지막 문항에서 「결과 보기」를 누른 뒤에만 완료 화면을 연다 — 정답/오답 확인 시간을 확보한다. */
   const [readyForComplete, setReadyForComplete] = useState(false);
-  /** 퀴즈 세트별로 progress 최초 로드 시 이미 전부 응시됐는지 한 번만 판정한다. */
-  const completeHydratedForRef = useRef<number | null>(null);
+  const [readyCompleteQuizSetId, setReadyCompleteQuizSetId] = useState<number | null>(null);
   const [conflictEpoch, setConflictEpoch] = useState(0);
 
   const projectQuizSets = useQuizSetsByProject(projectId);
@@ -952,11 +951,11 @@ export function SessionQuizPanel({
     saveSessionQuizSetId(sessionId, activeQuizSetId);
   }, [sessionId, activeQuizSetId]);
 
-  useEffect(() => {
-    completeHydratedForRef.current = null;
+  if (activeQuizSetId !== readyCompleteQuizSetId) {
+    setReadyCompleteQuizSetId(activeQuizSetId);
     setReadyForComplete(false);
     setReviewingCompleteFor(null);
-  }, [activeQuizSetId]);
+  }
 
   const progressQuery = useGetQuizProgress(activeQuizSetId);
   const serverMaps = useMemo(
@@ -1025,22 +1024,13 @@ export function SessionQuizPanel({
     [results],
   );
 
-  const showCompleteScreen =
-    allHandled &&
-    readyForComplete &&
-    activeQuizSetId != null &&
-    reviewingCompleteFor !== activeQuizSetId;
-
-  // 재입장 시 이미 전부 응시된 세트만 완료 화면을 바로 연다 (풀이 중 마지막 제출과는 분리).
-  useEffect(() => {
-    if (activeQuizSetId == null) return;
-    if (!progressQuery.isSuccess || playableQuizzes.length === 0) return;
-    if (summary?.status !== 'COMPLETED') return;
-    if (completeHydratedForRef.current === activeQuizSetId) return;
-    completeHydratedForRef.current = activeQuizSetId;
+  // 재입장 시 서버에 이미 전부 응시된 세트는 완료 화면을 바로 연다 (풀이 중 마지막 제출과는 분리).
+  const serverAlreadyComplete = useMemo(() => {
+    if (activeQuizSetId == null) return false;
+    if (!progressQuery.isSuccess || playableQuizzes.length === 0) return false;
+    if (summary?.status !== 'COMPLETED') return false;
     const serverResults = progressItemsToMaps(progressQuery.data?.items ?? []).results;
-    const alreadyDone = playableQuizzes.every((q) => serverResults[q.id] != null);
-    if (alreadyDone) setReadyForComplete(true);
+    return playableQuizzes.every((q) => serverResults[q.id] != null);
   }, [
     activeQuizSetId,
     playableQuizzes,
@@ -1048,6 +1038,12 @@ export function SessionQuizPanel({
     progressQuery.isSuccess,
     summary?.status,
   ]);
+
+  const showCompleteScreen =
+    allHandled &&
+    (readyForComplete || serverAlreadyComplete) &&
+    activeQuizSetId != null &&
+    reviewingCompleteFor !== activeQuizSetId;
 
   const resumeIndex = useMemo(() => {
     if (playableQuizzes.length === 0) return 0;

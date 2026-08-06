@@ -369,6 +369,11 @@ function ClassListBody() {
                 ? `"${debouncedQuery.trim()}"에 해당하는 클래스가 없습니다.`
                 : '선택한 트랙에 클래스가 없습니다.'
             }
+            actionLabel="필터 초기화"
+            onAction={() => {
+              setQuery('');
+              setTrackId('all');
+            }}
           />
         ) : (
           <EmptyState

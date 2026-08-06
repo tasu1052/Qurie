@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { ConfirmDeleteOverlay } from '../overlays/ConfirmDeleteOverlay';
 import { AlertBanner, Badge, Button, EmptyState, Input, Modal } from '../../ds';
 import {
+  humanizeApiError,
   useCreateNotice,
   useDeleteNotice,
   useGetClass,
@@ -12,7 +13,6 @@ import {
 } from '../../data';
 import { useOpenNoticeDetail } from '../../hooks/useOpenNoticeDetail';
 import {
-  apiErrorMessage,
   NOTICE_LIST_PAGE_SIZE,
   NoticeCard,
   NoticesPagination,
@@ -44,9 +44,10 @@ export function ManagerNoticesBody({ classId }: { classId: number }) {
     [scope, classId, page],
   );
 
-  useEffect(() => {
+  const onScopeChange = (next: ScopeFilter) => {
+    setScope(next);
     setPage(1);
-  }, [scope]);
+  };
 
   const { data: noticesPage } = useGetNotices(filters);
   const createNotice = useCreateNotice();
@@ -98,7 +99,7 @@ export function ManagerNoticesBody({ classId }: { classId: number }) {
             setOpen(false);
             resetForm();
           },
-          onError: (err) => setError(apiErrorMessage(err, '공지 수정에 실패했습니다.')),
+          onError: (err) => setError(humanizeApiError(err, '공지 수정에 실패했습니다.')),
         },
       );
       return;
@@ -119,7 +120,7 @@ export function ManagerNoticesBody({ classId }: { classId: number }) {
           setScope('CLASS');
         },
         onError: (err) =>
-          setError(apiErrorMessage(err, '공지 작성에 실패했습니다. 담당 클래스 공지만 작성할 수 있어요.')),
+          setError(humanizeApiError(err, '공지 작성에 실패했습니다. 담당 클래스 공지만 작성할 수 있어요.')),
       },
     );
   };
@@ -140,7 +141,7 @@ export function ManagerNoticesBody({ classId }: { classId: number }) {
 
       <ScopeFilterTabs
         scope={scope}
-        onChange={setScope}
+        onChange={onScopeChange}
         options={[
           { key: '전체', label: '전체' },
           { key: 'TRACK', label: '트랙' },

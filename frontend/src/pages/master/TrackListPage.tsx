@@ -300,6 +300,8 @@ function TrackListBody() {
           <EmptyState
             message="검색 결과가 없습니다"
             description={`"${debouncedQuery.trim()}"에 해당하는 트랙이 없습니다.`}
+            actionLabel="검색 초기화"
+            onAction={() => setQuery('')}
           />
         ) : (
         <EmptyState

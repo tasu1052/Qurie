@@ -33,7 +33,7 @@ function EndpointRow({ endpoint }: { endpoint: ApiEndpointSpec }) {
           <code
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: 11.5,
+              fontSize: 12,
               color: 'var(--text-secondary)',
               background: 'var(--surface-sunken)',
               padding: '2px 8px',
@@ -95,7 +95,7 @@ export function ApiIntegrationPanel({ groupId, variant = 'default', title }: Api
       {variant === 'default' ? (
         <>
           <div>
-            <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: 'var(--ink)' }}>{heading}</h2>
+            <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: 'var(--ink)' }}>{heading}</h2>
             <p style={{ margin: '6px 0 0', fontSize: 13, lineHeight: 1.5, color: 'var(--text-secondary)' }}>
               {group.description}
             </p>

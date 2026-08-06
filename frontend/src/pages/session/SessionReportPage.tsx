@@ -690,7 +690,12 @@ function SessionReportOverview({
       </StatCardRow>
 
       {students.length === 0 ? (
-        <EmptyState message="반에 학생이 없습니다" />
+        <EmptyState
+          message="반에 학생이 없습니다"
+          description="클래스에 학생을 초대한 뒤 세션 리포트를 확인할 수 있어요."
+          actionLabel="학생 관리"
+          onAction={() => navigate('/manager/students')}
+        />
       ) : (
         <div
           style={{

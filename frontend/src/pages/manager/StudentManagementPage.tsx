@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronRight, Mail, Search, UserPlus, Users } from 'lucide-react';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
@@ -191,6 +191,12 @@ function MembersTable({
       return a.name.localeCompare(b.name, 'ko') * dir;
     });
   }, [filtered, sort]);
+  const [pageQuery, setPageQuery] = useState(debouncedQuery);
+  if (debouncedQuery !== pageQuery) {
+    setPageQuery(debouncedQuery);
+    setPage(1);
+  }
+
   const pageCount = Math.max(1, Math.ceil(sorted.length / MEMBERS_PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
   const pageItems = sorted.slice(
@@ -199,14 +205,6 @@ function MembersTable({
   );
   const rangeStart = sorted.length === 0 ? 0 : (safePage - 1) * MEMBERS_PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * MEMBERS_PAGE_SIZE, sorted.length);
-
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedQuery]);
-
-  useEffect(() => {
-    if (page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
 
   const onSort = (next: { key: string; dir: 'asc' | 'desc' } | null) => {
     if (!next) {

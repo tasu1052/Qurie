@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useGetNotices } from '../../data';
 import { useOpenNoticeDetail } from '../../hooks/useOpenNoticeDetail';
 import {
@@ -31,9 +31,10 @@ export function StudentNoticesBody({ classId }: { classId: number }) {
     [scope, classId, page],
   );
 
-  useEffect(() => {
+  const onScopeChange = (next: ScopeFilter) => {
+    setScope(next);
     setPage(1);
-  }, [scope]);
+  };
 
   const { data } = useGetNotices(filters);
   const notices = data.data;
@@ -47,7 +48,7 @@ export function StudentNoticesBody({ classId }: { classId: number }) {
         </span>
       </div>
 
-      <ScopeFilterTabs options={scopeOptions} scope={scope} onChange={setScope} />
+      <ScopeFilterTabs options={scopeOptions} scope={scope} onChange={onScopeChange} />
 
       {notices.length === 0 ? (
         <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>공지가 없습니다.</p>

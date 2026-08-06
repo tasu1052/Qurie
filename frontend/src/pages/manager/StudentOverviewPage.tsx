@@ -254,7 +254,7 @@ function SemesterSummaryHero({
         style={{
           alignSelf: 'flex-start',
           background: 'var(--accent)',
-          color: '#ffffff',
+          color: 'var(--text-inverse)',
           borderRadius: 999,
           padding: '4px 14px',
           fontSize: 11,

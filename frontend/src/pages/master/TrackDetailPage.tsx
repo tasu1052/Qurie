@@ -464,6 +464,8 @@ function TrackDetailBody({ trackId }: { trackId: number }) {
               <EmptyState
                 message="표시할 지표가 없습니다"
                 description="클래스 분석 데이터가 쌓이면 정답률·완료율을 비교할 수 있습니다."
+                actionLabel="클래스 관리"
+                onAction={() => navigate('/master/classes')}
               />
             ) : (
               <>

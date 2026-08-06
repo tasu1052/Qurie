@@ -275,6 +275,7 @@ export default function SessionPage() {
   /** ydoc 이 교체되면(과거 provider 재생성 등) 파일 hydrate 를 다시 시도한다. */
   useEffect(() => {
     hydratedActiveFileRef.current = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- collab Y.Doc identity reset
     setActiveFileReady(false);
   }, [ydoc]);
 
@@ -1416,7 +1417,7 @@ export default function SessionPage() {
               />
             ) : (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-                <span style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.55 }}>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.55 }}>
                   {!collabSynced
                     ? '동기화 연결 중…'
                     : activeFile && !activeFileReady
