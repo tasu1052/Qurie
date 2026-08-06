@@ -15,5 +15,7 @@ export interface ConfirmDeleteModalProps {
   onCancel?: () => void;
   onConfirm?: () => void;
   confirmLabel?: string;
+  /** When false, skip type-to-confirm and show a simple yes/no. Default true. */
+  requireTyped?: boolean;
 }
 export declare function ConfirmDeleteModal(props: ConfirmDeleteModalProps): JSX.Element;
