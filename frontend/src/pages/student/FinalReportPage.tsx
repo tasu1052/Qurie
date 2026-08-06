@@ -4,8 +4,7 @@ import { CheckCircle2, ChevronRight, Download, TriangleAlert } from 'lucide-reac
 import { StudentShell, PageMain } from '../../components/layout/StudentShell';
 import {
   Button,
-  ChartLegend,
-  LineChart,
+  BarChart,
   RowErrorFallback,
   Skeleton,
 } from '../../ds';
@@ -499,21 +498,16 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
     ];
   }, [reports]);
 
-  const line = useMemo(() => {
+  const sessionBars = useMemo(() => {
     const chronological = [...reports].reverse();
-    return {
-      labels: chronological.map((r, i) => {
-        const title = r.sessionTitle?.trim();
-        return title ? title.slice(0, 10) : `세션 ${i + 1}`;
-      }),
-      series: [
-        {
-          name: '정답률(%)',
-          values: chronological.map((r) => (r.accuracy != null ? Number(r.accuracy) : 0)),
-          accent: true as const,
-        },
-      ],
-    };
+    return chronological.map((r, i) => {
+      const title = r.sessionTitle?.trim();
+      return {
+        label: title ? title.slice(0, 8) : `S${i + 1}`,
+        value: r.accuracy != null ? Math.round(Number(r.accuracy)) : 0,
+        highlight: i === chronological.length - 1,
+      };
+    });
   }, [reports]);
 
   return (
@@ -557,14 +551,7 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
             >
               세션 정답률
             </span>
-            <LineChart
-              series={line.series}
-              labels={line.labels}
-              height={180}
-              xAxisLabel="세션"
-              yAxisLabel="정답률(%)"
-            />
-            <ChartLegend items={line.series.map((s) => ({ label: s.name ?? '', accent: s.accent }))} />
+            <BarChart data={sessionBars} height={180} maxValue={100} showValues />
           </div>
         ) : (
           <div

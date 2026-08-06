@@ -30,8 +30,12 @@ public interface QuizProgressRepository extends JpaRepository<QuizProgress, Long
 			""")
 	void deleteAllByQuizSetIdIn(@Param("quizSetIds") Collection<Long> quizSetIds);
 
+	/**
+	 * choices 를 fetch 하면 보기 수만큼 행이 늘어나므로 distinct 로 QuizProgress 중복을 제거한다.
+	 * (중복이 남으면 toMap(quizId) / 응시 건수 집계가 깨진다.)
+	 */
 	@Query("""
-			select qp from QuizProgress qp
+			select distinct qp from QuizProgress qp
 			join fetch qp.quiz q
 			left join fetch q.choices
 			left join fetch qp.chosenChoice

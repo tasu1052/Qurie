@@ -1,6 +1,9 @@
 package com.roma.qurie.quiz.dto;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.roma.qurie.quiz.entity.QuizChoice;
 import com.roma.qurie.quiz.entity.QuizProgress;
@@ -16,10 +19,19 @@ public record QuizProgressSummaryResponse(
 		List<ProgressItem> items) {
 
 	public static QuizProgressSummaryResponse from(QuizSet quizSet, List<QuizProgress> progresses) {
-		int attemptedCount = (int) progresses.stream()
+		Map<Long, QuizProgress> uniqueByQuizId = new LinkedHashMap<>();
+		for (QuizProgress progress : progresses) {
+			if (progress.getQuiz() == null || progress.getQuiz().getId() == null) {
+				continue;
+			}
+			uniqueByQuizId.putIfAbsent(progress.getQuiz().getId(), progress);
+		}
+		List<QuizProgress> unique = new ArrayList<>(uniqueByQuizId.values());
+
+		int attemptedCount = (int) unique.stream()
 				.filter(progress -> progress.getStatus() == QuizProgressStatus.ATTEMPTED)
 				.count();
-		int correctCount = (int) progresses.stream()
+		int correctCount = (int) unique.stream()
 				.filter(progress -> Boolean.TRUE.equals(progress.getIsCorrect()))
 				.count();
 
@@ -28,7 +40,7 @@ public record QuizProgressSummaryResponse(
 				quizSet.getQuizzes().size(),
 				attemptedCount,
 				correctCount,
-				progresses.stream().map(ProgressItem::from).toList());
+				unique.stream().map(ProgressItem::from).toList());
 	}
 
 	/** 응시 복원용. 제출 응답과 같이 해설·정답 인덱스를 포함한다. */

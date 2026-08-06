@@ -7,9 +7,8 @@ import {
   AlertBanner,
   Badge,
   Button,
-  ChartLegend,
+  BarChart,
   EmptyState,
-  LineChart,
   Modal,
   RowErrorFallback,
   Skeleton,
@@ -809,18 +808,13 @@ function MetricsAndChart({ userId }: { userId: number }) {
     ];
   }, [reports]);
 
-  const line = useMemo(() => {
+  const sessionBars = useMemo(() => {
     const chronological = [...reports].reverse();
-    return {
-      labels: chronological.map((_, i) => `S${i + 1}`),
-      series: [
-        {
-          name: '세션 정답률',
-          values: chronological.map((r) => (r.accuracy != null ? Number(r.accuracy) : 0)),
-          accent: true as const,
-        },
-      ],
-    };
+    return chronological.map((r, i) => ({
+      label: `S${i + 1}`,
+      value: r.accuracy != null ? Math.round(Number(r.accuracy)) : 0,
+      highlight: i === chronological.length - 1,
+    }));
   }, [reports]);
 
   return (
@@ -854,8 +848,7 @@ function MetricsAndChart({ userId }: { userId: number }) {
           >
             세션 정답률
           </span>
-          <LineChart series={line.series} labels={line.labels} height={180} />
-          <ChartLegend items={line.series.map((s) => ({ label: s.name ?? '', accent: s.accent }))} />
+          <BarChart data={sessionBars} height={180} maxValue={100} showValues />
         </div>
       ) : (
         <div
