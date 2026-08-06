@@ -107,7 +107,7 @@ public class QuizProgressService {
 	}
 
 	private QuizProgressNotification buildProgressNotification(QuizSet quizSet, Session session) {
-		int totalQuizCount = quizSet.getQuizzes().size();
+		int totalQuizCount = quizSet.effectiveQuizCount();
 		if (totalQuizCount == 0) {
 			return null;
 		}
@@ -192,7 +192,7 @@ public class QuizProgressService {
 				.findById(sessionId)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "세션을 찾을 수 없습니다."));
 
-		int totalQuizCount = quizSet.getQuizzes().size();
+		int totalQuizCount = quizSet.effectiveQuizCount();
 		List<Long> studentIds = participantResolver.resolveStudentIds(session);
 		Map<Long, Long> answeredByUser = answeredCountByUser(quizSetId);
 		Map<Long, Integer> correctByUser = correctCountByUser(quizSetId);

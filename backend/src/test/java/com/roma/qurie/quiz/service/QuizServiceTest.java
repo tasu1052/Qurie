@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -406,6 +407,88 @@ class QuizServiceTest {
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(QuizServiceTest::statusOf)
 				.isEqualTo(HttpStatus.CONFLICT);
+	}
+
+	@Test
+	void getQuizSetDoesNotStorePartialBeyondRequestedCount() {
+		QuizSet quizSet = generatingQuizSet();
+		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(quizSet));
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
+		given(quizAiClient.getStatus(AI_QUIZ_SET_ID)).willReturn(new AiQuizStatusResponse(
+				"1", AI_QUIZ_SET_ID, AiQuizSetState.GENERATING, eightAiQuizzes(),
+				null, List.of(new AiQuizStatusResponse.AiLlmCall("JUDGE"))));
+
+		QuizSetDetailResponse response = quizService.getQuizSet(QUIZ_SET_ID, MANAGER);
+
+		assertThat(response.status()).isEqualTo(QuizSetStatus.GENERATING);
+		assertThat(response.quizzes()).hasSize(5);
+		assertThat(response.generatedCount()).isEqualTo(5);
+		assertThat(quizSet.getQuizzes()).hasSize(5);
+	}
+
+	@Test
+	void getQuizSetTrimsPartialQuizzesDownToReadyCount() {
+		QuizSet quizSet = generatingQuizSet();
+		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(quizSet));
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
+		given(quizAiClient.getStatus(AI_QUIZ_SET_ID))
+				.willReturn(new AiQuizStatusResponse(
+						"1", AI_QUIZ_SET_ID, AiQuizSetState.GENERATING, eightAiQuizzes().subList(0, 5),
+						null, null))
+				.willReturn(readyAiResponse());
+
+		quizService.getQuizSet(QUIZ_SET_ID, MANAGER);
+		assertThat(quizSet.getQuizzes()).hasSize(5);
+
+		QuizSetDetailResponse response = quizService.getQuizSet(QUIZ_SET_ID, MANAGER);
+
+		assertThat(response.status()).isEqualTo(QuizSetStatus.COMPLETED);
+		assertThat(response.quizzes()).hasSize(1);
+		assertThat(response.generatedCount()).isEqualTo(1);
+		assertThat(quizSet.getQuizzes()).hasSize(1);
+		assertThat(quizSet.getQuizzes().get(0).getQuestion()).isEqualTo("문항 1");
+	}
+
+	@Test
+	void getQuizSetTrimsSurplusLeftOnCompletedSet() {
+		QuizSet quizSet = generatingQuizSet();
+		quizSet.complete(1);
+		appendLocalQuiz(quizSet, 1, "남는 문항 1");
+		appendLocalQuiz(quizSet, 2, "여분 문항 2");
+		appendLocalQuiz(quizSet, 3, "여분 문항 3");
+		ReflectionTestUtils.setField(quizSet.getQuizzes().get(0), "id", 101L);
+		ReflectionTestUtils.setField(quizSet.getQuizzes().get(1), "id", 102L);
+		ReflectionTestUtils.setField(quizSet.getQuizzes().get(2), "id", 103L);
+		given(quizSetRepository.findById(QUIZ_SET_ID)).willReturn(Optional.of(quizSet));
+		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
+
+		QuizSetDetailResponse response = quizService.getQuizSet(QUIZ_SET_ID, MANAGER);
+
+		assertThat(response.quizzes()).hasSize(1);
+		assertThat(quizSet.getQuizzes()).hasSize(1);
+		org.mockito.Mockito.verify(quizProgressRepository).deleteAllByQuizIdIn(List.of(102L, 103L));
+	}
+
+	private void appendLocalQuiz(QuizSet quizSet, int orderNo, String question) {
+		quizSet.addQuiz(Quiz.builder()
+				.type(QuizType.MULTIPLE_CHOICE)
+				.purpose(QuizPurpose.MICRO)
+				.difficulty(QuizDifficulty.NORMAL)
+				.testedConcept("개념")
+				.question(question)
+				.timeLimitSec(60)
+				.orderNo(orderNo)
+				.build());
+	}
+
+	private List<AiQuiz> eightAiQuizzes() {
+		List<AiQuiz> quizzes = new ArrayList<>();
+		for (int i = 1; i <= 8; i++) {
+			quizzes.add(new AiQuiz(
+					"MICRO", "NORMAL", "개념" + i, "문항 " + i,
+					List.of("A", "B", "C", "D"), 0, "설명", "src/Main.java", 1, 2));
+		}
+		return quizzes;
 	}
 
 	private static HttpStatusCode statusOf(Throwable throwable) {

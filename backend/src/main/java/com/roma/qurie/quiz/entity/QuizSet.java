@@ -1,7 +1,9 @@
 package com.roma.qurie.quiz.entity;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -120,6 +122,64 @@ public class QuizSet extends BaseTimeEntity {
 	public void addQuiz(Quiz quiz) {
 		quizzes.add(quiz);
 		quiz.assignQuizSet(this);
+	}
+
+	/**
+	 * 응시 현황·리포트 분모. COMPLETED 는 generatedCount, 생성 중에는 requestedCount 를
+	 * 상한으로 써서 AI overshoot 로 붙은 여분 문항이 집계에 섞이지 않게 한다.
+	 */
+	public int effectiveQuizCount() {
+		int size = quizzes.size();
+		if (status == QuizSetStatus.COMPLETED && generatedCount > 0) {
+			return Math.min(size, generatedCount);
+		}
+		if (requestedCount > 0) {
+			return Math.min(size, requestedCount);
+		}
+		return size;
+	}
+
+	/**
+	 * keep 개를 넘는 여분 문항을 컬렉션에서 제거하고 id 목록을 반환한다.
+	 * orphanRemoval 로 DB 에서도 지워지므로, 호출 전에 해당 문항의 quiz_progress 를 먼저 지워야 한다.
+	 */
+	public List<Long> detachQuizzesBeyond(int keep) {
+		if (keep < 0 || quizzes.size() <= keep) {
+			return List.of();
+		}
+		List<Quiz> ordered = quizzes.stream()
+				.sorted(Comparator.comparingInt(Quiz::getOrderNo)
+						.thenComparing(quiz -> quiz.getId() == null ? Long.MAX_VALUE : quiz.getId()))
+				.toList();
+		List<Quiz> surplus = ordered.subList(keep, ordered.size());
+		List<Long> removedIds = surplus.stream()
+				.map(Quiz::getId)
+				.filter(Objects::nonNull)
+				.toList();
+		quizzes.removeAll(surplus);
+		return removedIds;
+	}
+
+	/**
+	 * generatedCount(또는 requestedCount)를 넘는 여분 문항을 컬렉션에서 제거하고 id 목록을 반환한다.
+	 * orphanRemoval 로 DB 에서도 지워지므로, 호출 전에 해당 문항의 quiz_progress 를 먼저 지워야 한다.
+	 */
+	public List<Long> detachSurplusQuizzes() {
+		int keep = generatedCount > 0 ? generatedCount : requestedCount;
+		return detachQuizzesBeyond(keep);
+	}
+
+	/** 집계·응답용 — 여분(overshoot)을 제외한 문항 목록. 컬렉션은 바꾸지 않는다. */
+	public List<Quiz> effectiveQuizzes() {
+		int keep = effectiveQuizCount();
+		if (keep >= quizzes.size()) {
+			return List.copyOf(quizzes);
+		}
+		return quizzes.stream()
+				.sorted(Comparator.comparingInt(Quiz::getOrderNo)
+						.thenComparing(quiz -> quiz.getId() == null ? Long.MAX_VALUE : quiz.getId()))
+				.limit(keep)
+				.toList();
 	}
 
 	/** AI 서버가 생성 요청을 접수하면 발급받은 id 를 기록하고 생성 중 상태로 넘어간다. */

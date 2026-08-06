@@ -30,6 +30,14 @@ public interface QuizProgressRepository extends JpaRepository<QuizProgress, Long
 			""")
 	void deleteAllByQuizSetIdIn(@Param("quizSetIds") Collection<Long> quizSetIds);
 
+	/** READY 교체·여분 문항 정리 시 해당 문항 응시만 지운다. */
+	@Modifying
+	@Query("""
+			delete from QuizProgress qp
+			where qp.quiz.id in :quizIds
+			""")
+	void deleteAllByQuizIdIn(@Param("quizIds") Collection<Long> quizIds);
+
 	/**
 	 * choices 를 fetch 하면 보기 수만큼 행이 늘어나므로 distinct 로 QuizProgress 중복을 제거한다.
 	 * (중복이 남으면 toMap(quizId) / 응시 건수 집계가 깨진다.)
