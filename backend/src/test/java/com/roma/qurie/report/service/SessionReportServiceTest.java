@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -404,7 +405,8 @@ class SessionReportServiceTest {
 
 	private Quiz quiz(QuizDifficulty difficulty, String testedConcept) {
 		Quiz quiz = mock(Quiz.class);
-		given(quiz.getId()).willReturn(nextQuizId++);
+		// 응시 없는 문항은 dedupe 경로에서 getId 를 안 쓰므로 strict stub 위반을 피한다.
+		lenient().when(quiz.getId()).thenReturn(nextQuizId++);
 		given(quiz.getDifficulty()).willReturn(difficulty);
 		given(quiz.getTestedConcept()).willReturn(testedConcept);
 		return quiz;
