@@ -148,6 +148,77 @@ class UserServiceTest {
 	}
 
 	@Test
+	void getProfileAllowsSameClassManagerToViewStudent() {
+		Long studentId = 20L;
+		Long managerId = 30L;
+		User student = User.builder()
+				.enterpriseId(ENTERPRISE_ID)
+				.email("student@qurie.com")
+				.role(UserRole.STUDENT)
+				.password(ENCODED_PASSWORD)
+				.name("학생")
+				.build();
+		ReflectionTestUtils.setField(student, "id", studentId);
+
+		User managerUser = User.builder()
+				.enterpriseId(ENTERPRISE_ID)
+				.email("mgr@qurie.com")
+				.role(UserRole.MANAGER)
+				.password(ENCODED_PASSWORD)
+				.name("매니저")
+				.build();
+		ReflectionTestUtils.setField(managerUser, "id", managerId);
+
+		Enterprise enterprise = new Enterprise("SSAFY");
+		ReflectionTestUtils.setField(enterprise, "id", ENTERPRISE_ID);
+		ClassEntity classEntity = ClassEntity.builder()
+				.track(new Track(enterprise, "Java 트랙", null, "JAVA"))
+				.classNumber(1)
+				.name("서울 1반")
+				.build();
+		ReflectionTestUtils.setField(classEntity, "id", CLASS_ID);
+		ClassUser managerMembership = new ClassUser(classEntity, managerUser);
+
+		given(userRepository.findById(studentId)).willReturn(Optional.of(student));
+		given(classUserRepository.findFirstByUserIdOrderByIdDesc(managerId))
+				.willReturn(Optional.of(managerMembership));
+		given(classUserRepository.existsByClassEntityIdAndUserId(CLASS_ID, studentId)).willReturn(true);
+
+		AuthUser manager = new AuthUser(
+				managerId, UserRole.MANAGER.name(), ENTERPRISE_ID, "mgr@qurie.com", "매니저", CLASS_ID);
+
+		UserProfileResponse response = userService.getProfile(studentId, manager);
+
+		assertThat(response.userId()).isEqualTo(studentId);
+		assertThat(response.name()).isEqualTo("학생");
+	}
+
+	@Test
+	void getProfileThrowsForbiddenWhenManagerDoesNotShareClass() {
+		Long studentId = 20L;
+		Long managerId = 30L;
+		User student = User.builder()
+				.enterpriseId(ENTERPRISE_ID)
+				.email("student@qurie.com")
+				.role(UserRole.STUDENT)
+				.password(ENCODED_PASSWORD)
+				.name("학생")
+				.build();
+		ReflectionTestUtils.setField(student, "id", studentId);
+
+		given(userRepository.findById(studentId)).willReturn(Optional.of(student));
+		given(classUserRepository.findFirstByUserIdOrderByIdDesc(managerId)).willReturn(Optional.empty());
+
+		AuthUser manager = new AuthUser(
+				managerId, UserRole.MANAGER.name(), ENTERPRISE_ID, "mgr@qurie.com", "매니저", null);
+
+		assertThatThrownBy(() -> userService.getProfile(studentId, manager))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(UserServiceTest::statusOf)
+				.isEqualTo(HttpStatus.FORBIDDEN);
+	}
+
+	@Test
 	void getProfileThrowsNotFoundWhenUserDoesNotExist() {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
 

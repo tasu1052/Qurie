@@ -40,12 +40,14 @@ import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SessionReportService {
@@ -91,9 +93,19 @@ public class SessionReportService {
         Session session = findSessionOrThrow(sessionId);
 
         int issuedCount = 0;
+        int failedCount = 0;
         for (Long studentId : participantResolver.resolveStudentIds(session)) {
-            issueReport(sessionId, new SessionReportCreateRequest(studentId, null, null, null, null));
-            issuedCount++;
+            try {
+                issueReport(sessionId, new SessionReportCreateRequest(studentId, null, null, null, null));
+                issuedCount++;
+            } catch (RuntimeException e) {
+                // 한 학생 실패가 일괄 재발급 전체를 500 으로 끝내지 않도록 한다.
+                failedCount++;
+                log.warn("세션 {} 학생 {} 리포트 발급 실패: {}", sessionId, studentId, e.toString());
+            }
+        }
+        if (issuedCount == 0 && failedCount > 0) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "리포트 발급에 실패했습니다.");
         }
         return new SessionReportBulkResponse(sessionId, issuedCount);
     }
@@ -201,8 +213,8 @@ public class SessionReportService {
         List<QuizProgress> progresses = new ArrayList<>();
         for (QuizSet quizSet : completedSets) {
             quizzes.addAll(quizSet.getQuizzes());
-            progresses.addAll(
-                    quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(quizSet.getId(), userId));
+            progresses.addAll(dedupeByQuizId(
+                    quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(quizSet.getId(), userId)));
         }
 
         int totalCount = quizzes.size();
@@ -268,6 +280,18 @@ public class SessionReportService {
 
     private static boolean isCorrect(QuizProgress progress) {
         return Boolean.TRUE.equals(progress.getIsCorrect());
+    }
+
+    /** choices fetch 조인으로 같은 응시 행이 여러 번 올 수 있어 quizId 기준으로 한 건만 남긴다. */
+    private static List<QuizProgress> dedupeByQuizId(List<QuizProgress> progresses) {
+        Map<Long, QuizProgress> byQuizId = new LinkedHashMap<>();
+        for (QuizProgress progress : progresses) {
+            if (progress.getQuiz() == null || progress.getQuiz().getId() == null) {
+                continue;
+            }
+            byQuizId.putIfAbsent(progress.getQuiz().getId(), progress);
+        }
+        return new ArrayList<>(byQuizId.values());
     }
 
     private static String conceptOf(Quiz quiz) {

@@ -60,8 +60,14 @@ public class ReportAiFeedbackService {
 	 */
 	public AiFeedback generate(String studentName, Long sessionId, Long userId, List<Long> quizSetIds,
 			AiReportSummary summary) {
-		List<AiReportAttempt> attempts =
-				transactionTemplate.execute(status -> buildAttempts(userId, quizSetIds));
+		List<AiReportAttempt> attempts;
+		try {
+			attempts = transactionTemplate.execute(status -> buildAttempts(userId, quizSetIds));
+		} catch (RuntimeException e) {
+			// choices fetch 중복·지연로딩 등 조립 실패가 발급 전체를 500 으로 만들지 않도록 흡수한다.
+			log.warn("AI 응시 기록 조립 실패 — AI 항목 없이 발급을 계속한다. {}", e.toString());
+			return null;
+		}
 		if (attempts == null || attempts.stream().allMatch(attempt -> attempt.chosenIndex() == null)) {
 			// 응시한 문항이 하나도 없으면 AI 서버도 스킵 응답만 준다. 왕복을 아낀다.
 			return null;
@@ -103,7 +109,10 @@ public class ReportAiFeedbackService {
 		}
 		Map<Long, QuizProgress> myProgressByQuizId =
 				quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(quizSetId, userId).stream()
-						.collect(Collectors.toMap(progress -> progress.getQuiz().getId(), Function.identity()));
+						.collect(Collectors.toMap(
+								progress -> progress.getQuiz().getId(),
+								Function.identity(),
+								(first, ignored) -> first));
 		Map<Long, List<QuizProgress>> cohortByQuizId =
 				quizProgressRepository.findAllWithQuizByQuizSetId(quizSetId).stream()
 						.collect(Collectors.groupingBy(progress -> progress.getQuiz().getId()));

@@ -435,6 +435,10 @@ function SessionReportBody({
         ? `/app/quizzes/${report.quizSetId}`
         : `/manager/quizzes/${report.quizSetId}`;
   const isManager = userRole === 'MANAGER' || userRole === 'MASTER';
+  const overallReportPath =
+    userRole === 'STUDENT'
+      ? '/app/report'
+      : `/manager/students/detail/${report.ordinaryUserId}`;
   const aiStrengths = report.aiStrengths ?? [];
   const aiImprovements = report.aiImprovements ?? [];
   const issued = report.issuedAt
@@ -482,6 +486,9 @@ function SessionReportBody({
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Button variant="secondary" size="sm" onClick={() => navigate(overallReportPath)}>
+            전체 리포트
+          </Button>
           {quizPath != null ? (
             <Button variant="secondary" size="sm" onClick={() => navigate(quizPath)}>
               퀴즈 열람

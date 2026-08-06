@@ -37,9 +37,12 @@ import com.roma.qurie.user.repository.UserRepository;
 public class UserService {
 
 	private static final String MASTER_ROLE = "MASTER";
+	private static final String MANAGER_ROLE = "MANAGER";
 	private static final String DUPLICATE_EMAIL_MESSAGE = "이미 사용 중인 이메일입니다.";
 	private static final String USER_NOT_FOUND_MESSAGE = "사용자를 찾을 수 없습니다.";
 	private static final String FORBIDDEN_MESSAGE = "본인 또는 소속 기업의 마스터만 접근할 수 있습니다.";
+	private static final String PROFILE_FORBIDDEN_MESSAGE =
+			"본인, 소속 기업 마스터, 또는 같은 반 매니저만 프로필을 조회할 수 있습니다.";
 	private static final int MAX_PAGE_SIZE = 100;
 	private static final int ACTIVITY_WINDOW_DAYS = 7;
 
@@ -81,7 +84,8 @@ public class UserService {
 	}
 
 	/**
-	 * 마이페이지 조회. API 설계에 따라 본인과 소속 기업의 마스터만 볼 수 있다.
+	 * 프로필 조회. 본인, 소속 기업의 마스터, 같은 반 매니저가 볼 수 있다 —
+	 * 매니저 학생 상세에서 연락처·기본 정보를 보여 주기 위함이다.
 	 */
 	@Transactional(readOnly = true)
 	public UserProfileResponse getProfile(Long userId, AuthUser requester) {
@@ -90,7 +94,7 @@ public class UserService {
 		}
 
 		User user = findUser(userId);
-		verifyAccessible(user, requester);
+		verifyCanViewProfile(user, requester);
 
 		return UserProfileResponse.from(user);
 	}
@@ -265,6 +269,30 @@ public class UserService {
 		if (!accessible) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN_MESSAGE);
 		}
+	}
+
+	/** 조회만 허용 — 같은 반 매니저는 학생 상세용으로 프로필을 읽을 수 있다. 수정은 verifyAccessible. */
+	private void verifyCanViewProfile(User user, AuthUser requester) {
+		if (requester == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
+		if (user.getId().equals(requester.id())) {
+			return;
+		}
+		if (isMaster(requester) && user.getEnterpriseId().equals(requester.enterpriseId())) {
+			return;
+		}
+		if (MANAGER_ROLE.equals(requester.role()) && sharesClassWith(requester.id(), user.getId())) {
+			return;
+		}
+		throw new ResponseStatusException(HttpStatus.FORBIDDEN, PROFILE_FORBIDDEN_MESSAGE);
+	}
+
+	private boolean sharesClassWith(Long viewerId, Long targetUserId) {
+		return classUserRepository.findFirstByUserIdOrderByIdDesc(viewerId)
+				.map(cu -> classUserRepository.existsByClassEntityIdAndUserId(
+						cu.getClassEntity().getId(), targetUserId))
+				.orElse(false);
 	}
 
 	private void verifyCurrentPassword(User user, String currentPassword, AuthUser requester) {
