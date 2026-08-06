@@ -54,4 +54,13 @@ public interface QuizProgressRepository extends JpaRepository<QuizProgress, Long
 			""")
 	List<QuizProgress> findIncorrectWithQuizByQuizSetIdAndUserId(
 			@Param("quizSetId") Long quizSetId, @Param("userId") Long userId);
+
+	/** 리포트 AI 피드백의 문항별 반 전체(cohort) 집계용 — 세트의 모든 사용자 응시 기록. */
+	@Query("""
+			select qp from QuizProgress qp
+			join fetch qp.quiz q
+			left join fetch qp.chosenChoice
+			where q.quizSet.id = :quizSetId
+			""")
+	List<QuizProgress> findAllWithQuizByQuizSetId(@Param("quizSetId") Long quizSetId);
 }

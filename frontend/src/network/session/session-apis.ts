@@ -155,9 +155,11 @@ export const createSessionReport = async (
     sessionId: number,
     body: SessionReportCreateRequest,
 ): Promise<SessionReportCreateResponse> => {
+    // 요청에 aiComment 가 없으면 서버가 AI 코멘트를 동기 생성하므로 기본 타임아웃(10s)보다 길게 기다린다.
     const { data } = await axiosInstance.post<SessionReportCreateResponse>(
         `/sessions/${sessionId}/reports`,
         body,
+        { timeout: 120_000 },
     );
     return data;
 };
@@ -186,7 +188,7 @@ export interface SessionReportRosterResponse {
 
 /**
  * 세션 참가 학생 전원의 리포트를 한 번에 발급한다(기존 리포트는 갈아엎고 재발급 — 409 없음).
- * 강사(MANAGER/MASTER) 전용. 집계가 걸릴 수 있어 타임아웃을 늘린다.
+ * 강사(MANAGER/MASTER) 전용. 학생마다 AI 코멘트를 동기 생성하느라 오래 걸릴 수 있어 타임아웃을 크게 늘린다.
  */
 export const createSessionReportsForAll = async (
     sessionId: number,
@@ -194,7 +196,7 @@ export const createSessionReportsForAll = async (
     const { data } = await axiosInstance.post<SessionReportBulkResponse>(
         `/sessions/${sessionId}/reports/all`,
         undefined,
-        { timeout: 60_000 },
+        { timeout: 300_000 },
     );
     return data;
 };

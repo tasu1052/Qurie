@@ -24,6 +24,9 @@ export interface UserReportDetailResponse {
     conceptStats: Record<string, unknown> | null;
     rating: number | null;
     ratingFormulaVersion: string | null;
+    aiComment: string | null;
+    aiStrengths: string[] | null;
+    aiImprovements: string[] | null;
     issuedAt: string | null;
 }
 
@@ -48,9 +51,11 @@ export const createUserReport = async (
     userId: number,
     body: UserReportCreateRequest,
 ): Promise<UserReportCreateResponse> => {
+    // 발급 중 서버가 AI 코멘트를 동기 생성하므로 기본 타임아웃(10s)보다 길게 기다린다.
     const { data } = await axiosInstance.post<UserReportCreateResponse>(
         `/users/${userId}/report-summary`,
         body,
+        { timeout: 120_000 },
     );
     return data;
 };

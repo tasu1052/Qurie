@@ -3,7 +3,9 @@ package com.roma.qurie.report.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
@@ -29,6 +31,9 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
@@ -52,6 +57,12 @@ class UserReportServiceTest {
 
 	@Mock
 	private UserRepository userRepository;
+
+	@Mock
+	private ReportAiFeedbackService reportAiFeedbackService;
+
+	@Mock
+	private TransactionTemplate transactionTemplate;
 
 	@InjectMocks
 	private UserReportService userReportService;
@@ -178,6 +189,47 @@ class UserReportServiceTest {
 				.isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
 
+	@Test
+	void 퀴즈셋이_있는_세션_리포트가_있으면_AI_피드백을_채운다() {
+		givenIssuableUser();
+		SessionReport withQuizSet = SessionReport.builder()
+				.sessionId(1L)
+				.ordinaryUserId(USER_ID)
+				.quizSetId(100L)
+				.quizTotalCount(5)
+				.quizAttemptedCount(5)
+				.quizCorrectCount(4)
+				.build();
+		given(sessionReportRepository.findAllByClassIdAndOrdinaryUserId(CLASS_ID, USER_ID))
+				.willReturn(List.of(withQuizSet));
+		User user = Mockito.mock(User.class);
+		given(user.getName()).willReturn("김학생");
+		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+		given(reportAiFeedbackService.generate(eq("김학생"), eq(null), eq(USER_ID), eq(List.of(100L)), any()))
+				.willReturn(new ReportAiFeedbackService.AiFeedback(
+						"학기 총평", List.of("강점 문장"), List.of("보완 문장")));
+
+		userReportService.createUserReport(USER_ID, request());
+
+		UserReport saved = capturedReport();
+		assertThat(saved.getAiComment()).isEqualTo("학기 총평");
+		assertThat(saved.getAiStrengths()).containsExactly("강점 문장");
+		assertThat(saved.getAiImprovements()).containsExactly("보완 문장");
+	}
+
+	/** 퀴즈셋 없는 세션 리포트뿐이면 응시 기록이 없으므로 AI 서버를 부르지 않는다. */
+	@Test
+	void 퀴즈셋이_없으면_AI_생성을_건너뛴다() {
+		givenIssuableUser();
+		given(sessionReportRepository.findAllByClassIdAndOrdinaryUserId(CLASS_ID, USER_ID))
+				.willReturn(List.of(sessionReport(5, 5, 5, 0, 10_000, null, null)));
+
+		userReportService.createUserReport(USER_ID, request());
+
+		verify(reportAiFeedbackService, never()).generate(any(), any(), any(), any(), any());
+		assertThat(capturedReport().getAiComment()).isNull();
+	}
+
 	private UserReportCreateRequest request() {
 		return new UserReportCreateRequest(CLASS_ID, new BigDecimal("4.5"), "v0.1");
 	}
@@ -187,6 +239,11 @@ class UserReportServiceTest {
 		given(userReportRepository.existsByOrdinaryUserIdAndClassId(USER_ID, CLASS_ID)).willReturn(false);
 		given(userReportRepository.save(any(UserReport.class)))
 				.willAnswer(invocation -> invocation.getArgument(0));
+		// 발급 로직이 저장(쓰기)을 TransactionTemplate 로 감싸므로 콜백을 그대로 실행시킨다.
+		given(transactionTemplate.execute(any())).willAnswer(invocation -> {
+			TransactionCallback<?> callback = invocation.getArgument(0);
+			return callback.doInTransaction(Mockito.mock(TransactionStatus.class));
+		});
 	}
 
 	private SessionReport sessionReport(int total, int attempted, int correct, int skipped, Integer avgElapsedMs,

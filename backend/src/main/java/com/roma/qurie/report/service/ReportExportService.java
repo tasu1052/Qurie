@@ -110,6 +110,7 @@ public class ReportExportService {
 				report.getQuizCorrectCount(), report.getQuizSkippedCount());
 		appendMapSection(html, "난이도별 분포", report.getDifficultyRatio());
 		appendMapSection(html, "개념별 통계", report.getConceptStats());
+		appendAiFeedback(html, report.getAiComment(), report.getAiStrengths(), report.getAiImprovements());
 
 		appendFooter(html, "user report #" + report.getId());
 		html.append("</body></html>");
@@ -135,7 +136,7 @@ public class ReportExportService {
 				report.getQuizCorrectCount(), report.getQuizSkippedCount());
 		appendMapSection(html, "난이도별 분포", report.getDifficultyRatio());
 		appendMapSection(html, "개념별 통계", report.getConceptStats());
-		appendAiFeedback(html, report);
+		appendAiFeedback(html, report.getAiComment(), report.getAiStrengths(), report.getAiImprovements());
 		appendManagerComment(html, report);
 
 		appendFooter(html, "session report #" + report.getId());
@@ -152,18 +153,19 @@ public class ReportExportService {
 		html.append("</table>");
 	}
 
-	private void appendAiFeedback(StringBuilder html, SessionReport report) {
-		boolean hasComment = report.getAiComment() != null && !report.getAiComment().isBlank();
-		boolean hasLists = hasItems(report.getAiStrengths()) || hasItems(report.getAiImprovements());
+	private void appendAiFeedback(StringBuilder html, String comment, List<String> strengths,
+			List<String> improvements) {
+		boolean hasComment = comment != null && !comment.isBlank();
+		boolean hasLists = hasItems(strengths) || hasItems(improvements);
 		if (!hasComment && !hasLists) {
 			return;
 		}
 		html.append("<h2>AI 피드백</h2>");
 		if (hasComment) {
-			html.append("<p>").append(escape(report.getAiComment())).append("</p>");
+			html.append("<p>").append(escape(comment)).append("</p>");
 		}
-		appendListSection(html, "강점", report.getAiStrengths());
-		appendListSection(html, "보완점", report.getAiImprovements());
+		appendListSection(html, "강점", strengths);
+		appendListSection(html, "보완점", improvements);
 	}
 
 	private void appendManagerComment(StringBuilder html, SessionReport report) {

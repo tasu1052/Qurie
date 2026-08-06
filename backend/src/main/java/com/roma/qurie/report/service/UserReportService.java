@@ -1,6 +1,7 @@
 package com.roma.qurie.report.service;
 
 import com.roma.qurie.classes.ClassUserRepository;
+import com.roma.qurie.report.ai.AiReportSummary;
 import com.roma.qurie.report.dto.UserReportCreateRequest;
 import com.roma.qurie.report.dto.UserReportCreateResponse;
 import com.roma.qurie.report.dto.UserReportDetailResponse;
@@ -15,12 +16,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
@@ -33,12 +37,15 @@ public class UserReportService {
     private final SessionReportRepository sessionReportRepository;
     private final ClassUserRepository classUserRepository;
     private final UserRepository userRepository;
+    private final ReportAiFeedbackService reportAiFeedbackService;
+    private final TransactionTemplate transactionTemplate;
 
     /**
      * 사용자 최종 리포트 발급. 정량 지표는 그 반에서 발급된 세션 리포트들을 합산해 계산한다 —
      * 세션마다 문항 수가 달라 "세션별 비율의 평균"은 왜곡되므로, 개수를 모두 더한 뒤 나눈다.
+     * AI 정성 항목은 그 반 세션들의 전체 응시 기록으로 서버가 생성한다. AI 호출(수 초)이
+     * DB 커넥션을 점유하지 않도록 저장(쓰기)만 트랜잭션으로 묶는다.
      */
-    @Transactional
     public UserReportCreateResponse createUserReport(Long ordinaryUserId, UserReportCreateRequest request) {
         if (!classUserRepository.existsByClassEntityIdAndUserId(request.classId(), ordinaryUserId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "반 명단에 없는 사용자입니다.");
@@ -53,6 +60,16 @@ public class UserReportService {
         int quizTotalCount = sumOf(sessionReports, SessionReport::getQuizTotalCount);
         int quizAttemptedCount = sumOf(sessionReports, SessionReport::getQuizAttemptedCount);
         int quizCorrectCount = sumOf(sessionReports, SessionReport::getQuizCorrectCount);
+        int quizSkippedCount = sumOf(sessionReports, SessionReport::getQuizSkippedCount);
+        BigDecimal completionRate = ReportMath.percentOf(quizAttemptedCount, quizTotalCount);
+        BigDecimal accuracy = ReportMath.percentOf(quizCorrectCount, quizAttemptedCount);
+        Integer avgElapsedMs = weightedAvgElapsedMs(sessionReports);
+        Map<String, Object> difficultyRatio = mergeCounts(sessionReports, SessionReport::getDifficultyRatio);
+        Map<String, Object> conceptStats = mergeCounts(sessionReports, SessionReport::getConceptStats);
+
+        ReportAiFeedbackService.AiFeedback feedback = generateAiFeedback(ordinaryUserId, sessionReports,
+                new AiReportSummary(quizTotalCount, quizAttemptedCount, quizCorrectCount, quizSkippedCount,
+                        accuracy, completionRate, avgElapsedMs, difficultyRatio, conceptStats));
 
         UserReport userReport = UserReport.builder()
                 .ordinaryUserId(ordinaryUserId)
@@ -61,18 +78,37 @@ public class UserReportService {
                 .quizTotalCount(quizTotalCount)
                 .quizAttemptedCount(quizAttemptedCount)
                 .quizCorrectCount(quizCorrectCount)
-                .quizSkippedCount(sumOf(sessionReports, SessionReport::getQuizSkippedCount))
-                .completionRate(ReportMath.percentOf(quizAttemptedCount, quizTotalCount))
-                .accuracy(ReportMath.percentOf(quizCorrectCount, quizAttemptedCount))
-                .avgElapsedMs(weightedAvgElapsedMs(sessionReports))
-                .difficultyRatio(mergeCounts(sessionReports, SessionReport::getDifficultyRatio))
-                .conceptStats(mergeCounts(sessionReports, SessionReport::getConceptStats))
+                .quizSkippedCount(quizSkippedCount)
+                .completionRate(completionRate)
+                .accuracy(accuracy)
+                .avgElapsedMs(avgElapsedMs)
+                .difficultyRatio(difficultyRatio)
+                .conceptStats(conceptStats)
                 .rating(request.rating())
                 .ratingFormulaVersion(request.ratingFormulaVersion())
+                .aiComment(feedback == null ? null : feedback.comment())
+                .aiStrengths(feedback == null ? null : feedback.strengths())
+                .aiImprovements(feedback == null ? null : feedback.improvements())
                 .issuedAt(LocalDateTime.now())
                 .build();
 
-        return UserReportCreateResponse.from(userReportRepository.save(userReport));
+        return transactionTemplate.execute(status ->
+                UserReportCreateResponse.from(userReportRepository.save(userReport)));
+    }
+
+    /** 학기 전체 응시 기록(반에서 발급된 세션 리포트들의 퀴즈셋)으로 AI 피드백을 만든다. 실패·스킵이면 null. */
+    private ReportAiFeedbackService.AiFeedback generateAiFeedback(
+            Long ordinaryUserId, List<SessionReport> sessionReports, AiReportSummary summary) {
+        List<Long> quizSetIds = sessionReports.stream()
+                .map(SessionReport::getQuizSetId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (quizSetIds.isEmpty()) {
+            return null;
+        }
+        String studentName = userRepository.findById(ordinaryUserId).map(User::getName).orElse("학생");
+        return reportAiFeedbackService.generate(studentName, null, ordinaryUserId, quizSetIds, summary);
     }
 
     /** 사용자 최종 리포트 조회. 본인 또는 매니저/마스터만 볼 수 있다. */

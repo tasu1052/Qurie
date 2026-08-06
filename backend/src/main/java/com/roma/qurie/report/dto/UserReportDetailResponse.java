@@ -4,6 +4,7 @@ import com.roma.qurie.report.entity.UserReport;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 public record UserReportDetailResponse(
@@ -23,6 +24,9 @@ public record UserReportDetailResponse(
         Map<String, Object> conceptStats,
         BigDecimal rating,
         String ratingFormulaVersion,
+        String aiComment,
+        List<String> aiStrengths,
+        List<String> aiImprovements,
         LocalDateTime issuedAt) {
 
     public static UserReportDetailResponse from(UserReport report, String userName) {
@@ -43,6 +47,9 @@ public record UserReportDetailResponse(
                 report.getConceptStats(),
                 report.getRating(),
                 report.getRatingFormulaVersion(),
+                report.getAiComment(),
+                report.getAiStrengths(),
+                report.getAiImprovements(),
                 report.getIssuedAt());
     }
 }
