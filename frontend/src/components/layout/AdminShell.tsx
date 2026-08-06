@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Building2 } from 'lucide-react';
 import { Sidebar, Topbar } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
+import logoDarkSrc from '../../ds/assets/logo-dark.png';
+import { useThemeOptional } from '../../theme/useTheme';
 import { PageMain } from './PageMain';
 
 const iconProps = { size: 16, strokeWidth: 1.75 } as const;
@@ -19,6 +21,7 @@ const adminNav = [
 
 export function AdminShell({ activeKey, breadcrumbs, children }: AdminShellProps) {
   const navigate = useNavigate();
+  const theme = useThemeOptional()?.theme;
   const name = '어드민';
   const email = 'staff@qurie.com';
   const initial = name.slice(0, 1);
@@ -29,7 +32,7 @@ export function AdminShell({ activeKey, breadcrumbs, children }: AdminShellProps
       <Sidebar
         items={items}
         activeKey={activeKey}
-        logoSrc={logoSrc}
+        logoSrc={theme === 'dark' ? logoDarkSrc : logoSrc}
         onSelect={(key) => {
           const item = adminNav.find((n) => n.key === key);
           if (item) navigate(item.path);

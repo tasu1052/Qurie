@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Badge, Button, EmptyState, Input, RowErrorFallback, Select, Skeleton } from '../../ds';
-import logoSrc from '../../ds/assets/logo.png';
+import { BrandLogo } from '../../components/brand/BrandLogo';
 import { QueryAsyncBoundary, useGetInvitationPreview, useSignUp } from '../../data';
 import { REGION_OPTIONS, setUserProfileExtras } from '../../utils/userProfileExtras';
 
@@ -229,11 +229,7 @@ export default function SignupPage() {
       }}
     >
       <Link to="/" style={{ display: 'inline-flex', textDecoration: 'none', marginBottom: 28 }}>
-        <img
-          src={logoSrc}
-          alt="Qurie"
-          style={{ height: 36, width: 'auto', objectFit: 'contain', display: 'block' }}
-        />
+        <BrandLogo height={36} />
       </Link>
       <div
         style={{

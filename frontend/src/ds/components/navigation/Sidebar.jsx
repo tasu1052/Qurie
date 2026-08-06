@@ -2,8 +2,7 @@ import React from 'react';
 /** Persistent left nav. items: [{key,label,icon,active?,badge?}].
  * Account/footer slot is pinned to the bottom of the viewport (sticky + 100vh)
  * with clear separation from nav items above.
- * Pass logoSrc=null in dark mode (AppShell) so the text brand stays readable —
- * the PNG has near-black glyphs on a dark plate. */
+ * Pass theme-aware logoSrc (logo.png / logo-dark.png) from AppShell. */
 export function Sidebar({items=[],activeKey,onSelect,collapsed=false,footer=null,logoSrc=null,brand='Q>rie',style={}}){
 const w=collapsed?'var(--sidebar-width-collapsed)':'var(--sidebar-width)';
 return <nav style={{width:w,minWidth:w,height:'100vh',position:'sticky',top:0,background:'var(--surface-card)',backdropFilter:'var(--surface-blur)',WebkitBackdropFilter:'var(--surface-blur)',borderRight:'1px solid var(--border)',display:'flex',flexDirection:'column',padding:'16px 12px',gap:4,boxSizing:'border-box',fontFamily:'var(--font-sans)',transition:'width 180ms ease-out',...style}}>
