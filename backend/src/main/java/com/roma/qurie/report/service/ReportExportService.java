@@ -119,7 +119,6 @@ public class ReportExportService {
 				{formatPercent(report.getCompletionRate()), "이수율"},
 				{formatPercent(report.getAccuracy()), "정답률"},
 				{formatElapsed(report.getAvgElapsedMs()), "평균 풀이 시간"},
-				{formatRating(report.getRating()), ratingLabel(report.getRatingFormulaVersion())},
 		});
 
 		appendQuizCounts(html, report.getQuizTotalCount(), report.getQuizAttemptedCount(),
@@ -144,7 +143,7 @@ public class ReportExportService {
 				{formatPercent(report.getCompletionRate()), "이수율"},
 				{formatPercent(report.getAccuracy()), "정답률"},
 				{formatElapsed(report.getAvgElapsedMs()), "평균 풀이 시간"},
-				{formatRating(report.getQuizRating()), "퀴즈 평점"},
+				{report.getQuizAttemptedCount() + " / " + report.getQuizTotalCount(), "응시 문항"},
 		});
 
 		appendQuizCounts(html, report.getQuizTotalCount(), report.getQuizAttemptedCount(),
@@ -305,21 +304,6 @@ public class ReportExportService {
 			return "-";
 		}
 		return String.format("%.1f초", elapsedMs / 1000.0);
-	}
-
-	private String formatRating(BigDecimal rating) {
-		if (rating == null) {
-			return "-";
-		}
-		return rating.stripTrailingZeros().toPlainString();
-	}
-
-	/** 평점 공식 버전은 값 옆이 아니라 라벨에 붙인다 — 지표 칸의 큰 숫자를 짧게 유지하기 위해서다. */
-	private String ratingLabel(String formulaVersion) {
-		if (formulaVersion == null || formulaVersion.isBlank()) {
-			return "평점";
-		}
-		return "평점 (기준 " + formulaVersion + ")";
 	}
 
 	private String rateOf(int correct, int attempted) {
