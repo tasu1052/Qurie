@@ -62,7 +62,7 @@ export function IncorrectRetryPlayer({ questions, onExit }: IncorrectRetryPlayer
           background: 'var(--surface-sunken)',
         }}
       >
-        <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)' }}>연습 완료</span>
+        <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)' }}>연습 완료</span>
         <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
           연습 정답 {practiceCorrect}/{questions.length}
         </span>
