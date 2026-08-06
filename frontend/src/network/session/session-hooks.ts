@@ -10,6 +10,7 @@ import {
     getSessionMessages,
     getSessionParticipants,
     getSessionReport,
+    getSessionReportRoster,
     getSessions,
     updateSession,
     type SessionCreateRequest,
@@ -105,6 +106,9 @@ export const useCreateSessionReportsForAll = () => {
         mutationFn: (sessionId: number) => createSessionReportsForAll(sessionId),
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.sessions.detail(data.sessionId) });
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.sessions.reportRoster(data.sessionId),
+            });
         },
     });
 };
@@ -113,6 +117,14 @@ export const useGetSessionReport = (sessionId: number, userId?: number) => {
     return useSuspenseQuery({
         queryKey: queryKeys.sessions.report(sessionId, userId),
         queryFn: () => getSessionReport(sessionId, userId),
+    });
+};
+
+/** 세션에 발급된 학생 리포트 전체 명단(강사 전용). */
+export const useGetSessionReportRoster = (sessionId: number) => {
+    return useSuspenseQuery({
+        queryKey: queryKeys.sessions.reportRoster(sessionId),
+        queryFn: () => getSessionReportRoster(sessionId),
     });
 };
 

@@ -253,7 +253,7 @@ function SessionTable({
                         {quizLoadingId === s.id ? '열기…' : '지난 퀴즈'}
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => onReport(s.id)}>
-                        세션 리포트
+                        전체 리포트
                       </Button>
                     </>
                   )}

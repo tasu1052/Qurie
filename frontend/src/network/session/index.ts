@@ -10,6 +10,7 @@ export {
     useGetSessionParticipants,
     useGetSessionPresence,
     useGetSessionReport,
+    useGetSessionReportRoster,
     useGetSessions,
     useUpdateSession,
     useAskSessionHelp,

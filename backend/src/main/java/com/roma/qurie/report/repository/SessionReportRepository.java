@@ -20,6 +20,8 @@ public interface SessionReportRepository extends JpaRepository<SessionReport, Lo
 
     List<SessionReport> findByOrdinaryUserIdOrderByIssuedAtDesc(Long ordinaryUserId);
 
+    List<SessionReport> findBySessionIdOrderByIssuedAtDesc(Long sessionId);
+
     /** 반에서 발급된 사용자의 세션 리포트 전부. 최종(유저) 리포트가 이 스냅샷들을 합산한다. */
     @Query("""
             select sr from SessionReport sr, Session s
