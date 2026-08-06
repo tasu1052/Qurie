@@ -163,7 +163,7 @@ class UserServiceTest {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
 
 		UserProfileResponse response = userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest("김태수2", null, null, null, null, null), self());
+				USER_ID, new UserProfileUpdateRequest("김태수2", null, null, null, null, null, null), self());
 
 		assertThat(user.getName()).isEqualTo("김태수2");
 		assertThat(user.getPassword()).isEqualTo(ENCODED_PASSWORD);
@@ -179,7 +179,7 @@ class UserServiceTest {
 		given(passwordEncoder.encode(NEW_RAW_PASSWORD)).willReturn(NEW_ENCODED_PASSWORD);
 
 		userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest(null, RAW_PASSWORD, NEW_RAW_PASSWORD, null, null, null), self());
+				USER_ID, new UserProfileUpdateRequest(null, RAW_PASSWORD, NEW_RAW_PASSWORD, null, null, null, null), self());
 
 		assertThat(user.getPassword()).isEqualTo(NEW_ENCODED_PASSWORD);
 		assertThat(user.getName()).isEqualTo(NAME);
@@ -192,7 +192,7 @@ class UserServiceTest {
 		given(passwordEncoder.matches("wrongPassword", ENCODED_PASSWORD)).willReturn(false);
 
 		assertThatThrownBy(() -> userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest(null, "wrongPassword", NEW_RAW_PASSWORD, null, null, null), self()))
+				USER_ID, new UserProfileUpdateRequest(null, "wrongPassword", NEW_RAW_PASSWORD, null, null, null, null), self()))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(UserServiceTest::statusOf)
 				.isEqualTo(HttpStatus.BAD_REQUEST);
@@ -205,7 +205,7 @@ class UserServiceTest {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(existingUser()));
 
 		assertThatThrownBy(() -> userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest(null, null, null, null, null, null), self()))
+				USER_ID, new UserProfileUpdateRequest(null, null, null, null, null, null, null), self()))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(UserServiceTest::statusOf)
 				.isEqualTo(HttpStatus.BAD_REQUEST);
@@ -217,7 +217,7 @@ class UserServiceTest {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
 
 		assertThatThrownBy(() -> userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest("   ", null, null, null, null, null), self()))
+				USER_ID, new UserProfileUpdateRequest("   ", null, null, null, null, null, null), self()))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(UserServiceTest::statusOf)
 				.isEqualTo(HttpStatus.BAD_REQUEST);
@@ -232,7 +232,7 @@ class UserServiceTest {
 		AuthUser other = new AuthUser(99L, UserRole.STUDENT.name(), ENTERPRISE_ID, "other@qurie.com", "다른사람", null);
 
 		assertThatThrownBy(() -> userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest("해킹", null, null, null, null, null), other))
+				USER_ID, new UserProfileUpdateRequest("해킹", null, null, null, null, null, null), other))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(UserServiceTest::statusOf)
 				.isEqualTo(HttpStatus.FORBIDDEN);
@@ -245,7 +245,7 @@ class UserServiceTest {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(existingUser()));
 
 		assertThatThrownBy(() -> userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest("김태수2", null, null, null, null, null), null))
+				USER_ID, new UserProfileUpdateRequest("김태수2", null, null, null, null, null, null), null))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(UserServiceTest::statusOf)
 				.isEqualTo(HttpStatus.UNAUTHORIZED);
@@ -258,7 +258,7 @@ class UserServiceTest {
 		given(passwordEncoder.encode(NEW_RAW_PASSWORD)).willReturn(NEW_ENCODED_PASSWORD);
 
 		userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest(null, null, NEW_RAW_PASSWORD, null, null, null), master(ENTERPRISE_ID));
+				USER_ID, new UserProfileUpdateRequest(null, null, NEW_RAW_PASSWORD, null, null, null, null), master(ENTERPRISE_ID));
 
 		assertThat(user.getPassword()).isEqualTo(NEW_ENCODED_PASSWORD);
 	}
@@ -269,7 +269,7 @@ class UserServiceTest {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
 
 		assertThatThrownBy(() -> userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest("김태수2", null, null, null, null, null), master(2L)))
+				USER_ID, new UserProfileUpdateRequest("김태수2", null, null, null, null, null, null), master(2L)))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(UserServiceTest::statusOf)
 				.isEqualTo(HttpStatus.FORBIDDEN);
@@ -295,7 +295,7 @@ class UserServiceTest {
 		given(masterRepository.findById(MASTER_ID)).willReturn(Optional.of(master));
 
 		UserProfileResponse response = userService.updateProfile(
-				MASTER_ID, new UserProfileUpdateRequest("새마스터", null, null, null, null, null),
+				MASTER_ID, new UserProfileUpdateRequest("새마스터", null, null, null, null, null, null),
 				master(ENTERPRISE_ID));
 
 		assertThat(master.getName()).isEqualTo("새마스터");
@@ -313,7 +313,7 @@ class UserServiceTest {
 		given(passwordEncoder.encode(NEW_RAW_PASSWORD)).willReturn(NEW_ENCODED_PASSWORD);
 
 		userService.updateProfile(
-				MASTER_ID, new UserProfileUpdateRequest(null, RAW_PASSWORD, NEW_RAW_PASSWORD, null, null, null),
+				MASTER_ID, new UserProfileUpdateRequest(null, RAW_PASSWORD, NEW_RAW_PASSWORD, null, null, null, null),
 				master(ENTERPRISE_ID));
 
 		assertThat(master.getPassword()).isEqualTo(NEW_ENCODED_PASSWORD);
@@ -326,7 +326,7 @@ class UserServiceTest {
 		given(passwordEncoder.matches("wrongPassword", ENCODED_PASSWORD)).willReturn(false);
 
 		assertThatThrownBy(() -> userService.updateProfile(
-				MASTER_ID, new UserProfileUpdateRequest(null, "wrongPassword", NEW_RAW_PASSWORD, null, null, null),
+				MASTER_ID, new UserProfileUpdateRequest(null, "wrongPassword", NEW_RAW_PASSWORD, null, null, null, null),
 				master(ENTERPRISE_ID)))
 				.isInstanceOf(ResponseStatusException.class)
 				.extracting(UserServiceTest::statusOf)
@@ -341,7 +341,7 @@ class UserServiceTest {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
 
 		UserProfileResponse response = userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest(null, null, null, "010-1234-5678", "서울", "MALE"), self());
+				USER_ID, new UserProfileUpdateRequest(null, null, null, "010-1234-5678", "서울", "MALE", null), self());
 
 		assertThat(user.getPhone()).isEqualTo("010-1234-5678");
 		assertThat(user.getRegion()).isEqualTo("서울");
@@ -358,7 +358,7 @@ class UserServiceTest {
 		given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
 
 		userService.updateProfile(
-				USER_ID, new UserProfileUpdateRequest(null, null, null, "", null, null), self());
+				USER_ID, new UserProfileUpdateRequest(null, null, null, "", null, null, null), self());
 
 		assertThat(user.getPhone()).isNull();
 	}

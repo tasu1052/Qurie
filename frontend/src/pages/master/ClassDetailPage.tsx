@@ -241,6 +241,11 @@ function ClassDetailBody({ classId }: { classId: number }) {
       setSaveError('정원은 1 이상의 숫자여야 합니다.');
       return;
     }
+    const currentMembers = membersPage.data.length;
+    if (capacityNum != null && capacityNum < currentMembers) {
+      setSaveError(`정원은 현재 인원(${currentMembers}명) 이상이어야 합니다.`);
+      return;
+    }
     updateClass.mutate(
       {
         classId,

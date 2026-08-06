@@ -32,8 +32,6 @@ import {
 import { getUserProfileExtras } from '../../utils/userProfileExtras';
 import { validateInviteFile } from '../../utils/validateInviteFile';
 
-const MEMBERS_PAGE_SIZE = 20;
-
 type StudentSortKey = 'name' | 'group' | 'role';
 
 function studentRoleLabel(_role: ClassMemberResponse['role'], groupName: string | null): string {
@@ -162,6 +160,7 @@ function MembersTable({
   const navigate = useNavigate();
   const debouncedQuery = useDebouncedValue(query, 300);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [sort, setSort] = useState<{ key: StudentSortKey; dir: 'asc' | 'desc' } | null>({
     key: 'name',
     dir: 'asc',
@@ -197,14 +196,11 @@ function MembersTable({
     setPage(1);
   }
 
-  const pageCount = Math.max(1, Math.ceil(sorted.length / MEMBERS_PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
   const safePage = Math.min(page, pageCount);
-  const pageItems = sorted.slice(
-    (safePage - 1) * MEMBERS_PAGE_SIZE,
-    safePage * MEMBERS_PAGE_SIZE,
-  );
-  const rangeStart = sorted.length === 0 ? 0 : (safePage - 1) * MEMBERS_PAGE_SIZE + 1;
-  const rangeEnd = Math.min(safePage * MEMBERS_PAGE_SIZE, sorted.length);
+  const pageItems = sorted.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const rangeStart = sorted.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safePage * pageSize, sorted.length);
 
   const onSort = (next: { key: string; dir: 'asc' | 'desc' } | null) => {
     if (!next) {
@@ -235,12 +231,14 @@ function MembersTable({
           width={220}
         />
       </div>
-      <div className="qurie-table-scroll">
-        <div style={{ minWidth: 640 }} className="qurie-table-inner">
+      <div className="qurie-table-scroll" style={{ overflowX: 'hidden' }}>
+        <div className="qurie-table-inner" style={{ minWidth: 0 }}>
           <div
             className="qurie-table-grid"
             style={{
-              gridTemplateColumns: '1.6fr 0.7fr 1fr 1fr',
+              gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 1fr)',
+              width: '100%',
+              minWidth: 0,
               padding: '10px 24px',
               borderBottom: '1px solid var(--divider)',
               fontSize: 11,
@@ -281,7 +279,9 @@ function MembersTable({
                 }
                 className="qurie-table-grid"
                 style={{
-                  gridTemplateColumns: '1.6fr 0.7fr 1fr 1fr',
+                  gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 1fr)',
+                  width: '100%',
+                  minWidth: 0,
                   padding: '13px 24px',
                   borderBottom: '1px solid var(--divider)',
                   fontSize: 13,
@@ -314,14 +314,18 @@ function MembersTable({
           )}
         </div>
       </div>
-      {sorted.length > MEMBERS_PAGE_SIZE ? (
+      {sorted.length > 0 ? (
         <div style={{ padding: '14px 24px', borderTop: '1px solid var(--divider)' }}>
           <Pagination
             page={safePage}
             pageCount={pageCount}
-            pageSize={MEMBERS_PAGE_SIZE}
+            pageSize={pageSize}
             rangeLabel={`${rangeStart}–${rangeEnd} / ${sorted.length}명`}
             onPage={setPage}
+            onPageSize={(next) => {
+              setPageSize(next);
+              setPage(1);
+            }}
           />
         </div>
       ) : null}

@@ -25,6 +25,7 @@ export interface UserProfileResponse {
     phone?: string | null;
     region?: string | null;
     gender?: string | null;
+    theme?: 'light' | 'dark' | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -37,6 +38,7 @@ export interface UserProfileUpdateRequest {
     phone?: string | null;
     region?: string | null;
     gender?: string | null;
+    theme?: 'light' | 'dark' | null;
 }
 
 export interface UserSummaryResponse {

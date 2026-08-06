@@ -1,9 +1,8 @@
 import React from 'react';
 /**
- * Type-the-name confirmation for destructive actions. The primary button stays
- * disabled until `typed === confirmText`; `childCounts` shows what disappears
- * with the record, and `conflict` renders the server's 409 with the
- * ?cascade=true opt-in.
+ * Confirmation for destructive actions.
+ * When `requireTyped` is true (default), the primary button stays disabled until
+ * `typed === confirmText`. Set `requireTyped={false}` for a simple yes/no confirm.
  */
 export function ConfirmDeleteModal({
   title,
@@ -18,8 +17,9 @@ export function ConfirmDeleteModal({
   onCancel,
   onConfirm,
   confirmLabel = '삭제',
+  requireTyped = true,
 }) {
-  const matched = typed.trim() === confirmText;
+  const matched = !requireTyped || typed.trim() === confirmText;
   const blocked = conflict && !cascade;
   return (
     <div
@@ -121,42 +121,46 @@ export function ConfirmDeleteModal({
           </span>
         </label>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
-          확인을 위해{' '}
-          <span
+      {requireTyped ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
+            확인을 위해{' '}
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 12,
+                color: 'var(--ink)',
+                background: 'var(--surface-sunken)',
+                border: '1px solid var(--border)',
+                borderRadius: 6,
+                padding: '1px 6px',
+              }}
+            >
+              {confirmText}
+            </span>{' '}
+            을 입력하세요
+          </span>
+          <input
+            value={typed}
+            onChange={(e) => onTypedChange && onTypedChange(e.target.value)}
+            placeholder={`${confirmText} 입력`}
             style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 12,
+              height: 40,
+              padding: '0 18px',
+              border: `1px solid ${matched ? 'var(--status-success)' : 'var(--border-strong)'}`,
+              borderRadius: 'var(--radius-control)',
+              fontSize: 13,
               color: 'var(--ink)',
+              fontFamily: 'var(--font-sans)',
               background: 'var(--surface-sunken)',
-              border: '1px solid var(--border)',
-              borderRadius: 6,
-              padding: '1px 6px',
+              boxSizing: 'border-box',
+              width: '100%',
             }}
-          >
-            {confirmText}
-          </span>{' '}
-          을 입력하세요
-        </span>
-        <input
-          value={typed}
-          onChange={(e) => onTypedChange && onTypedChange(e.target.value)}
-          placeholder={`${confirmText} 입력`}
-          style={{
-            height: 40,
-            padding: '0 18px',
-            border: `1px solid ${matched ? 'var(--status-success)' : 'var(--border-strong)'}`,
-            borderRadius: 'var(--radius-control)',
-            fontSize: 13,
-            color: 'var(--ink)',
-            fontFamily: 'var(--font-sans)',
-            background: 'var(--surface-sunken)',
-            boxSizing: 'border-box',
-            width: '100%',
-          }}
-        />
-      </div>
+          />
+        </div>
+      ) : (
+        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>삭제하시겠습니까?</span>
+      )}
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', borderTop: '1px solid var(--divider)', paddingTop: 16 }}>
         <button
           type="button"

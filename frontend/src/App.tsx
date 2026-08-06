@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-
 import { AuthGate } from './components/auth/AuthGate';
 import { AdminGate } from './components/auth/AdminGate';
 import { LogoutSync } from './components/auth/LogoutSync';
+import { UserThemeSync } from './components/theme/UserThemeSync';
 import LandingPage from './pages/marketing/LandingPage';
 import DemoRequestPage from './pages/marketing/DemoRequestPage';
 import LoginPage from './pages/auth/LoginPage';
@@ -44,6 +45,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <LogoutSync />
+      <UserThemeSync />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/demo" element={<DemoRequestPage />} />
@@ -51,6 +53,7 @@ export default function App() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/find-password" element={<ResetPage />} />
         <Route path="/reset" element={<ResetPage />} />
+        <Route path="/reset-password" element={<ResetPage />} />
 
         <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route element={<AdminGate />}>

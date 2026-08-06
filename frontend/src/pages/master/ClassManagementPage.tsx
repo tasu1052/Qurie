@@ -225,7 +225,8 @@ function ClassCardView({
 function ClassListBody() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const debouncedQuery = useDebouncedValue(query, 300);
+  // 서버 검색이라 타이핑마다 호출되지 않도록 매니저 학생관리(클라이언트 필터)보다 여유 있게 둔다.
+  const debouncedQuery = useDebouncedValue(query, 600);
   const [trackId, setTrackId] = useState<string>('all');
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState('');
@@ -339,6 +340,7 @@ function ClassListBody() {
           icon={<Plus size={15} strokeWidth={1.75} />}
           onClick={() => {
             setSelectedTrack(String(tracks[0]?.id ?? ''));
+            setCreateError(null);
             setCreateOpen(true);
           }}
         >
@@ -380,7 +382,10 @@ function ClassListBody() {
             message="클래스가 없습니다"
             description="트랙을 선택한 뒤 새 클래스를 만들어 보세요."
             actionLabel="클래스 생성"
-            onAction={() => setCreateOpen(true)}
+            onAction={() => {
+              setCreateError(null);
+              setCreateOpen(true);
+            }}
           />
         )
       ) : (
@@ -402,6 +407,7 @@ function ClassListBody() {
             type="button"
             onClick={() => {
               setSelectedTrack(String(tracks[0]?.id ?? ''));
+              setCreateError(null);
               setCreateOpen(true);
             }}
             style={{

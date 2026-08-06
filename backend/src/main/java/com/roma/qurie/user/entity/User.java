@@ -62,6 +62,10 @@ public class User extends BaseTimeEntity {
 	@Column(name = "gender", length = 10)
 	private String gender;
 
+	/** 마이페이지/사이드바 다크모드 선호. light|dark, null 이면 클라이언트 기본값. */
+	@Column(name = "theme", length = 10)
+	private String theme;
+
 	@Builder
 	private User(Long enterpriseId, String email, UserRole role, String password, String name) {
 		this.enterpriseId = enterpriseId;
@@ -85,6 +89,10 @@ public class User extends BaseTimeEntity {
 
 	public void updateGender(String gender) {
 		this.gender = gender;
+	}
+
+	public void updateTheme(String theme) {
+		this.theme = theme;
 	}
 
 	/**

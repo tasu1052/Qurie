@@ -61,6 +61,10 @@ public class Master extends BaseTimeEntity {
     @Column(name = "gender", length = 10)
     private String gender;
 
+    /** 마이페이지/사이드바 다크모드 선호. light|dark, null 이면 클라이언트 기본값. */
+    @Column(name = "theme", length = 10)
+    private String theme;
+
     public Master(Enterprise enterprise, String email, String password, String name) {
         this.enterprise = enterprise;
         this.email = email;
@@ -82,6 +86,10 @@ public class Master extends BaseTimeEntity {
 
     public void updateGender(String gender) {
         this.gender = gender;
+    }
+
+    public void updateTheme(String theme) {
+        this.theme = theme;
     }
 
     /**

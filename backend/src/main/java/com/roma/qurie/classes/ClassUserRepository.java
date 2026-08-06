@@ -16,6 +16,9 @@ public interface ClassUserRepository extends JpaRepository<ClassUser, Long> {
 	/** 반 인원 집계. 매니저도 명단에 있으므로 역할로 갈라야 학생 수와 강사 수가 분리된다. */
 	long countByClassEntityIdAndUserRole(Long classId, UserRole role);
 
+	/** 정원 검증용 — 역할 구분 없이 명단 전체 인원. */
+	long countByClassEntityId(Long classId);
+
 	/**
 	 * 로그인 시 토큰에 담을 소속 반 조회용. 반은 한 사람당 하나가 요구사항이지만 스키마는 여러 행을
 	 * 허용하므로, 데이터가 어긋나 있어도 최신 배정 하나로 결정되도록 정렬을 못박는다.

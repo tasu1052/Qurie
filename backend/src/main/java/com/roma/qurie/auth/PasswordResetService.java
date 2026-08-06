@@ -121,6 +121,7 @@ public class PasswordResetService {
     }
 
     private String resetUrl(String rawToken) {
-        return frontendBaseUrl + "/reset-password?token=" + URLEncoder.encode(rawToken, StandardCharsets.UTF_8);
+        // 프론트 라우트는 /reset (및 /find-password). /reset-password 는 미등록이라 랜딩으로 떨어졌다.
+        return frontendBaseUrl + "/reset?token=" + URLEncoder.encode(rawToken, StandardCharsets.UTF_8);
     }
 }

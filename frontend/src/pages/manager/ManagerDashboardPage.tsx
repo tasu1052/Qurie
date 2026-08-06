@@ -2,11 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ManagerShell, PageMain } from '../../components/layout/ManagerShell';
 import {
-  Badge,
   Button,
   DonutChart,
   EmptyState,
-  LiveBadge,
   RowErrorFallback,
   Skeleton,
 } from '../../ds';
@@ -127,7 +125,6 @@ function ManagerDashBody({ classId }: { classId: number }) {
   const { data: groups } = useGetGroups(classId);
   const active = sessions.filter((s) => s.active);
   const ended = sessions.filter((s) => !s.active);
-  const live = active[0];
 
   const capacityLabel = cls.capacity != null ? String(cls.capacity) : '—';
 
@@ -149,7 +146,6 @@ function ManagerDashBody({ classId }: { classId: number }) {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{cls.name}</h1>
-            {live ? <LiveBadge /> : <Badge status="neutral">대기</Badge>}
           </div>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
             {cls.description || '담당 클래스 대시보드'}

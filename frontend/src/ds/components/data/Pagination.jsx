@@ -1,18 +1,29 @@
 import React from 'react';
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
+
 export function Pagination({page=1,pageCount=1,pageSize=12,rangeLabel,onPage,onPageSize}){
 const pages=[];
 for(let i=1;i<=pageCount;i++){ if(i===1||i===pageCount||Math.abs(i-page)<=1) pages.push(i); else if(pages[pages.length-1]!=='…') pages.push('…'); }
 const btn={minWidth:30,height:30,padding:'0 10px',borderRadius:'var(--radius-control)',border:'1px solid var(--border-strong)',background:'var(--surface-card-solid)',display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:12,color:'var(--ink)',cursor:'pointer'};
+const cyclePageSize=()=>{
+  if(!onPageSize) return;
+  const idx=PAGE_SIZE_OPTIONS.indexOf(pageSize);
+  const next=PAGE_SIZE_OPTIONS[idx>=0?(idx+1)%PAGE_SIZE_OPTIONS.length:0];
+  onPageSize(next);
+};
 return <div style={{display:'flex',alignItems:'center',gap:10,fontFamily:'var(--font-sans)'}}>
 {rangeLabel&&<span style={{fontSize:12,color:'var(--text-muted)'}}>{rangeLabel}</span>}
 <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:6}}>
-<button onClick={()=>onPage&&onPage(page-1)} disabled={page<=1} style={{...btn,minWidth:30,padding:0,opacity:page<=1?0.4:1}}>‹</button>
+<button type="button" onClick={()=>onPage&&onPage(page-1)} disabled={page<=1} style={{...btn,minWidth:30,padding:0,opacity:page<=1?0.4:1}}>‹</button>
 {pages.map((n,i)=>n==='…'
 ?<span key={'g'+i} style={{color:'var(--text-muted)',fontSize:12,padding:'0 2px'}}>…</span>
-:<button key={n} onClick={()=>onPage&&onPage(n)} style={n===page?{...btn,background:'var(--ink)',color:'var(--text-inverse)',border:'none',fontWeight:600}:btn}>{n}</button>)}
-<button onClick={()=>onPage&&onPage(page+1)} disabled={page>=pageCount} style={{...btn,minWidth:30,padding:0,opacity:page>=pageCount?0.4:1}}>›</button>
+:<button type="button" key={n} onClick={()=>onPage&&onPage(n)} style={n===page?{...btn,background:'var(--ink)',color:'var(--text-inverse)',border:'none',fontWeight:600}:btn}>{n}</button>)}
+<button type="button" onClick={()=>onPage&&onPage(page+1)} disabled={page>=pageCount} style={{...btn,minWidth:30,padding:0,opacity:page>=pageCount?0.4:1}}>›</button>
 </div>
-<button onClick={()=>onPageSize&&onPageSize(pageSize)} style={{...btn,height:30,color:'var(--text-secondary)'}}>{pageSize}개 ▾</button>
+{onPageSize?(
+<button type="button" onClick={cyclePageSize} style={{...btn,height:30,color:'var(--text-secondary)'}} title="페이지당 개수 변경">{pageSize}개 ▾</button>
+):null}
 </div>;
 }
 export function LoadMore({label,loading=false,onClick}){

@@ -12,6 +12,8 @@ type ConfirmDeleteOverlayProps = {
   confirmLabel?: string;
   /** When false, parent closes overlay after async delete succeeds. Default true. */
   closeOnConfirm?: boolean;
+  /** When false, skip type-to-confirm and show a simple yes/no. Default true. */
+  requireTyped?: boolean;
 };
 
 /** Glass scrim + ConfirmDeleteModal for destructive deletes (7a). */
@@ -24,6 +26,7 @@ export function ConfirmDeleteOverlay({
   onConfirm,
   confirmLabel = '삭제',
   closeOnConfirm = true,
+  requireTyped = true,
 }: ConfirmDeleteOverlayProps) {
   const [typed, setTyped] = useState('');
 
@@ -59,6 +62,7 @@ export function ConfirmDeleteOverlay({
           confirmText={confirmText}
           typed={typed}
           onTypedChange={setTyped}
+          requireTyped={requireTyped}
           onCancel={resetAndClose}
           onConfirm={() => {
             onConfirm();

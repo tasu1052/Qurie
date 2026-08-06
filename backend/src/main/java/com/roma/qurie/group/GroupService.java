@@ -47,10 +47,17 @@ public class GroupService {
     /* 그룹을 생성하는 함수 */
     @Transactional
     public GroupResponse create(GroupCreateRequest request) {
+        String name = request.name() == null ? "" : request.name().trim();
+        if (name.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "그룹 이름을 입력하세요.");
+        }
+        if (groupRepository.existsByClassIdAndNameIgnoreCase(request.classId(), name)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "같은 클래스에 동일한 그룹명이 이미 있습니다.");
+        }
         Group group =
                 Group.builder()
                         .classId(request.classId())
-                        .name(request.name())
+                        .name(name)
                         .description(request.description())
                         .startedAt(request.startedAt())
                         .endedAt(request.endedAt())
@@ -142,7 +149,10 @@ public class GroupService {
     public List<GroupMemberCandidateResponse> getMemberCandidates(AuthUser authUser, Long classId) {
         verifyClassAccessible(authUser, classId);
 
+        // 종료된 그룹 배정은 새 그룹 후보에서 제외하지 않는다 — 종료 후 재배정이 가능해야 한다.
+        LocalDateTime now = LocalDateTime.now();
         Set<Long> assignedUserIds = groupParticipantRepository.findAllWithGroupAndUserByClassId(classId).stream()
+                .filter(participant -> !isGroupEnded(participant.getGroup(), now))
                 .map(participant -> participant.getUser().getId())
                 .collect(Collectors.toSet());
 
@@ -151,6 +161,10 @@ public class GroupService {
                 .filter(user -> !assignedUserIds.contains(user.getId()))
                 .map(user -> new GroupMemberCandidateResponse(user.getId(), user.getName(), user.getEmail()))
                 .toList();
+    }
+
+    private boolean isGroupEnded(Group group, LocalDateTime now) {
+        return group.getEndedAt() != null && group.getEndedAt().isBefore(now);
     }
 
     /**
@@ -167,7 +181,11 @@ public class GroupService {
         }
 
         if (request.hasName()) {
-            group.rename(requireNotBlank(request.name(), "그룹 이름"));
+            String name = requireNotBlank(request.name(), "그룹 이름");
+            if (groupRepository.existsByClassIdAndNameIgnoreCaseAndIdNot(group.getClassId(), name, groupId)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "같은 클래스에 동일한 그룹명이 이미 있습니다.");
+            }
+            group.rename(name);
         }
         if (request.hasDescription()) {
             group.changeDescription(requireNotBlank(request.description(), "그룹 설명"));
@@ -324,13 +342,18 @@ public class GroupService {
                 .map(ClassUser::getUser)
                 .collect(Collectors.toMap(User::getId, Function.identity(), (left, right) -> left));
 
-        // 한 학생은 반에서 그룹 하나에만 속한다. 다른 그룹에 이미 배정된 학생은 여기서 걸러 낸다.
+        // 한 학생은 진행 중 그룹 하나에만 속한다. 종료된 그룹 배정은 재배정을 막지 않는다.
+        LocalDateTime now = LocalDateTime.now();
         Map<Long, Group> otherGroupByUserId = new HashMap<>();
         for (GroupParticipant participant
                 : groupParticipantRepository.findAllWithGroupAndUserByClassId(group.getClassId())) {
-            if (!participant.getGroup().getId().equals(group.getId())) {
-                otherGroupByUserId.put(participant.getUser().getId(), participant.getGroup());
+            if (participant.getGroup().getId().equals(group.getId())) {
+                continue;
             }
+            if (isGroupEnded(participant.getGroup(), now)) {
+                continue;
+            }
+            otherGroupByUserId.put(participant.getUser().getId(), participant.getGroup());
         }
 
         List<GroupParticipant> participants = new ArrayList<>();
