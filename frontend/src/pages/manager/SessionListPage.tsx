@@ -185,7 +185,9 @@ function SessionTable({
           {pageItems.map((s) => {
             const status = sessionStatus(s);
             const groupLabel =
-              s.groupId != null ? groupNameById.get(s.groupId) ?? `그룹 #${s.groupId}` : null;
+              s.groupId != null
+                ? s.groupName?.trim() || groupNameById.get(s.groupId) || null
+                : null;
             return (
               <div
                 key={s.id}

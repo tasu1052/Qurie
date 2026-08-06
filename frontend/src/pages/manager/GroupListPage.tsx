@@ -151,12 +151,8 @@ function ShuffleModal({
   const hasExisting = groups.length > 0;
   // 백엔드: 기존 배정이 있으면 confirmed=true 필요. 그룹이 있으면 배정이 있을 수 있어 경고 후 확정한다.
   const count = Number(shuffleCount);
-  const previewCount = Number.isFinite(count) && count > 0 ? Math.min(count, 5) : 0;
-  const namePreview =
-    previewCount > 0
-      ? Array.from({ length: previewCount }, (_, i) => buildShuffleName(titlePrefix, i)).join(', ') +
-        (count > 5 ? '…' : '')
-      : '';
+  // 생성 예시는 정적 안내 — 접두어 입력과 연동하지 않는다.
+  const namePreview = '그룹 1, 그룹 2, 그룹 3…';
 
   const onShuffle = async () => {
     if (!Number.isFinite(count) || count < 1) return;
@@ -265,11 +261,9 @@ function ShuffleModal({
             onChange={(e) => setTitlePrefix(e.target.value)}
             width="100%"
           />
-          {namePreview ? (
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              생성 예시: {namePreview}
-            </span>
-          ) : null}
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            생성 예시: {namePreview}
+          </span>
         </label>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -704,16 +698,32 @@ export default function GroupListPage() {
           }}
           width={480}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '70vh', overflowY: 'auto' }}>
             {createError ? (
-              <AlertBanner tone="error" title="생성 실패" description={createError} />
+              <div
+                role="alert"
+                style={{
+                  borderRadius: 10,
+                  border: '1px solid var(--status-error)',
+                  background: 'var(--status-error-bg)',
+                  padding: '10px 12px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: 'var(--status-error)',
+                }}
+              >
+                {createError}
+              </div>
             ) : null}
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>그룹 이름</span>
               <Input
                 placeholder="A조 — 결제 모듈"
                 value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
+                onChange={(e) => {
+                  setGroupName(e.target.value);
+                  if (createError) setCreateError(null);
+                }}
                 width="100%"
               />
             </label>
@@ -722,7 +732,10 @@ export default function GroupListPage() {
               <Input
                 placeholder="결제 도메인 리팩터링을 함께 리뷰하는 그룹입니다."
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  if (createError) setCreateError(null);
+                }}
                 width="100%"
               />
             </label>

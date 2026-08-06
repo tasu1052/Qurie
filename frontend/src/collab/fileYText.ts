@@ -19,3 +19,18 @@ export function getOrCreateFileYText(ydoc: Y.Doc, path: string): Y.Text {
   });
   return created ?? yfiles.get(path)!;
 }
+
+/** 새 임포트/깃클론 확정 시 이전 프로젝트의 공유 문서 잔여를 비운다. */
+export function clearAllFileYTexts(ydoc: Y.Doc): void {
+  const yfiles = ydoc.getMap<Y.Text>('files');
+  ydoc.transact(() => {
+    const keys = Array.from(yfiles.keys());
+    for (const key of keys) {
+      const text = yfiles.get(key);
+      if (text && text.length > 0) {
+        text.delete(0, text.length);
+      }
+      yfiles.delete(key);
+    }
+  });
+}

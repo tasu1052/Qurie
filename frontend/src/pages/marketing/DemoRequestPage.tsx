@@ -136,7 +136,7 @@ export default function DemoRequestPage() {
             textDecoration: 'none',
           }}
         >
-          랜딩으로 돌아가기
+          홈으로 돌아가기
         </Link>
       </header>
 
@@ -176,7 +176,7 @@ export default function DemoRequestPage() {
             </p>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <Link to="/" style={{ textDecoration: 'none' }}>
-                <Button variant="primary">랜딩으로</Button>
+                <Button variant="primary">홈으로</Button>
               </Link>
               <Button
                 variant="ghost"
@@ -331,7 +331,12 @@ export default function DemoRequestPage() {
               <p style={{ margin: 0, fontSize: 13, color: 'var(--status-error)' }}>{error}</p>
             ) : null}
 
-            <Button variant="primary" disabled={submitting} style={{ alignSelf: 'flex-start' }}>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={submitting || !canSubmit}
+              style={{ alignSelf: 'flex-start' }}
+            >
               {submitting ? '제출 중…' : '제출하기'}
             </Button>
           </form>

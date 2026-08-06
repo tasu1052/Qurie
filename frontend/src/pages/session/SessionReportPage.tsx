@@ -61,11 +61,6 @@ function formatPct(value: number | null | undefined): string {
   return `${Number(value).toFixed(0)}%`;
 }
 
-function formatRating(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(Number(value))) return '—';
-  return Number(value).toFixed(1);
-}
-
 function formatDuration(ms: number | null | undefined): string {
   if (ms == null || !Number.isFinite(ms) || ms <= 0) return '—';
   const minutes = Math.round(ms / 60000);
@@ -511,9 +506,6 @@ function SessionReportBody({
             `${report.userName} 학생의 이번 세션 정답률은 ${formatPct(report.accuracy)}, 완료율은 ${formatPct(report.completionRate)}입니다.`}
         </p>
         <div style={{ display: 'flex', gap: 16, marginTop: 4, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12.5, color: 'var(--text-inverse)' }}>
-            평점 {formatRating(report.quizRating)} / 5.0
-          </span>
           <span style={{ fontSize: 12.5, color: 'var(--text-inverse)' }}>발급 {issued}</span>
         </div>
       </div>
@@ -530,7 +522,6 @@ function SessionReportBody({
           caption={`${report.quizCorrectCount}문항 정답 · ${report.quizSkippedCount} 스킵`}
           accent
         />
-        <StatCard label="평점 (rating)" value={formatRating(report.quizRating)} caption="5.0 만점" />
         <StatCard
           label="평균 소요"
           value={formatDuration(report.avgElapsedMs)}
@@ -610,21 +601,27 @@ function SessionReportOverview({
     return map;
   }, [roster.reports]);
 
-  const avgAccuracy = useMemo(() => {
-    const values = roster.reports
-      .map((r) => (r.accuracy != null ? Number(r.accuracy) : null))
-      .filter((v): v is number => v != null);
-    if (values.length === 0) return null;
-    return values.reduce((a, b) => a + b, 0) / values.length;
-  }, [roster.reports]);
+  const avgAccuracy =
+    roster.avgAccuracy != null
+      ? Number(roster.avgAccuracy)
+      : (() => {
+          const values = roster.reports
+            .map((r) => (r.accuracy != null ? Number(r.accuracy) : null))
+            .filter((v): v is number => v != null);
+          if (values.length === 0) return null;
+          return values.reduce((a, b) => a + b, 0) / values.length;
+        })();
 
-  const avgCompletion = useMemo(() => {
-    const values = roster.reports
-      .map((r) => (r.completionRate != null ? Number(r.completionRate) : null))
-      .filter((v): v is number => v != null);
-    if (values.length === 0) return null;
-    return values.reduce((a, b) => a + b, 0) / values.length;
-  }, [roster.reports]);
+  const avgCompletion =
+    roster.avgCompletionRate != null
+      ? Number(roster.avgCompletionRate)
+      : (() => {
+          const values = roster.reports
+            .map((r) => (r.completionRate != null ? Number(r.completionRate) : null))
+            .filter((v): v is number => v != null);
+          if (values.length === 0) return null;
+          return values.reduce((a, b) => a + b, 0) / values.length;
+        })();
 
   const pendingCount = Math.max(0, students.length - roster.issuedCount);
   const title = roster.sessionTitle || session.title;
@@ -678,7 +675,6 @@ function SessionReportOverview({
       {issueError ? <AlertBanner tone="error" title="발급 실패" description={issueError} /> : null}
 
       <StatCardRow>
-        <StatCard label="반 학생" value={String(students.length)} caption="클래스 소속" />
         <StatCard
           label="발급 완료"
           value={String(roster.issuedCount)}
@@ -704,6 +700,10 @@ function SessionReportOverview({
             borderRadius: 16,
             boxShadow: 'var(--shadow-card)',
             overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            maxHeight: 'min(560px, 60vh)',
+            minHeight: 0,
           }}
         >
           <div
@@ -714,61 +714,64 @@ function SessionReportOverview({
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
               color: 'var(--text-secondary)',
+              flexShrink: 0,
             }}
           >
             학생별 리포트
           </div>
-          {students.map((m) => {
-            const report = reportByUserId.get(m.userId);
-            return (
-              <div
-                key={m.userId}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  padding: '13px 24px',
-                  borderTop: '1px solid var(--divider)',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, flex: 1 }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
-                    {report ? (
-                      <Badge status="accent">발급됨</Badge>
-                    ) : (
-                      <Badge status="neutral">미발급</Badge>
-                    )}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: 'var(--text-muted)',
-                      fontFamily: 'var(--font-mono)',
-                      wordBreak: 'break-all',
-                    }}
-                  >
-                    {m.email}
-                    {report
-                      ? ` · 정답률 ${formatPct(report.accuracy)} · 완료율 ${formatPct(report.completionRate)} · 평점 ${formatRating(report.quizRating)}`
-                      : ''}
-                  </span>
-                </span>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={!report}
-                  onClick={() =>
-                    navigate(`/session/${sessionId}/report?userId=${m.userId}&from=roster`)
-                  }
+          <div style={{ overflowY: 'auto', minHeight: 0, flex: 1 }}>
+            {students.map((m) => {
+              const report = reportByUserId.get(m.userId);
+              return (
+                <div
+                  key={m.userId}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    padding: '13px 24px',
+                    borderTop: '1px solid var(--divider)',
+                    flexWrap: 'wrap',
+                  }}
                 >
-                  {report ? '리포트 보기' : '미발급'}
-                </Button>
-              </div>
-            );
-          })}
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, flex: 1 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
+                      {report ? (
+                        <Badge status="accent">발급됨</Badge>
+                      ) : (
+                        <Badge status="neutral">미발급</Badge>
+                      )}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: 'var(--text-muted)',
+                        fontFamily: 'var(--font-mono)',
+                        wordBreak: 'break-all',
+                      }}
+                    >
+                      {m.email}
+                      {report
+                        ? ` · 정답률 ${formatPct(report.accuracy)} · 완료율 ${formatPct(report.completionRate)}`
+                        : ''}
+                    </span>
+                  </span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={!report}
+                    onClick={() =>
+                      navigate(`/session/${sessionId}/report?userId=${m.userId}&from=roster`)
+                    }
+                  >
+                    {report ? '리포트 보기' : '미발급'}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </>

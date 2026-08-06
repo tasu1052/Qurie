@@ -353,6 +353,8 @@ class SessionReportServiceTest {
 		assertThat(response.sessionId()).isEqualTo(SESSION_ID);
 		assertThat(response.sessionTitle()).isEqualTo("React 세션");
 		assertThat(response.issuedCount()).isEqualTo(1);
+		assertThat(response.avgAccuracy()).isEqualTo(75.0);
+		assertThat(response.avgCompletionRate()).isEqualTo(80.0);
 		assertThat(response.reports()).hasSize(1);
 		assertThat(response.reports().get(0).ordinaryUserId()).isEqualTo(USER_ID);
 		assertThat(response.reports().get(0).userName()).isEqualTo("학생A");

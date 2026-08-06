@@ -27,11 +27,13 @@ import com.roma.qurie.session.participant.SessionParticipantService;
 import com.roma.qurie.user.entity.User;
 import com.roma.qurie.user.repository.UserRepository;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -333,7 +335,7 @@ public class SessionReportService {
 
         List<SessionReport> reports = sessionReportRepository.findBySessionIdOrderByIssuedAtDesc(sessionId);
         if (reports.isEmpty()) {
-            return new SessionReportRosterResponse(sessionId, session.getTitle(), 0, List.of());
+            return new SessionReportRosterResponse(sessionId, session.getTitle(), 0, null, null, List.of());
         }
 
         List<Long> userIds = reports.stream().map(SessionReport::getOrdinaryUserId).distinct().toList();
@@ -345,7 +347,22 @@ public class SessionReportService {
             String userName = names.getOrDefault(report.getOrdinaryUserId(), "알 수 없음");
             items.add(SessionReportRosterItemResponse.from(report, userName));
         }
-        return new SessionReportRosterResponse(sessionId, session.getTitle(), items.size(), items);
+        return new SessionReportRosterResponse(
+                sessionId,
+                session.getTitle(),
+                items.size(),
+                averageOf(reports, SessionReport::getAccuracy),
+                averageOf(reports, SessionReport::getCompletionRate),
+                items);
+    }
+
+    private static Double averageOf(List<SessionReport> reports, Function<SessionReport, BigDecimal> getter) {
+        List<BigDecimal> values = reports.stream().map(getter).filter(Objects::nonNull).toList();
+        if (values.isEmpty()) {
+            return null;
+        }
+        BigDecimal sum = values.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        return sum.divide(BigDecimal.valueOf(values.size()), 2, RoundingMode.HALF_UP).doubleValue();
     }
 
     /** 사용자의 세션 리포트 목록. 본인 또는 같은 반 매니저/마스터만 조회. */

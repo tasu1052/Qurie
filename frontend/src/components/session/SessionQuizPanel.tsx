@@ -274,29 +274,38 @@ function QuizGeneratingBanner({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 10,
-        padding: '14px 16px',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+        padding: '32px 16px',
         borderRadius: 12,
-        border: '1px solid var(--accent-strong)',
+        border: '2px dashed var(--border-strong)',
         background: 'var(--status-accent-bg)',
-        boxShadow: 'var(--shadow-card)',
+        textAlign: 'center',
+        minHeight: 220,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <CircularLoader size={32} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>퀴즈 생성 중</span>
-          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-            {hasProgress
-              ? `${done}/${total}문항 준비됨 · 생성이 끝나면 자동으로 표시돼요`
-              : 'AI가 문항을 만들고 있어요. 잠시만 기다려 주세요.'}
-          </span>
-        </div>
+      <Sparkles
+        size={28}
+        strokeWidth={1.75}
+        color="var(--accent)"
+        style={{ animation: 'qurie-float 2.4s ease-in-out infinite' }}
+      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>퀴즈를 만들고 있어요</span>
+        <span style={{ fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.55, maxWidth: 280 }}>
+          {hasProgress
+            ? `${done}/${total}문항 준비됨 · 생성이 끝나면 자동으로 표시돼요`
+            : 'AI가 문항을 만들고 있어요. 잠시만 기다려 주세요.'}
+        </span>
       </div>
+      <CircularLoader size={22} />
       <div
         style={{
           height: 8,
           borderRadius: 999,
+          width: '100%',
+          maxWidth: 280,
           background: 'var(--surface-sunken)',
           overflow: 'hidden',
           position: 'relative',
@@ -916,7 +925,8 @@ export function SessionQuizPanel({
   const generateQuiz = useGenerateQuiz();
   const submitSatisfaction = useSubmitQuizSatisfaction();
   const submitProgress = useSubmitQuizProgress();
-  const [count, setCount] = useState('5');
+  /** 퀴즈 개수는 전역 고정(5). UI에서 변경하지 않는다. */
+  const QUIZ_COUNT = 5;
   const [userPrompt, setUserPrompt] = useState('');
   const [createdQuizSetId, setCreatedQuizSetId] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -1053,8 +1063,12 @@ export function SessionQuizPanel({
 
   const progressHydrated =
     progressQuery.isSuccess && (progressQuery.data?.items.length ?? 0) > 0;
+  const localResultCount =
+    activeQuizSetId != null ? Object.keys(resultsBySet[activeQuizSetId] ?? {}).length : 0;
+  // 서버 progress 로 재입장 복원할 때만 remount. 첫 제출 직후 hydrate 로 remount 하면 다음 문항으로 점프한다.
+  const bootstrapMount = progressHydrated && localResultCount === 0 ? 1 : 0;
   const inReviewMode = reviewingCompleteFor === activeQuizSetId;
-  const playerMountKey = `${activeQuizSetId ?? 0}-${inReviewMode ? 'review' : 'play'}-${progressHydrated ? 1 : 0}-${conflictEpoch}`;
+  const playerMountKey = `${activeQuizSetId ?? 0}-${inReviewMode ? 'review' : 'play'}-${bootstrapMount}-${conflictEpoch}`;
 
   const alreadyRated =
     activeQuizSetId != null &&
@@ -1082,22 +1096,13 @@ export function SessionQuizPanel({
 
   const openSourcePicker = () => {
     if (!canManageQuiz || projectId == null) return;
-    const n = Number(count);
-    if (!Number.isFinite(n) || n < 1 || n > 20) {
-      setFormError('문항 수는 1–20 사이여야 합니다.');
-      return;
-    }
     setFormError(null);
     setPickerOpen(true);
   };
 
   const onGenerateFromSource = async (selection: QuizSourceSelection) => {
     if (!canManageQuiz || projectId == null) return;
-    const n = Number(count);
-    if (!Number.isFinite(n) || n < 1 || n > 20) {
-      setFormError('문항 수는 1–20 사이여야 합니다.');
-      return;
-    }
+    const n = QUIZ_COUNT;
     setFormError(null);
     try {
       try {
@@ -1492,10 +1497,9 @@ export function SessionQuizPanel({
 
       {showCreateForm ? (
         <>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>문항 수</span>
-            <Input value={count} onChange={(e) => setCount(e.target.value)} width="100%" />
-          </label>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            문항 수는 {QUIZ_COUNT}개로 고정됩니다.
+          </span>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>추가 프롬프트</span>

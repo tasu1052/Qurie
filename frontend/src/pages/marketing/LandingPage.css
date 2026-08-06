@@ -139,14 +139,6 @@
   .landing-feature-row {
     grid-template-columns: 1fr;
   }
-
-  .landing-feature-row--reverse .landing-feature-copy {
-    order: 1;
-  }
-
-  .landing-feature-row--reverse .landing-feature-visual {
-    order: 2;
-  }
 }
 
 @media (max-width: 640px) {
