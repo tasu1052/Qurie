@@ -400,8 +400,11 @@ class SessionReportServiceTest {
 		given(completed.getQuizzes()).willReturn(quizzes);
 	}
 
+	private long nextQuizId = 1L;
+
 	private Quiz quiz(QuizDifficulty difficulty, String testedConcept) {
 		Quiz quiz = mock(Quiz.class);
+		given(quiz.getId()).willReturn(nextQuizId++);
 		given(quiz.getDifficulty()).willReturn(difficulty);
 		given(quiz.getTestedConcept()).willReturn(testedConcept);
 		return quiz;

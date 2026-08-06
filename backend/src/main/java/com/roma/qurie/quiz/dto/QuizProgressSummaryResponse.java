@@ -1,9 +1,9 @@
 package com.roma.qurie.quiz.dto;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 import com.roma.qurie.quiz.entity.QuizChoice;
 import com.roma.qurie.quiz.entity.QuizProgress;
@@ -19,14 +19,14 @@ public record QuizProgressSummaryResponse(
 		List<ProgressItem> items) {
 
 	public static QuizProgressSummaryResponse from(QuizSet quizSet, List<QuizProgress> progresses) {
-		Map<Long, QuizProgress> uniqueByQuizId = new LinkedHashMap<>();
+		Set<Long> seenQuizIds = new LinkedHashSet<>();
+		List<QuizProgress> unique = new ArrayList<>(progresses.size());
 		for (QuizProgress progress : progresses) {
-			if (progress.getQuiz() == null || progress.getQuiz().getId() == null) {
-				continue;
+			Long quizId = progress.getQuiz() != null ? progress.getQuiz().getId() : null;
+			if (quizId == null || seenQuizIds.add(quizId)) {
+				unique.add(progress);
 			}
-			uniqueByQuizId.putIfAbsent(progress.getQuiz().getId(), progress);
 		}
-		List<QuizProgress> unique = new ArrayList<>(uniqueByQuizId.values());
 
 		int attemptedCount = (int) unique.stream()
 				.filter(progress -> progress.getStatus() == QuizProgressStatus.ATTEMPTED)
