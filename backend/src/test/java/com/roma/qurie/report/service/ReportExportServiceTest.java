@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -122,6 +123,35 @@ class ReportExportServiceTest {
 		assertThat(html).contains("기초가 탄탄합니다");
 		assertThat(html).contains("트랜잭션 이해");
 		assertThat(html).contains("N+1 문제");
+	}
+
+	/**
+	 * AI 가 생성한 문장에는 둥근따옴표(' ')·화살표(→) 같은 활자 기호가 섞여 온다. 인코딩을 지정하지 않은
+	 * htmlEscape 는 이 문자들을 HTML 전용 명명 엔티티(&amp;lsquo; 등)로 바꿔 XML 파서가 문서 전체를
+	 * 거부했다(배포에서 리포트 PDF 가 500 났던 원인). 실제 렌더러까지 태워 회귀를 막는다.
+	 */
+	@Test
+	void AI_문장의_활자_기호가_섞여도_PDF_를_생성한다() {
+		ReportExportService realRendererService = new ReportExportService(
+				userReportRepository, sessionReportRepository, userRepository, new ReportPdfRenderer());
+		given(sessionReportRepository.findBySessionIdAndOrdinaryUserId(SESSION_ID, USER_ID))
+				.willReturn(Optional.of(SessionReport.builder()
+						.sessionId(SESSION_ID)
+						.ordinaryUserId(USER_ID)
+						.quizTotalCount(10)
+						.quizAttemptedCount(5)
+						.quizCorrectCount(0)
+						.quizSkippedCount(0)
+						.aiComment("‘토큰 계층’과 “의존성 그래프” — :root 선언 → 상속 범위 … var(--radius-lg)")
+						.aiStrengths(List.of("‘그림자 토큰’의 위계를 이해했습니다."))
+						.aiImprovements(List.of("1번 문항: ‘범위(scope)’ 개념을 다시 확인하세요."))
+						.issuedAt(LocalDateTime.of(2026, 8, 6, 10, 35))
+						.build()));
+		given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
+
+		byte[] pdf = realRendererService.exportSessionReportPdf(SESSION_ID, USER_ID, SELF);
+
+		assertThat(new String(pdf, 0, 5, StandardCharsets.US_ASCII)).isEqualTo("%PDF-");
 	}
 
 	@Test

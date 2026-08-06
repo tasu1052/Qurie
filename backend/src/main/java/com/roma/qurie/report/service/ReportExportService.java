@@ -1,8 +1,10 @@
 package com.roma.qurie.report.service;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -36,19 +38,34 @@ public class ReportExportService {
 
 	private static final DateTimeFormatter ISSUED_AT_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
+	private static final List<String> DIFFICULTY_ORDER = List.of("EASY", "NORMAL", "HARD");
+	private static final Map<String, String> DIFFICULTY_LABELS =
+			Map.of("EASY", "쉬움", "NORMAL", "보통", "HARD", "어려움");
+
+	/** 강조색은 서비스 화면의 보라 계열 액센트를 따른다. openhtmltopdf 는 CSS 2.1 수준만 지원한다. */
 	private static final String STYLE = """
-			@page { size: A4; margin: 20mm; }
-			body { font-family: 'NanumGothic'; font-size: 11px; color: #24292f; }
-			h1 { font-size: 20px; margin: 0 0 4px 0; }
-			h2 { font-size: 13px; margin: 24px 0 8px 0; border-bottom: 1px solid #d0d7de; padding-bottom: 4px; }
-			h3 { font-size: 11px; margin: 12px 0 4px 0; }
-			p { margin: 6px 0; }
-			ul { margin: 4px 0 8px 18px; padding: 0; }
-			.meta { color: #57606a; margin-bottom: 16px; }
+			@page { size: A4; margin: 18mm 16mm; }
+			body { font-family: 'NanumGothic'; font-size: 10.5px; color: #23272f; line-height: 1.6; }
+			.brand { font-size: 10px; font-weight: bold; letter-spacing: 3px; color: #6c5ce7; margin-bottom: 4px; }
+			h1 { font-size: 22px; margin: 0 0 6px 0; color: #16181d; }
+			.meta { color: #6b7280; margin-bottom: 14px; }
+			.rule { border-bottom: 2px solid #6c5ce7; margin-bottom: 6px; }
+			h2 { font-size: 12.5px; margin: 22px 0 8px 0; padding-left: 8px; border-left: 3px solid #6c5ce7; color: #16181d; }
+			h3 { font-size: 11px; margin: 12px 0 4px 0; color: #374151; }
+			h3.strength { color: #0f766e; }
+			h3.improvement { color: #b45309; }
 			table { width: 100%; border-collapse: collapse; }
-			th, td { border: 1px solid #d0d7de; padding: 6px 8px; text-align: left; }
-			th { background-color: #f6f8fa; width: 35%; }
-			.footer { margin-top: 28px; color: #8b949e; font-size: 9px; text-align: right; }
+			th, td { border: 1px solid #e5e7eb; padding: 7px 9px; text-align: left; }
+			th { background-color: #f4f4fb; color: #4b5563; }
+			th.num, td.num { text-align: right; }
+			table.stats td { text-align: center; padding: 10px 6px; }
+			.stat-value { font-size: 15px; font-weight: bold; color: #16181d; }
+			.stat-label { font-size: 9.5px; color: #6b7280; margin-top: 2px; }
+			.ai-comment { background-color: #f7f6fe; border: 1px solid #e4defc; padding: 11px 13px; margin: 6px 0 10px 0; }
+			ul { margin: 2px 0 10px 16px; padding: 0; }
+			li { margin: 3px 0; }
+			.manager-box { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 13px; }
+			.footer { margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 8px; color: #9ca3af; font-size: 9px; text-align: right; }
 			""";
 
 	private final UserReportRepository userReportRepository;
@@ -93,23 +110,22 @@ public class ReportExportService {
 	private String buildUserReportHtml(UserReport report, String userName) {
 		StringBuilder html = new StringBuilder();
 		html.append("<html><head><style>").append(STYLE).append("</style></head><body>");
-		html.append("<h1>학습 최종 리포트</h1>");
-		html.append("<div class=\"meta\">").append(escape(userName))
-				.append(" · 클래스 ").append(report.getClassId())
-				.append(" · 발급일 ").append(formatDateTime(report.getIssuedAt())).append("</div>");
+		appendHeader(html, "학습 최종 리포트",
+				userName + " · 클래스 " + report.getClassId() + " · 발급일 " + formatDateTime(report.getIssuedAt()));
 
-		html.append("<h2>학습 요약</h2><table>");
-		appendRow(html, "참여 세션 수", String.valueOf(report.getSessionCount()));
-		appendRow(html, "이수율", formatPercent(report.getCompletionRate()));
-		appendRow(html, "정답률", formatPercent(report.getAccuracy()));
-		appendRow(html, "평균 풀이 시간", formatElapsed(report.getAvgElapsedMs()));
-		appendRow(html, "평점", formatRating(report.getRating(), report.getRatingFormulaVersion()));
-		html.append("</table>");
+		html.append("<h2>학습 요약</h2>");
+		appendStatBand(html, new String[][] {
+				{String.valueOf(report.getSessionCount()), "참여 세션"},
+				{formatPercent(report.getCompletionRate()), "이수율"},
+				{formatPercent(report.getAccuracy()), "정답률"},
+				{formatElapsed(report.getAvgElapsedMs()), "평균 풀이 시간"},
+				{formatRating(report.getRating()), ratingLabel(report.getRatingFormulaVersion())},
+		});
 
 		appendQuizCounts(html, report.getQuizTotalCount(), report.getQuizAttemptedCount(),
 				report.getQuizCorrectCount(), report.getQuizSkippedCount());
-		appendMapSection(html, "난이도별 분포", report.getDifficultyRatio());
-		appendMapSection(html, "개념별 통계", report.getConceptStats());
+		appendStatsSection(html, "난이도별 분포", report.getDifficultyRatio(), true);
+		appendStatsSection(html, "개념별 통계", report.getConceptStats(), false);
 		appendAiFeedback(html, report.getAiComment(), report.getAiStrengths(), report.getAiImprovements());
 
 		appendFooter(html, "user report #" + report.getId());
@@ -120,22 +136,21 @@ public class ReportExportService {
 	private String buildSessionReportHtml(SessionReport report, String userName) {
 		StringBuilder html = new StringBuilder();
 		html.append("<html><head><style>").append(STYLE).append("</style></head><body>");
-		html.append("<h1>세션 리포트</h1>");
-		html.append("<div class=\"meta\">").append(escape(userName))
-				.append(" · 세션 ").append(report.getSessionId())
-				.append(" · 발급일 ").append(formatDateTime(report.getIssuedAt())).append("</div>");
+		appendHeader(html, "세션 리포트",
+				userName + " · 세션 " + report.getSessionId() + " · 발급일 " + formatDateTime(report.getIssuedAt()));
 
-		html.append("<h2>학습 요약</h2><table>");
-		appendRow(html, "이수율", formatPercent(report.getCompletionRate()));
-		appendRow(html, "정답률", formatPercent(report.getAccuracy()));
-		appendRow(html, "평균 풀이 시간", formatElapsed(report.getAvgElapsedMs()));
-		appendRow(html, "퀴즈 평점", formatRating(report.getQuizRating(), null));
-		html.append("</table>");
+		html.append("<h2>학습 요약</h2>");
+		appendStatBand(html, new String[][] {
+				{formatPercent(report.getCompletionRate()), "이수율"},
+				{formatPercent(report.getAccuracy()), "정답률"},
+				{formatElapsed(report.getAvgElapsedMs()), "평균 풀이 시간"},
+				{formatRating(report.getQuizRating()), "퀴즈 평점"},
+		});
 
 		appendQuizCounts(html, report.getQuizTotalCount(), report.getQuizAttemptedCount(),
 				report.getQuizCorrectCount(), report.getQuizSkippedCount());
-		appendMapSection(html, "난이도별 분포", report.getDifficultyRatio());
-		appendMapSection(html, "개념별 통계", report.getConceptStats());
+		appendStatsSection(html, "난이도별 분포", report.getDifficultyRatio(), true);
+		appendStatsSection(html, "개념별 통계", report.getConceptStats(), false);
 		appendAiFeedback(html, report.getAiComment(), report.getAiStrengths(), report.getAiImprovements());
 		appendManagerComment(html, report);
 
@@ -144,13 +159,85 @@ public class ReportExportService {
 		return html.toString();
 	}
 
+	private void appendHeader(StringBuilder html, String documentTitle, String meta) {
+		html.append("<div class=\"brand\">QURIE</div>");
+		html.append("<h1>").append(escape(documentTitle)).append("</h1>");
+		html.append("<div class=\"meta\">").append(escape(meta)).append("</div>");
+		html.append("<div class=\"rule\"></div>");
+	}
+
+	/** 핵심 지표를 카드처럼 한 줄로 보여준다. openhtmltopdf 에는 flex 가 없어 표 한 행으로 만든다. */
+	private void appendStatBand(StringBuilder html, String[][] stats) {
+		html.append("<table class=\"stats\"><tr>");
+		for (String[] stat : stats) {
+			html.append("<td><div class=\"stat-value\">").append(escape(stat[0]))
+					.append("</div><div class=\"stat-label\">").append(escape(stat[1])).append("</div></td>");
+		}
+		html.append("</tr></table>");
+	}
+
 	private void appendQuizCounts(StringBuilder html, int total, int attempted, int correct, int skipped) {
 		html.append("<h2>퀴즈 현황</h2><table>");
-		appendRow(html, "전체 문제 수", String.valueOf(total));
-		appendRow(html, "응시", String.valueOf(attempted));
-		appendRow(html, "정답", String.valueOf(correct));
-		appendRow(html, "건너뜀", String.valueOf(skipped));
+		html.append("<tr><th class=\"num\">전체 문항</th><th class=\"num\">응시</th>")
+				.append("<th class=\"num\">정답</th><th class=\"num\">건너뜀</th></tr>");
+		html.append("<tr>");
+		for (int value : new int[] {total, attempted, correct, skipped}) {
+			html.append("<td class=\"num\">").append(value).append("</td>");
+		}
+		html.append("</tr></table>");
+	}
+
+	/**
+	 * 난이도·개념 통계 표. 값이 {total, attempted, correct} 개수 맵이면 열로 펼쳐 정답률까지 보여주고,
+	 * 그 모양이 아니면(과거 데이터) 키-값 표로 일반 렌더링한다.
+	 */
+	private void appendStatsSection(StringBuilder html, String title, Map<String, Object> values, boolean difficulty) {
+		if (values == null || values.isEmpty()) {
+			return;
+		}
+		html.append("<h2>").append(escape(title)).append("</h2><table>");
+		boolean allCounts = values.values().stream().allMatch(value -> value instanceof Map);
+		if (!allCounts) {
+			for (Map.Entry<String, Object> entry : new TreeMap<>(values).entrySet()) {
+				appendRow(html, entry.getKey(), String.valueOf(entry.getValue()));
+			}
+			html.append("</table>");
+			return;
+		}
+		html.append("<tr><th>항목</th><th class=\"num\">전체</th><th class=\"num\">응시</th>")
+				.append("<th class=\"num\">정답</th><th class=\"num\">정답률</th></tr>");
+		for (Map.Entry<String, Object> entry : ordered(values, difficulty).entrySet()) {
+			Map<?, ?> counts = (Map<?, ?>) entry.getValue();
+			int total = intOf(counts.get("total"));
+			int attempted = intOf(counts.get("attempted"));
+			int correct = intOf(counts.get("correct"));
+			String label = difficulty
+					? DIFFICULTY_LABELS.getOrDefault(entry.getKey(), entry.getKey())
+					: entry.getKey();
+			html.append("<tr><td>").append(escape(label)).append("</td>")
+					.append("<td class=\"num\">").append(total).append("</td>")
+					.append("<td class=\"num\">").append(attempted).append("</td>")
+					.append("<td class=\"num\">").append(correct).append("</td>")
+					.append("<td class=\"num\">").append(escape(rateOf(correct, attempted))).append("</td></tr>");
+		}
 		html.append("</table>");
+	}
+
+	/** 난이도는 사전순(EASY,HARD,NORMAL)이 아니라 쉬움→어려움 순으로, 나머지 키는 정렬로 고정한다. */
+	private Map<String, Object> ordered(Map<String, Object> values, boolean difficulty) {
+		if (!difficulty) {
+			return new TreeMap<>(values);
+		}
+		Map<String, Object> result = new LinkedHashMap<>();
+		for (String key : DIFFICULTY_ORDER) {
+			if (values.containsKey(key)) {
+				result.put(key, values.get(key));
+			}
+		}
+		for (Map.Entry<String, Object> entry : new TreeMap<>(values).entrySet()) {
+			result.putIfAbsent(entry.getKey(), entry.getValue());
+		}
+		return result;
 	}
 
 	private void appendAiFeedback(StringBuilder html, String comment, List<String> strengths,
@@ -162,10 +249,10 @@ public class ReportExportService {
 		}
 		html.append("<h2>AI 피드백</h2>");
 		if (hasComment) {
-			html.append("<p>").append(escape(comment)).append("</p>");
+			html.append("<div class=\"ai-comment\">").append(escape(comment)).append("</div>");
 		}
-		appendListSection(html, "강점", strengths);
-		appendListSection(html, "보완점", improvements);
+		appendListSection(html, "강점", "strength", strengths);
+		appendListSection(html, "보완점", "improvement", improvements);
 	}
 
 	private void appendManagerComment(StringBuilder html, SessionReport report) {
@@ -173,14 +260,14 @@ public class ReportExportService {
 			return;
 		}
 		html.append("<h2>매니저 코멘트</h2>");
-		html.append("<p>").append(escape(report.getManagerComment())).append("</p>");
+		html.append("<div class=\"manager-box\">").append(escape(report.getManagerComment())).append("</div>");
 	}
 
-	private void appendListSection(StringBuilder html, String title, List<String> items) {
+	private void appendListSection(StringBuilder html, String title, String tone, List<String> items) {
 		if (!hasItems(items)) {
 			return;
 		}
-		html.append("<h3>").append(escape(title)).append("</h3><ul>");
+		html.append("<h3 class=\"").append(tone).append("\">").append(escape(title)).append("</h3><ul>");
 		for (String item : items) {
 			html.append("<li>").append(escape(String.valueOf(item))).append("</li>");
 		}
@@ -193,18 +280,6 @@ public class ReportExportService {
 
 	private void appendRow(StringBuilder html, String label, String value) {
 		html.append("<tr><th>").append(escape(label)).append("</th><td>").append(escape(value)).append("</td></tr>");
-	}
-
-	/** JSON 컬럼은 구조가 확정되지 않아(Planning 초안) 키-값 표로 일반 렌더링한다. 키 순서는 정렬로 고정한다. */
-	private void appendMapSection(StringBuilder html, String title, Map<String, Object> values) {
-		if (values == null || values.isEmpty()) {
-			return;
-		}
-		html.append("<h2>").append(escape(title)).append("</h2><table>");
-		for (Map.Entry<String, Object> entry : new TreeMap<>(values).entrySet()) {
-			appendRow(html, entry.getKey(), String.valueOf(entry.getValue()));
-		}
-		html.append("</table>");
 	}
 
 	private void appendFooter(StringBuilder html, String reference) {
@@ -232,18 +307,39 @@ public class ReportExportService {
 		return String.format("%.1f초", elapsedMs / 1000.0);
 	}
 
-	private String formatRating(BigDecimal rating, String formulaVersion) {
+	private String formatRating(BigDecimal rating) {
 		if (rating == null) {
 			return "-";
 		}
-		String value = rating.stripTrailingZeros().toPlainString();
-		if (formulaVersion == null) {
-			return value;
-		}
-		return value + " (기준 " + formulaVersion + ")";
+		return rating.stripTrailingZeros().toPlainString();
 	}
 
+	/** 평점 공식 버전은 값 옆이 아니라 라벨에 붙인다 — 지표 칸의 큰 숫자를 짧게 유지하기 위해서다. */
+	private String ratingLabel(String formulaVersion) {
+		if (formulaVersion == null || formulaVersion.isBlank()) {
+			return "평점";
+		}
+		return "평점 (기준 " + formulaVersion + ")";
+	}
+
+	private String rateOf(int correct, int attempted) {
+		if (attempted == 0) {
+			return "-";
+		}
+		return Math.round(correct * 100.0 / attempted) + "%";
+	}
+
+	/** JSON 컬럼의 숫자는 역직렬화 방식에 따라 Integer/Long 으로 올 수 있어 Number 로 받는다. */
+	private int intOf(Object value) {
+		return value instanceof Number number ? number.intValue() : 0;
+	}
+
+	/**
+	 * 기본 htmlEscape(인코딩 미지정)는 ISO-8859-1 밖의 활자 기호(둥근따옴표 등)를 &lsquo; 같은
+	 * HTML 전용 명명 엔티티로 바꾸는데, PDF 변환기의 XML 파서는 그 엔티티 선언을 몰라 문서 전체를
+	 * 거부한다(AI 문장이 담긴 리포트가 500 났던 원인). UTF-8 기준으로 XML 이 아는 기본 엔티티만 남긴다.
+	 */
 	private String escape(String value) {
-		return HtmlUtils.htmlEscape(value);
+		return HtmlUtils.htmlEscape(value, StandardCharsets.UTF_8.name());
 	}
 }
