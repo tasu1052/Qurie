@@ -14,6 +14,8 @@ import com.roma.qurie.report.dto.SessionReportBulkResponse;
 import com.roma.qurie.report.dto.SessionReportCreateRequest;
 import com.roma.qurie.report.dto.SessionReportCreateResponse;
 import com.roma.qurie.report.dto.SessionReportDetailResponse;
+import com.roma.qurie.report.dto.SessionReportRosterItemResponse;
+import com.roma.qurie.report.dto.SessionReportRosterResponse;
 import com.roma.qurie.report.dto.SessionReportSummaryResponse;
 import com.roma.qurie.report.entity.SessionReport;
 import com.roma.qurie.report.repository.SessionReportRepository;
@@ -318,6 +320,32 @@ public class SessionReportService {
         String userName = userRepository.findById(targetUserId).map(User::getName).orElse("알 수 없음");
 
         return SessionReportDetailResponse.from(report, session.getTitle(), userName);
+    }
+
+    /**
+     * 세션에 발급된 학생 리포트 전체 명단. 같은 반 강사(매니저·마스터)만 조회한다 —
+     * 세션 종료 후 전원 결과를 한눈에 볼 때 쓴다.
+     */
+    @Transactional(readOnly = true)
+    public SessionReportRosterResponse listSessionReportRoster(Long sessionId, AuthUser requester) {
+        requireInstructor(sessionId, requester);
+        Session session = findSessionOrThrow(sessionId);
+
+        List<SessionReport> reports = sessionReportRepository.findBySessionIdOrderByIssuedAtDesc(sessionId);
+        if (reports.isEmpty()) {
+            return new SessionReportRosterResponse(sessionId, session.getTitle(), 0, List.of());
+        }
+
+        List<Long> userIds = reports.stream().map(SessionReport::getOrdinaryUserId).distinct().toList();
+        Map<Long, String> names = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, User::getName, (a, b) -> a));
+
+        List<SessionReportRosterItemResponse> items = new ArrayList<>(reports.size());
+        for (SessionReport report : reports) {
+            String userName = names.getOrDefault(report.getOrdinaryUserId(), "알 수 없음");
+            items.add(SessionReportRosterItemResponse.from(report, userName));
+        }
+        return new SessionReportRosterResponse(sessionId, session.getTitle(), items.size(), items);
     }
 
     /** 사용자의 세션 리포트 목록. 본인 또는 같은 반 매니저/마스터만 조회. */

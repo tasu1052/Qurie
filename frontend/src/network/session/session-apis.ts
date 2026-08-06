@@ -169,6 +169,23 @@ export interface SessionReportBulkResponse {
     issuedCount: number;
 }
 
+export interface SessionReportRosterItemResponse {
+    sessionReportId: number;
+    ordinaryUserId: number;
+    userName: string;
+    accuracy: number | null;
+    quizRating: number | null;
+    completionRate: number | null;
+    issuedAt: string | null;
+}
+
+export interface SessionReportRosterResponse {
+    sessionId: number;
+    sessionTitle: string;
+    issuedCount: number;
+    reports: SessionReportRosterItemResponse[];
+}
+
 /**
  * 세션 참가 학생 전원의 리포트를 한 번에 발급한다(기존 리포트는 갈아엎고 재발급 — 409 없음).
  * 강사(MANAGER/MASTER) 전용. 학생마다 AI 코멘트를 동기 생성하느라 오래 걸릴 수 있어 타임아웃을 크게 늘린다.
@@ -191,6 +208,16 @@ export const getSessionReport = async (
     const { data } = await axiosInstance.get<SessionReportDetailResponse>(
         `/sessions/${sessionId}/reports`,
         { params: userId != null ? { userId } : undefined },
+    );
+    return data;
+};
+
+/** 세션에 발급된 학생 리포트 전체 명단(강사 전용). */
+export const getSessionReportRoster = async (
+    sessionId: number,
+): Promise<SessionReportRosterResponse> => {
+    const { data } = await axiosInstance.get<SessionReportRosterResponse>(
+        `/sessions/${sessionId}/reports/roster`,
     );
     return data;
 };

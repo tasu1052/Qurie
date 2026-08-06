@@ -138,12 +138,6 @@ export function ManagerNoticesBody({ classId }: { classId: number }) {
         </Button>
       </div>
 
-      <AlertBanner
-        tone="info"
-        title="작성 범위"
-        description="작성·수정·삭제는 담당 클래스 공지에만 가능합니다. 전체·트랙 공지는 조회만 할 수 있어요."
-      />
-
       <ScopeFilterTabs
         scope={scope}
         onChange={setScope}

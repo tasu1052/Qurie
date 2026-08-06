@@ -50,6 +50,7 @@ export {
   useGetSessionMessages,
   useGetSessionPresence,
   useGetSessionReport,
+  useGetSessionReportRoster,
   useUpdateSession,
   useDeleteSession,
   useAskSessionHelp,
@@ -67,6 +68,8 @@ export type {
   SessionReportCreateResponse,
   SessionReportBulkResponse,
   SessionReportDetailResponse,
+  SessionReportRosterItemResponse,
+  SessionReportRosterResponse,
   HelpRequestResponse,
 } from '../network/session';
 export {

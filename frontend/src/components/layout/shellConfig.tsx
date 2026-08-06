@@ -39,7 +39,6 @@ const managerNav: ShellNavItem[] = [
   { key: 'dashboard', label: '대시보드', path: '/manager', icon: <LayoutDashboard {...iconProps} /> },
   { key: 'students', label: '학생 관리', path: '/manager/students', icon: <Users {...iconProps} /> },
   { key: 'sessions', label: '세션', path: '/manager/sessions', icon: <PlayCircle {...iconProps} /> },
-  { key: 'quizzes', label: '세션 목록', path: '/manager/quizzes', icon: <BookOpen {...iconProps} /> },
   { key: 'announcements', label: '공지사항', path: '/manager/announcements', icon: <Megaphone {...iconProps} /> },
   { key: 'me', label: '마이페이지', path: '/manager/me', icon: <UserRound {...iconProps} /> },
 ];

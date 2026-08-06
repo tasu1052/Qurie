@@ -14,4 +14,6 @@ export const sessionKeys = {
         [...sessionKeys.detail(sessionId), 'messages', params] as const,
     report: (sessionId: number, userId?: number) =>
         [...sessionKeys.detail(sessionId), 'report', { userId: userId ?? 'me' }] as const,
+    reportRoster: (sessionId: number) =>
+        [...sessionKeys.detail(sessionId), 'report-roster'] as const,
 };
