@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button, Input } from '../../ds';
-import logoSrc from '../../ds/assets/logo.png';
+import { BrandLogo } from '../../components/brand/BrandLogo';
 import { useConfirmPasswordReset, useRequestPasswordReset } from '../../data';
 
 export default function ResetPage() {
@@ -58,11 +58,7 @@ export default function ResetPage() {
       }}
     >
       <Link to="/" style={{ display: 'inline-flex', textDecoration: 'none', marginBottom: 28 }}>
-        <img
-          src={logoSrc}
-          alt="Qurie"
-          style={{ height: 36, width: 'auto', objectFit: 'contain', display: 'block' }}
-        />
+        <BrandLogo height={36} />
       </Link>
       <div
         style={{

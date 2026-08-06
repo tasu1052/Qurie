@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { ApiIntegrationPanel } from '../../components/feedback/ApiIntegrationPanel';
 import { Button, Input } from '../../ds';
-import logoSrc from '../../ds/assets/logo.png';
+import { BrandLogo } from '../../components/brand/BrandLogo';
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
@@ -36,11 +36,7 @@ export default function AdminLoginPage() {
       }}
     >
       <Link to="/" style={{ display: 'inline-flex', textDecoration: 'none' }}>
-        <img
-          src={logoSrc}
-          alt="Qurie"
-          style={{ height: 36, width: 'auto', objectFit: 'contain', display: 'block' }}
-        />
+        <BrandLogo height={36} />
       </Link>
 
       <div

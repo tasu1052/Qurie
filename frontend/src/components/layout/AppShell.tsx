@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { Sidebar, Topbar } from '../../ds';
 import logoSrc from '../../ds/assets/logo.png';
+import logoDarkSrc from '../../ds/assets/logo-dark.png';
 import { useAccountIdentity } from '../../hooks/useAccountIdentity';
 import type { UserRole } from '../../network/core/types';
 import { useThemeOptional } from '../../theme/useTheme';
@@ -96,7 +97,7 @@ export function AppShell({ role, activeKey, breadcrumbs, children }: AppShellPro
         <Sidebar
           items={items}
           activeKey={activeKey}
-          logoSrc={theme === 'dark' ? null : logoSrc}
+          logoSrc={theme === 'dark' ? logoDarkSrc : logoSrc}
           onSelect={onNavSelect}
           footer={
             <SidebarAccountFooter name={account.name} email={account.email} onProfileClick={goMe} />

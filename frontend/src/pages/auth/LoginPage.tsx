@@ -1,15 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Input } from '../../ds';
-import logoSrc from '../../ds/assets/logo.png';
+import { BrandLogo } from '../../components/brand/BrandLogo';
 import { useLogin, type AuthUserResponse } from '../../data';
 import { homePathForRole } from '../../components/auth/roleRoutes';
-import { useThemeOptional } from '../../theme/useTheme';
 
 const EMAIL_STORAGE_KEY = 'qurie:login-email';
 
 function AuthCardShell({ children, title, subtitle }: { children: React.ReactNode; title: string; subtitle?: string }) {
-  const dark = useThemeOptional()?.theme === 'dark';
   return (
     <div
       style={{
@@ -24,17 +22,7 @@ function AuthCardShell({ children, title, subtitle }: { children: React.ReactNod
       }}
     >
       <Link to="/" style={{ display: 'inline-flex', textDecoration: 'none', marginBottom: 28, alignItems: 'center' }}>
-        {dark ? (
-          <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-            Q<span style={{ color: 'var(--accent)', fontWeight: 800 }}>&gt;</span>rie
-          </span>
-        ) : (
-          <img
-            src={logoSrc}
-            alt="Qurie"
-            style={{ height: 36, width: 'auto', objectFit: 'contain', display: 'block' }}
-          />
-        )}
+        <BrandLogo height={36} />
       </Link>
       <div
         style={{

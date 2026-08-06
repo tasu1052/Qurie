@@ -16,7 +16,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { AlertBanner, Button, LiveBadge, Modal } from '../../ds';
-import logoSrc from '../../ds/assets/logo.png';
+import { BrandLogo } from '../../components/brand/BrandLogo';
 import { CollabMonacoEditor } from '../../collab/CollabMonacoEditor';
 import { useCollabSession } from '../../collab/useCollabSession';
 import { getOrCreateFileYText } from '../../collab/fileYText';
@@ -676,7 +676,7 @@ export default function SessionPage() {
         }}
       >
         <Link to="/" style={{ display: 'inline-flex', textDecoration: 'none', flexShrink: 0 }}>
-          <img src={logoSrc} alt="Qurie" style={{ height: 28, width: 'auto', objectFit: 'contain', display: 'block' }} />
+          <BrandLogo height={28} />
         </Link>
         <span style={{ width: 1, height: 24, background: 'var(--divider)', flexShrink: 0 }} />
         <div style={{ minWidth: 0, flex: '1 1 auto', overflow: 'hidden' }}>
