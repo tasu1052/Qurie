@@ -22,6 +22,7 @@ import {
   useGetSessionReport,
   useGetSessionReportRoster,
   useMe,
+  useUpdateSessionReportManagerComment,
   type QuizProgressItem,
   type QuizQuestionChoiceItem,
   type QuizQuestionItem,
@@ -252,11 +253,22 @@ function StrengthImprovementColumn({
   strengths,
   improvements,
   managerComment,
+  canEditComment,
+  sessionId,
+  ordinaryUserId,
 }: {
   strengths: string[];
   improvements: string[];
   managerComment: string | null;
+  canEditComment?: boolean;
+  sessionId?: number;
+  ordinaryUserId?: number;
 }) {
+  const updateComment = useUpdateSessionReportManagerComment();
+  const [draft, setDraft] = useState(managerComment ?? '');
+  const [commentError, setCommentError] = useState<string | null>(null);
+  const [savedFlash, setSavedFlash] = useState(false);
+
   return (
     <div
       style={{
@@ -320,32 +332,81 @@ function StrengthImprovementColumn({
           ))
         )}
       </div>
-      {managerComment?.trim() ? (
-        <div
+      <div
+        style={{
+          borderTop: '1px solid var(--divider)',
+          paddingTop: 14,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+        }}
+      >
+        <span
           style={{
-            borderTop: '1px solid var(--divider)',
-            paddingTop: 14,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: 'var(--text-secondary)',
           }}
         >
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            강사 코멘트
-          </span>
+          강사 코멘트
+        </span>
+        {canEditComment && sessionId != null && ordinaryUserId != null ? (
+          <>
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="학생에게 남길 코멘트를 입력하세요"
+              rows={4}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                resize: 'vertical',
+                borderRadius: 10,
+                border: '1px solid var(--border)',
+                padding: '10px 12px',
+                fontSize: 13,
+                fontFamily: 'var(--font-sans)',
+                color: 'var(--ink)',
+                background: 'var(--surface-sunken)',
+                lineHeight: 1.5,
+              }}
+            />
+            {commentError ? (
+              <span style={{ fontSize: 12, color: 'var(--status-error)' }}>{commentError}</span>
+            ) : null}
+            {savedFlash ? (
+              <span style={{ fontSize: 12, color: 'var(--status-success)' }}>저장했고 학생에게 알림을 보냈어요.</span>
+            ) : null}
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={updateComment.isPending || !draft.trim()}
+              onClick={() => {
+                setCommentError(null);
+                setSavedFlash(false);
+                updateComment.mutate(
+                  { sessionId, userId: ordinaryUserId, comment: draft.trim() },
+                  {
+                    onSuccess: () => setSavedFlash(true),
+                    onError: (err) =>
+                      setCommentError(humanizeApiError(err, '코멘트를 저장하지 못했어요.')),
+                  },
+                );
+              }}
+            >
+              {updateComment.isPending ? '저장 중…' : '코멘트 저장'}
+            </Button>
+          </>
+        ) : managerComment?.trim() ? (
           <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
             {managerComment}
           </p>
-        </div>
-      ) : null}
+        ) : (
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>아직 코멘트가 없어요.</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -563,6 +624,9 @@ function SessionReportBody({
           strengths={aiStrengths}
           improvements={aiImprovements}
           managerComment={report.managerComment}
+          canEditComment={isManager}
+          sessionId={sessionId}
+          ordinaryUserId={report.ordinaryUserId}
         />
       </div>
     </>
@@ -673,6 +737,45 @@ function SessionReportOverview({
 
       {issueMsg ? <AlertBanner tone="success" title="발급 완료" description={issueMsg} /> : null}
       {issueError ? <AlertBanner tone="error" title="발급 실패" description={issueError} /> : null}
+
+      {issueAll.isPending ? (
+        <div
+          role="status"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1200,
+            background: 'rgba(15, 18, 28, 0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--surface-modal)',
+              borderRadius: 16,
+              padding: '28px 32px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                border: '3px solid var(--border)',
+                borderTopColor: 'var(--accent)',
+                animation: 'qurie-spin 0.8s linear infinite',
+              }}
+            />
+            <span style={{ fontSize: 14, fontWeight: 700 }}>리포트 생성 중…</span>
+          </div>
+        </div>
+      ) : null}
 
       <StatCardRow>
         <StatCard

@@ -1,5 +1,6 @@
 package com.roma.qurie.quiz.repository;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,6 +21,14 @@ public interface QuizProgressRepository extends JpaRepository<QuizProgress, Long
 			where qp.quiz.id in (select q.id from Quiz q where q.quizSet.projectId = :projectId)
 			""")
 	void deleteAllByQuizSetProjectId(@Param("projectId") Long projectId);
+
+	/** 같은 출제 스코프(파일/폴더) 퀴즈셋만 지울 때 쓴다. */
+	@Modifying
+	@Query("""
+			delete from QuizProgress qp
+			where qp.quiz.quizSet.id in :quizSetIds
+			""")
+	void deleteAllByQuizSetIdIn(@Param("quizSetIds") Collection<Long> quizSetIds);
 
 	@Query("""
 			select qp from QuizProgress qp

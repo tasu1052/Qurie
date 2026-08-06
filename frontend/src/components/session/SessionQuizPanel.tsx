@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { isAxiosError } from 'axios';
 import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import {
@@ -9,6 +9,7 @@ import {
   useGenerateQuiz,
   useGetQuizProgress,
   useMeOptional,
+  useMyQuizSatisfaction,
   usePollQuizQuestions,
   usePollQuizSet,
   useQuizSetsByProject,
@@ -40,6 +41,7 @@ import {
   IncorrectRetryPlayer,
   type IncorrectRetryQuestion,
 } from './IncorrectRetryPlayer';
+import { ConfettiBurst } from './ConfettiBurst';
 import type { QuizProgressEvent } from '../../realtime/useSessionSocket';
 
 type SessionQuizPanelProps = {
@@ -344,62 +346,6 @@ function QuizGeneratingBanner({
           />
         )}
       </div>
-    </div>
-  );
-}
-
-const CONFETTI_COLORS = [
-  'var(--accent)',
-  'var(--status-success)',
-  'var(--status-warning)',
-  'var(--status-error)',
-  'var(--chart-accent)',
-  'var(--accent-strong)',
-];
-
-function ConfettiBurst() {
-  const pieces = useMemo(
-    () =>
-      Array.from({ length: 28 }, (_, i) => ({
-        id: i,
-        left: `${(i * 17 + 7) % 100}%`,
-        delay: `${(i % 7) * 0.08}s`,
-        duration: `${1.6 + (i % 5) * 0.15}s`,
-        dx: `${((i % 11) - 5) * 18}px`,
-        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-        size: 6 + (i % 3) * 2,
-      })),
-    [],
-  );
-
-  return (
-    <div
-      aria-hidden
-      style={{
-        position: 'absolute',
-        inset: 0,
-        pointerEvents: 'none',
-        overflow: 'hidden',
-      }}
-    >
-      {pieces.map((p) => (
-        <span
-          key={p.id}
-          style={
-            {
-              '--dx': p.dx,
-              position: 'absolute',
-              left: p.left,
-              top: -8,
-              width: p.size,
-              height: p.size,
-              borderRadius: p.id % 2 === 0 ? 2 : '50%',
-              background: p.color,
-              animation: `qurie-confetti-fall ${p.duration} ease-out ${p.delay} forwards`,
-            } as CSSProperties
-          }
-        />
-      ))}
     </div>
   );
 }
@@ -1132,12 +1078,11 @@ export function SessionQuizPanel({
   const inReviewMode = reviewingCompleteFor === activeQuizSetId;
   const playerMountKey = `${activeQuizSetId ?? 0}-${inReviewMode ? 'review' : 'play'}-${bootstrapMount}-${conflictEpoch}`;
 
-  const alreadyRated =
-    activeQuizSetId != null &&
-    latestSummary?.quizSetId === activeQuizSetId &&
-    latestSummary.satisfactionRating != null;
+  const mySatisfaction = useMyQuizSatisfaction(!isInstructor ? activeQuizSetId : null);
+  const alreadyRated = mySatisfaction.data?.submitted === true;
 
   const satisfactionVisible =
+    !isInstructor &&
     summary?.status === 'COMPLETED' &&
     allHandled &&
     activeQuizSetId != null &&
@@ -1200,6 +1145,8 @@ export function SessionQuizPanel({
           versionHash: resolvedVersionHash,
           targetFiles: scopedPaths,
           files,
+          sourcePath: selection.path,
+          sourceKind: selection.kind,
         },
         {
           onSuccess: (res) => {
@@ -1460,18 +1407,22 @@ export function SessionQuizPanel({
   const waitingForFirstQuestion =
     playableQuizzes.length === 0 &&
     (generateQuiz.isPending || generatingInFlight || generating || showGeneratingPlaceholder);
+  /** 매니저는 항상 출제 가능. 같은 파일=재생성(덮어쓰기), 다른 파일=새 퀴즈셋 추가. */
   const showCreateForm =
     canManageQuiz &&
     projectId != null &&
     playableQuizzes.length === 0 &&
     !showGeneratingPlaceholder &&
     !generatingInFlight;
-  const showRegenerate =
-    canManageQuiz &&
-    projectId != null &&
-    (playableQuizzes.length > 0 || summary?.status === 'COMPLETED') &&
-    !generatingInFlight;
+  const showSourcePickerButton =
+    canManageQuiz && projectId != null && !generatingInFlight;
   const showGeneratingBanner = waitingForFirstQuestion;
+  const activeSourceLabel =
+    lastSource != null
+      ? lastSource.kind === 'dir'
+        ? `${lastSource.path}/`
+        : lastSource.path
+      : latestSummary?.sourcePath ?? null;
 
   return (
     <div
@@ -1487,12 +1438,19 @@ export function SessionQuizPanel({
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>AI 퀴즈</span>
-        {showRegenerate ? (
+        {showSourcePickerButton ? (
           <Button variant="secondary" size="sm" disabled={!canGenerate} onClick={openSourcePicker}>
-            퀴즈 재생성
+            {playableQuizzes.length > 0 || summary?.status === 'COMPLETED' ? '퀴즈 출제' : '퀴즈 생성'}
           </Button>
         ) : null}
       </div>
+      {canManageQuiz ? (
+        <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.45 }}>
+          같은 파일을 다시 고르면 해당 퀴즈·응시를 지우고 재생성합니다. 다른 파일이면 새 퀴즈셋이
+          추가됩니다.
+          {activeSourceLabel ? ` · 현재 활성: ${activeSourceLabel}` : null}
+        </span>
+      ) : null}
 
       {formError ? (
         <AlertBanner
@@ -1596,7 +1554,7 @@ export function SessionQuizPanel({
           </Button>
           {latestSummary != null || activeQuizSetId != null ? (
             <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 }}>
-              재생성 시 기존 퀴즈는 삭제되고, 이전 문항과 겹치지 않게 새로 출제됩니다.
+              같은 파일 재출제 시 해당 퀴즈만 교체되고, 다른 파일은 새 퀴즈셋으로 추가됩니다.
             </span>
           ) : null}
           {lastSource ? (

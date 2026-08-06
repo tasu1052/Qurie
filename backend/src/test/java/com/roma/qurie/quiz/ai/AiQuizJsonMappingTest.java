@@ -30,7 +30,9 @@ class AiQuizJsonMappingTest {
 				"동시성 위주로",
 				"hash-1",
 				List.of("src/Main.java"),
-				Map.of("src/Main.java", "public class Main {}"));
+				Map.of("src/Main.java", "public class Main {}"),
+				"src/Main.java",
+				"file");
 
 		AiQuizCreateRequest aiRequest = AiQuizCreateRequest.from(
 				request,
@@ -63,7 +65,9 @@ class AiQuizJsonMappingTest {
 				null,
 				"hash-2",
 				null,
-				Map.of("src/Main.java", "public class Main {}"));
+				Map.of("src/Main.java", "public class Main {}"),
+				null,
+				null);
 
 		AiQuizCreateRequest aiRequest =
 				AiQuizCreateRequest.from(request, null, "http://backend:8080/api/quiz/1/callback");

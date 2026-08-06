@@ -13,7 +13,9 @@ import com.roma.qurie.classes.ClassUserRepository;
 import com.roma.qurie.group.Group;
 import com.roma.qurie.group.GroupParticipantRepository;
 import com.roma.qurie.group.GroupRepository;
+import com.roma.qurie.notification.service.AppNotificationService;
 import com.roma.qurie.security.AuthUser;
+import com.roma.qurie.user.entity.UserRole;
 import com.roma.qurie.session.chat.ChatService;
 import com.roma.qurie.session.core.dto.SessionCreateRequest;
 import com.roma.qurie.session.core.dto.SessionResponse;
@@ -22,6 +24,7 @@ import com.roma.qurie.session.core.dto.SessionUpdateRequest;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -58,7 +61,20 @@ class SessionServiceTest {
 	private ClassUserRepository classUserRepository;
 
 	@Mock
+	private AppNotificationService appNotificationService;
+
+	@Mock
 	private SimpMessagingTemplate messagingTemplate;
+
+	@BeforeEach
+	void stubAudienceLookups() {
+		org.mockito.Mockito.lenient()
+				.when(groupParticipantRepository.findUserIdsByGroupIdAndUserRole(any(), any(UserRole.class)))
+				.thenReturn(List.of());
+		org.mockito.Mockito.lenient()
+				.when(classUserRepository.findUserIdsByClassEntityIdAndUserRole(any(), any(UserRole.class)))
+				.thenReturn(List.of());
+	}
 
 	@InjectMocks
 	private SessionService sessionService;

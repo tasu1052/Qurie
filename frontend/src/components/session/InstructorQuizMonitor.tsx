@@ -8,6 +8,7 @@ import {
 } from '../../data';
 import { queryKeys } from '../../network/core/queryKeys';
 import type { QuizProgressEvent } from '../../realtime/useSessionSocket';
+import { ConfettiBurst } from './ConfettiBurst';
 
 function statusLabel(status: QuizRosterStudentStatus): string {
   switch (status) {
@@ -155,6 +156,7 @@ export function InstructorQuizMonitor({ quizSetId, liveProgress }: InstructorQui
   return (
     <div
       style={{
+        position: 'relative',
         marginTop: 4,
         border: '1px solid var(--border)',
         borderRadius: 12,
@@ -163,17 +165,19 @@ export function InstructorQuizMonitor({ quizSetId, liveProgress }: InstructorQui
         flexDirection: 'column',
         gap: 12,
         minHeight: 280,
-        background: 'var(--surface-card)',
+        background: allCompleted ? 'var(--status-success-bg)' : 'var(--surface-card)',
+        overflow: 'hidden',
       }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {allCompleted ? <ConfettiBurst /> : null}
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>학생 응시 현황</span>
         <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.45 }}>
           강사는 퀴즈를 풀지 않습니다. 학생이 풀이·제출하면 여기에 실시간으로 반영됩니다.
         </span>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <StatChip label="전체" value={total} />
         <StatChip label="시작" value={started} />
         <StatChip label="풀이 중" value={inProgress} accent />
@@ -183,16 +187,23 @@ export function InstructorQuizMonitor({ quizSetId, liveProgress }: InstructorQui
       {allCompleted ? (
         <div
           style={{
+            position: 'relative',
+            zIndex: 1,
             borderRadius: 10,
-            background: 'var(--status-success-bg)',
+            background: 'var(--surface-card)',
             border: '1px solid var(--status-success)',
-            padding: '10px 12px',
-            fontSize: 12.5,
-            color: 'var(--status-success)',
-            fontWeight: 600,
+            padding: '12px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
           }}
         >
-          모든 학생이 퀴즈를 마쳤어요. 리포트를 생성해 주세요.
+          <span style={{ fontSize: 14, color: 'var(--status-success)', fontWeight: 700 }}>
+            리포트 생성 준비가 완료되었어요
+          </span>
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+            모든 학생이 퀴즈를 마쳤어요. 상단에서 리포트를 생성해 주세요.
+          </span>
         </div>
       ) : null}
 

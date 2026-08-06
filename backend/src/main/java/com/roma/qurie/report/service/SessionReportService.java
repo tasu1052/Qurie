@@ -10,10 +10,12 @@ import com.roma.qurie.quiz.entity.QuizSetStatus;
 import com.roma.qurie.quiz.repository.QuizProgressRepository;
 import com.roma.qurie.quiz.repository.QuizSetRepository;
 import com.roma.qurie.report.ai.AiReportSummary;
+import com.roma.qurie.notification.service.AppNotificationService;
 import com.roma.qurie.report.dto.SessionReportBulkResponse;
 import com.roma.qurie.report.dto.SessionReportCreateRequest;
 import com.roma.qurie.report.dto.SessionReportCreateResponse;
 import com.roma.qurie.report.dto.SessionReportDetailResponse;
+import com.roma.qurie.report.dto.SessionReportManagerCommentRequest;
 import com.roma.qurie.report.dto.SessionReportRosterItemResponse;
 import com.roma.qurie.report.dto.SessionReportRosterResponse;
 import com.roma.qurie.report.dto.SessionReportSummaryResponse;
@@ -60,6 +62,7 @@ public class SessionReportService {
     private final QuizSetRepository quizSetRepository;
     private final QuizProgressRepository quizProgressRepository;
     private final ReportAiFeedbackService reportAiFeedbackService;
+    private final AppNotificationService appNotificationService;
     private final TransactionTemplate transactionTemplate;
 
     /**
@@ -154,14 +157,14 @@ public class SessionReportService {
     private SessionReportCreateRequest enrichWithAiFeedback(
             Long sessionId, SessionReportCreateRequest request, QuizResultAggregate aggregate) {
         boolean hasClientFeedback = request.aiComment() != null && !request.aiComment().isBlank();
-        if (hasClientFeedback || aggregate.quizSetId() == null) {
+        if (hasClientFeedback || aggregate.quizSetIds().isEmpty()) {
             return request;
         }
         String studentName = userRepository.findById(request.ordinaryUserId())
                 .map(User::getName)
                 .orElse("학생");
         ReportAiFeedbackService.AiFeedback feedback = reportAiFeedbackService.generate(
-                studentName, sessionId, request.ordinaryUserId(), List.of(aggregate.quizSetId()),
+                studentName, sessionId, request.ordinaryUserId(), aggregate.quizSetIds(),
                 new AiReportSummary(
                         aggregate.totalCount(), aggregate.attemptedCount(), aggregate.correctCount(),
                         aggregate.skippedCount(), aggregate.accuracy(), aggregate.completionRate(),
@@ -179,23 +182,28 @@ public class SessionReportService {
     }
 
     /**
-     * 집계 기준은 "세션 현재 프로젝트의 최신 완료 퀴즈셋" 하나다 — 화면이 최신 셋만 노출하므로
-     * 재생성된 옛 셋까지 합산하면 풀 수 없던 문항이 이수율 분모에 끼어 지표가 왜곡된다.
+     * 집계 기준은 세션 현재 프로젝트의 완료된 퀴즈셋 전부다.
+     * 파일별로 여러 셋이 있을 수 있고, 같은 파일 재생성으로 지워진 옛 셋은 포함되지 않는다.
      */
     private QuizResultAggregate aggregateQuizResults(Long sessionId, Long userId) {
-        QuizSet quizSet = projectRepository.findFirstBySessionIdOrderByIdDesc(sessionId)
-                .flatMap(project -> quizSetRepository.findByProjectIdOrderByIdDesc(project.getId()).stream()
+        List<QuizSet> completedSets = projectRepository.findFirstBySessionIdOrderByIdDesc(sessionId)
+                .map(project -> quizSetRepository.findByProjectIdOrderByIdDesc(project.getId()).stream()
                         .filter(set -> set.getStatus() == QuizSetStatus.COMPLETED)
-                        .findFirst())
-                .orElse(null);
-        if (quizSet == null) {
+                        .toList())
+                .orElse(List.of());
+        if (completedSets.isEmpty()) {
             // 퀴즈 없이 끝난 세션도 리포트는 발급한다. 지표는 0 건으로 남는다.
             return QuizResultAggregate.empty();
         }
 
-        List<Quiz> quizzes = quizSet.getQuizzes();
-        List<QuizProgress> progresses =
-                quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(quizSet.getId(), userId);
+        List<Long> quizSetIds = completedSets.stream().map(QuizSet::getId).toList();
+        List<Quiz> quizzes = new ArrayList<>();
+        List<QuizProgress> progresses = new ArrayList<>();
+        for (QuizSet quizSet : completedSets) {
+            quizzes.addAll(quizSet.getQuizzes());
+            progresses.addAll(
+                    quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(quizSet.getId(), userId));
+        }
 
         int totalCount = quizzes.size();
         int attemptedCount = (int) progresses.stream().filter(SessionReportService::isAttempted).count();
@@ -203,7 +211,8 @@ public class SessionReportService {
         int skippedCount = progresses.size() - attemptedCount;
 
         return new QuizResultAggregate(
-                quizSet.getId(),
+                quizSetIds.get(0),
+                quizSetIds,
                 totalCount,
                 attemptedCount,
                 correctCount,
@@ -281,6 +290,7 @@ public class SessionReportService {
 
     private record QuizResultAggregate(
             Long quizSetId,
+            List<Long> quizSetIds,
             int totalCount,
             int attemptedCount,
             int correctCount,
@@ -292,8 +302,32 @@ public class SessionReportService {
             Map<String, Object> conceptStats) {
 
         static QuizResultAggregate empty() {
-            return new QuizResultAggregate(null, 0, 0, 0, 0, null, null, null, Map.of(), Map.of());
+            return new QuizResultAggregate(null, List.of(), 0, 0, 0, 0, null, null, null, Map.of(), Map.of());
         }
+    }
+
+    /** 강사가 학생 세션 리포트에 코멘트를 남긴다. 학생에게 인앱 알림을 보낸다. */
+    @Transactional
+    public SessionReportDetailResponse updateManagerComment(
+            Long sessionId, Long ordinaryUserId, SessionReportManagerCommentRequest request, AuthUser requester) {
+        requireInstructor(sessionId, requester);
+        SessionReport report = sessionReportRepository
+                .findBySessionIdAndOrdinaryUserId(sessionId, ordinaryUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "세션 리포트를 찾을 수 없습니다."));
+        report.updateManagerComment(request.comment().trim(), requester.id());
+
+        Session session = findSessionOrThrow(sessionId);
+        String title = "세션 리포트에 강사 코멘트가 달렸어요";
+        String body = session.getTitle() != null ? session.getTitle() : ("세션 #" + sessionId);
+        appNotificationService.notifyUsers(
+                List.of(ordinaryUserId),
+                AppNotificationService.TYPE_REPORT_COMMENT,
+                title,
+                body,
+                "/session/" + sessionId + "/report");
+
+        String userName = userRepository.findById(ordinaryUserId).map(User::getName).orElse("알 수 없음");
+        return SessionReportDetailResponse.from(report, session.getTitle(), userName);
     }
 
     /**

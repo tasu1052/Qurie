@@ -3,6 +3,7 @@ import { queryKeys } from '../core/queryKeys';
 import {
     generateQuiz,
     getIncorrectQuizProgress,
+    getMyQuizSatisfaction,
     getQuizProgress,
     getQuizProgressRoster,
     getQuizQuestions,
@@ -99,7 +100,23 @@ export const useSubmitQuizSatisfaction = () => {
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.quiz.detail(data.quizSetId) });
             queryClient.invalidateQueries({ queryKey: queryKeys.quiz.all });
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.quiz.mySatisfaction(data.quizSetId),
+            });
         },
+    });
+};
+
+/** 본인 만족도 제출 여부 — 학생 sticky 노출 판정. */
+export const useMyQuizSatisfaction = (quizSetId: number | null) => {
+    return useQuery({
+        queryKey:
+            quizSetId != null
+                ? queryKeys.quiz.mySatisfaction(quizSetId)
+                : (['quiz', 'satisfaction', 'idle'] as const),
+        queryFn: () => getMyQuizSatisfaction(quizSetId as number),
+        enabled: quizSetId != null,
+        staleTime: 5_000,
     });
 };
 

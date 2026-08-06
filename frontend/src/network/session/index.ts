@@ -11,6 +11,7 @@ export {
     useGetSessionPresence,
     useGetSessionReport,
     useGetSessionReportRoster,
+    useUpdateSessionReportManagerComment,
     useGetSessions,
     useUpdateSession,
     useAskSessionHelp,

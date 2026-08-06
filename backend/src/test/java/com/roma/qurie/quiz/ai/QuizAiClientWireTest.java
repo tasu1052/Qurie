@@ -103,7 +103,9 @@ class QuizAiClientWireTest {
 				null,
 				"hash-3",
 				null,
-				Map.of("src/Main.java", "public class Main {}"));
+				Map.of("src/Main.java", "public class Main {}"),
+				null,
+				null);
 	}
 
 	private String takeBody() throws InterruptedException {

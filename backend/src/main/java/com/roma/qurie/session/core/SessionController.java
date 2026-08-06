@@ -1,6 +1,7 @@
 package com.roma.qurie.session.core;
 
 import com.roma.qurie.report.dto.SessionReportBulkResponse;
+import com.roma.qurie.report.dto.SessionReportManagerCommentRequest;
 import com.roma.qurie.report.dto.SessionReportRosterResponse;
 import com.roma.qurie.report.dto.SessionReportCreateRequest;
 import com.roma.qurie.report.dto.SessionReportCreateResponse;
@@ -137,5 +138,15 @@ public class SessionController {
             @RequestParam(name = "userId", required = false) Long userId,
             @AuthenticationPrincipal AuthUser requester) {
         return sessionReportService.getSessionReport(sessionId, userId, requester);
+    }
+
+    /** 강사가 학생 세션 리포트에 코멘트를 남긴다. */
+    @PatchMapping("{sessionId}/reports/{userId}/manager-comment")
+    public SessionReportDetailResponse updateManagerComment(
+            @PathVariable Long sessionId,
+            @PathVariable Long userId,
+            @Valid @RequestBody SessionReportManagerCommentRequest request,
+            @AuthenticationPrincipal AuthUser requester) {
+        return sessionReportService.updateManagerComment(sessionId, userId, request, requester);
     }
 }

@@ -5,6 +5,7 @@ import {
     createSession,
     createSessionReport,
     createSessionReportsForAll,
+    updateSessionReportManagerComment,
     deleteSession,
     getSession,
     getSessionMessages,
@@ -117,6 +118,29 @@ export const useGetSessionReport = (sessionId: number, userId?: number) => {
     return useSuspenseQuery({
         queryKey: queryKeys.sessions.report(sessionId, userId),
         queryFn: () => getSessionReport(sessionId, userId),
+    });
+};
+
+export const useUpdateSessionReportManagerComment = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({
+            sessionId,
+            userId,
+            comment,
+        }: {
+            sessionId: number;
+            userId: number;
+            comment: string;
+        }) => updateSessionReportManagerComment(sessionId, userId, comment),
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.sessions.report(data.sessionId, data.ordinaryUserId),
+            });
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.sessions.reportRoster(data.sessionId),
+            });
+        },
     });
 };
 

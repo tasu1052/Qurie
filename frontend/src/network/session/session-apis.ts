@@ -205,6 +205,18 @@ export const createSessionReportsForAll = async (
     return data;
 };
 
+export const updateSessionReportManagerComment = async (
+    sessionId: number,
+    userId: number,
+    comment: string,
+): Promise<SessionReportDetailResponse> => {
+    const { data } = await axiosInstance.patch<SessionReportDetailResponse>(
+        `/sessions/${sessionId}/reports/${userId}/manager-comment`,
+        { comment },
+    );
+    return data;
+};
+
 export const getSessionReport = async (
     sessionId: number,
     userId?: number,

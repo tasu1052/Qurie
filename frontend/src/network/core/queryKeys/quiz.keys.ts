@@ -8,4 +8,6 @@ export const quizKeys = {
     progressRoster: (quizSetId: number) => [...quizKeys.all, 'progressRoster', quizSetId] as const,
     progressIncorrect: (quizSetId: number) =>
         [...quizKeys.all, 'progressIncorrect', quizSetId] as const,
+    mySatisfaction: (quizSetId: number) =>
+        [...quizKeys.all, 'satisfaction', 'me', quizSetId] as const,
 };

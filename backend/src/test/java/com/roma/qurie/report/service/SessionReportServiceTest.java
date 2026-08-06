@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import com.roma.qurie.notification.service.AppNotificationService;
 import com.roma.qurie.project.Project;
 import com.roma.qurie.project.ProjectRepository;
 import com.roma.qurie.quiz.entity.Quiz;
@@ -87,6 +88,9 @@ class SessionReportServiceTest {
 
 	@Mock
 	private ReportAiFeedbackService reportAiFeedbackService;
+
+	@Mock
+	private AppNotificationService appNotificationService;
 
 	@Mock
 	private TransactionTemplate transactionTemplate;

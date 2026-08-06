@@ -31,7 +31,11 @@ public record QuizGenerateRequest(
 		@Size(max = 500) String userPrompt,
 		@NotBlank @Size(max = 64) String versionHash,
 		List<String> targetFiles,
-		@NotEmpty Map<String, String> files) {
+		@NotEmpty Map<String, String> files,
+		/** 출제 스코프(파일/폴더 경로). 없으면 targetFiles 첫 항목으로 추론. */
+		@Size(max = 500) String sourcePath,
+		/** file | dir */
+		@Size(max = 12) String sourceKind) {
 
 	/** AI 는 상대 가중치라 합이 100일 필요가 없다 — 전부 0인 경우만 막는다. */
 	@AssertTrue(message = "난이도 비율 중 하나 이상은 0보다 커야 합니다.")

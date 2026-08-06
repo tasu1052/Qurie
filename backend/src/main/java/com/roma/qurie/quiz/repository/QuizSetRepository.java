@@ -13,4 +13,9 @@ public interface QuizSetRepository extends JpaRepository<QuizSet, Long> {
 	List<QuizSet> findByProjectIdOrderByIdDesc(Long projectId);
 
 	boolean existsByProjectIdAndStatusIn(Long projectId, Collection<QuizSetStatus> statuses);
+
+	boolean existsByProjectIdAndSourcePathAndStatusIn(
+			Long projectId, String sourcePath, Collection<QuizSetStatus> statuses);
+
+	List<QuizSet> findByProjectIdAndSourcePathOrderByIdDesc(Long projectId, String sourcePath);
 }
