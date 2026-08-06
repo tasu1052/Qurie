@@ -29,7 +29,6 @@ import {
   type ClassMemberResponse,
   type GroupResponse,
 } from '../../data';
-import { getUserProfileExtras } from '../../utils/userProfileExtras';
 import { validateInviteFile } from '../../utils/validateInviteFile';
 
 type StudentSortKey = 'name' | 'group' | 'role';
@@ -307,7 +306,7 @@ function MembersTable({
                 <span style={{ color: 'var(--text-secondary)' }}>{studentRoleLabel(m.role, m.groupName)}</span>
                 <span style={{ color: 'var(--text-secondary)' }}>{m.groupName ?? '—'}</span>
                 <span style={{ color: 'var(--text-secondary)' }}>
-                  {getUserProfileExtras(m.email).phone ?? '—'}
+                  {m.phone?.trim() ? m.phone : '—'}
                 </span>
               </div>
             ))

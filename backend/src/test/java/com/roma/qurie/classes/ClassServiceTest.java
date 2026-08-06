@@ -72,8 +72,8 @@ class ClassServiceTest {
 
 	@Test
 	void getMembersMergesGroupAssignmentIntoRoster() {
-		User assigned = student(101L, "박민수", "minsu@qurie.com");
-		User unassigned = student(102L, "이수진", "sujin@qurie.com");
+		User assigned = student(101L, "박민수", "minsu@qurie.com", "010-1111-2222");
+		User unassigned = student(102L, "이수진", "sujin@qurie.com", null);
 		ClassEntity classEntity = classEntity(ENTERPRISE_ID);
 		given(classRepository.findById(CLASS_ID)).willReturn(Optional.of(classEntity));
 		given(classUserRepository.findMemberPage(CLASS_ID, UserRole.STUDENT, null, PAGEABLE))
@@ -91,15 +91,17 @@ class ClassServiceTest {
 		assertThat(first.userId()).isEqualTo(101L);
 		assertThat(first.groupId()).isEqualTo(GROUP_ID);
 		assertThat(first.groupName()).isEqualTo("그룹 A");
+		assertThat(first.phone()).isEqualTo("010-1111-2222");
 		ClassMemberResponse second = response.data().get(1);
 		assertThat(second.userId()).isEqualTo(102L);
 		assertThat(second.groupId()).isNull();
 		assertThat(second.groupName()).isNull();
+		assertThat(second.phone()).isNull();
 	}
 
 	@Test
 	void getMembersKeepsLatestAssignmentWhenUserHasDuplicateGroupRows() {
-		User assigned = student(101L, "박민수", "minsu@qurie.com");
+		User assigned = student(101L, "박민수", "minsu@qurie.com", null);
 		ClassEntity classEntity = classEntity(ENTERPRISE_ID);
 		given(classRepository.findById(CLASS_ID)).willReturn(Optional.of(classEntity));
 		given(classUserRepository.findMemberPage(CLASS_ID, null, null, PAGEABLE))
@@ -183,7 +185,7 @@ class ClassServiceTest {
 		return classEntity;
 	}
 
-	private User student(Long id, String name, String email) {
+	private User student(Long id, String name, String email, String phone) {
 		User user = User.builder()
 				.enterpriseId(ENTERPRISE_ID)
 				.email(email)
@@ -192,6 +194,9 @@ class ClassServiceTest {
 				.name(name)
 				.build();
 		ReflectionTestUtils.setField(user, "id", id);
+		if (phone != null) {
+			user.updatePhone(phone);
+		}
 		return user;
 	}
 
