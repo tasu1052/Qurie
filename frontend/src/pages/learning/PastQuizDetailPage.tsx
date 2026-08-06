@@ -6,8 +6,8 @@ import {
   QueryAsyncBoundary,
   useGetIncorrectQuizProgress,
   useGetQuizProgress,
+  useGetQuizQuestions,
   useGetQuizSet,
-  type QuizItem,
   type QuizProgressItem,
 } from '../../data';
 import {
@@ -22,9 +22,19 @@ import {
   type PastQuizBasePath,
 } from './pastQuizPaths';
 
+/** 지난 퀴즈 화면용 — 강사 상세·학생 questions 응답을 같은 카드로 그린다. */
+type DisplayQuiz = {
+  id: number;
+  orderNo: number;
+  question: string;
+  explanation?: string | null;
+  choices: { idx: number; content: string; answer?: boolean }[];
+};
 
-function correctChoiceIdx(item: QuizItem): number {
-  return item.choices.find((c) => c.answer)?.idx ?? 0;
+function resolveCorrectIdx(item: DisplayQuiz, progress?: QuizProgressItem): number | null {
+  if (progress?.correctChoiceIdx != null) return progress.correctChoiceIdx;
+  const fromAnswer = item.choices.find((c) => c.answer)?.idx;
+  return fromAnswer ?? null;
 }
 
 function ChoiceRow({
@@ -34,11 +44,11 @@ function ChoiceRow({
   showResult,
 }: {
   choice: { idx: number; content: string };
-  correctIdx: number;
+  correctIdx: number | null;
   userChoiceIdx: number | null;
   showResult: boolean;
 }) {
-  const isCorrect = choice.idx === correctIdx;
+  const isCorrect = correctIdx != null && choice.idx === correctIdx;
   const isUserPick = userChoiceIdx === choice.idx;
   let border = 'var(--border)';
   let background = 'var(--surface-sunken)';
@@ -103,17 +113,22 @@ function QuestionCard({
   item,
   progress,
 }: {
-  item: QuizItem;
+  item: DisplayQuiz;
   progress?: QuizProgressItem;
 }) {
-  const correctIdx = correctChoiceIdx(item);
+  const correctIdx = resolveCorrectIdx(item, progress);
   const savedChoice = progress?.chosenChoiceIdx ?? null;
   const savedCorrect = progress?.isCorrect;
   const [pickedIdx, setPickedIdx] = useState<number | null>(savedChoice);
   const showResult = pickedIdx != null || savedChoice != null;
   const userChoiceIdx = pickedIdx ?? savedChoice;
   const isCorrect =
-    savedCorrect != null ? savedCorrect : userChoiceIdx != null ? userChoiceIdx === correctIdx : null;
+    savedCorrect != null
+      ? savedCorrect
+      : userChoiceIdx != null && correctIdx != null
+        ? userChoiceIdx === correctIdx
+        : null;
+  const explanation = progress?.explanation?.trim() || item.explanation?.trim() || '';
 
   return (
     <div
@@ -162,9 +177,9 @@ function QuestionCard({
           </button>
         ))}
       </div>
-      {showResult && item.explanation ? (
+      {showResult && explanation ? (
         <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>
-          {progress?.explanation?.trim() || item.explanation}
+          {explanation}
         </p>
       ) : null}
     </div>
@@ -181,9 +196,18 @@ function QuizDetailSkeleton() {
   );
 }
 
-function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: PastQuizBasePath }) {
+function QuizDetailView({
+  quizSetId,
+  status,
+  items,
+  basePath,
+}: {
+  quizSetId: number;
+  status: string;
+  items: DisplayQuiz[];
+  basePath: PastQuizBasePath;
+}) {
   const navigate = useNavigate();
-  const { data: quizSet } = useGetQuizSet(quizSetId);
   const { data: progressSummary } = useGetQuizProgress(quizSetId);
   const incorrectQuery = useGetIncorrectQuizProgress(quizSetId);
   const [retrying, setRetrying] = useState(false);
@@ -196,17 +220,17 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
     return map;
   }, [progressSummary?.items]);
 
-  const items = useMemo(
-    () => [...quizSet.quizzes].sort((a, b) => a.orderNo - b.orderNo),
-    [quizSet.quizzes],
+  const sortedItems = useMemo(
+    () => [...items].sort((a, b) => a.orderNo - b.orderNo),
+    [items],
   );
 
-  const displayItems = items;
-
-  const correctCount = items.filter((item) => progressByQuizId.get(item.id)?.isCorrect === true).length;
+  const correctCount = sortedItems.filter(
+    (item) => progressByQuizId.get(item.id)?.isCorrect === true,
+  ).length;
 
   const retryQuestions = useMemo((): IncorrectRetryQuestion[] => {
-    const byId = new Map(items.map((item) => [item.id, item]));
+    const byId = new Map(sortedItems.map((item) => [item.id, item]));
     const next: IncorrectRetryQuestion[] = [];
     for (const progress of incorrectQuery.data?.items ?? []) {
       const quiz = byId.get(progress.quizId);
@@ -221,7 +245,7 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
       });
     }
     return next;
-  }, [incorrectQuery.data?.items, items]);
+  }, [incorrectQuery.data?.items, sortedItems]);
 
   if (retrying) {
     return (
@@ -252,7 +276,7 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
           목록으로
         </Button>
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: '8px 0 0' }}>
-          퀴즈 세트 #{quizSet.quizSetId}
+          퀴즈 세트 #{quizSetId}
         </h1>
         <div
           style={{
@@ -264,7 +288,7 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
           }}
         >
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            {correctCount}/{items.length} 정답 · 상태 {quizSet.status}
+            {correctCount}/{sortedItems.length} 정답 · 상태 {status}
           </span>
           {retryQuestions.length > 0 ? (
             <Button variant="secondary" size="sm" onClick={() => setRetrying(true)}>
@@ -276,7 +300,7 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
 
       <div className="qurie-app-split" style={{ alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
-          {displayItems.length === 0 ? (
+          {sortedItems.length === 0 ? (
             <EmptyState
               message="표시할 문항이 없습니다"
               description="퀴즈 문항이 아직 생성되지 않았어요."
@@ -284,7 +308,7 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
               onAction={() => navigate(sessionListPath(basePath))}
             />
           ) : (
-            displayItems.map((item) => (
+            sortedItems.map((item) => (
               <QuestionCard key={item.id} item={item} progress={progressByQuizId.get(item.id)} />
             ))
           )}
@@ -292,6 +316,65 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
       </div>
     </>
   );
+}
+
+/** 학생 — 정답 없는 questions API. 정답/해설은 progress·incorrect 응답으로 채운다. */
+function StudentQuizDetailBody({
+  quizSetId,
+  basePath,
+}: {
+  quizSetId: number;
+  basePath: PastQuizBasePath;
+}) {
+  const { data } = useGetQuizQuestions(quizSetId);
+  const items: DisplayQuiz[] = data.quizzes.map((q) => ({
+    id: q.id,
+    orderNo: q.orderNo,
+    question: q.question,
+    explanation: null,
+    choices: q.choices.map((c) => ({ idx: c.idx, content: c.content })),
+  }));
+  return (
+    <QuizDetailView
+      quizSetId={data.quizSetId}
+      status={data.status}
+      items={items}
+      basePath={basePath}
+    />
+  );
+}
+
+/** 강사 — 정답 포함 상세 API. */
+function ManagerQuizDetailBody({
+  quizSetId,
+  basePath,
+}: {
+  quizSetId: number;
+  basePath: PastQuizBasePath;
+}) {
+  const { data } = useGetQuizSet(quizSetId);
+  const items: DisplayQuiz[] = data.quizzes.map((q) => ({
+    id: q.id,
+    orderNo: q.orderNo,
+    question: q.question,
+    explanation: q.explanation,
+    choices: q.choices.map((c) => ({ idx: c.idx, content: c.content, answer: c.answer })),
+  }));
+  return (
+    <QuizDetailView
+      quizSetId={data.quizSetId}
+      status={data.status}
+      items={items}
+      basePath={basePath}
+    />
+  );
+}
+
+function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: PastQuizBasePath }) {
+  if (basePath === '/manager') {
+    return <ManagerQuizDetailBody quizSetId={quizSetId} basePath={basePath} />;
+  }
+  return <StudentQuizDetailBody quizSetId={quizSetId} basePath={basePath} />;
 }
 
 type PastQuizDetailPageProps = {
@@ -318,6 +401,11 @@ export default function PastQuizDetailPage({ basePath: basePathProp }: PastQuizD
     );
   }
 
+  const apiHint =
+    basePath === '/manager'
+      ? 'GET /quiz/{quizSetId} 또는 progress API를 확인해 주세요.'
+      : 'GET /quiz/{quizSetId}/questions 또는 progress API를 확인해 주세요.';
+
   return (
     <PastQuizShell basePath={basePath} breadcrumbs={[sessionListTitle(basePath), `퀴즈 #${quizSetId}`]}>
       <QueryAsyncBoundary
@@ -327,7 +415,7 @@ export default function PastQuizDetailPage({ basePath: basePathProp }: PastQuizD
           <RowErrorFallback
             onRetry={() => setRowKey((k) => k + 1)}
             title="퀴즈를 불러오지 못했습니다"
-            description="GET /quiz/{quizSetId} 또는 progress API를 확인해 주세요."
+            description={apiHint}
           />
         }
       >
