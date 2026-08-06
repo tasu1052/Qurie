@@ -23,8 +23,6 @@ import {
 function InstructorCommentsSection({ userId, classId }: { userId: number; classId: number }) {
   const comments = useGetStudentComments(userId, classId).data ?? [];
 
-  if (comments.length === 0) return null;
-
   return (
     <div
       style={{
@@ -49,28 +47,34 @@ function InstructorCommentsSection({ userId, classId }: { userId: number; classI
       >
         강사 코멘트
       </span>
-      {comments.map((c) => (
-        <div
-          key={c.id}
-          style={{
-            borderRadius: 12,
-            border: '1px solid var(--border)',
-            background: 'var(--surface-sunken)',
-            padding: '12px 14px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{c.authorName}</span>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              {new Date(c.createdAt).toLocaleDateString('ko-KR')}
-            </span>
+      {comments.length === 0 ? (
+        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+          아직 등록된 강사 코멘트가 없어요.
+        </span>
+      ) : (
+        comments.map((c) => (
+          <div
+            key={c.id}
+            style={{
+              borderRadius: 12,
+              border: '1px solid var(--border)',
+              background: 'var(--surface-sunken)',
+              padding: '12px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{c.authorName}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {new Date(c.createdAt).toLocaleDateString('ko-KR')}
+              </span>
+            </div>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>{c.content}</p>
           </div>
-          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>{c.content}</p>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 }
@@ -234,14 +238,10 @@ function SemesterSummaryHero({
   );
 }
 
-/** 세션 리포트 화면의 AI 블록과 같은 구성 — 총평 문단 + 강점/개선점 2열. 값이 없으면 아예 그리지 않는다. */
+/** 세션 리포트 화면의 AI 블록과 같은 구성 — 총평 문단 + 강점/개선점 2열. */
 function AiFeedbackSection({ report }: { report: UserReportDetailResponse }) {
   const strengths = report.aiStrengths ?? [];
   const improvements = report.aiImprovements ?? [];
-  const hasBlock =
-    Boolean(report.aiComment?.trim()) || strengths.length > 0 || improvements.length > 0;
-
-  if (!hasBlock) return null;
 
   return (
     <div
@@ -265,43 +265,45 @@ function AiFeedbackSection({ report }: { report: UserReportDetailResponse }) {
           color: 'var(--text-secondary)',
         }}
       >
-        AI 리포트
+        AI 코멘트
       </span>
       {report.aiComment?.trim() ? (
         <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--ink)', fontWeight: 600 }}>
           {report.aiComment}
         </p>
-      ) : null}
-      {strengths.length > 0 || improvements.length > 0 ? (
-        <div className="qurie-app-split" style={{ alignItems: 'start' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>강점</span>
-            {strengths.length === 0 ? (
-              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</span>
-            ) : (
-              strengths.map((s) => (
-                <div key={s} style={{ display: 'flex', gap: 8 }}>
-                  <CheckCircle2 size={14} style={{ color: 'var(--status-success)', flexShrink: 0, marginTop: 2 }} />
-                  <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
-                </div>
-              ))
-            )}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>개선점</span>
-            {improvements.length === 0 ? (
-              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</span>
-            ) : (
-              improvements.map((s) => (
-                <div key={s} style={{ display: 'flex', gap: 8 }}>
-                  <TriangleAlert size={14} style={{ color: 'var(--status-warning)', flexShrink: 0, marginTop: 2 }} />
-                  <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
-                </div>
-              ))
-            )}
-          </div>
+      ) : (
+        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+          학기 리포트가 발급되면 AI 코멘트가 표시돼요.
+        </span>
+      )}
+      <div className="qurie-app-split" style={{ alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>강점</span>
+          {strengths.length === 0 ? (
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</span>
+          ) : (
+            strengths.map((s) => (
+              <div key={s} style={{ display: 'flex', gap: 8 }}>
+                <CheckCircle2 size={14} style={{ color: 'var(--status-success)', flexShrink: 0, marginTop: 2 }} />
+                <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
+              </div>
+            ))
+          )}
         </div>
-      ) : null}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>개선점</span>
+          {improvements.length === 0 ? (
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</span>
+          ) : (
+            improvements.map((s) => (
+              <div key={s} style={{ display: 'flex', gap: 8 }}>
+                <TriangleAlert size={14} style={{ color: 'var(--status-warning)', flexShrink: 0, marginTop: 2 }} />
+                <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-body)' }}>{s}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -474,13 +476,9 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
     const completions = reports
       .map((r) => (r.completionRate != null ? Number(r.completionRate) : null))
       .filter((v): v is number => v != null);
-    const ratings = reports
-      .map((r) => (r.quizRating != null ? Number(r.quizRating) : null))
-      .filter((v): v is number => v != null);
 
     const accuracy = avg(accuracies);
     const completion = avg(completions);
-    const rating = avg(ratings);
 
     return [
       {
@@ -498,21 +496,19 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
         display: `${reports.length}회`,
         pct: reports.length > 0 ? Math.min(100, reports.length * 12) : 0,
       },
-      {
-        label: '누적 평점',
-        display: formatRating(rating),
-        pct: rating != null ? (rating / 5) * 100 : 0,
-      },
     ];
   }, [reports]);
 
   const line = useMemo(() => {
     const chronological = [...reports].reverse();
     return {
-      labels: chronological.map((_, i) => `S${i + 1}`),
+      labels: chronological.map((r, i) => {
+        const title = r.sessionTitle?.trim();
+        return title ? title.slice(0, 10) : `세션 ${i + 1}`;
+      }),
       series: [
         {
-          name: '세션 정답률',
+          name: '정답률(%)',
           values: chronological.map((r) => (r.accuracy != null ? Number(r.accuracy) : 0)),
           accent: true as const,
         },
@@ -561,7 +557,13 @@ function FinalReportBody({ className, classId }: { className: string; classId: n
             >
               세션 정답률
             </span>
-            <LineChart series={line.series} labels={line.labels} height={180} />
+            <LineChart
+              series={line.series}
+              labels={line.labels}
+              height={180}
+              xAxisLabel="세션"
+              yAxisLabel="정답률(%)"
+            />
             <ChartLegend items={line.series.map((s) => ({ label: s.name ?? '', accent: s.accent }))} />
           </div>
         ) : (

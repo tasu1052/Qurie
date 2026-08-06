@@ -9,6 +9,8 @@ export interface ButtonProps {
   icon?: React.ReactNode;
   children?: React.ReactNode;
   onClick?: () => void;
+  /** form 안 제출 버튼이면 'submit' */
+  type?: 'button' | 'submit' | 'reset';
   style?: React.CSSProperties;
 }
 export declare function Button(props: ButtonProps): JSX.Element;

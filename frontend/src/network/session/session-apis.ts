@@ -22,6 +22,8 @@ export interface SessionResponse {
     id: number;
     classId: number;
     groupId: number | null;
+    /** 그룹 세션이면 그룹 이름. 반 공개이거나 그룹이 없으면 null. */
+    groupName?: string | null;
     title: string;
     createdBy: number;
     active: boolean;
@@ -183,6 +185,8 @@ export interface SessionReportRosterResponse {
     sessionId: number;
     sessionTitle: string;
     issuedCount: number;
+    avgAccuracy?: number | null;
+    avgCompletionRate?: number | null;
     reports: SessionReportRosterItemResponse[];
 }
 

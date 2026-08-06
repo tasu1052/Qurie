@@ -10,8 +10,12 @@ import com.roma.qurie.session.core.dto.SessionCreateRequest;
 import com.roma.qurie.session.core.dto.SessionResponse;
 import com.roma.qurie.session.core.dto.SessionStatusNotification;
 import com.roma.qurie.session.core.dto.SessionUpdateRequest;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -57,7 +61,8 @@ public class SessionService {
                         request.title(),
                         creator.id(),
                         request.isClassPublicRequested());
-        return SessionResponse.from(sessionRepository.save(session));
+        Session saved = sessionRepository.save(session);
+        return SessionResponse.from(saved, resolveGroupName(saved.getGroupId()));
     }
 
     /*
@@ -104,7 +109,8 @@ public class SessionService {
 
     @Transactional(readOnly = true)
     public SessionResponse getSession(Long id) {
-        return SessionResponse.from(findByIdOrThrow(id));
+        Session session = findByIdOrThrow(id);
+        return SessionResponse.from(session, resolveGroupName(session.getGroupId()));
     }
 
     /**
@@ -139,21 +145,46 @@ public class SessionService {
         List<Session> sessions = activeOnly
                 ? sessionRepository.findByClassIdAndActive(classId, true)
                 : sessionRepository.findByClassIdOrderByIdDesc(classId);
+        List<Session> visible;
         if (userId == null && requester != null && MANAGER_ROLE.equals(requester.role())) {
-            return sessions.stream().map(SessionResponse::from).toList();
+            visible = sessions;
+        } else {
+            Long targetUserId = userId;
+            if (targetUserId == null && requester != null) {
+                targetUserId = requester.id();
+            }
+            Set<Long> groupIds = targetUserId == null
+                    ? Set.of()
+                    : Set.copyOf(groupParticipantRepository.findGroupIdsByClassIdAndUserId(classId, targetUserId));
+            visible = sessions.stream()
+                    .filter(session -> session.getGroupId() == null || groupIds.contains(session.getGroupId()))
+                    .toList();
         }
+        return toResponses(visible);
+    }
 
-        Long targetUserId = userId;
-        if (targetUserId == null && requester != null) {
-            targetUserId = requester.id();
+    private List<SessionResponse> toResponses(List<Session> sessions) {
+        Set<Long> groupIds = sessions.stream()
+                .map(Session::getGroupId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, String> groupNameById = new HashMap<>();
+        if (!groupIds.isEmpty()) {
+            for (Group group : groupRepository.findAllById(groupIds)) {
+                groupNameById.put(group.getId(), group.getName());
+            }
         }
-        Set<Long> groupIds = targetUserId == null
-                ? Set.of()
-                : Set.copyOf(groupParticipantRepository.findGroupIdsByClassIdAndUserId(classId, targetUserId));
         return sessions.stream()
-                .filter(session -> session.getGroupId() == null || groupIds.contains(session.getGroupId()))
-                .map(SessionResponse::from)
+                .map(session -> SessionResponse.from(
+                        session, session.getGroupId() == null ? null : groupNameById.get(session.getGroupId())))
                 .toList();
+    }
+
+    private String resolveGroupName(Long groupId) {
+        if (groupId == null) {
+            return null;
+        }
+        return groupRepository.findById(groupId).map(Group::getName).orElse(null);
     }
 
     private void requireCanListForUser(AuthUser requester, Long userId) {
@@ -196,7 +227,7 @@ public class SessionService {
                     "/topic/sessions/" + id + "/status",
                     new SessionStatusNotification(id, session.isActive(), session.getEndedAt()));
         }
-        return SessionResponse.from(session);
+        return SessionResponse.from(session, resolveGroupName(session.getGroupId()));
     }
 
     @Transactional

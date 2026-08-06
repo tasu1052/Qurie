@@ -373,10 +373,10 @@ export function useSessionSocket(sessionId: number | null, options: UseSessionSo
 
   const toggleDeafened = useCallback(() => {
     if (!myVoice) return false;
-    // 서버가 deafened → micMuted 를 강제하므로 UI도 같이 맞춘다.
+    // 청취차단 ON → 마이크도 함께 뮤트. OFF 시 마이크·청취를 둘 다 복구한다.
     const nextDeafened = !myVoice.deafened;
     return updateVoiceState({
-      micMuted: nextDeafened ? true : myVoice.micMuted,
+      micMuted: nextDeafened,
       deafened: nextDeafened,
     });
   }, [myVoice, updateVoiceState]);

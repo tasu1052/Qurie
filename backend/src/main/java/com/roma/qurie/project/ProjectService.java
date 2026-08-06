@@ -84,7 +84,8 @@ public class ProjectService {
      */
     @Transactional(readOnly = true)
     public ProjectResponse getCurrentProject(AuthUser requester, Long sessionId) {
-        participantService.verifyCanEnter(sessionId, requester);
+        // 종료된 세션의 지난 퀴즈/프로젝트 조회를 막지 않는다 (입장용 verifyCanEnter 와 구분).
+        participantService.verifySessionClassMember(sessionId, requester);
 
         return projectRepository.findFirstBySessionIdOrderByIdDesc(sessionId)
                 .map(ProjectResponse::from)

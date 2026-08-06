@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   FileCode,
@@ -19,16 +19,13 @@ import { AlertBanner, Button, LiveBadge, Modal } from '../../ds';
 import { BrandLogo } from '../../components/brand/BrandLogo';
 import { CollabMonacoEditor } from '../../collab/CollabMonacoEditor';
 import { useCollabSession } from '../../collab/useCollabSession';
-import { getOrCreateFileYText } from '../../collab/fileYText';
+import { clearAllFileYTexts, getOrCreateFileYText } from '../../collab/fileYText';
 import {
   getProjectFileContent,
   getProjectFiles,
   humanizeApiError,
-  QueryAsyncBoundary,
   useAskSessionHelp,
   useCreateSessionReportsForAll,
-  useDeleteSession,
-  useGetSession,
   useGetSessionProject,
   useMeOptional,
   useSessionSocket,
@@ -41,7 +38,6 @@ import {
 import { queryKeys } from '../../network/core/queryKeys';
 import { getGroupDetail } from '../../network/group/group-apis';
 import { getSession } from '../../network/session/session-apis';
-import { ConfirmDeleteOverlay } from '../../components/overlays/ConfirmDeleteOverlay';
 import { ProjectImportPanel } from '../../components/session/ProjectImportPanel';
 import { SessionChatPanel } from '../../components/session/SessionChatPanel';
 import { SessionFileExplorer } from '../../components/session/SessionFileExplorer';
@@ -115,29 +111,22 @@ function SessionHeaderMeta({ sessionId, hintTitle }: { sessionId: number; hintTi
   const title = session?.title?.trim() || cachedTitle || (isPending ? '세션 불러오는 중…' : '세션');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: 'var(--ink)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            maxWidth: 420,
-          }}
-          title={title}
-        >
-          {title}
-        </span>
-        {session?.active ? <LiveBadge /> : null}
-      </div>
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
-        #{sessionId}
-        {session?.classPublic ? ' · 수업' : ''}
-        {session && !session.active ? ' · 종료됨' : ''}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+      <span
+        style={{
+          fontSize: 14,
+          fontWeight: 600,
+          color: 'var(--ink)',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          maxWidth: 420,
+        }}
+        title={title}
+      >
+        {title}
       </span>
+      {session?.active ? <LiveBadge /> : null}
     </div>
   );
 }
@@ -171,7 +160,6 @@ export default function SessionPage() {
   const [pendingImport, setPendingImport] = useState<ProjectImportResponse | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [endConfirmOpen, setEndConfirmOpen] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [reportConfirmOpen, setReportConfirmOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [helpNotice, setHelpNotice] = useState<string | null>(null);
@@ -199,7 +187,6 @@ export default function SessionPage() {
     [collabUserName, collabUserId],
   );
   const updateSession = useUpdateSession();
-  const deleteSession = useDeleteSession();
   const createReportsForAll = useCreateSessionReportsForAll();
   const askHelp = useAskSessionHelp();
   const queryClient = useQueryClient();
@@ -512,6 +499,11 @@ export default function SessionPage() {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+    // 이전 임포트/깃클론의 Yjs 잔여 코드를 비운 뒤 새 프로젝트를 연다.
+    clearAllFileYTexts(ydoc);
+    setActiveFile(null);
+    setActiveFileReady(false);
+    hydratedActiveFileRef.current = false;
     queryClient.setQueryData(queryKeys.projects.bySession(sessionId), cached);
     void queryClient.invalidateQueries({ queryKey: queryKeys.projects.files(next.projectId) });
     saveSessionProject(sessionId, next);
@@ -675,18 +667,15 @@ export default function SessionPage() {
           minWidth: 0,
         }}
       >
-        <Link to="/" style={{ display: 'inline-flex', textDecoration: 'none', flexShrink: 0 }}>
+        <span style={{ display: 'inline-flex', flexShrink: 0 }} aria-hidden>
           <BrandLogo height={28} />
-        </Link>
+        </span>
         <span style={{ width: 1, height: 24, background: 'var(--divider)', flexShrink: 0 }} />
         <div style={{ minWidth: 0, flex: '1 1 auto', overflow: 'hidden' }}>
           {hasSessionId ? (
             <SessionHeaderMeta sessionId={sessionId} hintTitle={titleHint} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>세션</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>demo</span>
-            </div>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>세션</span>
           )}
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
@@ -758,15 +747,6 @@ export default function SessionPage() {
                       onClick={() => {
                         setSettingsOpen(false);
                         setEndConfirmOpen(true);
-                      }}
-                    />
-                    <MenuAction
-                      label="세션 삭제"
-                      danger
-                      disabled={!hasSessionId || deleteSession.isPending}
-                      onClick={() => {
-                        setSettingsOpen(false);
-                        setDeleteConfirmOpen(true);
                       }}
                     />
                     <span style={{ height: 1, background: 'var(--divider)', margin: '4px 6px' }} />
@@ -1620,96 +1600,7 @@ export default function SessionPage() {
           </div>
         ) : null}
       </Modal>
-
-      {hasSessionId ? (
-        <SessionDeleteGate
-          sessionId={sessionId}
-          open={deleteConfirmOpen}
-          onClose={() => setDeleteConfirmOpen(false)}
-          onError={setActionError}
-          onDeleted={leaveDestination}
-        />
-      ) : null}
     </div>
-  );
-}
-
-/** 삭제에 classId가 필요해 세션 detail을 읽은 뒤 ConfirmDeleteOverlay를 연다. */
-function SessionDeleteGate({
-  sessionId,
-  open,
-  onClose,
-  onError,
-  onDeleted,
-}: {
-  sessionId: number;
-  open: boolean;
-  onClose: () => void;
-  onError: (msg: string) => void;
-  onDeleted: () => void;
-}) {
-  if (!open) return null;
-  return (
-    <QueryAsyncBoundary
-      suspenseFallback={null}
-      errorFallback={
-        <ConfirmDeleteOverlay
-          open
-          title="세션 삭제"
-          description="세션 정보를 불러오지 못했습니다. 그래도 삭제할까요?"
-          confirmText="삭제"
-          onClose={onClose}
-          onConfirm={() => onError('세션 정보를 불러올 수 없어 삭제할 수 없습니다.')}
-        />
-      }
-    >
-      <SessionDeleteConfirm sessionId={sessionId} onClose={onClose} onError={onError} onDeleted={onDeleted} />
-    </QueryAsyncBoundary>
-  );
-}
-
-function SessionDeleteConfirm({
-  sessionId,
-  onClose,
-  onError,
-  onDeleted,
-}: {
-  sessionId: number;
-  onClose: () => void;
-  onError: (msg: string) => void;
-  onDeleted: () => void;
-}) {
-  const { data: session } = useGetSession(sessionId);
-  const deleteSession = useDeleteSession();
-
-  return (
-    <ConfirmDeleteOverlay
-      open
-      title="세션 삭제"
-      description={
-        <>
-          이 작업은 되돌릴 수 없습니다.
-          <br />
-          세션 `<code>{session.title}</code>` 을(를) 삭제합니다.
-        </>
-      }
-      confirmText={session.title}
-      onClose={onClose}
-      onConfirm={() => {
-        deleteSession.mutate(
-          { id: session.id, classId: session.classId },
-          {
-            onSuccess: () => {
-              clearSessionProject(sessionId);
-              onDeleted();
-            },
-            onError: (err) => {
-              onError(humanizeApiError(err, '세션 삭제에 실패했습니다.'));
-            },
-          },
-        );
-      }}
-    />
   );
 }
 

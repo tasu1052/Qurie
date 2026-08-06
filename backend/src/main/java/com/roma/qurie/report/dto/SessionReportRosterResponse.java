@@ -7,5 +7,7 @@ public record SessionReportRosterResponse(
         Long sessionId,
         String sessionTitle,
         int issuedCount,
+        Double avgAccuracy,
+        Double avgCompletionRate,
         List<SessionReportRosterItemResponse> reports) {
 }

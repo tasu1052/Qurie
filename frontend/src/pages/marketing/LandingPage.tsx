@@ -65,17 +65,6 @@ export default function LandingPage() {
       {/* Features */}
       <section id="features" className="landing-features">
         <div className="landing-features-heading" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--accent)',
-            }}
-          >
-            주요 기능
-          </span>
           <h2 style={{ fontWeight: 700, color: 'var(--ink)', margin: 0 }}>
             수업 준비부터 과정 운영까지, 하나의 흐름으로
           </h2>
@@ -83,37 +72,6 @@ export default function LandingPage() {
 
         {/* Feature 1 — realtime session */}
         <div className="landing-feature-row">
-          <div className="landing-feature-copy" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <span
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                background: 'var(--accent-softer)',
-                color: 'var(--accent)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Users size={20} strokeWidth={1.75} />
-            </span>
-            <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>함께하는 실시간 코딩 수업</h3>
-            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-              수업 시간에 실습 코드를 불러와, 여러 명이 같은 화면에서 함께 수정해요.
-              변경 내용이 바로 반영되어, 겹치지 않고 함께 작업할 수 있어요.
-            </p>
-            {[
-              '같은 코드를 동시에 수정 · 누가 어디를 보고 있는지 표시',
-              '수업 중 실시간 채팅과 실행 화면 공유',
-              '팀별·개인별로 수업을 나눠 운영',
-            ].map((item) => (
-              <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-body)' }}>
-                <Check size={14} style={{ color: 'var(--status-success)' }} />
-                {item}
-              </span>
-            ))}
-          </div>
           <div
             className="landing-feature-visual"
             style={{
@@ -218,10 +176,41 @@ export default function LandingPage() {
             <div>&nbsp;&nbsp;{'}, [value, delay]);'}</div>
             <div>{'}'}</div>
           </div>
+          <div className="landing-feature-copy" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <span
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: 'var(--accent-softer)',
+                color: 'var(--accent)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Users size={20} strokeWidth={1.75} />
+            </span>
+            <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>함께하는 실시간 코딩 수업</h3>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+              수업 시간에 실습 코드를 불러와, 여러 명이 같은 화면에서 함께 수정해요.
+              변경 내용이 바로 반영되어, 겹치지 않고 함께 작업할 수 있어요.
+            </p>
+            {[
+              '같은 코드를 동시에 수정 · 누가 어디를 보고 있는지 표시',
+              '수업 중 실시간 채팅과 실행 화면 공유',
+              '팀별·개인별로 수업을 나눠 운영',
+            ].map((item) => (
+              <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-body)' }}>
+                <Check size={14} style={{ color: 'var(--status-success)' }} />
+                {item}
+              </span>
+            ))}
+          </div>
         </div>
 
         {/* Feature 2 — AI quiz */}
-        <div id="process" className="landing-feature-row landing-feature-row--reverse">
+        <div id="process" className="landing-feature-row">
           <div
             className="landing-feature-visual"
             style={{
@@ -344,37 +333,6 @@ export default function LandingPage() {
 
         {/* Feature 3 — report */}
         <div className="landing-feature-row">
-          <div className="landing-feature-copy" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <span
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                background: 'var(--accent-softer)',
-                color: 'var(--accent)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <BarChart3 size={20} strokeWidth={1.75} />
-            </span>
-            <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>학습 리포트로 성과 확인</h3>
-            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-              수업이 끝나면, 구성원별 퀴즈 완료율 · 정답률 · 난이도 · 평점이 리포트로 정리돼요. 교육 관리자는
-              이 자료로 강사 평가와 운영 개선에 활용할 수 있어요.
-            </p>
-            {[
-              '수업별 자동 집계 · 기록 보관',
-              '강사 코멘트와 자료 첨부',
-              '참여가 저조한 구성원 관리 근거',
-            ].map((item) => (
-              <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-body)' }}>
-                <Check size={14} style={{ color: 'var(--status-success)' }} />
-                {item}
-              </span>
-            ))}
-          </div>
           <div
             className="landing-feature-visual"
             style={{
@@ -417,6 +375,37 @@ export default function LandingPage() {
                 ]}
               />
             </div>
+          </div>
+          <div className="landing-feature-copy" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <span
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: 'var(--accent-softer)',
+                color: 'var(--accent)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <BarChart3 size={20} strokeWidth={1.75} />
+            </span>
+            <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>학습 리포트로 성과 확인</h3>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+              수업이 끝나면, 구성원별 퀴즈 완료율 · 정답률 · 난이도 · 평점이 리포트로 정리돼요. 교육 관리자는
+              이 자료로 강사 평가와 운영 개선에 활용할 수 있어요.
+            </p>
+            {[
+              '수업별 자동 집계 · 기록 보관',
+              '강사 코멘트와 자료 첨부',
+              '참여가 저조한 구성원 관리 근거',
+            ].map((item) => (
+              <span key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-body)' }}>
+                <Check size={14} style={{ color: 'var(--status-success)' }} />
+                {item}
+              </span>
+            ))}
           </div>
         </div>
       </section>
