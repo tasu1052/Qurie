@@ -7,14 +7,14 @@
 --text-muted:var(--grey-300);/* #9c9ca1 */
 --text-inverse:#ffffff;
 /* accent */
---accent:var(--primary-400);/* #6366F1 */
+--accent:var(--primary-400);/* demo: brighter indigo */
 --accent-strong:var(--primary-500);
---accent-soft:var(--primary-100);/* #e9e9fd */
---accent-softer:rgb(244,244,254);
+--accent-soft:var(--primary-100);
+--accent-softer:rgb(228,232,255);
 --link:var(--primary-400);
 --focus-ring:var(--primary-300);
-/* surfaces — mild glassmorphism (experimental): translucent cards + backdrop blur */
---bg-app:radial-gradient(800px 500px at 15% 0%,rgba(99,102,241,0.12),transparent 60%),radial-gradient(700px 500px at 90% 90%,rgba(136,175,205,0.13),transparent 60%),#FAFAFA;
+/* surfaces — demo: 연보라는 세게, 푸른색 wash는 톤다운 */
+--bg-app:radial-gradient(900px 560px at 12% 0%,rgba(79,96,255,0.30),transparent 62%),radial-gradient(800px 560px at 92% 88%,rgba(148,178,204,0.16),transparent 62%),#FAFAFA;
 --surface-card:rgba(255,255,255,0.55);
 /* glass tint without backdrop blur — for cards inside overflow scroll rows,
    where backdrop-filter triggers compositing artifacts (visible panel/border). */
@@ -57,13 +57,13 @@ color-scheme:light;
 --text-secondary:rgb(148,163,184);
 --text-muted:rgb(120,120,128);
 --text-inverse:#111111;
---accent:rgb(129,132,250);
---accent-strong:rgb(99,102,241);
---accent-soft:rgba(99,102,241,0.18);
---accent-softer:rgba(99,102,241,0.12);
---link:rgb(129,132,250);
---focus-ring:rgb(145,146,246);
---bg-app:radial-gradient(800px 500px at 15% 0%,rgba(99,102,241,0.18),transparent 60%),radial-gradient(700px 500px at 90% 90%,rgba(136,175,205,0.12),transparent 60%),#0B0B0D;
+--accent:rgb(160,170,255);
+--accent-strong:rgb(120,135,255);
+--accent-soft:rgba(79,96,255,0.36);
+--accent-softer:rgba(79,96,255,0.24);
+--link:rgb(160,170,255);
+--focus-ring:rgb(170,178,255);
+--bg-app:radial-gradient(900px 560px at 12% 0%,rgba(79,96,255,0.36),transparent 62%),radial-gradient(800px 560px at 92% 88%,rgba(148,178,204,0.14),transparent 62%),#0B0B0D;
 --surface-card:rgba(255,255,255,0.06);
 --surface-card-solid:rgba(255,255,255,0.10);
 --surface-modal:#1C1C20;
@@ -82,9 +82,9 @@ color-scheme:light;
 --status-warning:rgb(224,178,90);--status-warning-bg:rgba(158,113,32,0.22);
 --status-error:rgb(224,140,140);--status-error-bg:rgba(178,70,70,0.22);
 --status-neutral:rgb(148,163,184);--status-neutral-bg:rgba(100,116,139,0.22);
---status-accent:rgb(145,146,246);--status-accent-bg:rgba(99,102,241,0.22);
+--status-accent:rgb(160,170,255);--status-accent-bg:rgba(79,96,255,0.34);
 --chart-primary:#F5F5F6;
---chart-accent:rgb(145,146,246);
+--chart-accent:rgb(160,170,255);
 --chart-muted:rgba(255,255,255,0.12);
 --chart-grid:rgba(255,255,255,0.08);
 
