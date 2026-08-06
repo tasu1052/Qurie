@@ -92,13 +92,20 @@ public class QuizController {
 		return quizService.getQuizQuestions(quizSetId, requester);
 	}
 
-	/** 퀴즈 생성 완료 후 만족도(1–5). */
+	/** 퀴즈 생성 완료 후 응시자(학생 포함) 만족도(1–5). 사용자별 1건. */
 	@PostMapping("/{quizSetId}/satisfaction")
 	public QuizSetSummaryResponse submitSatisfaction(
 			@PathVariable("quizSetId") Long quizSetId,
 			@Valid @RequestBody QuizSatisfactionRequest request,
 			@AuthenticationPrincipal AuthUser requester) {
 		return quizService.submitSatisfaction(quizSetId, request, requester);
+	}
+
+	/** 본인이 해당 퀴즈셋에 만족도를 남겼는지. */
+	@GetMapping("/{quizSetId}/satisfaction/me")
+	public java.util.Map<String, Boolean> mySatisfaction(
+			@PathVariable("quizSetId") Long quizSetId, @AuthenticationPrincipal AuthUser requester) {
+		return java.util.Map.of("submitted", quizService.hasMySatisfaction(quizSetId, requester));
 	}
 
 	/**

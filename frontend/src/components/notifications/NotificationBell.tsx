@@ -12,6 +12,12 @@ import {
   type NoticeResponse,
   type UserRole,
 } from '../../data';
+import {
+  useAppNotifications,
+  useAppNotificationUnreadCount,
+  useMarkAllAppNotificationsRead,
+  type AppNotificationItem,
+} from '../../network/notification';
 import { noticeListPath, useOpenNoticeDetail } from '../../hooks/useOpenNoticeDetail';
 import { Skeleton } from '../../ds';
 
@@ -84,6 +90,63 @@ function scopeLabel(scope: NoticeResponse['scope']): string {
   if (scope === 'ENTERPRISE') return '전체';
   if (scope === 'TRACK') return '트랙';
   return '클래스';
+}
+
+function AppNotificationRows({
+  items,
+  onClose,
+}: {
+  items: AppNotificationItem[];
+  onClose: () => void;
+}) {
+  const navigate = useNavigate();
+  if (items.length === 0) return null;
+  return (
+    <>
+      <div
+        style={{
+          padding: '10px 14px 6px',
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          color: 'var(--accent)',
+        }}
+      >
+        활동
+      </div>
+      {items.map((item) => (
+        <button
+          key={`app-${item.id}`}
+          type="button"
+          onClick={() => {
+            onClose();
+            if (item.link) navigate(item.link);
+          }}
+          style={{
+            display: 'block',
+            width: '100%',
+            textAlign: 'left',
+            padding: '12px 14px',
+            border: 'none',
+            borderBottom: '1px solid var(--divider)',
+            background: item.unread ? 'var(--accent-softer)' : 'transparent',
+            cursor: item.link ? 'pointer' : 'default',
+            fontFamily: 'var(--font-sans)',
+          }}
+        >
+          <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+            {item.title}
+          </span>
+          {item.body ? (
+            <span style={{ display: 'block', marginTop: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
+              {item.body}
+            </span>
+          ) : null}
+        </button>
+      ))}
+    </>
+  );
 }
 
 function HelpRequestRows({
@@ -287,15 +350,22 @@ function BellPanel({
   const helpQuery = useGetClassHelpRequests(
     role === 'MANAGER' || role === 'MASTER' ? classId : null,
   );
+  const appNotifications = useAppNotifications(true);
+  const markAppRead = useMarkAllAppNotificationsRead();
   const notices = data.data;
   const helpRequests = helpQuery.data ?? [];
+  const activityItems = appNotifications.data ?? [];
 
   const markAllRead = () => {
-    if (notices.length === 0) return;
-    markNoticesRead(
-      userId,
-      notices.map((n) => n.id),
-    );
+    if (notices.length > 0) {
+      markNoticesRead(
+        userId,
+        notices.map((n) => n.id),
+      );
+    }
+    if (activityItems.some((n) => n.unread)) {
+      markAppRead.mutate();
+    }
     onRead();
   };
 
@@ -303,6 +373,7 @@ function BellPanel({
     <div role="dialog" aria-label="알림" style={panelShellStyle}>
       <PanelHeader role={role} onClose={onClose} onMarkAllRead={markAllRead} />
 
+      <AppNotificationRows items={activityItems} onClose={onClose} />
       <HelpRequestRows requests={helpRequests} onClose={onClose} />
 
       <div
@@ -402,16 +473,18 @@ function UnreadBadge({
   const helpQuery = useGetClassHelpRequests(
     role === 'MANAGER' || role === 'MASTER' ? classId : null,
   );
+  const appUnread = useAppNotificationUnreadCount(true);
   void version;
   const unreadNotices = data.data.filter((n) => !readIds(userId).has(n.id)).length;
   const helpCount = helpQuery.data?.length ?? 0;
-  return <BadgeDot unread={unreadNotices + helpCount} />;
+  return <BadgeDot unread={unreadNotices + helpCount + (appUnread.data ?? 0)} />;
 }
 
-/** classId 없는 계정은 forAudience 공지 조회가 400 이라 도움 요청 수만 배지에 반영한다. */
+/** classId 없는 계정은 forAudience 공지 조회가 400 이라 도움 요청·활동 알림만 배지에 반영한다. */
 function HelpOnlyBadge({ classId, role }: { classId: number | null; role: UserRole }) {
   const helpQuery = useGetClassHelpRequests(role === 'MANAGER' ? classId : null);
-  return <BadgeDot unread={helpQuery.data?.length ?? 0} />;
+  const appUnread = useAppNotificationUnreadCount(true);
+  return <BadgeDot unread={(helpQuery.data?.length ?? 0) + (appUnread.data ?? 0)} />;
 }
 
 function BadgeDot({ unread }: { unread: number }) {

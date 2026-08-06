@@ -74,7 +74,18 @@ public class QuizSet extends BaseTimeEntity {
 	@Column(name = "created_by", nullable = false)
 	private Long createdBy;
 
-	/** 생성 완료 후 출제자 만족도(1–5). 미응답이면 null. */
+	/**
+	 * 출제 스코프 키. 같은 프로젝트에서 파일/폴더별로 퀴즈셋을 나누고,
+	 * 같은 키로 재생성할 때만 기존 셋·응시를 지운다.
+	 */
+	@Column(name = "source_path", length = 500)
+	private String sourcePath;
+
+	/** file | dir — UI 안내·재생성 판정용. */
+	@Column(name = "source_kind", length = 12)
+	private String sourceKind;
+
+	/** 생성 완료 후 출제자 만족도(1–5). 미응답이면 null. 학생 만족도는 quiz_satisfaction 테이블. */
 	@Column(name = "satisfaction_rating")
 	private Integer satisfactionRating;
 
@@ -90,7 +101,7 @@ public class QuizSet extends BaseTimeEntity {
 	@Builder
 	private QuizSet(Long projectId, String versionHash, QuizGenerationMode mode, int requestedCount,
 			int ratioEasy, int ratioNormal, int ratioHard, String userPrompt,
-			Long createdBy) {
+			Long createdBy, String sourcePath, String sourceKind) {
 		this.projectId = projectId;
 		this.versionHash = versionHash;
 		this.mode = mode;
@@ -102,6 +113,8 @@ public class QuizSet extends BaseTimeEntity {
 		this.status = QuizSetStatus.QUEUED;
 		this.generatedCount = 0;
 		this.createdBy = createdBy;
+		this.sourcePath = sourcePath;
+		this.sourceKind = sourceKind;
 	}
 
 	public void addQuiz(Quiz quiz) {

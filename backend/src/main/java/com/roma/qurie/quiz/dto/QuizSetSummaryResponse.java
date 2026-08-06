@@ -10,7 +10,9 @@ public record QuizSetSummaryResponse(
 		int requestedCount,
 		int generatedCount,
 		String errorMessage,
-		Integer satisfactionRating) {
+		Integer satisfactionRating,
+		String sourcePath,
+		String sourceKind) {
 
 	public static QuizSetSummaryResponse from(QuizSet quizSet) {
 		return new QuizSetSummaryResponse(
@@ -19,6 +21,8 @@ public record QuizSetSummaryResponse(
 				quizSet.getRequestedCount(),
 				quizSet.getGeneratedCount(),
 				quizSet.getErrorMessage(),
-				quizSet.getSatisfactionRating());
+				quizSet.getSatisfactionRating(),
+				quizSet.getSourcePath(),
+				quizSet.getSourceKind());
 	}
 }

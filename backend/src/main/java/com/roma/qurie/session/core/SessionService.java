@@ -4,12 +4,14 @@ import com.roma.qurie.classes.ClassUserRepository;
 import com.roma.qurie.group.Group;
 import com.roma.qurie.group.GroupParticipantRepository;
 import com.roma.qurie.group.GroupRepository;
+import com.roma.qurie.notification.service.AppNotificationService;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.session.chat.ChatService;
 import com.roma.qurie.session.core.dto.SessionCreateRequest;
 import com.roma.qurie.session.core.dto.SessionResponse;
 import com.roma.qurie.session.core.dto.SessionStatusNotification;
 import com.roma.qurie.session.core.dto.SessionUpdateRequest;
+import com.roma.qurie.user.entity.UserRole;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +37,7 @@ public class SessionService {
     private final GroupRepository groupRepository;
     private final GroupParticipantRepository groupParticipantRepository;
     private final ClassUserRepository classUserRepository;
+    private final AppNotificationService appNotificationService;
     private final SimpMessagingTemplate messagingTemplate;
 
     /*
@@ -62,7 +65,30 @@ public class SessionService {
                         creator.id(),
                         request.isClassPublicRequested());
         Session saved = sessionRepository.save(session);
+        notifyStudentsSessionOpened(saved);
         return SessionResponse.from(saved, resolveGroupName(saved.getGroupId()));
+    }
+
+    /** 그룹 세션이면 그룹 학생, 반 공개면 반 전체 학생에게 개설 알림. */
+    private void notifyStudentsSessionOpened(Session session) {
+        List<Long> studentIds = session.isClassPublic()
+                ? classUserRepository.findUserIdsByClassEntityIdAndUserRole(
+                        session.getClassId(), UserRole.STUDENT)
+                : groupParticipantRepository.findUserIdsByGroupIdAndUserRole(
+                        session.getGroupId(), UserRole.STUDENT);
+        if (studentIds.isEmpty()) {
+            return;
+        }
+        String title = session.isClassPublic() ? "반 전체 세션이 열렸어요" : "그룹 세션이 열렸어요";
+        String body = session.getTitle() != null && !session.getTitle().isBlank()
+                ? session.getTitle()
+                : ("세션 #" + session.getId());
+        appNotificationService.notifyUsers(
+                studentIds,
+                AppNotificationService.TYPE_SESSION_OPENED,
+                title,
+                body,
+                "/session/" + session.getId());
     }
 
     /*

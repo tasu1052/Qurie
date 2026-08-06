@@ -120,4 +120,10 @@ public class SessionReport extends BaseTimeEntity {
         this.aiImprovements = aiImprovements;
         this.issuedAt = issuedAt;
     }
+
+    public void updateManagerComment(String comment, Long authorId) {
+        this.managerComment = comment;
+        this.managerCommentBy = authorId;
+        this.managerCommentAt = LocalDateTime.now();
+    }
 }

@@ -1549,10 +1549,63 @@ export default function SessionPage() {
         }
         secondaryLabel="취소"
         onPrimary={onGenerateReports}
-        onSecondary={() => setReportConfirmOpen(false)}
-        onClose={() => setReportConfirmOpen(false)}
+        onSecondary={() => {
+          if (!createReportsForAll.isPending) setReportConfirmOpen(false);
+        }}
+        onClose={() => {
+          if (!createReportsForAll.isPending) setReportConfirmOpen(false);
+        }}
         width={440}
       />
+
+      {createReportsForAll.isPending || updateSession.isPending ? (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1200,
+            background: 'rgba(15, 18, 28, 0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--surface-modal)',
+              border: '1px solid var(--border-strong)',
+              borderRadius: 16,
+              padding: '28px 32px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 14,
+              minWidth: 260,
+              boxShadow: 'var(--shadow-modal)',
+            }}
+          >
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                border: '3px solid var(--border)',
+                borderTopColor: 'var(--accent)',
+                animation: 'qurie-spin 0.8s linear infinite',
+              }}
+            />
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
+              리포트 생성 중…
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.45 }}>
+              학생별 AI 코멘트를 작성하고 있어요. 잠시만 기다려 주세요.
+            </span>
+          </div>
+        </div>
+      ) : null}
 
       <Modal
         open={endConfirmOpen}

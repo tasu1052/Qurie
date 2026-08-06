@@ -2,6 +2,7 @@ package com.roma.qurie.quiz.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -31,10 +32,12 @@ import com.roma.qurie.quiz.entity.Quiz;
 import com.roma.qurie.quiz.entity.QuizChoice;
 import com.roma.qurie.quiz.entity.QuizDifficulty;
 import com.roma.qurie.quiz.entity.QuizPurpose;
+import com.roma.qurie.quiz.entity.QuizSatisfaction;
 import com.roma.qurie.quiz.entity.QuizSet;
 import com.roma.qurie.quiz.entity.QuizSetStatus;
 import com.roma.qurie.quiz.entity.QuizType;
 import com.roma.qurie.quiz.repository.QuizProgressRepository;
+import com.roma.qurie.quiz.repository.QuizSatisfactionRepository;
 import com.roma.qurie.quiz.repository.QuizSetRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -56,6 +59,7 @@ public class QuizService {
 
 	private final QuizSetRepository quizSetRepository;
 	private final QuizProgressRepository quizProgressRepository;
+	private final QuizSatisfactionRepository quizSatisfactionRepository;
 	private final ProjectRepository projectRepository;
 	private final QuizAiClient quizAiClient;
 	private final SimpMessagingTemplate messagingTemplate;
@@ -70,8 +74,9 @@ public class QuizService {
 	 * 퀴즈 생성 요청. 접수 기록(QuizSet)을 먼저 남기고 AI 서버에 생성을 넘긴다 —
 	 * AI 가 죽어 있어도 요청 이력이 FAILED 로 남아 사용자가 재시도 여부를 판단할 수 있다.
 	 *
-	 * 재생성은 이전 결과를 완전히 대체한다 — 이전 퀴즈셋·문항·응시 기록을 모두 지워 학생 화면과
-	 * 이후 리포트 집계에 옛 문항이 남지 않게 한다. 이미 발급된 세션 리포트는 스냅샷이라 영향받지 않는다.
+	 * 같은 sourcePath(파일/폴더)로 다시 출제하면 그 스코프의 퀴즈셋·응시만 지우고 대체한다.
+	 * 다른 파일로 출제하면 기존 셋을 유지한 채 새 퀴즈셋을 추가한다. 세션 리포트는 완료된
+	 * 모든 셋을 합산한다. 이미 발급된 세션 리포트 스냅샷은 영향받지 않는다.
 	 *
 	 * 메서드에 @Transactional 을 걸지 않는 것은 의도다. AI 호출(최대 수 초)이 트랜잭션 안에 들어가면
 	 * 그 시간만큼 DB 커넥션을 점유하므로, 삭제+새 접수 저장만 TransactionTemplate 로 묶는다.
@@ -84,8 +89,11 @@ public class QuizService {
 						HttpStatus.NOT_FOUND, "프로젝트를 찾을 수 없습니다: " + projectId));
 		verifyCanGenerate(project.getSessionId(), requester);
 
-		if (quizSetRepository.existsByProjectIdAndStatusIn(
-				projectId, List.of(QuizSetStatus.QUEUED, QuizSetStatus.GENERATING))) {
+		String sourcePath = resolveSourcePath(request);
+		String sourceKind = resolveSourceKind(request, sourcePath);
+
+		if (quizSetRepository.existsByProjectIdAndSourcePathAndStatusIn(
+				projectId, sourcePath, List.of(QuizSetStatus.QUEUED, QuizSetStatus.GENERATING))) {
 			throw new ResponseStatusException(
 					HttpStatus.CONFLICT, "이미 생성 중인 퀴즈가 있습니다. 완료될 때까지 기다려 주세요.");
 		}
@@ -95,11 +103,21 @@ public class QuizService {
 		List<String> avoidQuestions = new ArrayList<>();
 		QuizSet quizSet = transactionTemplate.execute(status -> {
 			List<QuizSet> previousSets = quizSetRepository.findByProjectIdOrderByIdDesc(projectId);
-			avoidQuestions.addAll(collectAvoidQuestions(previousSets));
+			boolean replacing = previousSets.stream()
+					.anyMatch(set -> Objects.equals(sourcePath, set.getSourcePath()));
+			// 같은 스코프 재생성: 그 셋(+레거시 null)만 지움. 신규 스코프: 레거시 null만 정리하고 다른 파일 셋은 유지.
+			List<QuizSet> toDelete = previousSets.stream()
+					.filter(set -> replacing
+							? (set.getSourcePath() == null || Objects.equals(sourcePath, set.getSourcePath()))
+							: set.getSourcePath() == null)
+					.toList();
+			avoidQuestions.addAll(collectAvoidQuestions(replacing ? toDelete : previousSets));
 
-			// 응시 기록은 문항 FK 에 물려 있어 퀴즈셋(cascade 로 문항·보기까지)보다 먼저 지운다.
-			quizProgressRepository.deleteAllByQuizSetProjectId(projectId);
-			quizSetRepository.deleteAll(previousSets);
+			if (!toDelete.isEmpty()) {
+				List<Long> deleteIds = toDelete.stream().map(QuizSet::getId).toList();
+				quizProgressRepository.deleteAllByQuizSetIdIn(deleteIds);
+				quizSetRepository.deleteAll(toDelete);
+			}
 
 			return quizSetRepository.save(QuizSet.builder()
 					.projectId(projectId)
@@ -111,6 +129,8 @@ public class QuizService {
 					.ratioHard(request.ratioHard())
 					.userPrompt(request.userPrompt())
 					.createdBy(requester.id())
+					.sourcePath(sourcePath)
+					.sourceKind(sourceKind)
 					.build());
 		});
 
@@ -194,17 +214,54 @@ public class QuizService {
 		return QuizQuestionsResponse.from(quizSet, generationStage);
 	}
 
-	/** 생성 완료 퀴즈에 대한 출제자 만족도. */
+	/**
+	 * 응시자(학생 포함) 퀴즈 품질 만족도. 사용자별 1건을 저장한다.
+	 * 강사도 남길 수 있지만 출제자 전용 필드는 쓰지 않는다.
+	 */
 	@Transactional
 	public QuizSetSummaryResponse submitSatisfaction(
 			Long quizSetId, QuizSatisfactionRequest request, AuthUser requester) {
+		requireAuthenticated(requester);
 		QuizSet quizSet = findQuizSetOrThrow(quizSetId);
-		verifyInstructorAccess(quizSet, requester);
+		participantService.verifySessionClassMember(sessionIdOf(quizSet), requester);
 		if (quizSet.getStatus() != QuizSetStatus.COMPLETED) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "완료된 퀴즈에만 만족도를 남길 수 있습니다.");
 		}
-		quizSet.submitSatisfaction(request.rating(), request.comment());
+		QuizSatisfaction row = quizSatisfactionRepository
+				.findByQuizSetIdAndUserId(quizSetId, requester.id())
+				.orElseGet(() -> new QuizSatisfaction(quizSetId, requester.id(), request.rating(), request.comment()));
+		row.update(request.rating(), request.comment());
+		quizSatisfactionRepository.save(row);
 		return QuizSetSummaryResponse.from(quizSet);
+	}
+
+	@Transactional(readOnly = true)
+	public boolean hasMySatisfaction(Long quizSetId, AuthUser requester) {
+		requireAuthenticated(requester);
+		QuizSet quizSet = findQuizSetOrThrow(quizSetId);
+		participantService.verifySessionClassMember(sessionIdOf(quizSet), requester);
+		return quizSatisfactionRepository.existsByQuizSetIdAndUserId(quizSetId, requester.id());
+	}
+
+	private static String resolveSourcePath(QuizGenerateRequest request) {
+		if (request.sourcePath() != null && !request.sourcePath().isBlank()) {
+			return request.sourcePath().trim();
+		}
+		if (request.targetFiles() != null && !request.targetFiles().isEmpty()) {
+			return request.targetFiles().get(0);
+		}
+		return request.files().keySet().stream().sorted().findFirst()
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "출제 대상 파일이 없습니다."));
+	}
+
+	private static String resolveSourceKind(QuizGenerateRequest request, String sourcePath) {
+		if (request.sourceKind() != null && !request.sourceKind().isBlank()) {
+			return request.sourceKind().trim().toLowerCase();
+		}
+		if (request.targetFiles() != null && request.targetFiles().size() > 1) {
+			return "dir";
+		}
+		return sourcePath.endsWith("/") ? "dir" : "file";
 	}
 
 	/**

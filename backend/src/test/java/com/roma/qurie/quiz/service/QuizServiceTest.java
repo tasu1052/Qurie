@@ -50,6 +50,7 @@ import com.roma.qurie.quiz.entity.QuizSet;
 import com.roma.qurie.quiz.entity.QuizSetStatus;
 import com.roma.qurie.quiz.entity.QuizType;
 import com.roma.qurie.quiz.repository.QuizProgressRepository;
+import com.roma.qurie.quiz.repository.QuizSatisfactionRepository;
 import com.roma.qurie.quiz.repository.QuizSetRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -73,6 +74,9 @@ class QuizServiceTest {
 	private QuizProgressRepository quizProgressRepository;
 
 	@Mock
+	private QuizSatisfactionRepository quizSatisfactionRepository;
+
+	@Mock
 	private TransactionTemplate transactionTemplate;
 
 	@Mock
@@ -94,8 +98,11 @@ class QuizServiceTest {
 	void setUp() {
 		ReflectionTestUtils.setField(quizService, "callbackBaseUrl", CALLBACK_BASE_URL);
 		org.mockito.Mockito.lenient()
-				.when(quizSetRepository.existsByProjectIdAndStatusIn(any(), any()))
+				.when(quizSetRepository.existsByProjectIdAndSourcePathAndStatusIn(any(), any(), any()))
 				.thenReturn(false);
+		org.mockito.Mockito.lenient()
+				.when(quizSetRepository.findByProjectIdOrderByIdDesc(any()))
+				.thenReturn(List.of());
 		org.mockito.Mockito.lenient()
 				.when(transactionTemplate.execute(any()))
 				.thenAnswer(invocation -> {
@@ -159,7 +166,7 @@ class QuizServiceTest {
 
 		// 응시 기록이 문항 FK 에 물려 있으므로 반드시 퀴즈셋 삭제보다 먼저 지워야 한다.
 		org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(quizProgressRepository, quizSetRepository);
-		inOrder.verify(quizProgressRepository).deleteAllByQuizSetProjectId(PROJECT_ID);
+		inOrder.verify(quizProgressRepository).deleteAllByQuizSetIdIn(any());
 		inOrder.verify(quizSetRepository).deleteAll(previousSets);
 	}
 
@@ -208,8 +215,10 @@ class QuizServiceTest {
 	@Test
 	void requestQuizGenerationRejectsWhenProjectAlreadyGenerating() {
 		given(projectRepository.findById(PROJECT_ID)).willReturn(Optional.of(project()));
-		given(quizSetRepository.existsByProjectIdAndStatusIn(
-				eq(PROJECT_ID), eq(List.of(QuizSetStatus.QUEUED, QuizSetStatus.GENERATING))))
+		given(quizSetRepository.existsByProjectIdAndSourcePathAndStatusIn(
+				eq(PROJECT_ID),
+				eq("src/Main.java"),
+				eq(List.of(QuizSetStatus.QUEUED, QuizSetStatus.GENERATING))))
 				.willReturn(true);
 
 		assertThatThrownBy(() -> quizService.requestQuizGeneration(PROJECT_ID, generateRequest(), MANAGER))
@@ -411,7 +420,9 @@ class QuizServiceTest {
 				null,
 				"abc123",
 				List.of(),
-				Map.of("src/Main.java", "public class Main {}"));
+				Map.of("src/Main.java", "public class Main {}"),
+				"src/Main.java",
+				"file");
 	}
 
 	private Quiz quiz(String testedConcept, String question) {

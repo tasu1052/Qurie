@@ -18,6 +18,9 @@ export interface QuizGenerateRequest {
     versionHash: string;
     targetFiles?: string[];
     files: Record<string, string>;
+    /** 출제 스코프(파일/폴더). 같은 값으로 재생성하면 해당 셋만 교체. */
+    sourcePath?: string;
+    sourceKind?: 'file' | 'dir';
 }
 
 export interface QuizGenerateResponse {
@@ -93,12 +96,23 @@ export interface QuizSetSummaryResponse {
     generatedCount: number;
     errorMessage: string | null;
     satisfactionRating: number | null;
+    sourcePath?: string | null;
+    sourceKind?: string | null;
 }
 
 export interface QuizSatisfactionRequest {
     rating: number;
     comment?: string;
 }
+
+export const getMyQuizSatisfaction = async (
+    quizSetId: number,
+): Promise<{ submitted: boolean }> => {
+    const { data } = await axiosInstance.get<{ submitted: boolean }>(
+        `/quiz/${quizSetId}/satisfaction/me`,
+    );
+    return { submitted: Boolean(data?.submitted) };
+};
 
 export const generateQuiz = async (
     projectId: number,
