@@ -26,6 +26,7 @@ import com.roma.qurie.quiz.repository.QuizProgressRepository;
 import com.roma.qurie.quiz.repository.QuizSetRepository;
 import com.roma.qurie.report.dto.SessionReportBulkResponse;
 import com.roma.qurie.report.dto.SessionReportCreateRequest;
+import com.roma.qurie.report.dto.SessionReportRosterResponse;
 import com.roma.qurie.report.entity.SessionReport;
 import com.roma.qurie.report.repository.SessionReportRepository;
 import com.roma.qurie.security.AuthUser;
@@ -33,6 +34,7 @@ import com.roma.qurie.session.core.Session;
 import com.roma.qurie.session.core.SessionRepository;
 import com.roma.qurie.session.participant.SessionParticipantResolver;
 import com.roma.qurie.session.participant.SessionParticipantService;
+import com.roma.qurie.user.entity.User;
 import com.roma.qurie.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -246,6 +248,46 @@ class SessionReportServiceTest {
 				.extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
 				.isEqualTo(HttpStatus.FORBIDDEN);
 		verify(sessionReportRepository, never()).save(any(SessionReport.class));
+	}
+
+	@Test
+	void 세션_리포트_명단은_강사만_조회한다() {
+		assertThatThrownBy(() -> sessionReportService.listSessionReportRoster(SESSION_ID, STUDENT))
+				.isInstanceOf(ResponseStatusException.class)
+				.extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
+				.isEqualTo(HttpStatus.FORBIDDEN);
+		verify(sessionReportRepository, never()).findBySessionIdOrderByIssuedAtDesc(any());
+	}
+
+	@Test
+	void 세션_리포트_명단을_반환한다() {
+		given(sessionRepository.findById(SESSION_ID)).willReturn(Optional.of(session));
+		given(session.getTitle()).willReturn("React 세션");
+		SessionReport report = SessionReport.builder()
+				.sessionId(SESSION_ID)
+				.ordinaryUserId(USER_ID)
+				.quizTotalCount(10)
+				.quizAttemptedCount(8)
+				.quizCorrectCount(6)
+				.quizSkippedCount(1)
+				.accuracy(new BigDecimal("75.00"))
+				.completionRate(new BigDecimal("80.00"))
+				.build();
+		given(sessionReportRepository.findBySessionIdOrderByIssuedAtDesc(SESSION_ID)).willReturn(List.of(report));
+		User user = mock(User.class);
+		given(user.getId()).willReturn(USER_ID);
+		given(user.getName()).willReturn("학생A");
+		given(userRepository.findAllById(List.of(USER_ID))).willReturn(List.of(user));
+
+		SessionReportRosterResponse response = sessionReportService.listSessionReportRoster(SESSION_ID, MANAGER);
+
+		assertThat(response.sessionId()).isEqualTo(SESSION_ID);
+		assertThat(response.sessionTitle()).isEqualTo("React 세션");
+		assertThat(response.issuedCount()).isEqualTo(1);
+		assertThat(response.reports()).hasSize(1);
+		assertThat(response.reports().get(0).ordinaryUserId()).isEqualTo(USER_ID);
+		assertThat(response.reports().get(0).userName()).isEqualTo("학생A");
+		assertThat(response.reports().get(0).accuracy()).isEqualByComparingTo("75.00");
 	}
 
 	private SessionReportCreateRequest request() {

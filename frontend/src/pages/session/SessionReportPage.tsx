@@ -1,6 +1,7 @@
 import { AppShell } from '../../components/layout/AppShell';
 import { PageMain } from '../../components/layout/PageMain';
 import {
+  AlertBanner,
   Badge,
   Button,
   ChartLegend,
@@ -17,9 +18,12 @@ import {
   useCreateSessionReportsForAll,
   useDownloadSessionReportPdf,
   useGetClassMembers,
+  useGetSession,
   useGetSessionReport,
+  useGetSessionReportRoster,
   useMe,
   type SessionReportDetailResponse,
+  type SessionReportRosterItemResponse,
 } from '../../data';
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
@@ -534,11 +538,10 @@ function SessionReportBody({
 }
 
 /**
- * 강사(매니저·마스터)용 학생 선택 화면.
- * 세션 리포트는 학생 단위로 발급되므로, userId 없이 들어온 강사에게
- * 본인 리포트를 조회(항상 404)하는 대신 어떤 학생의 리포트를 볼지 고르게 한다.
+ * 강사용 세션 전체 리포트.
+ * 발급된 학생 리포트 명단·평균 지표와 일괄 발급/개별 열람을 한 화면에서 처리한다.
  */
-function ManagerStudentPicker({
+function SessionReportOverview({
   sessionId,
   classId,
   backTo,
@@ -548,20 +551,103 @@ function ManagerStudentPicker({
   backTo: string;
 }) {
   const navigate = useNavigate();
+  const { data: session } = useGetSession(sessionId);
+  const { data: roster } = useGetSessionReportRoster(sessionId);
   const { data: membersPage } = useGetClassMembers(classId, { size: 100 });
-  const students = membersPage.data.filter((m) => m.role === 'STUDENT');
+  const issueAll = useCreateSessionReportsForAll();
+  const [issueMsg, setIssueMsg] = useState<string | null>(null);
+  const [issueError, setIssueError] = useState<string | null>(null);
+
+  const students = useMemo(
+    () => membersPage.data.filter((m) => m.role === 'STUDENT'),
+    [membersPage.data],
+  );
+
+  const reportByUserId = useMemo(() => {
+    const map = new Map<number, SessionReportRosterItemResponse>();
+    for (const r of roster.reports) map.set(r.ordinaryUserId, r);
+    return map;
+  }, [roster.reports]);
+
+  const avgAccuracy = useMemo(() => {
+    const values = roster.reports
+      .map((r) => (r.accuracy != null ? Number(r.accuracy) : null))
+      .filter((v): v is number => v != null);
+    if (values.length === 0) return null;
+    return values.reduce((a, b) => a + b, 0) / values.length;
+  }, [roster.reports]);
+
+  const avgCompletion = useMemo(() => {
+    const values = roster.reports
+      .map((r) => (r.completionRate != null ? Number(r.completionRate) : null))
+      .filter((v): v is number => v != null);
+    if (values.length === 0) return null;
+    return values.reduce((a, b) => a + b, 0) / values.length;
+  }, [roster.reports]);
+
+  const pendingCount = Math.max(0, students.length - roster.issuedCount);
+  const title = roster.sessionTitle || session.title;
+
+  const onIssueAll = () => {
+    setIssueMsg(null);
+    setIssueError(null);
+    issueAll.mutate(sessionId, {
+      onSuccess: (res) => {
+        setIssueMsg(`학생 ${res.issuedCount}명의 세션 리포트를 발급했어요.`);
+      },
+      onError: (err) =>
+        setIssueError(humanizeApiError(err, '세션 리포트 일괄 발급에 실패했습니다.')),
+    });
+  };
 
   return (
     <>
-      <div>
-        <Button variant="ghost" size="sm" icon={<ArrowLeft size={14} />} onClick={() => navigate(backTo)}>
-          목록으로
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div>
+          <Button variant="ghost" size="sm" icon={<ArrowLeft size={14} />} onClick={() => navigate(backTo)}>
+            목록으로
+          </Button>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: '8px 0 0' }}>세션 전체 리포트</h1>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}>{title}</span>
+            {' — '}
+            학생별 세션 리포트를 확인하고 일괄 발급할 수 있어요.
+          </span>
+        </div>
+        <Button
+          variant="primary"
+          size="sm"
+          icon={<RefreshCw size={14} strokeWidth={1.75} />}
+          disabled={issueAll.isPending || students.length === 0}
+          onClick={onIssueAll}
+        >
+          {issueAll.isPending ? '발급 중…' : roster.issuedCount > 0 ? '리포트 재발급' : '전원 리포트 발급'}
         </Button>
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: '8px 0 0' }}>세션 리포트</h1>
-        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-          리포트를 확인할 학생을 선택하세요.
-        </span>
       </div>
+
+      {issueMsg ? <AlertBanner tone="success" title="발급 완료" description={issueMsg} /> : null}
+      {issueError ? <AlertBanner tone="error" title="발급 실패" description={issueError} /> : null}
+
+      <StatCardRow>
+        <StatCard label="반 학생" value={String(students.length)} caption="클래스 소속" />
+        <StatCard
+          label="발급 완료"
+          value={String(roster.issuedCount)}
+          caption={pendingCount > 0 ? `미발급 ${pendingCount}명` : '전원 발급됨'}
+          accent
+        />
+        <StatCard label="평균 정답률" value={formatPct(avgAccuracy)} caption="발급분 기준" />
+        <StatCard label="평균 완료율" value={formatPct(avgCompletion)} caption="발급분 기준" />
+      </StatCardRow>
+
       {students.length === 0 ? (
         <EmptyState message="반에 학생이 없습니다" />
       ) : (
@@ -574,40 +660,69 @@ function ManagerStudentPicker({
             overflow: 'hidden',
           }}
         >
-          {students.map((m) => (
-            <div
-              key={m.userId}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-                padding: '13px 24px',
-                borderBottom: '1px solid var(--divider)',
-              }}
-            >
-              <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--text-muted)',
-                    fontFamily: 'var(--font-mono)',
-                    wordBreak: 'break-all',
-                  }}
-                >
-                  {m.email}
-                </span>
-              </span>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => navigate(`/session/${sessionId}/report?userId=${m.userId}`)}
+          <div
+            style={{
+              padding: '16px 24px 12px',
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            학생별 리포트
+          </div>
+          {students.map((m) => {
+            const report = reportByUserId.get(m.userId);
+            return (
+              <div
+                key={m.userId}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  padding: '13px 24px',
+                  borderTop: '1px solid var(--divider)',
+                  flexWrap: 'wrap',
+                }}
               >
-                리포트 보기
-              </Button>
-            </div>
-          ))}
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, flex: 1 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{m.name}</span>
+                    {report ? (
+                      <Badge status="accent">발급됨</Badge>
+                    ) : (
+                      <Badge status="neutral">미발급</Badge>
+                    )}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--text-muted)',
+                      fontFamily: 'var(--font-mono)',
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    {m.email}
+                    {report
+                      ? ` · 정답률 ${formatPct(report.accuracy)} · 완료율 ${formatPct(report.completionRate)} · 평점 ${formatRating(report.quizRating)}`
+                      : ''}
+                  </span>
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={!report}
+                  onClick={() =>
+                    navigate(`/session/${sessionId}/report?userId=${m.userId}&from=roster`)
+                  }
+                >
+                  {report ? '리포트 보기' : '미발급'}
+                </Button>
+              </div>
+            );
+          })}
         </div>
       )}
     </>
@@ -646,20 +761,33 @@ export default function SessionReportPage() {
   const sessionId = Number(id);
   const userIdParam = searchParams.get('userId');
   const userId = userIdParam != null && userIdParam !== '' ? Number(userIdParam) : undefined;
+  const fromRoster = searchParams.get('from') === 'roster';
 
   const backTo =
     me.role === 'STUDENT'
       ? '/app/report'
-      : me.role === 'MANAGER'
-        ? userId != null
-          ? `/manager/students/detail/${userId}`
-          : '/manager/sessions'
-        : '/master';
+      : fromRoster && Number.isFinite(sessionId)
+        ? `/session/${sessionId}/report`
+        : me.role === 'MANAGER'
+          ? userId != null
+            ? `/manager/students/detail/${userId}`
+            : '/manager/sessions'
+          : '/master';
 
   const activeKey =
-    me.role === 'STUDENT' ? 'report' : me.role === 'MANAGER' ? (userId != null ? 'students' : 'sessions') : 'dashboard';
+    me.role === 'STUDENT'
+      ? 'report'
+      : me.role === 'MANAGER'
+        ? userId != null && !fromRoster
+          ? 'students'
+          : 'sessions'
+        : 'dashboard';
   const breadcrumbs =
-    me.role === 'STUDENT' ? ['리포트', '세션 리포트'] : ['세션', '세션 리포트'];
+    me.role === 'STUDENT'
+      ? ['리포트', '세션 리포트']
+      : userId != null
+        ? ['세션', '세션 전체 리포트', '학생 리포트']
+        : ['세션', '세션 전체 리포트'];
 
   const wrap = (children: ReactNode) => (
     <AppShell role={me.role} activeKey={activeKey} breadcrumbs={breadcrumbs}>
@@ -697,11 +825,11 @@ export default function SessionReportPage() {
         errorFallback={
           <RowErrorFallback
             onRetry={() => setRowKey((k) => k + 1)}
-            title="학생 목록을 불러오지 못했습니다"
+            title="세션 전체 리포트를 불러오지 못했습니다"
           />
         }
       >
-        <ManagerStudentPicker sessionId={sessionId} classId={classId} backTo={backTo} />
+        <SessionReportOverview sessionId={sessionId} classId={classId} backTo={backTo} />
       </QueryAsyncBoundary>,
     );
   }

@@ -1,6 +1,7 @@
 package com.roma.qurie.session.core;
 
 import com.roma.qurie.report.dto.SessionReportBulkResponse;
+import com.roma.qurie.report.dto.SessionReportRosterResponse;
 import com.roma.qurie.report.dto.SessionReportCreateRequest;
 import com.roma.qurie.report.dto.SessionReportCreateResponse;
 import com.roma.qurie.report.dto.SessionReportDetailResponse;
@@ -117,6 +118,14 @@ public class SessionController {
     public SessionReportBulkResponse createSessionReportsForAll(@PathVariable Long sessionId,
                                                                 @AuthenticationPrincipal AuthUser requester) {
         return sessionReportService.createSessionReportsForAll(sessionId, requester);
+    }
+
+    /** 세션에 발급된 학생 리포트 전체 명단. 같은 반 강사만 조회. */
+    @GetMapping("{sessionId}/reports/roster")
+    public SessionReportRosterResponse listSessionReportRoster(
+            @PathVariable Long sessionId,
+            @AuthenticationPrincipal AuthUser requester) {
+        return sessionReportService.listSessionReportRoster(sessionId, requester);
     }
 
     /**
