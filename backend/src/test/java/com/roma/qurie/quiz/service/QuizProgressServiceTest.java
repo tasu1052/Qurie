@@ -209,7 +209,6 @@ class QuizProgressServiceTest {
 		given(quizRepository.findByIdAndQuizSetId(QUIZ_ID, QUIZ_SET_ID)).willReturn(Optional.of(quizWithChoices()));
 		given(userRepository.findById(STUDENT.id())).willReturn(Optional.of(student()));
 		given(quizProgressRepository.save(any(QuizProgress.class))).willAnswer(invocation -> invocation.getArgument(0));
-		given(quizProgressRepository.countByQuizSetIdAndUserId(QUIZ_SET_ID, STUDENT.id())).willReturn(1L);
 		Session session = sessionOfClass();
 		given(sessionRepository.findById(SESSION_ID)).willReturn(Optional.of(session));
 		given(participantResolver.resolveStudentIds(session)).willReturn(List.of(STUDENT.id(), 8L));
@@ -239,7 +238,6 @@ class QuizProgressServiceTest {
 		given(quizRepository.findByIdAndQuizSetId(QUIZ_ID, QUIZ_SET_ID)).willReturn(Optional.of(quizWithChoices()));
 		given(userRepository.findById(STUDENT.id())).willReturn(Optional.of(student()));
 		given(quizProgressRepository.save(any(QuizProgress.class))).willAnswer(invocation -> invocation.getArgument(0));
-		given(quizProgressRepository.countByQuizSetIdAndUserId(QUIZ_SET_ID, STUDENT.id())).willReturn(1L);
 		Session session = sessionOfClass();
 		given(sessionRepository.findById(SESSION_ID)).willReturn(Optional.of(session));
 		given(participantResolver.resolveStudentIds(session)).willReturn(List.of(STUDENT.id()));
