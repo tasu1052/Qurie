@@ -214,9 +214,18 @@ public class SessionReportService {
         List<Quiz> quizzes = new ArrayList<>();
         List<QuizProgress> progresses = new ArrayList<>();
         for (QuizSet quizSet : completedSets) {
-            quizzes.addAll(quizSet.getQuizzes());
+            List<Quiz> effective = quizSet.effectiveQuizzes();
+            Set<Long> effectiveIds = effective.stream()
+                    .map(Quiz::getId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            quizzes.addAll(effective);
             progresses.addAll(dedupeByQuizId(
-                    quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(quizSet.getId(), userId)));
+                    quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(quizSet.getId(), userId)
+                            .stream()
+                            .filter(progress -> progress.getQuiz() != null
+                                    && effectiveIds.contains(progress.getQuiz().getId()))
+                            .toList()));
         }
 
         int totalCount = quizzes.size();

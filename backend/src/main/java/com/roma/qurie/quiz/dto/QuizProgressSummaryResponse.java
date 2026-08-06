@@ -37,7 +37,7 @@ public record QuizProgressSummaryResponse(
 
 		return new QuizProgressSummaryResponse(
 				quizSet.getId(),
-				quizSet.getQuizzes().size(),
+				quizSet.effectiveQuizCount(),
 				attemptedCount,
 				correctCount,
 				unique.stream().map(ProgressItem::from).toList());

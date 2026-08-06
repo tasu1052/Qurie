@@ -27,7 +27,7 @@ public record QuizQuestionsResponse(
 				quizSet.getStatus(),
 				generationStage,
 				quizSet.getRequestedCount(),
-				quizSet.getQuizzes().stream().map(QuestionItem::from).toList());
+				quizSet.effectiveQuizzes().stream().map(QuestionItem::from).toList());
 	}
 
 	public record QuestionItem(

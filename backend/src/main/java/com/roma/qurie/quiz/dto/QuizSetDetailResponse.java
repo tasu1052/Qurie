@@ -35,7 +35,7 @@ public record QuizSetDetailResponse(
 				quizSet.getRequestedCount(),
 				quizSet.getGeneratedCount(),
 				quizSet.getErrorMessage(),
-				quizSet.getQuizzes().stream().map(QuizItem::from).toList());
+				quizSet.effectiveQuizzes().stream().map(QuizItem::from).toList());
 	}
 
 	public record QuizItem(

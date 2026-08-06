@@ -13,8 +13,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.roma.qurie.quiz.entity.Quiz;
 import com.roma.qurie.quiz.entity.QuizChoice;
 import com.roma.qurie.quiz.entity.QuizProgress;
+import com.roma.qurie.quiz.entity.QuizSet;
 import com.roma.qurie.quiz.repository.QuizProgressRepository;
 import com.roma.qurie.quiz.repository.QuizRepository;
+import com.roma.qurie.quiz.repository.QuizSetRepository;
 import com.roma.qurie.report.ai.AiReportAttempt;
 import com.roma.qurie.report.ai.AiReportCreateRequest;
 import com.roma.qurie.report.ai.AiReportResponse;
@@ -44,6 +46,7 @@ public class ReportAiFeedbackService {
 
 	private final ReportAiClient reportAiClient;
 	private final QuizRepository quizRepository;
+	private final QuizSetRepository quizSetRepository;
 	private final QuizProgressRepository quizProgressRepository;
 	private final TransactionTemplate transactionTemplate;
 
@@ -106,6 +109,16 @@ public class ReportAiFeedbackService {
 		List<Quiz> quizzes = quizRepository.findAllWithChoicesByQuizSetId(quizSetId);
 		if (quizzes.isEmpty()) {
 			return List.of();
+		}
+		// overshoot 여분이 DB 에 남아 있으면 generatedCount 기준으로 잘라 AI 입력에만 넣는다.
+		QuizSet quizSet = quizSetRepository.findById(quizSetId).orElse(null);
+		if (quizSet != null && quizzes.size() > quizSet.effectiveQuizCount()) {
+			int keep = quizSet.effectiveQuizCount();
+			quizzes = quizzes.stream()
+					.sorted(Comparator.comparingInt(Quiz::getOrderNo)
+							.thenComparing(quiz -> quiz.getId() == null ? Long.MAX_VALUE : quiz.getId()))
+					.limit(keep)
+					.toList();
 		}
 		Map<Long, QuizProgress> myProgressByQuizId =
 				quizProgressRepository.findAllWithQuizByQuizSetIdAndUserId(quizSetId, userId).stream()

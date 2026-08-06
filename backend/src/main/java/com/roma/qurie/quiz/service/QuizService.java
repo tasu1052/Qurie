@@ -197,6 +197,7 @@ public class QuizService {
 		verifyInstructorAccess(quizSet, requester);
 
 		String generationStage = syncFromAi(quizSet);
+		trimSurplusQuizzes(quizSet);
 
 		return QuizSetDetailResponse.from(quizSet, generationStage);
 	}
@@ -210,6 +211,7 @@ public class QuizService {
 		participantService.verifySessionClassMember(sessionIdOf(quizSet), requester);
 
 		String generationStage = syncFromAi(quizSet);
+		trimSurplusQuizzes(quizSet);
 
 		return QuizQuestionsResponse.from(quizSet, generationStage);
 	}
@@ -388,27 +390,65 @@ public class QuizService {
 
 	/**
 	 * 생성 중 부분 문항 반영. 이미 저장된 개수보다 AI 쪽이 많으면 뒤만 이어 붙인다.
+	 * AI 는 overshoot 로 요청 수보다 많은 승인분을 올릴 수 있어 requestedCount 까지만 저장한다.
 	 * @return 새 문항이 추가됐으면 true
 	 */
 	private boolean mergePartialQuizzes(QuizSet quizSet, List<AiQuizStatusResponse.AiQuiz> aiQuizzes) {
 		List<AiQuizStatusResponse.AiQuiz> generated = aiQuizzes == null ? List.of() : aiQuizzes;
 		int already = quizSet.getQuizzes().size();
-		if (generated.size() <= already) {
+		int cap = quizSet.getRequestedCount();
+		int limit = cap > 0 ? Math.min(generated.size(), cap) : generated.size();
+		if (limit <= already) {
 			return false;
 		}
-		appendQuizzes(quizSet, generated.subList(already, generated.size()), already + 1);
+		appendQuizzes(quizSet, generated.subList(already, limit), already + 1);
 		quizSet.updateProgress(quizSet.getQuizzes().size());
 		return true;
 	}
 
-	/** AI 는 현재 4지선다만 생성하므로 type 은 MULTIPLE_CHOICE 로 고정한다. */
+	/**
+	 * READY 최종 개수에 맞춘다. 생성 중 overshoot 여분이 남아 있으면 뒤쪽 문항만 제거하고,
+	 * 모자라면 이어 붙인다. 개수가 같으면 부분 반영분을 유지해 생성 중 응시 기록을 보존한다.
+	 */
 	private void applyGeneratedQuizzes(QuizSet quizSet, List<AiQuizStatusResponse.AiQuiz> aiQuizzes) {
 		List<AiQuizStatusResponse.AiQuiz> generated = aiQuizzes == null ? List.of() : aiQuizzes;
 		int already = quizSet.getQuizzes().size();
-		if (generated.size() > already) {
+		if (already > generated.size()) {
+			trimQuizzesTo(quizSet, generated.size());
+		} else if (already < generated.size()) {
 			appendQuizzes(quizSet, generated.subList(already, generated.size()), already + 1);
 		}
 		quizSet.complete(generated.size());
+	}
+
+	/** keep 개를 넘는 문항(orderNo 큰 쪽)과 그 응시 기록을 제거한다. */
+	private void trimQuizzesTo(QuizSet quizSet, int keep) {
+		if (keep < 0 || quizSet.getQuizzes().size() <= keep) {
+			return;
+		}
+		List<Long> toRemove = quizSet.getQuizzes().stream()
+				.sorted(java.util.Comparator.comparingInt(Quiz::getOrderNo)
+						.thenComparing(quiz -> quiz.getId() == null ? Long.MAX_VALUE : quiz.getId()))
+				.skip(keep)
+				.map(Quiz::getId)
+				.filter(java.util.Objects::nonNull)
+				.toList();
+		if (!toRemove.isEmpty()) {
+			quizProgressRepository.deleteAllByQuizIdIn(toRemove);
+			quizProgressRepository.flush();
+		}
+		quizSet.detachQuizzesBeyond(keep);
+	}
+
+	/** 이미 COMPLETED 인데 overshoot 여분이 DB 에 남은 세트를 조회/동기화 때 정리한다. */
+	private void trimSurplusQuizzes(QuizSet quizSet) {
+		if (quizSet.getStatus() != QuizSetStatus.COMPLETED) {
+			return;
+		}
+		int keep = quizSet.getGeneratedCount() > 0
+				? quizSet.getGeneratedCount()
+				: quizSet.getRequestedCount();
+		trimQuizzesTo(quizSet, keep);
 	}
 
 	private void appendQuizzes(
