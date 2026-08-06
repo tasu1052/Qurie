@@ -124,7 +124,7 @@ class ProjectServiceTest {
 				.willReturn(Optional.of(latest));
 
 		assertThat(projectService.getCurrentProject(student(), SESSION_ID).id()).isEqualTo(PROJECT_ID);
-		verify(participantService).verifyCanEnter(eq(SESSION_ID), any(AuthUser.class));
+		verify(participantService).verifySessionClassMember(eq(SESSION_ID), any(AuthUser.class));
 	}
 
 	@Test
