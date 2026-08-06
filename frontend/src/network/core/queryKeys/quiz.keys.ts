@@ -5,4 +5,7 @@ export const quizKeys = {
     questions: (quizSetId: number) => [...quizKeys.all, 'questions', quizSetId] as const,
     progress: (quizSetId: number, userId?: number | null) =>
         [...quizKeys.all, 'progress', quizSetId, userId ?? 'me'] as const,
+    progressRoster: (quizSetId: number) => [...quizKeys.all, 'progressRoster', quizSetId] as const,
+    progressIncorrect: (quizSetId: number) =>
+        [...quizKeys.all, 'progressIncorrect', quizSetId] as const,
 };

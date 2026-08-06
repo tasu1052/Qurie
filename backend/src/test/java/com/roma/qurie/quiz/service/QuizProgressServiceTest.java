@@ -222,6 +222,9 @@ class QuizProgressServiceTest {
 		verify(messagingTemplate)
 				.convertAndSend(eq("/topic/sessions/" + SESSION_ID + "/quiz-progress"), captor.capture());
 		assertThat(captor.getValue().quizSetId()).isEqualTo(QUIZ_SET_ID);
+		assertThat(captor.getValue().totalQuizCount()).isEqualTo(1);
+		assertThat(captor.getValue().startedStudentCount()).isEqualTo(1);
+		assertThat(captor.getValue().inProgressStudentCount()).isEqualTo(0);
 		assertThat(captor.getValue().completedStudentCount()).isEqualTo(1);
 		assertThat(captor.getValue().totalStudentCount()).isEqualTo(2);
 		assertThat(captor.getValue().allCompleted()).isFalse();
@@ -252,7 +255,7 @@ class QuizProgressServiceTest {
 	}
 
 	@Test
-	void submitDoesNotBroadcastWhenQuizSetIsNotFinishedYet() {
+	void submitBroadcastsPartialProgressWhenQuizSetIsNotFinishedYet() {
 		QuizSet quizSet = quizSet();
 		quizSet.addQuiz(quizWithChoices());
 		quizSet.addQuiz(quizWithChoices());
@@ -261,11 +264,22 @@ class QuizProgressServiceTest {
 		given(quizRepository.findByIdAndQuizSetId(QUIZ_ID, QUIZ_SET_ID)).willReturn(Optional.of(quizWithChoices()));
 		given(userRepository.findById(STUDENT.id())).willReturn(Optional.of(student()));
 		given(quizProgressRepository.save(any(QuizProgress.class))).willAnswer(invocation -> invocation.getArgument(0));
-		given(quizProgressRepository.countByQuizSetIdAndUserId(QUIZ_SET_ID, STUDENT.id())).willReturn(1L);
+		Session session = sessionOfClass();
+		given(sessionRepository.findById(SESSION_ID)).willReturn(Optional.of(session));
+		given(participantResolver.resolveStudentIds(session)).willReturn(List.of(STUDENT.id(), 8L));
+		given(quizProgressRepository.countProgressByQuizSetIdGroupByUser(QUIZ_SET_ID))
+				.willReturn(List.<Object[]>of(new Object[] {STUDENT.id(), 1L}));
 
 		quizProgressService.submit(QUIZ_SET_ID, QUIZ_ID, STUDENT, attemptRequest(2));
 
-		verify(messagingTemplate, never()).convertAndSend(any(String.class), any(Object.class));
+		ArgumentCaptor<QuizProgressNotification> captor = ArgumentCaptor.forClass(QuizProgressNotification.class);
+		verify(messagingTemplate)
+				.convertAndSend(eq("/topic/sessions/" + SESSION_ID + "/quiz-progress"), captor.capture());
+		assertThat(captor.getValue().totalQuizCount()).isEqualTo(2);
+		assertThat(captor.getValue().startedStudentCount()).isEqualTo(1);
+		assertThat(captor.getValue().inProgressStudentCount()).isEqualTo(1);
+		assertThat(captor.getValue().completedStudentCount()).isEqualTo(0);
+		assertThat(captor.getValue().allCompleted()).isFalse();
 	}
 
 	@Test

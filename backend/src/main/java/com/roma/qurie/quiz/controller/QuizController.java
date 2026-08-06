@@ -23,6 +23,7 @@ import com.roma.qurie.quiz.dto.QuizGenerateRequest;
 import com.roma.qurie.quiz.dto.QuizGenerateResponse;
 import com.roma.qurie.quiz.dto.QuizIncorrectProgressResponse;
 import com.roma.qurie.quiz.dto.QuizProgressResponse;
+import com.roma.qurie.quiz.dto.QuizProgressRosterResponse;
 import com.roma.qurie.quiz.dto.QuizProgressSubmitRequest;
 import com.roma.qurie.quiz.dto.QuizProgressSummaryResponse;
 import com.roma.qurie.quiz.dto.QuizQuestionsResponse;
@@ -120,6 +121,15 @@ public class QuizController {
 			@RequestParam(value = "userId", required = false) Long userId,
 			@AuthenticationPrincipal AuthUser requester) {
 		return quizProgressService.getSummary(quizSetId, userId, requester);
+	}
+
+	/**
+	 * 강사·마스터 전용 — 세션 편성 학생별 퀴즈 응시 현황(미시작·진행·완료).
+	 */
+	@GetMapping("/{quizSetId}/progress/roster")
+	public QuizProgressRosterResponse getProgressRoster(
+			@PathVariable("quizSetId") Long quizSetId, @AuthenticationPrincipal AuthUser requester) {
+		return quizProgressService.getRoster(quizSetId, requester);
 	}
 
 	/**

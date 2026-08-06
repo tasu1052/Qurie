@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tansta
 import { queryKeys } from '../core/queryKeys';
 import {
     generateQuiz,
+    getIncorrectQuizProgress,
     getQuizProgress,
+    getQuizProgressRoster,
     getQuizQuestions,
     getQuizSet,
     listQuizSetsByProject,
@@ -138,5 +140,34 @@ export const useGetQuizProgressSuspense = (quizSetId: number, userId?: number | 
     return useSuspenseQuery({
         queryKey: queryKeys.quiz.progress(quizSetId, userId),
         queryFn: () => getQuizProgress(quizSetId, userId),
+    });
+};
+
+/** 강사 현황판 — 학생별 응시 상태. 웹소켓 이벤트가 오면 invalidate 해서 갱신한다. */
+export const useGetQuizProgressRoster = (quizSetId: number | null, enabled = true) => {
+    return useQuery({
+        queryKey:
+            quizSetId != null
+                ? queryKeys.quiz.progressRoster(quizSetId)
+                : (['quiz', 'progressRoster', 'idle'] as const),
+        queryFn: () => getQuizProgressRoster(quizSetId as number),
+        enabled: quizSetId != null && enabled,
+        staleTime: 0,
+        refetchInterval: 8_000,
+        refetchOnWindowFocus: true,
+    });
+};
+
+/** 본인 오답 목록 — 다시 풀기 연습용(서버 progress 미갱신). */
+export const useGetIncorrectQuizProgress = (quizSetId: number | null, enabled = true) => {
+    return useQuery({
+        queryKey:
+            quizSetId != null
+                ? queryKeys.quiz.progressIncorrect(quizSetId)
+                : (['quiz', 'progressIncorrect', 'idle'] as const),
+        queryFn: () => getIncorrectQuizProgress(quizSetId as number),
+        enabled: quizSetId != null && enabled,
+        staleTime: 0,
+        refetchOnWindowFocus: true,
     });
 };

@@ -185,6 +185,28 @@ export interface QuizProgressSummaryResponse {
     items: QuizProgressItem[];
 }
 
+export type QuizRosterStudentStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+
+export interface QuizProgressRosterItem {
+    userId: number;
+    userName: string;
+    answeredCount: number;
+    correctCount: number;
+    totalQuizCount: number;
+    status: QuizRosterStudentStatus;
+}
+
+export interface QuizProgressRosterResponse {
+    quizSetId: number;
+    totalQuizCount: number;
+    totalStudentCount: number;
+    startedStudentCount: number;
+    inProgressStudentCount: number;
+    completedStudentCount: number;
+    allCompleted: boolean;
+    students: QuizProgressRosterItem[];
+}
+
 export const submitQuizProgress = async (
     quizSetId: number,
     quizId: number,
@@ -207,6 +229,44 @@ export const getQuizProgress = async (
     );
     return {
         ...data,
+        items: (data.items ?? []).map((item) => ({
+            quizId: item.quizId,
+            status: item.status,
+            chosenChoiceIdx: item.chosenChoiceIdx ?? null,
+            isCorrect: item.isCorrect ?? null,
+            elapsedMs: item.elapsedMs ?? 0,
+            explanation: item.explanation ?? null,
+            correctChoiceIdx: item.correctChoiceIdx ?? null,
+        })),
+    };
+};
+
+/** 강사·마스터 전용 학생별 응시 현황. */
+export const getQuizProgressRoster = async (
+    quizSetId: number,
+): Promise<QuizProgressRosterResponse> => {
+    const { data } = await axiosInstance.get<QuizProgressRosterResponse>(
+        `/quiz/${quizSetId}/progress/roster`,
+    );
+    return data;
+};
+
+export interface QuizIncorrectProgressResponse {
+    quizSetId: number;
+    incorrectCount: number;
+    items: QuizProgressItem[];
+}
+
+/** 본인 오답만. 다시 풀기(리포트 미반영) 연습에 쓴다. */
+export const getIncorrectQuizProgress = async (
+    quizSetId: number,
+): Promise<QuizIncorrectProgressResponse> => {
+    const { data } = await axiosInstance.get<QuizIncorrectProgressResponse>(
+        `/quiz/${quizSetId}/progress/incorrect`,
+    );
+    return {
+        quizSetId: data.quizSetId,
+        incorrectCount: data.incorrectCount ?? 0,
         items: (data.items ?? []).map((item) => ({
             quizId: item.quizId,
             status: item.status,
