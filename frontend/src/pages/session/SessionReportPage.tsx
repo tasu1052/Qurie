@@ -142,6 +142,32 @@ function SessionReportBody({
   const issued = report.issuedAt
     ? new Date(report.issuedAt).toLocaleString('ko-KR', { hour12: false })
     : '—';
+  // 퀴즈를 한 번도 풀지 않은 리포트는 지표·차트를 보여 주지 않고 안내만 한다.
+  const hasQuizActivity = report.quizTotalCount > 0 || report.quizAttemptedCount > 0;
+
+  if (!hasQuizActivity) {
+    return (
+      <>
+        <div>
+          <Button variant="ghost" size="sm" icon={<ArrowLeft size={14} />} onClick={() => navigate(backTo)}>
+            목록으로
+          </Button>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: '8px 0 0' }}>세션 결과 리포트</h1>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}>{report.sessionTitle}</span>
+            {' — '}
+            {report.userName}
+          </span>
+        </div>
+        <EmptyState
+          message="세션 참여 이력이 없어요."
+          description="세션에서 퀴즈를 풀면 결과 리포트가 표시돼요."
+          actionLabel="목록으로"
+          onAction={() => navigate(backTo)}
+        />
+      </>
+    );
+  }
 
   return (
     <>
@@ -841,8 +867,16 @@ export default function SessionReportPage() {
       errorFallback={
         <RowErrorFallback
           onRetry={() => setRowKey((k) => k + 1)}
-          title="세션 리포트를 불러오지 못했습니다"
-          description="리포트가 아직 발급되지 않았거나 권한이 없을 수 있어요."
+          title={
+            me.role === 'STUDENT'
+              ? '세션 참여 이력이 없어요.'
+              : '세션 리포트를 불러오지 못했습니다'
+          }
+          description={
+            me.role === 'STUDENT'
+              ? '세션에서 퀴즈를 풀고 리포트가 발급되면 여기에서 확인할 수 있어요.'
+              : '리포트가 아직 발급되지 않았거나 권한이 없을 수 있어요.'
+          }
         />
       }
     >
