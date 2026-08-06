@@ -1,7 +1,9 @@
 package com.roma.qurie.quiz.service;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -16,6 +18,8 @@ import com.roma.qurie.project.ProjectRepository;
 import com.roma.qurie.quiz.dto.QuizIncorrectProgressResponse;
 import com.roma.qurie.quiz.dto.QuizProgressNotification;
 import com.roma.qurie.quiz.dto.QuizProgressResponse;
+import com.roma.qurie.quiz.dto.QuizProgressRosterItemResponse;
+import com.roma.qurie.quiz.dto.QuizProgressRosterResponse;
 import com.roma.qurie.quiz.dto.QuizProgressSubmitRequest;
 import com.roma.qurie.quiz.dto.QuizProgressSummaryResponse;
 import com.roma.qurie.quiz.entity.Quiz;
@@ -82,44 +86,65 @@ public class QuizProgressService {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
 		}
 
-		notifyIfQuizSetCompleted(quizSet, sessionId, requester.id());
+		notifyQuizProgress(quizSet, sessionId);
 		return QuizProgressResponse.from(saved);
 	}
 
 	/**
-	 * 이번 제출로 사용자가 세트의 모든 문항을 마쳤으면 세션에 완주 현황을 웹소켓으로 알린다.
-	 * 강사 화면이 폴링 없이 "몇 명이 다 풀었는지"를 갱신하기 위한 알림이라 완주가 아닌 제출에는 보내지 않는다.
+	 * 문항 제출마다 세션에 응시 집계를 웹소켓으로 알린다.
+	 * 강사 현황판이 "몇 명이 풀고 있는지 / 완료했는지"를 실시간으로 갱신하기 위함이다.
 	 */
-	private void notifyIfQuizSetCompleted(QuizSet quizSet, Long sessionId, Long userId) {
-		int totalQuizCount = quizSet.getQuizzes().size();
-		if (totalQuizCount == 0) {
-			return;
-		}
-		if (quizProgressRepository.countByQuizSetIdAndUserId(quizSet.getId(), userId) < totalQuizCount) {
-			return;
-		}
+	private void notifyQuizProgress(QuizSet quizSet, Long sessionId) {
 		Session session = sessionRepository.findById(sessionId).orElse(null);
 		if (session == null) {
 			return;
 		}
+		QuizProgressNotification notification = buildProgressNotification(quizSet, session);
+		if (notification == null) {
+			return;
+		}
+		messagingTemplate.convertAndSend("/topic/sessions/" + sessionId + "/quiz-progress", notification);
+	}
 
+	private QuizProgressNotification buildProgressNotification(QuizSet quizSet, Session session) {
+		int totalQuizCount = quizSet.getQuizzes().size();
+		if (totalQuizCount == 0) {
+			return null;
+		}
 		List<Long> studentIds = participantResolver.resolveStudentIds(session);
-		// 강사 등 편성 밖 사용자의 응시가 섞여도 분자·분모가 어긋나지 않도록 참여 학생 기준으로만 센다.
-		Set<Long> completedUserIds = quizProgressRepository.countProgressByQuizSetIdGroupByUser(quizSet.getId())
-				.stream()
-				.filter(row -> ((Long) row[1]) >= totalQuizCount)
-				.map(row -> (Long) row[0])
-				.collect(Collectors.toSet());
-		int completedStudentCount = (int) studentIds.stream().filter(completedUserIds::contains).count();
+		Map<Long, Long> answeredByUser = answeredCountByUser(quizSet.getId());
+		int started = 0;
+		int inProgress = 0;
+		int completed = 0;
+		for (Long studentId : studentIds) {
+			long answered = answeredByUser.getOrDefault(studentId, 0L);
+			if (answered <= 0) {
+				continue;
+			}
+			started++;
+			if (answered >= totalQuizCount) {
+				completed++;
+			} else {
+				inProgress++;
+			}
+		}
 		int totalStudentCount = studentIds.size();
+		return new QuizProgressNotification(
+				quizSet.getId(),
+				totalQuizCount,
+				started,
+				inProgress,
+				completed,
+				totalStudentCount,
+				totalStudentCount > 0 && completed == totalStudentCount);
+	}
 
-		messagingTemplate.convertAndSend(
-				"/topic/sessions/" + sessionId + "/quiz-progress",
-				new QuizProgressNotification(
-						quizSet.getId(),
-						completedStudentCount,
-						totalStudentCount,
-						totalStudentCount > 0 && completedStudentCount == totalStudentCount));
+	private Map<Long, Long> answeredCountByUser(Long quizSetId) {
+		Map<Long, Long> answeredByUser = new HashMap<>();
+		for (Object[] row : quizProgressRepository.countProgressByQuizSetIdGroupByUser(quizSetId)) {
+			answeredByUser.put((Long) row[0], (Long) row[1]);
+		}
+		return answeredByUser;
 	}
 
 	/**
@@ -151,6 +176,104 @@ public class QuizProgressService {
 		List<QuizProgress> incorrectProgresses =
 				quizProgressRepository.findIncorrectWithQuizByQuizSetIdAndUserId(quizSetId, requester.id());
 		return QuizIncorrectProgressResponse.from(quizSetId, incorrectProgresses);
+	}
+
+	/**
+	 * 강사·마스터 전용 학생 응시 현황. 세션 편성 학생을 기준으로 미시작·진행·완료를 나열한다.
+	 */
+	@Transactional(readOnly = true)
+	public QuizProgressRosterResponse getRoster(Long quizSetId, AuthUser requester) {
+		requireInstructor(requester);
+		QuizSet quizSet = findQuizSetOrThrow(quizSetId);
+		Long sessionId = sessionIdOf(quizSet);
+		participantService.verifySessionClassMember(sessionId, requester);
+
+		Session session = sessionRepository
+				.findById(sessionId)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "세션을 찾을 수 없습니다."));
+
+		int totalQuizCount = quizSet.getQuizzes().size();
+		List<Long> studentIds = participantResolver.resolveStudentIds(session);
+		Map<Long, Long> answeredByUser = answeredCountByUser(quizSetId);
+		Map<Long, Integer> correctByUser = correctCountByUser(quizSetId);
+		Map<Long, String> names = userRepository.findAllById(studentIds).stream()
+				.collect(Collectors.toMap(User::getId, User::getName, (a, b) -> a));
+
+		List<QuizProgressRosterItemResponse> students = new ArrayList<>(studentIds.size());
+		int started = 0;
+		int inProgress = 0;
+		int completed = 0;
+		for (Long studentId : studentIds) {
+			int answered = answeredByUser.getOrDefault(studentId, 0L).intValue();
+			int correct = correctByUser.getOrDefault(studentId, 0);
+			String status;
+			if (answered <= 0) {
+				status = "NOT_STARTED";
+			} else if (totalQuizCount > 0 && answered >= totalQuizCount) {
+				status = "COMPLETED";
+				completed++;
+				started++;
+			} else {
+				status = "IN_PROGRESS";
+				inProgress++;
+				started++;
+			}
+			students.add(new QuizProgressRosterItemResponse(
+					studentId,
+					names.getOrDefault(studentId, "알 수 없음"),
+					answered,
+					correct,
+					totalQuizCount,
+					status));
+		}
+
+		students.sort((a, b) -> {
+			int rank = Integer.compare(statusRank(a.status()), statusRank(b.status()));
+			if (rank != 0) {
+				return rank;
+			}
+			return a.userName().compareToIgnoreCase(b.userName());
+		});
+
+		int totalStudentCount = studentIds.size();
+		return new QuizProgressRosterResponse(
+				quizSetId,
+				totalQuizCount,
+				totalStudentCount,
+				started,
+				inProgress,
+				completed,
+				totalStudentCount > 0 && completed == totalStudentCount,
+				students);
+	}
+
+	private Map<Long, Integer> correctCountByUser(Long quizSetId) {
+		Map<Long, Integer> correctByUser = new HashMap<>();
+		for (QuizProgress progress : quizProgressRepository.findAllWithQuizByQuizSetId(quizSetId)) {
+			if (!Boolean.TRUE.equals(progress.getIsCorrect())) {
+				continue;
+			}
+			Long userId = progress.getUser().getId();
+			correctByUser.merge(userId, 1, Integer::sum);
+		}
+		return correctByUser;
+	}
+
+	private static int statusRank(String status) {
+		return switch (status) {
+			case "IN_PROGRESS" -> 0;
+			case "COMPLETED" -> 1;
+			default -> 2;
+		};
+	}
+
+	private static void requireInstructor(AuthUser requester) {
+		if (requester == null) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+		}
+		if (!"MANAGER".equals(requester.role()) && !"MASTER".equals(requester.role())) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "응시 현황은 강사만 조회할 수 있습니다.");
+		}
 	}
 
 	/** ATTEMPTED 가 아니면 고른 보기가 없다. ATTEMPTED 인데 idx 가 문항의 실제 보기 범위를 벗어나면 잘못된 요청이다. */

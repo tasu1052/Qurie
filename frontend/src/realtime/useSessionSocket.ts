@@ -50,9 +50,12 @@ export interface SessionStatusEvent {
   endedAt: string;
 }
 
-/** `/topic/sessions/{id}/quiz-progress` 이벤트. 학생이 퀴즈 전 문항을 완료할 때마다 집계가 온다. */
+/** `/topic/sessions/{id}/quiz-progress` 이벤트. 학생 문항 제출마다 집계가 온다. */
 export interface QuizProgressEvent {
   quizSetId: number;
+  totalQuizCount?: number;
+  startedStudentCount?: number;
+  inProgressStudentCount?: number;
   completedStudentCount: number;
   totalStudentCount: number;
   allCompleted: boolean;

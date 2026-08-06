@@ -186,6 +186,8 @@ export {
   useSubmitQuizProgress,
   useGetQuizProgress,
   useGetQuizProgressSuspense,
+  useGetQuizProgressRoster,
+  useGetIncorrectQuizProgress,
   useSubmitQuizSatisfaction,
   formatQuizSource,
   normalizeQuizSetStatus,
@@ -211,6 +213,10 @@ export type {
   QuizProgressStatus,
   QuizProgressSummaryResponse,
   QuizProgressItem,
+  QuizProgressRosterResponse,
+  QuizProgressRosterItem,
+  QuizRosterStudentStatus,
+  QuizIncorrectProgressResponse,
 } from '../network/quiz';
 /** 세션 실시간(STOMP) — 채팅 · 참여자 · 퀴즈/프로젝트 · 음성 채널을 한 연결에서 받는다. */
 export { useSessionSocket } from '../realtime/useSessionSocket';

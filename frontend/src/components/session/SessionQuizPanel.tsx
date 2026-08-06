@@ -35,6 +35,12 @@ import {
   type QuizSourceSelection,
 } from './quizSourceScope';
 import { AlertBanner, AsyncJobPanel, Badge, Button, Input } from '../../ds';
+import { InstructorQuizMonitor } from './InstructorQuizMonitor';
+import {
+  IncorrectRetryPlayer,
+  type IncorrectRetryQuestion,
+} from './IncorrectRetryPlayer';
+import type { QuizProgressEvent } from '../../realtime/useSessionSocket';
 
 type SessionQuizPanelProps = {
   sessionId: number;
@@ -44,6 +50,8 @@ type SessionQuizPanelProps = {
   pushedQuizSetId?: number | null;
   /** 강사 또는 그룹 리더 — 퀴즈 생성·재생성 UI */
   canGenerateQuiz?: boolean;
+  /** 강사 현황판 실시간 집계 (`/topic/sessions/{id}/quiz-progress`) */
+  liveQuizProgress?: QuizProgressEvent | null;
 };
 
 type PlayableChoice = { idx: number; content: string; answer?: boolean };
@@ -399,11 +407,15 @@ function ConfettiBurst() {
 function QuizCompleteScreen({
   correct,
   total,
+  incorrectCount,
   onReview,
+  onRetryIncorrect,
 }: {
   correct: number;
   total: number;
+  incorrectCount: number;
   onReview: () => void;
+  onRetryIncorrect?: () => void;
 }) {
   return (
     <div
@@ -452,9 +464,29 @@ function QuizCompleteScreen({
         <span style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 2 }}>
           정답 {correct}개 · 전체 {total}문항
         </span>
-        <Button variant="ghost" size="sm" onClick={onReview} style={{ marginTop: 10 }}>
-          문항 다시 보기
-        </Button>
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 8,
+            justifyContent: 'center',
+            marginTop: 10,
+          }}
+        >
+          <Button variant="ghost" size="sm" onClick={onReview}>
+            문항 다시 보기
+          </Button>
+          {incorrectCount > 0 && onRetryIncorrect ? (
+            <Button variant="secondary" size="sm" onClick={onRetryIncorrect}>
+              오답 다시 풀기 ({incorrectCount})
+            </Button>
+          ) : null}
+        </div>
+        {incorrectCount > 0 && onRetryIncorrect ? (
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
+            연습 결과는 리포트에 반영되지 않습니다
+          </span>
+        ) : null}
       </div>
     </div>
   );
@@ -476,7 +508,9 @@ function SingleQuizPlayer({
   showComplete,
   completeCorrect,
   completeTotal,
+  completeIncorrectCount,
   onReviewFromComplete,
+  onRetryIncorrect,
   initialIndex = 0,
   onFinish,
 }: {
@@ -495,7 +529,9 @@ function SingleQuizPlayer({
   showComplete: boolean;
   completeCorrect: number;
   completeTotal: number;
+  completeIncorrectCount: number;
   onReviewFromComplete: () => void;
+  onRetryIncorrect?: () => void;
   /** 서버 progress 복원 시 시작할 문항 인덱스 (마운트 시 1회) */
   initialIndex?: number;
   /** 마지막 문항 채점/건너뛰기 후 완료 화면으로 넘어갈 때 */
@@ -530,7 +566,9 @@ function SingleQuizPlayer({
       <QuizCompleteScreen
         correct={completeCorrect}
         total={completeTotal}
+        incorrectCount={completeIncorrectCount}
         onReview={onReviewFromComplete}
+        onRetryIncorrect={onRetryIncorrect}
       />
     );
   }
@@ -916,6 +954,7 @@ export function SessionQuizPanel({
   versionHash,
   pushedQuizSetId = null,
   canGenerateQuiz = false,
+  liveQuizProgress = null,
 }: SessionQuizPanelProps) {
   const meQuery = useMeOptional();
   const role = meQuery.isSuccess ? meQuery.data?.role : undefined;
@@ -944,6 +983,8 @@ export function SessionQuizPanel({
   const [readyForComplete, setReadyForComplete] = useState(false);
   const [readyCompleteQuizSetId, setReadyCompleteQuizSetId] = useState<number | null>(null);
   const [conflictEpoch, setConflictEpoch] = useState(0);
+  /** 오답 연습 모드 — 서버 progress 미제출, 리포트 미반영 */
+  const [retryingIncorrect, setRetryingIncorrect] = useState(false);
 
   const projectQuizSets = useQuizSetsByProject(projectId);
 
@@ -965,6 +1006,7 @@ export function SessionQuizPanel({
     setReadyCompleteQuizSetId(activeQuizSetId);
     setReadyForComplete(false);
     setReviewingCompleteFor(null);
+    setRetryingIncorrect(false);
   }
 
   const progressQuery = useGetQuizProgress(activeQuizSetId);
@@ -1033,6 +1075,26 @@ export function SessionQuizPanel({
     () => Object.values(results).filter((r) => r.isCorrect === true).length,
     [results],
   );
+
+  const incorrectRetryQuestions = useMemo((): IncorrectRetryQuestion[] => {
+    return playableQuizzes
+      .filter((q) => results[q.id]?.isCorrect === false)
+      .map((q) => {
+        const result = results[q.id];
+        const fromChoices = q.choices.find((c) => c.answer)?.idx;
+        const correctChoiceIdx = result?.correctChoiceIdx ?? fromChoices ?? null;
+        if (correctChoiceIdx == null) return null;
+        return {
+          id: q.id,
+          orderNo: q.orderNo,
+          question: q.question,
+          choices: q.choices.map((c) => ({ idx: c.idx, content: c.content })),
+          correctChoiceIdx,
+          explanation: result?.explanation ?? q.explanation ?? null,
+        };
+      })
+      .filter((q): q is IncorrectRetryQuestion => q != null);
+  }, [playableQuizzes, results]);
 
   // 재입장 시 서버에 이미 전부 응시된 세트는 완료 화면을 바로 연다 (풀이 중 마지막 제출과는 분리).
   const serverAlreadyComplete = useMemo(() => {
@@ -1456,7 +1518,19 @@ export function SessionQuizPanel({
         <QuizGeneratingBanner done={generatedCount} total={requestedCount} />
       ) : null}
 
-      {showQuizPlayer ? (
+      {/* 강사는 퀴즈를 풀지 않고 학생 응시 현황만 본다. */}
+      {isInstructor && activeQuizSetId != null && !waitingForFirstQuestion && summary?.status === 'COMPLETED' ? (
+        <InstructorQuizMonitor quizSetId={activeQuizSetId} liveProgress={liveQuizProgress} />
+      ) : null}
+
+      {showQuizPlayer && !isInstructor && retryingIncorrect ? (
+        <IncorrectRetryPlayer
+          questions={incorrectRetryQuestions}
+          onExit={() => setRetryingIncorrect(false)}
+        />
+      ) : null}
+
+      {showQuizPlayer && !isInstructor && !retryingIncorrect ? (
         <SingleQuizPlayer
           key={playerMountKey}
           quizzes={playableQuizzes}
@@ -1487,9 +1561,15 @@ export function SessionQuizPanel({
           showComplete={showCompleteScreen}
           completeCorrect={correctCount}
           completeTotal={playableQuizzes.length}
+          completeIncorrectCount={incorrectRetryQuestions.length}
           onReviewFromComplete={() => {
             if (activeQuizSetId != null) setReviewingCompleteFor(activeQuizSetId);
           }}
+          onRetryIncorrect={
+            incorrectRetryQuestions.length > 0
+              ? () => setRetryingIncorrect(true)
+              : undefined
+          }
           onFinish={() => setReadyForComplete(true)}
           initialIndex={inReviewMode ? 0 : resumeIndex}
         />

@@ -4,11 +4,16 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Badge, Button, EmptyState, RowErrorFallback, Skeleton } from '../../ds';
 import {
   QueryAsyncBoundary,
+  useGetIncorrectQuizProgress,
   useGetQuizProgress,
   useGetQuizSet,
   type QuizItem,
   type QuizProgressItem,
 } from '../../data';
+import {
+  IncorrectRetryPlayer,
+  type IncorrectRetryQuestion,
+} from '../../components/session/IncorrectRetryPlayer';
 import { PastQuizShell } from './pastQuizShell';
 import {
   sessionListPath,
@@ -180,6 +185,8 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
   const navigate = useNavigate();
   const { data: quizSet } = useGetQuizSet(quizSetId);
   const { data: progressSummary } = useGetQuizProgress(quizSetId);
+  const incorrectQuery = useGetIncorrectQuizProgress(quizSetId);
+  const [retrying, setRetrying] = useState(false);
 
   const progressByQuizId = useMemo(() => {
     const map = new Map<number, QuizProgressItem>();
@@ -198,6 +205,41 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
 
   const correctCount = items.filter((item) => progressByQuizId.get(item.id)?.isCorrect === true).length;
 
+  const retryQuestions = useMemo((): IncorrectRetryQuestion[] => {
+    const byId = new Map(items.map((item) => [item.id, item]));
+    const next: IncorrectRetryQuestion[] = [];
+    for (const progress of incorrectQuery.data?.items ?? []) {
+      const quiz = byId.get(progress.quizId);
+      if (!quiz || progress.correctChoiceIdx == null) continue;
+      next.push({
+        id: quiz.id,
+        orderNo: quiz.orderNo,
+        question: quiz.question,
+        choices: quiz.choices.map((c) => ({ idx: c.idx, content: c.content })),
+        correctChoiceIdx: progress.correctChoiceIdx,
+        explanation: progress.explanation ?? quiz.explanation ?? null,
+      });
+    }
+    return next;
+  }, [incorrectQuery.data?.items, items]);
+
+  if (retrying) {
+    return (
+      <>
+        <div>
+          <Button variant="ghost" size="sm" icon={<ArrowLeft size={14} />} onClick={() => setRetrying(false)}>
+            결과로
+          </Button>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: '8px 0 0' }}>오답 다시 풀기</h1>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            연습 결과는 리포트·응시 기록에 반영되지 않습니다
+          </span>
+        </div>
+        <IncorrectRetryPlayer questions={retryQuestions} onExit={() => setRetrying(false)} />
+      </>
+    );
+  }
+
   return (
     <>
       <div>
@@ -212,9 +254,24 @@ function QuizDetailBody({ quizSetId, basePath }: { quizSetId: number; basePath: 
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: '8px 0 0' }}>
           퀴즈 세트 #{quizSet.quizSetId}
         </h1>
-        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-          {correctCount}/{items.length} 정답 · 상태 {quizSet.status}
-        </span>
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: 10,
+            marginTop: 4,
+          }}
+        >
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            {correctCount}/{items.length} 정답 · 상태 {quizSet.status}
+          </span>
+          {retryQuestions.length > 0 ? (
+            <Button variant="secondary" size="sm" onClick={() => setRetrying(true)}>
+              오답 다시 풀기 ({retryQuestions.length})
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="qurie-app-split" style={{ alignItems: 'start' }}>

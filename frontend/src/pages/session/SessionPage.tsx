@@ -813,7 +813,7 @@ export default function SessionPage() {
           description={
             quizProgress.allCompleted
               ? '모든 참가자가 퀴즈를 마쳤어요. 리포트를 생성해 주세요.'
-              : `퀴즈 완료 ${quizProgress.completedStudentCount}/${quizProgress.totalStudentCount}명`
+              : `시작 ${quizProgress.startedStudentCount ?? quizProgress.completedStudentCount} · 풀이 중 ${quizProgress.inProgressStudentCount ?? 0} · 완료 ${quizProgress.completedStudentCount}/${quizProgress.totalStudentCount}명`
           }
           actionLabel="닫기"
           onAction={() => setDismissedQuizProgress(quizProgress)}
@@ -1468,6 +1468,7 @@ export default function SessionPage() {
                     versionHash={projectRef?.versionHash ?? null}
                     pushedQuizSetId={chat.lastQuizNotification?.quizSetId ?? null}
                     canGenerateQuiz={canGenerateQuiz}
+                    liveQuizProgress={chat.lastQuizProgress}
                   />
                 )
               ) : rightTab === 'community' ? (
@@ -1479,6 +1480,7 @@ export default function SessionPage() {
                   versionHash={projectRef?.versionHash ?? null}
                   pushedQuizSetId={chat.lastQuizNotification?.quizSetId ?? null}
                   canGenerateQuiz={canGenerateQuiz}
+                  liveQuizProgress={chat.lastQuizProgress}
                 />
               )}
             </aside>
