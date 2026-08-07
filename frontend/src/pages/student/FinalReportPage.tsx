@@ -322,11 +322,6 @@ function formatPct(value: number | null | undefined): string {
   return `${Number(value).toFixed(0)}%`;
 }
 
-function formatRating(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(Number(value))) return '—';
-  return Number(value).toFixed(1);
-}
-
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('ko-KR');
@@ -342,7 +337,6 @@ type SessionReportRow = {
   sessionId: number;
   title: string;
   accuracy: number | null;
-  quizRating: number | null;
   issuedAt: string | null;
 };
 
@@ -352,7 +346,6 @@ function toRowsFromReports(reports: SessionReportSummaryResponse[]): SessionRepo
     sessionId: s.sessionId,
     title: s.sessionTitle,
     accuracy: s.accuracy,
-    quizRating: s.quizRating,
     issuedAt: s.issuedAt,
   }));
 }
@@ -427,7 +420,6 @@ function SessionReportTable({
                   <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                     {formatDate(s.issuedAt)}
                     {s.accuracy != null ? ` · 정답률 ${formatPct(s.accuracy)}` : ''}
-                    {s.quizRating != null ? ` · 평점 ${formatRating(s.quizRating)}` : ''}
                   </span>
                 </div>
               </div>

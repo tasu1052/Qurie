@@ -56,11 +56,6 @@ function formatPct(value: number | null | undefined): string {
   return `${Number(value).toFixed(0)}%`;
 }
 
-function formatRating(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(Number(value))) return '—';
-  return Number(value).toFixed(1);
-}
-
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('ko-KR');
@@ -658,7 +653,6 @@ type SessionReportRow = {
   sessionId: number;
   title: string;
   accuracy: number | null;
-  quizRating: number | null;
   issuedAt: string | null;
 };
 
@@ -668,7 +662,6 @@ function toRowsFromReports(reports: SessionReportSummaryResponse[]): SessionRepo
     sessionId: s.sessionId,
     title: s.sessionTitle,
     accuracy: s.accuracy,
-    quizRating: s.quizRating,
     issuedAt: s.issuedAt,
   }));
 }
@@ -734,7 +727,6 @@ function SessionReportTable({
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                   {formatDate(s.issuedAt)}
                   {s.accuracy != null ? ` · 정답률 ${formatPct(s.accuracy)}` : ''}
-                  {s.quizRating != null ? ` · 평점 ${formatRating(s.quizRating)}` : ''}
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -776,13 +768,9 @@ function MetricsAndChart({ userId }: { userId: number }) {
     const completions = reports
       .map((r) => (r.completionRate != null ? Number(r.completionRate) : null))
       .filter((v): v is number => v != null);
-    const ratings = reports
-      .map((r) => (r.quizRating != null ? Number(r.quizRating) : null))
-      .filter((v): v is number => v != null);
 
     const accuracy = avg(accuracies);
     const completion = avg(completions);
-    const rating = avg(ratings);
 
     return [
       {
@@ -799,11 +787,6 @@ function MetricsAndChart({ userId }: { userId: number }) {
         label: '세션 참여',
         display: `${reports.length}회`,
         pct: reports.length > 0 ? Math.min(100, reports.length * 12) : 0,
-      },
-      {
-        label: '누적 평점',
-        display: formatRating(rating),
-        pct: rating != null ? (rating / 5) * 100 : 0,
       },
     ];
   }, [reports]);
