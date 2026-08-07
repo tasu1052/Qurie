@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qurie 백엔드 성능 측정 결과</title>
+<style>
+	:root {
+		color-scheme: light;
+		--page:           #f9f9f7;
+		--surface-1:      #fcfcfb;
+		--text-primary:   #0b0b0b;
+		--text-secondary: #52514e;
+		--text-muted:     #898781;
+		--gridline:       #e1e0d9;
+		--baseline:       #c3c2b7;
+		--border:         rgba(11,11,11,0.10);
+		--series-1:       #2a78d6;  /* p95 / 주 계열 */
+		--series-2:       #eb6834;  /* avg / 보조 계열 */
+		--delta-good:     #006300;
+		--delta-bad:      #d03b3b;
+	}
+	@media (prefers-color-scheme: dark) {
+		:root:where(:not([data-theme="light"])) {
+			color-scheme: dark;
+			--page:           #0d0d0d;
+			--surface-1:      #1a1a19;
+			--text-primary:   #ffffff;
+			--text-secondary: #c3c2b7;
+			--text-muted:     #898781;
+			--gridline:       #2c2c2a;
+			--baseline:       #383835;
+			--border:         rgba(255,255,255,0.10);
+			--series-1:       #3987e5;
+			--series-2:       #d95926;
+			--delta-good:     #0ca30c;
+			--delta-bad:      #e66767;
+		}
+	}
+	* { box-sizing: border-box; margin: 0; }
+	body {
+		background: var(--page);
+		color: var(--text-primary);
+		font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+		padding: 40px 24px 64px;
+	}
+	.wrap { max-width: 1060px; margin: 0 auto; }
+	h1 { font-size: 26px; letter-spacing: -0.01em; }
+	.sub { color: var(--text-secondary); font-size: 14px; margin-top: 6px; }
+
+	.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 28px 0 8px; }
+	.tile {
+		background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+		padding: 18px 20px;
+	}
+	.tile .label { font-size: 13px; color: var(--text-secondary); }
+	.tile .value { font-size: 34px; font-weight: 700; margin-top: 4px; }
+	.tile .value.good { color: var(--delta-good); }
+	.tile .detail { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+	.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+	@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+	.card {
+		background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+		padding: 20px 22px 16px;
+	}
+	.card h2 { font-size: 16px; }
+	.card .desc { font-size: 12.5px; color: var(--text-secondary); margin-top: 3px; }
+
+	.legend { display: flex; gap: 16px; margin: 12px 0 4px; font-size: 12.5px; color: var(--text-secondary); }
+	.legend .key { display: inline-flex; align-items: center; gap: 6px; }
+	.swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+	.plot { position: relative; height: 250px; margin-top: 8px; }
+	.gridline { position: absolute; left: 40px; right: 0; border-top: 1px solid var(--gridline); }
+	.gridline span {
+		position: absolute; left: -40px; top: -7px; width: 34px; text-align: right;
+		font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+	}
+	.baseline { position: absolute; left: 40px; right: 0; bottom: 24px; border-top: 1.5px solid var(--baseline); }
+	.groups { position: absolute; left: 40px; right: 0; top: 0; bottom: 24px; display: flex; align-items: flex-end; justify-content: space-around; }
+	.group { display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; position: relative; }
+	.bars { display: flex; gap: 2px; align-items: flex-end; height: 100%; }
+	.bar { width: 34px; border-radius: 4px 4px 0 0; position: relative; cursor: default; }
+	.bar.s1 { background: var(--series-1); }
+	.bar.s2 { background: var(--series-2); }
+	.bar .val {
+		position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+		font-size: 11.5px; color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums;
+	}
+	.xlabel { position: absolute; top: 100%; margin-top: 6px; font-size: 12px; color: var(--text-secondary); text-align: center; white-space: nowrap; }
+	.xlabel small { display: block; color: var(--text-muted); font-size: 10.5px; }
+	.delta { font-size: 11.5px; font-weight: 700; }
+	.delta.good { color: var(--delta-good); }
+	.delta.bad { color: var(--delta-bad); }
+
+	.note { font-size: 12px; color: var(--text-muted); margin-top: 30px; line-height: 1.5; }
+
+	.tooltip {
+		position: fixed; pointer-events: none; z-index: 10; display: none;
+		background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
+		box-shadow: 0 4px 14px rgba(0,0,0,0.12); padding: 8px 12px; font-size: 12.5px;
+	}
+	.tooltip b { font-variant-numeric: tabular-nums; }
+
+	details { margin-top: 28px; }
+	summary { cursor: pointer; font-size: 13px; color: var(--text-secondary); }
+	table { border-collapse: collapse; margin-top: 12px; font-size: 12.5px; }
+	th, td { border: 1px solid var(--gridline); padding: 6px 12px; text-align: right; font-variant-numeric: tabular-nums; }
+	th:first-child, td:first-child { text-align: left; }
+	th { color: var(--text-secondary); font-weight: 600; }
+	footer.src { margin-top: 40px; font-size: 11.5px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+	<h1>Qurie 백엔드 성능 측정 · 개선 결과</h1>
+	<div class="sub">k6 부하 테스트 — 학생 30명 동시 요청(폭주 모드), 회차당 660요청, 3회 측정 중앙값 · 2026-08-07</div>
+
+	<div class="tiles">
+		<div class="tile">
+			<div class="label">문항 조회 p95 (로컬)</div>
+			<div class="value good">−31%</div>
+			<div class="detail">201.5ms → 138.8ms</div>
+		</div>
+		<div class="tile">
+			<div class="label">문항 조회 평균 (로컬)</div>
+			<div class="value good">−41%</div>
+			<div class="detail">127.3ms → 74.9ms</div>
+		</div>
+		<div class="tile">
+			<div class="label">문항 조회 p95 (운영 EC2)</div>
+			<div class="value good">−12%</div>
+			<div class="detail">590.4ms → 518.8ms</div>
+		</div>
+		<div class="tile">
+			<div class="label">채팅 처리 여유</div>
+			<div class="value">45×</div>
+			<div class="detail">초당 2만 건에서 p95 14ms</div>
+		</div>
+	</div>
+
+	<div class="grid">
+		<div class="card">
+			<h2>학생 30명이 동시에 퀴즈를 열 때 응답시간 — 개선 단계별 (로컬)</h2>
+			<div class="legend">
+				<span class="key"><span class="swatch" style="background:var(--series-1)"></span>p95</span>
+				<span class="key"><span class="swatch" style="background:var(--series-2)"></span>평균</span>
+			</div>
+			<div class="plot" id="c1"></div>
+		</div>
+
+		<div class="card">
+			<h2>같은 테스트를 운영 서버(EC2)에서 — 개선 적용 전 vs 적용 후</h2>
+			<div class="legend">
+				<span class="key"><span class="swatch" style="background:var(--series-1)"></span>p95</span>
+				<span class="key"><span class="swatch" style="background:var(--series-2)"></span>평균</span>
+			</div>
+			<div class="plot" id="c2"></div>
+		</div>
+
+		<div class="card">
+			<h2>퀴즈를 한 번 열 때 실행되는 DB 쿼리 수 (문항 20개 기준)</h2>
+			<div class="plot" id="c3"></div>
+		</div>
+
+		<div class="card">
+			<h2>동시 채팅 시 메시지 전달 지연 — 인원·빈도를 올려가며 (로컬)</h2>
+			<div class="plot" id="c4"></div>
+		</div>
+	</div>
+
+	<details>
+		<summary>데이터 표로 보기</summary>
+		<table>
+			<tr><th>지표 (ms)</th><th>로컬 before</th><th>로컬 ①</th><th>로컬 ①+②</th><th>EC2 before</th><th>EC2 after</th></tr>
+			<tr><td>GET /questions p95</td><td>201.5</td><td>180.6</td><td>138.8</td><td>590.4</td><td>518.8</td></tr>
+			<tr><td>GET /questions 평균</td><td>127.3</td><td>99.8</td><td>74.9</td><td>365.4</td><td>307.1</td></tr>
+			<tr><td>POST /progress p95</td><td>61.8</td><td>58.8</td><td>63.3</td><td>221.2</td><td>199.8</td></tr>
+			<tr><td>채팅 브로드캐스트 p95 (대조군)</td><td>40.5</td><td>—</td><td>—</td><td>79.1</td><td>105.0</td></tr>
+		</table>
+	</details>
+
+	<footer class="src">원본 데이터: loadtest/RESULTS.md · loadtest/results/*.json · 적용 커밋 9388573(batch_fetch_size), d554422(fetch join)</footer>
+</div>
+
+<div class="tooltip" id="tip"></div>
+
+<script>
+(function () {
+	'use strict';
+	var tip = document.getElementById('tip');
+
+	function fmt(v, unit) { return v.toLocaleString('ko-KR') + (unit || ''); }
+
+	/**
+	 * 그룹 막대 차트 렌더러.
+	 * cfg: { el, max, unit, gridStep, series:[{name,cls}], groups:[{label, sub, values:[..], delta}] }
+	 */
+	function barChart(cfg) {
+		var plot = document.getElementById(cfg.el);
+		var axisH = 24;
+
+		for (var g = 0; g <= cfg.max; g += cfg.gridStep) {
+			var line = document.createElement('div');
+			line.className = 'gridline';
+			var frac = g / cfg.max;
+			line.style.bottom = 'calc(' + axisH + 'px + (100% - ' + axisH + 'px) * ' + frac + ')';
+			line.innerHTML = '<span>' + g + '</span>';
+			plot.appendChild(line);
+		}
+
+		var base = document.createElement('div');
+		base.className = 'baseline';
+		plot.appendChild(base);
+
+		var groups = document.createElement('div');
+		groups.className = 'groups';
+		plot.appendChild(groups);
+
+		cfg.groups.forEach(function (grp) {
+			var group = document.createElement('div');
+			group.className = 'group';
+			var bars = document.createElement('div');
+			bars.className = 'bars';
+			grp.values.forEach(function (v, i) {
+				var bar = document.createElement('div');
+				bar.className = 'bar ' + cfg.series[i].cls;
+				bar.style.height = (v / cfg.max * 100) + '%';
+				bar.innerHTML = '<span class="val">' + fmt(v, '') + '</span>';
+				bar.addEventListener('mousemove', function (e) {
+					tip.style.display = 'block';
+					tip.innerHTML = grp.label + ' · ' + cfg.series[i].name + ': <b>' + fmt(v, cfg.unit) + '</b>';
+					tip.style.left = Math.min(e.clientX + 14, window.innerWidth - 180) + 'px';
+					tip.style.top = (e.clientY + 14) + 'px';
+				});
+				bar.addEventListener('mouseleave', function () { tip.style.display = 'none'; });
+				bars.appendChild(bar);
+			});
+			group.appendChild(bars);
+			var xl = document.createElement('div');
+			xl.className = 'xlabel';
+			xl.innerHTML = grp.label
+					+ (grp.delta ? ' <span class="delta ' + grp.delta.cls + '">' + grp.delta.text + '</span>' : '')
+					+ (grp.sub ? '<small>' + grp.sub + '</small>' : '');
+			group.appendChild(xl);
+			groups.appendChild(group);
+		});
+	}
+
+	barChart({
+		el: 'c1', max: 220, gridStep: 55, unit: 'ms',
+		series: [{ name: 'p95', cls: 's1' }, { name: '평균', cls: 's2' }],
+		groups: [
+			{ label: 'before', values: [201.5, 127.3] },
+			{ label: '① 설정', values: [180.6, 99.8], delta: { text: '−10%', cls: 'good' } },
+			{ label: '①+② fetch join', values: [138.8, 74.9], delta: { text: '−31%', cls: 'good' } }
+		]
+	});
+
+	barChart({
+		el: 'c2', max: 600, gridStep: 150, unit: 'ms',
+		series: [{ name: 'p95', cls: 's1' }, { name: '평균', cls: 's2' }],
+		groups: [
+			{ label: '개선 적용 전', values: [590.4, 365.4] },
+			{ label: '개선 적용 후', values: [518.8, 307.1], delta: { text: 'p95 −12%', cls: 'good' } }
+		]
+	});
+
+	barChart({
+		el: 'c3', max: 24, gridStep: 6, unit: '개',
+		series: [{ name: 'SELECT 수', cls: 's1' }],
+		groups: [
+			{ label: 'before', values: [22] },
+			{ label: 'after', values: [3], delta: { text: '−86%', cls: 'good' } }
+		]
+	});
+
+	barChart({
+		el: 'c4', max: 45, gridStep: 15, unit: 'ms',
+		series: [{ name: '지연 p95', cls: 's1' }],
+		groups: [
+			{ label: '30명 · 2초', sub: '2.6만 건/분 (목표 규모)', values: [40.5] },
+			{ label: '30명 · 0.5초', sub: '10.7만 건/분', values: [27] },
+			{ label: '100명 · 2초', sub: '29만 건/분', values: [27] },
+			{ label: '100명 · 0.5초', sub: '119만 건/분 (45배)', values: [14] }
+		]
+	});
+})();
+</script>
+</body>
+</html>
