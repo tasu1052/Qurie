@@ -37,6 +37,7 @@ import com.roma.qurie.quiz.entity.QuizSet;
 import com.roma.qurie.quiz.entity.QuizSetStatus;
 import com.roma.qurie.quiz.entity.QuizType;
 import com.roma.qurie.quiz.repository.QuizProgressRepository;
+import com.roma.qurie.quiz.repository.QuizRepository;
 import com.roma.qurie.quiz.repository.QuizSatisfactionRepository;
 import com.roma.qurie.quiz.repository.QuizSetRepository;
 
@@ -58,6 +59,7 @@ public class QuizService {
 	private static final String MASTER_ROLE = "MASTER";
 
 	private final QuizSetRepository quizSetRepository;
+	private final QuizRepository quizRepository;
 	private final QuizProgressRepository quizProgressRepository;
 	private final QuizSatisfactionRepository quizSatisfactionRepository;
 	private final ProjectRepository projectRepository;
@@ -198,6 +200,7 @@ public class QuizService {
 
 		String generationStage = syncFromAi(quizSet);
 		trimSurplusQuizzes(quizSet);
+		primeChoices(quizSet);
 
 		return QuizSetDetailResponse.from(quizSet, generationStage);
 	}
@@ -212,8 +215,17 @@ public class QuizService {
 
 		String generationStage = syncFromAi(quizSet);
 		trimSurplusQuizzes(quizSet);
+		primeChoices(quizSet);
 
 		return QuizQuestionsResponse.from(quizSet, generationStage);
+	}
+
+	/**
+	 * 응답 DTO 가 문항마다 choices 를 지연 로딩하면 문항 수만큼 SELECT 가 나간다(N+1).
+	 * fetch join 으로 세트의 모든 보기를 한 번에 영속성 컨텍스트에 올려 이후 접근이 쿼리 없이 끝나게 한다.
+	 */
+	private void primeChoices(QuizSet quizSet) {
+		quizRepository.findAllWithChoicesByQuizSetId(quizSet.getId());
 	}
 
 	/**
