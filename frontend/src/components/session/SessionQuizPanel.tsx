@@ -267,16 +267,7 @@ function QuizEmptyState({
   );
 }
 
-function QuizGeneratingBanner({
-  done,
-  total,
-}: {
-  done?: number | null;
-  total?: number | null;
-}) {
-  const hasProgress = done != null && total != null && total > 0;
-  const pct = hasProgress ? Math.min(100, Math.round((done / total) * 100)) : null;
-
+function QuizGeneratingBanner() {
   return (
     <div
       role="status"
@@ -304,9 +295,7 @@ function QuizGeneratingBanner({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
         <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>퀴즈를 만들고 있어요</span>
         <span style={{ fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.55, maxWidth: 280 }}>
-          {hasProgress
-            ? `${done}/${total}문항 준비됨 · 생성이 끝나면 자동으로 표시돼요`
-            : 'AI가 문항을 만들고 있어요. 잠시만 기다려 주세요.'}
+          AI가 문항을 만들고 있어요. 잠시만 기다려 주세요.
         </span>
       </div>
       <CircularLoader size={22} />
@@ -321,30 +310,18 @@ function QuizGeneratingBanner({
           position: 'relative',
         }}
       >
-        {hasProgress ? (
-          <div
-            style={{
-              width: `${pct}%`,
-              height: '100%',
-              background: 'var(--accent)',
-              borderRadius: 999,
-              transition: 'width 320ms ease-out',
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              width: '32%',
-              height: '100%',
-              background: 'var(--accent)',
-              borderRadius: 999,
-              animation: 'qurie-progress 1.5s ease-in-out infinite',
-            }}
-          />
-        )}
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: '32%',
+            height: '100%',
+            background: 'var(--accent)',
+            borderRadius: 999,
+            animation: 'qurie-progress 1.5s ease-in-out infinite',
+          }}
+        />
       </div>
     </div>
   );
@@ -1380,12 +1357,6 @@ export function SessionQuizPanel({
     );
   }
 
-  const generatedCount =
-    summary && isManagerSummary(summary)
-      ? summary.generatedCount
-      : playableQuizzes.length > 0
-        ? playableQuizzes.length
-        : null;
   const errorMessage =
     summary && isManagerSummary(summary) ? (summary.errorMessage ?? undefined) : undefined;
   const requestedCount = summary?.requestedCount ?? latestSummary?.requestedCount ?? null;
@@ -1472,9 +1443,7 @@ export function SessionQuizPanel({
         />
       ) : null}
 
-      {showGeneratingBanner ? (
-        <QuizGeneratingBanner done={generatedCount} total={requestedCount} />
-      ) : null}
+      {showGeneratingBanner ? <QuizGeneratingBanner /> : null}
 
       {/* 강사는 퀴즈를 풀지 않고 학생 응시 현황만 본다. */}
       {isInstructor && activeQuizSetId != null && !waitingForFirstQuestion && summary?.status === 'COMPLETED' ? (
