@@ -5,41 +5,22 @@
 
 ## 측정 환경
 
-| 항목 | 값 |
-|---|---|
-| 대상 서버 | (로컬 / EC2 인스턴스 타입) |
-| DB | (로컬 MySQL / RDS) |
-| 데이터 양 | 학생 N명, 퀴즈셋 K개, 문항 M개, quiz_progress 행 수 |
-| k6 실행 위치 | (내 PC) |
-
-## 시나리오 03 — 퀴즈 풀이 (STUDENTS=30, THINK_SECONDS=0)
-
-| 지표 | before | after ① batch_fetch_size | after ② fetch join | after ③ 인덱스 |
-|---|---|---|---|---|
-| GET /questions p95 (ms) | 201.54 | 180.59 | **138.75 (−31%)** | |
-| GET /questions avg (ms) | 127.27 | 99.83 | **74.94 (−41%)** | |
-| POST /progress p95 (ms) | 61.79 | 58.79 | 63.27 | |
-| 5xx 수 | 0 | 0 | 0 | |
-
-(측정: 로컬, 학생 30VU 동시 폭주, 회차당 660요청, 3회 중앙값. after②는 ①+② 누적 적용.)
-
-적용 커밋: ① ____ ② ____ ③ ____
-
-## 시나리오 02 — 동시 편집 (EDITORS=20, 60s)
-
-| 지표 | before | after (전체 파일 로드 제거) |
+| 항목 | 로컬 | EC2 (운영) |
 |---|---|---|
-| PUT /files/content p95 (ms) | | |
-| 처리량 (req/s) | | |
-| version_hash 정합성 (불일치 여부) | | |
+| 대상 서버 | 개발 PC (Windows), IntelliJ 직접 실행 | https://i15a604.p.ssafy.io — nginx TLS → 백엔드 컨테이너 |
+| DB | 로컬 MySQL 8 (동일 머신) | MySQL 8 컨테이너 (백엔드와 동일 호스트) |
+| 데이터 양 | 학생 30명(한계 탐색 시 100명), 퀴즈셋 1개 × 문항 20개(보기 4개), 프로젝트 파일 30개 | 동일 시드 |
+| k6 실행 위치 | 개발 PC | 개발 PC (외부에서 공인 URL 호출) |
+
+측정일: 2026-08-07. 시드·초기화 도구는 `loadtest/tools/db-tool.ps1` 참고.
 
 ## 시나리오 01 — 채팅 (STUDENTS=30, 60s, 2초 간격)
 
-| 지표 | 측정값 (2026-08-07, 로컬) | 판정 |
+| 지표 | 측정값 (로컬) | 판정 |
 |---|---|---|
-| chat_broadcast_latency p95 (ms) | 40.5 (avg 23.2, max 55) | ✅ 기준 500ms 대비 여유 |
-| WS/STOMP 에러 수 | 0 / 0 | ✅ |
-| 접속 30명, 발송 ~870건, 수신 26,140건 (브로드캐스트 30배 팬아웃) | | |
+| chat_broadcast_latency p95 | 40.5ms (avg 23.2, max 55) | ✅ 기준 500ms 대비 여유 |
+| WS/STOMP 에러 수 | 0 / 0 | ✅ 30명 전원 접속·입장 성공 |
+| 트래픽 | 발송 ~870건 → 수신 26,140건 (30배 팬아웃) | 정상 |
 
 목표 규모(반 1개, 30명)에서 채팅은 병목이 아니다 — 개선 대상에서 제외.
 알려진 구조적 한계는 지연이 아니라 인메모리 SimpleBroker 의 단일 인스턴스 제약(수평 확장 불가)이다.
@@ -58,15 +39,38 @@
 충분한 여유가 있다. 100명 × 0.5초에서 STOMP 에러 1건(입장 직후 메시지 전송 타이밍 추정)과
 단발성 스파이크(max 434ms)만 관찰됨.
 
-## 시나리오 04 — 리포트 일괄 발급 (학생 30명)
+## 시나리오 02 — 동시 편집 저장 (미측정)
 
-| 지표 | before | after (비동기화/병렬화) |
-|---|---|---|
-| 일괄 발급 총 소요 (s) | | |
-| race 모드 500 응답 수 | | |
-| AI 서버 호출 횟수 (기대 = 학생 수) | | |
+실시간 공동 편집 동기화는 프론트 Yjs(collab-server) 담당이라 백엔드 측정 대상이 아니다.
+백엔드 몫은 스냅샷 저장(`PUT /files/content`)인데, 저장 1회마다 프로젝트 전체 파일 본문을
+읽어 versionHash 를 재계산하는 구조라 **파일 수백 개짜리 프로젝트**에서만 의미 있는 수치가 나온다.
+현재 시드(파일 30개)로는 변별력이 없어 측정을 보류했다 — 대형 레포 임포트 후 측정할 것.
+스크립트는 준비되어 있다: `loadtest/02-edit.js` (SAME_FILE=1 로 lost update 재현 모드 포함).
 
-## EC2 측정 (운영 환경: https://i15a604.p.ssafy.io, nginx TLS + t계열 인스턴스 + 컨테이너 MySQL)
+## 시나리오 03 — 퀴즈 풀이 (STUDENTS=30, THINK_SECONDS=0)
+
+| 지표 | before | after ① batch_fetch_size | after ② fetch join |
+|---|---|---|---|
+| GET /questions p95 (ms) | 201.54 | 180.59 | **138.75 (−31%)** |
+| GET /questions avg (ms) | 127.27 | 99.83 | **74.94 (−41%)** |
+| POST /progress p95 (ms) | 61.79 | 58.79 | 63.27 |
+| 5xx 수 | 0 | 0 | 0 |
+
+(측정: 로컬, 학생 30VU 동시 폭주, 회차당 660요청, 3회 중앙값. after②는 ①+② 누적 적용.)
+
+적용 커밋: ① `9388573` perf(jpa): default_batch_fetch_size ② `d554422` perf(quiz): fetch join
+③(인덱스)은 로컬 데이터 규모(수백 행)에서는 변별력이 없어 보류 — 데이터 축적 후 측정할 것.
+
+## 시나리오 04 — 리포트 (미측정, 차기 과제 1순위)
+
+진단상 가장 심각한 병목 두 개가 아직 미측정·미개선 상태다:
+- 일괄 발급(`POST /reports/all`)이 학생 수 × AI 동기 호출(최대 60초)의 **순차 루프**
+- 단건 발급 동시 요청 시 중복 발급 레이스 (500 응답 + AI 비용 2배)
+
+AI 서버가 필요해 이번 라운드에서 제외했다. EC2 에는 AI 컨테이너가 떠 있으므로 측정 가능하다.
+스크립트는 준비되어 있다: `loadtest/04-report.js` (MODE=bulk 소요 시간 / MODE=race 중복 레이스).
+
+## EC2 측정 (운영 환경: nginx TLS + t계열 인스턴스 + 컨테이너 MySQL)
 
 | 지표 | EC2 before (3회 중앙값) | EC2 after (3회 중앙값) | 변화 | 로컬 참고 (before→after) |
 |---|---|---|---|---|
@@ -92,25 +96,19 @@
 | 2026-08-07 | 03 quiz | 로컬, 30VU, THINK=0 | 201.54ms | 72ms | 660 (실패 0) | before 회차1 |
 | 2026-08-07 | 03 quiz | 로컬, 30VU, THINK=0 | 191.51ms | 58.45ms | 660 (실패 0) | before 회차2 |
 | 2026-08-07 | 03 quiz | 로컬, 30VU, THINK=0 | 246.27ms | 61.79ms | 660 (실패 0) | before 회차3 |
+| 2026-08-07 | 03 quiz | 로컬, 30VU, THINK=0, ① | 174.03ms | 40.70ms | 660 (실패 0) | after① 회차1 |
+| 2026-08-07 | 03 quiz | 로컬, 30VU, THINK=0, ① | 180.59ms | 58.79ms | 660 (실패 0) | after① 회차2 |
+| 2026-08-07 | 03 quiz | 로컬, 30VU, THINK=0, ① | 188.79ms | 67.94ms | 660 (실패 0) | after① 회차3 |
+| 2026-08-07 | 03 quiz | 로컬, 30VU, THINK=0, ①+② | 138.75ms | 48.58ms | 660 (실패 0) | after② 회차1 |
+| 2026-08-07 | 03 quiz | 로컬, 30VU, THINK=0, ①+② | 136.91ms | 63.27ms | 660 (실패 0) | after② 회차2 |
+| 2026-08-07 | 03 quiz | 로컬, 30VU, THINK=0, ①+② | 157.58ms | 69.44ms | 660 (실패 0) | after② 회차3 |
+| 2026-08-07 | 03 quiz | EC2, 30VU, THINK=0 | 472.9ms | 249.4ms | 660 (실패 0) | EC2 before 회차1 |
+| 2026-08-07 | 03 quiz | EC2, 30VU, THINK=0 | 590.4ms | 221.2ms | 660 (실패 0) | EC2 before 회차2 |
+| 2026-08-07 | 03 quiz | EC2, 30VU, THINK=0 | 676.1ms | 218.4ms | 660 (실패 0) | EC2 before 회차3 |
+| 2026-08-07 | 03 quiz | EC2, 30VU, THINK=0, ①+② | 587.9ms | 207.5ms | 660 (실패 0) | EC2 after 회차1 |
+| 2026-08-07 | 03 quiz | EC2, 30VU, THINK=0, ①+② | 518.8ms | 191.5ms | 660 (실패 0) | EC2 after 회차2 |
+| 2026-08-07 | 03 quiz | EC2, 30VU, THINK=0, ①+② | 514.8ms | 199.8ms | 660 (실패 0) | EC2 after 회차3 |
 
-**before 확정 (3회 중앙값): GET /questions p95 = 201.54ms, POST /progress p95 = 61.79ms**
-
-| 2026-08-07 | 03 quiz | 로컬, 30VU, THINK=0, batch_fetch_size=100 | 174.03ms | 40.70ms | 660 (실패 0) | after① 회차1 |
-| 2026-08-07 | 03 quiz | 로컬, 30VU, THINK=0, batch_fetch_size=100 | 180.59ms | 58.79ms | 660 (실패 0) | after① 회차2 |
-| 2026-08-07 | 03 quiz | 로컬, 30VU, THINK=0, batch_fetch_size=100 | 188.79ms | 67.94ms | 660 (실패 0) | after① 회차3 |
-
-**after① 확정 (3회 중앙값): GET /questions p95 = 180.59ms (before 201.54 → −10%), POST /progress p95 = 58.79ms (61.79 → −5%)**
-
-| 2026-08-07 | 03 quiz | 로컬, 30VU, THINK=0, ①+fetch join | 138.75ms | 48.58ms | 660 (실패 0) | after② 회차1 |
-| 2026-08-07 | 03 quiz | 로컬, 30VU, THINK=0, ①+fetch join | 136.91ms | 63.27ms | 660 (실패 0) | after② 회차2 |
-| 2026-08-07 | 03 quiz | 로컬, 30VU, THINK=0, ①+fetch join | 157.58ms | 69.44ms | 660 (실패 0) | after② 회차3 |
-
-**after② 확정 (3회 중앙값): GET /questions p95 = 138.75ms (before 201.54 → −31%), avg = 74.94ms (127.27 → −41%)**
-**avg 기준: GET /questions 127.27 → 99.83ms (−22%)** — 로컬(DB 왕복 ≈0ms)에서도 이 정도이며, 쿼리 수 감소는 EC2/RDS 처럼 왕복 지연이 있는 환경에서 더 크게 나타난다.
-
-## 서버 지표 (측정 중 최대값)
-
-| 지표 | before | after |
-|---|---|---|
-| hikaricp.connections.active (max/10) | | |
-| tomcat.threads.busy | | |
+확정값(중앙값) 요약 — 로컬: before p95 201.54 → after① 180.59 → after② **138.75** /
+EC2: before p95 590.4 → after **518.8**. 원본 JSON 은 `loadtest/results/` 에 있다
+(폐기한 EC2 첫 after 시도는 `ec2-after-quiz-*`, 채택본은 `ec2-after2-quiz-*`).
