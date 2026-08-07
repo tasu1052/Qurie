@@ -69,11 +69,20 @@ export function CollabMonacoEditor({
 
     const binding = new MonacoBinding(ytext, model, new Set([editor]), provider.awareness);
 
+    // MonacoBinding 이 증분 동기화를 담당하고, 이 함수는 늦게 로드된 문서(LevelDB
+    // hydrate)처럼 모델과 문자열이 통째로 어긋난 경우의 복구용이다. setValue 는
+    // 커서·선택·undo 를 전부 날리므로 전체 범위 교체 편집으로 상태를 보존한다.
     const ensureModelFromYText = () => {
       const fromY = ytext.toString();
-      if (fromY.length > 0 && model.getValue() !== fromY) {
-        model.setValue(fromY);
+      if (fromY.length === 0 || model.getValue() === fromY) {
+        return;
       }
+      const selections = editor.getSelections();
+      model.pushEditOperations(
+        selections ?? [],
+        [{ range: model.getFullModelRange(), text: fromY }],
+        () => selections,
+      );
     };
     ensureModelFromYText();
     const onYTextChange = () => {

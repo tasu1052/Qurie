@@ -67,12 +67,20 @@ import type * as Y from 'yjs';
 type LeftTab = 'explorer';
 type RightTab = 'community' | 'quiz';
 
+/**
+ * 공유 문서에는 LF 만 넣는다. Monaco 가 CRLF 를 정규화하면 ytext 와 모델 문자열이
+ * 영영 어긋나 전체 재동기화(커서 소실)가 반복된다.
+ */
+function normalizeEol(content: string): string {
+  return content.replace(/\r\n?/g, '\n');
+}
+
 /** 공유 Y.Text 가 비어 있을 때만 DB 스냅샷을 넣는다. 이미 원격 편집이 있으면 덮지 않는다. */
 function seedYTextIfEmpty(ytext: Y.Text, content: string): boolean {
   if (ytext.length > 0) return false;
   if (content.length === 0) return true;
   ytext.doc?.transact(() => {
-    ytext.insert(0, content);
+    ytext.insert(0, normalizeEol(content));
   });
   return true;
 }
@@ -82,7 +90,7 @@ function replaceYText(ytext: Y.Text, content: string) {
   ytext.doc?.transact(() => {
     const len = ytext.length;
     if (len > 0) ytext.delete(0, len);
-    if (content.length > 0) ytext.insert(0, content);
+    if (content.length > 0) ytext.insert(0, normalizeEol(content));
   });
 }
 
@@ -256,8 +264,6 @@ export default function SessionPage() {
     if (!activeFile) return null;
     return getOrCreateFileYText(ydoc, activeFile);
   }, [ydoc, activeFile]);
-
-  const editorContentStamp = editorYText?.length ?? 0;
 
   /** ydoc 이 교체되면(과거 provider 재생성 등) 파일 hydrate 를 다시 시도한다. */
   useEffect(() => {
@@ -1385,9 +1391,12 @@ export default function SessionPage() {
                   : '연결 끊김 — 변경 사항은 로컬에 보관되며 재연결 시 동기화됩니다.'}
               </div>
             ) : null}
+            {/* 에디터 key 는 파일 경로만 쓴다 — 문서 길이를 섞으면 리렌더마다 에디터가
+                리마운트되어 커서·포커스·스크롤이 날아간다. 늦게 도착한 내용 반영은
+                MonacoBinding 과 ensureModelFromYText 가 담당한다. */}
             {provider && editorYText && activeFile && collabSynced && activeFileReady ? (
               <CollabMonacoEditor
-                key={`${activeFile}:${editorContentStamp}`}
+                key={activeFile}
                 ytext={editorYText}
                 provider={provider}
                 language={editorLanguage}
