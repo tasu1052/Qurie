@@ -1,0 +1,163 @@
+{
+    "metrics": {
+        "checks": {
+            "passes": 630,
+            "fails": 0,
+            "value": 1
+        },
+        "iteration_duration": {
+            "med": 1079.33045,
+            "max": 1109.3162,
+            "p(90)": 1097.7687,
+            "p(95)": 1098.504305,
+            "avg": 1076.4018833333332,
+            "min": 1028.8827
+        },
+        "quiz_submit_5xx": {
+            "count": 0,
+            "rate": 0,
+            "thresholds": {
+                "count==0": false
+            }
+        },
+        "iterations": {
+            "count": 30,
+            "rate": 27.030937989766805
+        },
+        "http_req_sending": {
+            "avg": 0.01933560606060606,
+            "min": 0,
+            "med": 0,
+            "max": 0.8681,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "vus": {
+            "value": 30,
+            "min": 30,
+            "max": 30
+        },
+        "http_req_connecting": {
+            "min": 0,
+            "med": 0,
+            "max": 1.6367,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.04487530303030304
+        },
+        "http_req_tls_handshaking": {
+            "med": 0,
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0,
+            "min": 0
+        },
+        "http_reqs": {
+            "count": 660,
+            "rate": 594.6806357748698
+        },
+        "vus_max": {
+            "min": 30,
+            "max": 30,
+            "value": 30
+        },
+        "data_received": {
+            "count": 618112,
+            "rate": 556938.2380910247
+        },
+        "http_req_receiving": {
+            "p(90)": 0.8626200000000006,
+            "p(95)": 1.9525449999999975,
+            "avg": 0.3737734848484847,
+            "min": 0,
+            "med": 0,
+            "max": 7.3439
+        },
+        "data_sent": {
+            "rate": 319994.94701665844,
+            "count": 355143
+        },
+        "http_req_duration{name:POST /progress}": {
+            "med": 36.18445,
+            "max": 87.2129,
+            "p(90)": 47.891830000000006,
+            "p(95)": 58.7917,
+            "avg": 37.293858333333326,
+            "min": 12.0418,
+            "thresholds": {
+                "p(95)<500": false
+            }
+        },
+        "http_req_waiting": {
+            "p(95)": 120.15910999999998,
+            "avg": 47.763735757575816,
+            "min": 7.5055,
+            "med": 36.107,
+            "max": 319.2498,
+            "p(90)": 61.72509
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 660,
+            "value": 0
+        },
+        "http_req_duration": {
+            "med": 36.42755,
+            "max": 319.7937,
+            "p(90)": 61.86531000000001,
+            "p(95)": 120.18631999999995,
+            "avg": 48.156844848484866,
+            "min": 8.0297
+        },
+        "http_req_duration{name:GET /questions}": {
+            "avg": 99.06517666666667,
+            "min": 8.0297,
+            "med": 101.57165,
+            "max": 181.418,
+            "p(90)": 179.29622,
+            "p(95)": 180.591715,
+            "thresholds": {
+                "p(95)<1000": false
+            }
+        },
+        "http_req_duration{expected_response:true}": {
+            "p(95)": 120.18631999999995,
+            "avg": 48.156844848484866,
+            "min": 8.0297,
+            "med": 36.42755,
+            "max": 319.7937,
+            "p(90)": 61.86531000000001
+        },
+        "http_req_blocked": {
+            "avg": 0.47685924242424255,
+            "min": 0,
+            "med": 0,
+            "max": 11.1055,
+            "p(90)": 0,
+            "p(95)": 0.5068
+        }
+    },
+    "root_group": {
+        "checks": {
+            "questions 200": {
+                "name": "questions 200",
+                "path": "::questions 200",
+                "id": "6242d93013e29809047595693c3d29ae",
+                "passes": 30,
+                "fails": 0
+            },
+            "submit 201/409": {
+                "name": "submit 201/409",
+                "path": "::submit 201/409",
+                "id": "ceaa024450a5db4ec70f8144e4ff21bb",
+                "passes": 600,
+                "fails": 0
+            }
+        },
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {}
+    }
+}
