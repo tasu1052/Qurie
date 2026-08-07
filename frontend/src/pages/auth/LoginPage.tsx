@@ -134,41 +134,6 @@ export default function LoginPage() {
         </Button>
       </form>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>기능 테스트 계정 (비번: test1234)</span>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {(
-            [
-              { label: '마스터', email: 'master@ssafy.com' },
-              { label: '매니저', email: 'manager@ssafy.com' },
-              { label: '학생', email: 'student@ssafy.com' },
-            ] as const
-          ).map((account) => (
-            <button
-              key={account.email}
-              type="button"
-              onClick={() => {
-                setEmail(account.email);
-                setFormError(null);
-              }}
-              style={{
-                border: '1px solid var(--border-strong)',
-                background: 'var(--surface-sunken)',
-                color: 'var(--text-secondary)',
-                borderRadius: 999,
-                padding: '6px 12px',
-                fontSize: 12,
-                fontWeight: 600,
-                fontFamily: 'var(--font-sans)',
-                cursor: 'pointer',
-              }}
-            >
-              {account.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
         Qurie 계정은 기업 관리자(Master)의 초대로 만들 수 있어요.
         <br />
