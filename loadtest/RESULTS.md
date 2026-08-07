@@ -66,6 +66,19 @@
 | race 모드 500 응답 수 | | |
 | AI 서버 호출 횟수 (기대 = 학생 수) | | |
 
+## EC2 측정 (운영 환경: https://i15a604.p.ssafy.io, nginx TLS + t계열 인스턴스 + 컨테이너 MySQL)
+
+| 지표 | EC2 before (3회 중앙값) | EC2 after | 로컬 before 참고 |
+|---|---|---|---|
+| GET /questions p95 (ms) | 590.4 | | 201.5 |
+| GET /questions avg (ms) | 365.4 | | 127.3 |
+| POST /progress p95 (ms) | 221.2 | | 61.8 |
+| 채팅 브로드캐스트 p95 (ms) | 79.1 (1회, 에러 0) | | 40.5 |
+
+EC2 회차별: questions p95 = 472.9 / 590.4 / 676.1, progress p95 = 249.4 / 221.2 / 218.4 (실패 0).
+로컬 대비 3배 느린 이유: 쿼리 왕복(백엔드↔MySQL 컨테이너)에 실제 지연이 붙어 N+1 의 비용이
+그대로 드러나기 때문 — fetch join 배포(after) 후 이 격차가 개선 효과의 실측 증거가 된다.
+
 ## 측정 로그 (원본 기록)
 
 | 일시 | 시나리오 | 조건 | GET /questions p95 | POST /progress p95 | 총 요청 | 비고 |
