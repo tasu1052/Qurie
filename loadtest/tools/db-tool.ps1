@@ -9,7 +9,7 @@
 #   ssh -i <키.pem> -N -L 13306:127.0.0.1:13306 ubuntu@i15a604.p.ssafy.io
 #   .\db-tool.ps1 Seed -Ec2 -DbPass <EC2의 MYSQL_ROOT_PASSWORD>
 param(
-	[Parameter(Mandatory = $true)][ValidateSet('Seed', 'Reset', 'AddStudents')][string]$Tool,
+	[Parameter(Mandatory = $true)][ValidateSet('Seed', 'Reset', 'ResetReports', 'AddStudents')][string]$Tool,
 	[switch]$Ec2,
 	[string]$DbUrl,
 	[string]$DbUser = 'root',
