@@ -5,6 +5,7 @@ import com.roma.qurie.group.Group;
 import com.roma.qurie.group.GroupParticipantRepository;
 import com.roma.qurie.group.GroupRepository;
 import com.roma.qurie.notification.service.AppNotificationService;
+import com.roma.qurie.report.repository.SessionReportRepository;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.session.chat.ChatService;
 import com.roma.qurie.session.core.dto.SessionCreateRequest;
@@ -34,6 +35,7 @@ public class SessionService {
 
     private final SessionRepository sessionRepository;
     private final ChatService chatService;
+    private final SessionReportRepository sessionReportRepository;
     private final GroupRepository groupRepository;
     private final GroupParticipantRepository groupParticipantRepository;
     private final ClassUserRepository classUserRepository;
@@ -263,6 +265,9 @@ public class SessionService {
         requireSameClass(session, requester);
         // session_chat_messages 는 sessions 를 FK 로 걸지 않아 세션만 지우면 고아 행으로 남는다.
         chatService.deleteBySession(id);
+        // 세션 리포트도 session_id 값만 보관한다. 고아로 남으면 이름 없는 세션 행이 노출되고
+        // 리포트 목록과 최종 리포트 집계의 세션 수가 서로 어긋난다.
+        sessionReportRepository.deleteBySessionId(id);
         sessionRepository.delete(session);
     }
 

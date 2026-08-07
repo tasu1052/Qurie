@@ -14,6 +14,7 @@ import com.roma.qurie.group.Group;
 import com.roma.qurie.group.GroupParticipantRepository;
 import com.roma.qurie.group.GroupRepository;
 import com.roma.qurie.notification.service.AppNotificationService;
+import com.roma.qurie.report.repository.SessionReportRepository;
 import com.roma.qurie.security.AuthUser;
 import com.roma.qurie.user.entity.UserRole;
 import com.roma.qurie.session.chat.ChatService;
@@ -50,6 +51,9 @@ class SessionServiceTest {
 
 	@Mock
 	private ChatService chatService;
+
+	@Mock
+	private SessionReportRepository sessionReportRepository;
 
 	@Mock
 	private GroupRepository groupRepository;
@@ -258,6 +262,8 @@ class SessionServiceTest {
 		sessionService.delete(1L, MANAGER);
 
 		verify(chatService).deleteBySession(1L);
+		// 리포트가 고아로 남으면 목록과 최종 리포트 집계의 세션 수가 어긋난다.
+		verify(sessionReportRepository).deleteBySessionId(1L);
 		verify(sessionRepository).delete(session);
 	}
 

@@ -436,7 +436,11 @@ public class SessionReportService {
         return sum.divide(BigDecimal.valueOf(values.size()), 2, RoundingMode.HALF_UP).doubleValue();
     }
 
-    /** 사용자의 세션 리포트 목록. 본인 또는 같은 반 매니저/마스터만 조회. */
+    /**
+     * 사용자의 세션 리포트 목록. 본인 또는 같은 반 매니저/마스터만 조회.
+     * 삭제된 세션의 고아 리포트는 제외한다 — 포함하면 이름 없는 세션 행이 노출되고,
+     * 화면의 참여 횟수가 최종 리포트 집계와 어긋난다.
+     */
     @Transactional(readOnly = true)
     public List<SessionReportSummaryResponse> listSessionReports(Long ordinaryUserId, AuthUser requester) {
         if (requester == null) {
@@ -447,7 +451,7 @@ public class SessionReportService {
         }
 
         List<SessionReport> reports =
-                sessionReportRepository.findByOrdinaryUserIdOrderByIssuedAtDesc(ordinaryUserId);
+                sessionReportRepository.findAllWithSessionByOrdinaryUserId(ordinaryUserId);
         if (reports.isEmpty()) {
             return List.of();
         }
