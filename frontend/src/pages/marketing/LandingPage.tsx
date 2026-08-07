@@ -393,7 +393,7 @@ export default function LandingPage() {
             </span>
             <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>학습 리포트로 성과 확인</h3>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-              수업이 끝나면, 구성원별 퀴즈 완료율 · 정답률 · 난이도 · 평점이 리포트로 정리돼요. 교육 관리자는
+              수업이 끝나면, 구성원별 퀴즈 완료율 · 정답률 · 난이도별 성취가 리포트로 정리돼요. 교육 관리자는
               이 자료로 강사 평가와 운영 개선에 활용할 수 있어요.
             </p>
             {[
