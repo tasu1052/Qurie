@@ -60,7 +60,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            @Value("${springdoc.api-docs.enabled:true}") boolean apiDocsEnabled) throws Exception {
+            @Value("${springdoc.api-docs.enabled:true}") boolean apiDocsEnabled,
+            @Value("${app.actuator.public:true}") boolean actuatorPublic) throws Exception {
         http.cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> {
@@ -68,6 +69,11 @@ public class SecurityConfig {
                     // 함께 열고 닫는다 — 꺼진 운영에서는 화이트리스트도 남기지 않는다.
                     if (apiDocsEnabled) {
                         auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
+                    }
+                    // 성능 측정용 지표. 로컬 기본 공개, 운영은 ACTUATOR_PUBLIC=false 로 잠근다 — 지표에는
+                    // 내부 구조(풀 크기·경로별 응답시간)가 드러나므로 외부 공개 상태로 두지 않는다.
+                    if (actuatorPublic) {
+                        auth.requestMatchers("/actuator/**").permitAll();
                     }
                     auth
                             // sendError 로 만들어지는 모든 에러 응답(403/404/405...)은 /error 재디스패치를

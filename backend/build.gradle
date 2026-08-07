@@ -18,6 +18,8 @@ repositories {
 }
 
 dependencies {
+	// 성능 측정용 지표 노출(/actuator/metrics 의 HikariCP·톰캣 스레드 등). 노출 범위는 ACTUATOR_ENDPOINTS 로 제어한다.
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	implementation 'org.springframework.boot:spring-boot-starter-security'

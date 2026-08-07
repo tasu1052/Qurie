@@ -51,6 +51,7 @@ import com.roma.qurie.quiz.entity.QuizSet;
 import com.roma.qurie.quiz.entity.QuizSetStatus;
 import com.roma.qurie.quiz.entity.QuizType;
 import com.roma.qurie.quiz.repository.QuizProgressRepository;
+import com.roma.qurie.quiz.repository.QuizRepository;
 import com.roma.qurie.quiz.repository.QuizSatisfactionRepository;
 import com.roma.qurie.quiz.repository.QuizSetRepository;
 
@@ -70,6 +71,9 @@ class QuizServiceTest {
 
 	@Mock
 	private QuizSetRepository quizSetRepository;
+
+	@Mock
+	private QuizRepository quizRepository;
 
 	@Mock
 	private QuizProgressRepository quizProgressRepository;
