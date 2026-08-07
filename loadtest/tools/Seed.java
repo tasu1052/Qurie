@@ -78,13 +78,19 @@ public class Seed {
 				ps.executeBatch();
 			}
 
-			// requested_types 는 현재 엔티티에서 빠진 잔재 컬럼이지만 NOT NULL 이라 값을 채워야 한다.
+			// requested_types 는 현재 엔티티에서 빠진 잔재 컬럼 — 오래된 스키마(로컬)에만 NOT NULL 로 남아 있어
+			// 존재할 때만 채운다. 새로 만들어진 스키마(EC2)에는 컬럼 자체가 없다.
+			boolean hasRequestedTypes = queryLong(conn, "SELECT COUNT(*) FROM information_schema.columns "
+					+ "WHERE table_schema = DATABASE() AND table_name = 'quiz_set' "
+					+ "AND column_name = 'requested_types'") > 0;
 			long quizSet = insert(conn, "INSERT INTO quiz_set (project_id, version_hash, mode, requested_count, "
-					+ "requested_types, ratio_easy, ratio_normal, ratio_hard, user_prompt, status, generated_count, "
+					+ (hasRequestedTypes ? "requested_types, " : "")
+					+ "ratio_easy, ratio_normal, ratio_hard, user_prompt, status, generated_count, "
 					+ "error_message, ai_quiz_set_id, created_by, source_path, source_kind, satisfaction_rating, "
 					+ "satisfaction_comment, created_at, updated_at) "
 					+ "VALUES (" + project + ", '" + versionHash + "', 'ASSESSMENT', " + QUIZZES + ", "
-					+ "'[\"MULTIPLE_CHOICE\"]', 30, 40, 30, NULL, "
+					+ (hasRequestedTypes ? "'[\"MULTIPLE_CHOICE\"]', " : "")
+					+ "30, 40, 30, NULL, "
 					+ "'COMPLETED', " + QUIZZES + ", NULL, NULL, " + teacher + ", 'src/main/java/demo', 'dir', "
 					+ "NULL, NULL, NOW(), NOW())");
 
