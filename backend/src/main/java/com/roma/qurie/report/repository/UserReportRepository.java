@@ -13,6 +13,9 @@ public interface UserReportRepository extends JpaRepository<UserReport, Long> {
 
     Optional<UserReport> findByOrdinaryUserIdAndClassId(Long ordinaryUserId, Long classId);
 
+    /** 최종 리포트 재발급 시 기존 스냅샷을 새 것으로 대체하기 위해 지운다. */
+    void deleteByOrdinaryUserIdAndClassId(Long ordinaryUserId, Long classId);
+
     /**
      * 반 단위 학습 지표. 리포트가 없으면 평균은 null 로 나오고 count 만 0 이다 —
      * 호출부가 "집계할 데이터가 없음"과 "정답률 0%"를 구분할 수 있어야 한다.

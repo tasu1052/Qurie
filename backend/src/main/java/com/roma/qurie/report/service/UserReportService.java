@@ -41,7 +41,9 @@ public class UserReportService {
     private final TransactionTemplate transactionTemplate;
 
     /**
-     * 사용자 최종 리포트 발급. 정량 지표는 그 반에서 발급된 세션 리포트들을 합산해 계산한다 —
+     * 사용자 최종 리포트 발급. 재발급은 기존 리포트를 새 스냅샷으로 대체한다 — 발급 뒤에도
+     * 세션 리포트가 계속 쌓이므로, 한 번 발급으로 잠그면 화면의 집계가 영영 낡은 채 남는다.
+     * 정량 지표는 그 반에서 발급된 세션 리포트들을 합산해 계산한다 —
      * 세션마다 문항 수가 달라 "세션별 비율의 평균"은 왜곡되므로, 개수를 모두 더한 뒤 나눈다.
      * AI 정성 항목은 그 반 세션들의 전체 응시 기록으로 서버가 생성한다. AI 호출(수 초)이
      * DB 커넥션을 점유하지 않도록 저장(쓰기)만 트랜잭션으로 묶는다.
@@ -49,9 +51,6 @@ public class UserReportService {
     public UserReportCreateResponse createUserReport(Long ordinaryUserId, UserReportCreateRequest request) {
         if (!classUserRepository.existsByClassEntityIdAndUserId(request.classId(), ordinaryUserId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "반 명단에 없는 사용자입니다.");
-        }
-        if (userReportRepository.existsByOrdinaryUserIdAndClassId(ordinaryUserId, request.classId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 발급된 최종 리포트가 있습니다.");
         }
 
         List<SessionReport> sessionReports =
@@ -92,8 +91,13 @@ public class UserReportService {
                 .issuedAt(LocalDateTime.now())
                 .build();
 
-        return transactionTemplate.execute(status ->
-                UserReportCreateResponse.from(userReportRepository.save(userReport)));
+        return transactionTemplate.execute(status -> {
+            // (ordinary_user_id, class_id) 유니크 제약이 있고 Hibernate 가 insert 를 delete 보다
+            // 먼저 내보내므로, 삭제가 저장보다 먼저 DB 에 반영되도록 flush 한다.
+            userReportRepository.deleteByOrdinaryUserIdAndClassId(ordinaryUserId, request.classId());
+            userReportRepository.flush();
+            return UserReportCreateResponse.from(userReportRepository.save(userReport));
+        });
     }
 
     /** 학기 전체 응시 기록(반에서 발급된 세션 리포트들의 퀴즈셋)으로 AI 피드백을 만든다. 실패·스킵이면 null. */
