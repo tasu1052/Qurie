@@ -16,6 +16,7 @@ import {
   useCreateSessionReportsForAll,
   useDownloadSessionReportPdf,
   useGetClassMembers,
+  useGetGroupDetail,
   useGetQuizProgressSuspense,
   useGetQuizQuestions,
   useGetSession,
@@ -641,8 +642,9 @@ function SessionReportBody({
 }
 
 /**
- * 강사용 세션 전체 리포트.
- * 발급된 학생 리포트 명단·평균 지표와 일괄 발급/개별 열람을 한 화면에서 처리한다.
+ * 강사용 세션 전체 리포트 진입점. 명단 기준을 서버의 발급 대상(SessionParticipantResolver)과
+ * 동일하게 맞춘다 — 그룹 세션은 그룹 편성, 반 공개 세션은 반 명단. 반 전체를 그대로 그리면
+ * 그룹 밖 학생까지 전부 미발급으로 표시된다.
  */
 function SessionReportOverview({
   sessionId,
@@ -653,18 +655,105 @@ function SessionReportOverview({
   classId: number;
   backTo: string;
 }) {
-  const navigate = useNavigate();
   const { data: session } = useGetSession(sessionId);
-  const { data: roster } = useGetSessionReportRoster(sessionId);
+  if (session.groupId != null) {
+    return (
+      <GroupSessionRoster
+        sessionId={sessionId}
+        groupId={session.groupId}
+        sessionTitle={session.title}
+        backTo={backTo}
+      />
+    );
+  }
+  return (
+    <ClassSessionRoster
+      sessionId={sessionId}
+      classId={classId}
+      sessionTitle={session.title}
+      backTo={backTo}
+    />
+  );
+}
+
+type RosterStudent = { userId: number; name: string; email: string };
+
+function GroupSessionRoster({
+  sessionId,
+  groupId,
+  sessionTitle,
+  backTo,
+}: {
+  sessionId: number;
+  groupId: number;
+  sessionTitle: string;
+  backTo: string;
+}) {
+  const { data: group } = useGetGroupDetail(groupId);
+  const students = useMemo(
+    () => group.members.map((m) => ({ userId: m.userId, name: m.name, email: m.email })),
+    [group.members],
+  );
+  return (
+    <SessionReportOverviewBody
+      sessionId={sessionId}
+      sessionTitle={sessionTitle}
+      students={students}
+      isGroupSession
+      backTo={backTo}
+    />
+  );
+}
+
+function ClassSessionRoster({
+  sessionId,
+  classId,
+  sessionTitle,
+  backTo,
+}: {
+  sessionId: number;
+  classId: number;
+  sessionTitle: string;
+  backTo: string;
+}) {
   const { data: membersPage } = useGetClassMembers(classId, { size: 100 });
+  const students = useMemo(
+    () =>
+      membersPage.data
+        .filter((m) => m.role === 'STUDENT')
+        .map((m) => ({ userId: m.userId, name: m.name, email: m.email })),
+    [membersPage.data],
+  );
+  return (
+    <SessionReportOverviewBody
+      sessionId={sessionId}
+      sessionTitle={sessionTitle}
+      students={students}
+      isGroupSession={false}
+      backTo={backTo}
+    />
+  );
+}
+
+/** 발급된 학생 리포트 명단·평균 지표와 일괄 발급/개별 열람을 한 화면에서 처리한다. */
+function SessionReportOverviewBody({
+  sessionId,
+  sessionTitle,
+  students,
+  isGroupSession,
+  backTo,
+}: {
+  sessionId: number;
+  sessionTitle: string;
+  students: RosterStudent[];
+  isGroupSession: boolean;
+  backTo: string;
+}) {
+  const navigate = useNavigate();
+  const { data: roster } = useGetSessionReportRoster(sessionId);
   const issueAll = useCreateSessionReportsForAll();
   const [issueMsg, setIssueMsg] = useState<string | null>(null);
   const [issueError, setIssueError] = useState<string | null>(null);
-
-  const students = useMemo(
-    () => membersPage.data.filter((m) => m.role === 'STUDENT'),
-    [membersPage.data],
-  );
 
   const reportByUserId = useMemo(() => {
     const map = new Map<number, SessionReportRosterItemResponse>();
@@ -695,7 +784,7 @@ function SessionReportOverview({
         })();
 
   const pendingCount = Math.max(0, students.length - roster.issuedCount);
-  const title = roster.sessionTitle || session.title;
+  const title = roster.sessionTitle || sessionTitle;
 
   const onIssueAll = () => {
     setIssueMsg(null);
@@ -797,8 +886,12 @@ function SessionReportOverview({
 
       {students.length === 0 ? (
         <EmptyState
-          message="반에 학생이 없습니다"
-          description="클래스에 학생을 초대한 뒤 세션 리포트를 확인할 수 있어요."
+          message={isGroupSession ? '그룹에 편성된 학생이 없습니다' : '반에 학생이 없습니다'}
+          description={
+            isGroupSession
+              ? '그룹에 학생을 편성한 뒤 세션 리포트를 확인할 수 있어요.'
+              : '클래스에 학생을 초대한 뒤 세션 리포트를 확인할 수 있어요.'
+          }
           actionLabel="학생 관리"
           onAction={() => navigate('/manager/students')}
         />
