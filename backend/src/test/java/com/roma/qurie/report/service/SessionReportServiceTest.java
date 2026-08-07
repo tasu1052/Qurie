@@ -398,8 +398,7 @@ class SessionReportServiceTest {
 		given(generating.getStatus()).willReturn(QuizSetStatus.GENERATING);
 		given(completed.getStatus()).willReturn(QuizSetStatus.COMPLETED);
 		given(completed.getId()).willReturn(QUIZ_SET_ID);
-		given(completed.getQuizzes()).willReturn(quizzes);
-		// aggregateQuizResults 는 overshoot 제외용 effectiveQuizzes 를 쓴다.
+		// aggregateQuizResults 는 getQuizzes 대신 overshoot 제외용 effectiveQuizzes 를 쓴다.
 		given(completed.effectiveQuizzes()).willReturn(quizzes);
 	}
 
