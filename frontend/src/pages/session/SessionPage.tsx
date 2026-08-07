@@ -260,10 +260,29 @@ export default function SessionPage() {
     collabUser,
   );
 
-  const editorYText = useMemo(() => {
-    if (!activeFile) return null;
-    return getOrCreateFileYText(ydoc, activeFile);
+  /**
+   * 같은 파일 키를 두 클라이언트가 동시에 만들면 Yjs 가 한쪽 Y.Text 를 승자로 정한다.
+   * 승자가 바뀌었는데 고아 인스턴스에 바인딩된 채 남으면 빈 에디터가 되므로 다시 조회한다.
+   */
+  const [fileYTextTick, setFileYTextTick] = useState(0);
+  useEffect(() => {
+    if (!activeFile) return;
+    const yfiles = ydoc.getMap<Y.Text>('files');
+    const onFilesChange = (event: Y.YMapEvent<Y.Text>) => {
+      if (event.keysChanged.has(activeFile)) setFileYTextTick((n) => n + 1);
+    };
+    yfiles.observe(onFilesChange);
+    return () => yfiles.unobserve(onFilesChange);
   }, [ydoc, activeFile]);
+
+  // sync 전에 조회하면 빈 ydoc 의 공유 맵에 새 Y.Text 를 만들어 넣게 되고, 그 로컬 변경이
+  // 서버 문서와 병합될 때 같은 키의 기존 Y.Text 와 충돌해 참가자 전체의 코드를 지울 수 있다.
+  // 새로고침 직후 activeFile 이 sessionStorage 에서 먼저 복원되므로 반드시 sync 를 기다린다.
+  const editorYText = useMemo(() => {
+    if (!activeFile || !collabSynced) return null;
+    return getOrCreateFileYText(ydoc, activeFile);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fileYTextTick 은 맵 승자 교체 시 재조회 트리거
+  }, [ydoc, activeFile, collabSynced, fileYTextTick]);
 
   /** ydoc 이 교체되면(과거 provider 재생성 등) 파일 hydrate 를 다시 시도한다. */
   useEffect(() => {
@@ -391,6 +410,8 @@ export default function SessionPage() {
     path: string,
     options?: { replaceSharedDoc?: boolean },
   ) => {
+    // sync 전에 공유 맵에 항목을 만들면 서버 문서와 키 충돌로 다른 참가자의 코드를 지울 수 있다.
+    if (!collabSynced) return;
     setActiveFileReady(false);
     setActiveFile(path);
     applyLanguageFromPath(path);
