@@ -26,6 +26,7 @@ import com.roma.qurie.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -126,15 +127,18 @@ class UserReportServiceTest {
 				.isEqualTo(HttpStatus.BAD_REQUEST);
 	}
 
+	/** 발급 뒤에도 세션 리포트가 쌓이므로, 재발급은 막지 않고 기존 스냅샷을 대체한다. */
 	@Test
-	void 이미_발급된_최종_리포트가_있으면_409_예외를_던진다() {
-		given(classUserRepository.existsByClassEntityIdAndUserId(CLASS_ID, USER_ID)).willReturn(true);
-		given(userReportRepository.existsByOrdinaryUserIdAndClassId(USER_ID, CLASS_ID)).willReturn(true);
+	void 재발급하면_기존_리포트를_삭제하고_새_스냅샷으로_대체한다() {
+		givenIssuableUser();
+		given(sessionReportRepository.findAllByClassIdAndOrdinaryUserId(CLASS_ID, USER_ID))
+				.willReturn(List.of());
 
-		assertThatThrownBy(() -> userReportService.createUserReport(USER_ID, request()))
-				.isInstanceOf(ResponseStatusException.class)
-				.extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
-				.isEqualTo(HttpStatus.CONFLICT);
+		userReportService.createUserReport(USER_ID, request());
+
+		InOrder inOrder = Mockito.inOrder(userReportRepository);
+		inOrder.verify(userReportRepository).deleteByOrdinaryUserIdAndClassId(USER_ID, CLASS_ID);
+		inOrder.verify(userReportRepository).save(any(UserReport.class));
 	}
 
 	@Test
@@ -236,7 +240,6 @@ class UserReportServiceTest {
 
 	private void givenIssuableUser() {
 		given(classUserRepository.existsByClassEntityIdAndUserId(CLASS_ID, USER_ID)).willReturn(true);
-		given(userReportRepository.existsByOrdinaryUserIdAndClassId(USER_ID, CLASS_ID)).willReturn(false);
 		given(userReportRepository.save(any(UserReport.class)))
 				.willAnswer(invocation -> invocation.getArgument(0));
 		// 발급 로직이 저장(쓰기)을 TransactionTemplate 로 감싸므로 콜백을 그대로 실행시킨다.
