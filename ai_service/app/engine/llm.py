@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import json
 import re
 import time
@@ -278,12 +279,29 @@ def _parse_generate_meta(prompt: str) -> tuple[int, int, int]:
     return n, 0, n
 
 
+_mock_seq = itertools.count()
+
+# 서로 충분히 다른 문장이어야 한다. "[mock] Q0"/"[mock] Q1" 같은 이름은 정규화 후
+# 유사도가 0.83 이라 dedupe가 전부 중복으로 잘라냈고, MOCK에서는 승인 문항이
+# 사실상 1개를 넘지 못했다 — 개수를 세는 검증이 조용히 무력해진다.
+_MOCK_STEMS = [
+    "반복문 종료 조건", "재귀 호출 깊이", "리스트 인덱싱", "정수 나눗셈",
+    "예외 처리 흐름", "변수 스코프", "함수 반환값", "조건식 단축 평가",
+    "슬라이싱 경계", "딕셔너리 기본값", "문자열 불변성", "제너레이터 지연 평가",
+    "얕은 복사", "튜플 언패킹", "집합 연산", "정렬 안정성",
+    "가변 기본 인자", "클로저 캡처", "컨텍스트 매니저", "이터레이터 소진",
+]
+
+
 def _mock_quiz_item(i: int, purpose: str, primary_file: str = "solution.py") -> dict:
+    # 번호를 호출 간에 이어 붙인다. 라운드마다 0부터 다시 세면 재생성분이 1라운드와
+    # 같은 문장이 되어 dedupe에 걸린다.
+    n = next(_mock_seq)
     item = {
         "purpose": purpose,
         "difficulty": "EASY",
-        "tested_concept": "mock",
-        "question": f"[mock] Q{i}",
+        "tested_concept": f"mock-{_MOCK_STEMS[n % len(_MOCK_STEMS)]}",
+        "question": f"[mock] {_MOCK_STEMS[n % len(_MOCK_STEMS)]} {n}",
         "choices": ["a", "b", "c", "d"],
         "answer_index": i % 4,
         "explanation": "mock explanation",

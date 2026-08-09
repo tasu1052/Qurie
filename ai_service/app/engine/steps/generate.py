@@ -107,6 +107,9 @@ def node_generate(state: PipelineState) -> PipelineState:
     # SOLVE/JUDGE 앞에서 걸러 중복 문항에 크레딧을 쓰지 않는다.
     # 비교 대상 = 이번 실행 확보분(existing, span 비교까지 가능) + 백엔드 이전 세트 문항 텍스트.
     history = [{"question": text} for text in _avoid_questions(state)]
-    state["quizzes"] = mark_duplicates(validated, existing + history)
+    # 데모 모드에서는 구간 비교를 끈다. 같은 줄을 다른 각도로 묻는 문항까지 폐기되면
+    # 재생성 라운드가 전멸해 요청 개수를 못 채운다. 문장 유사도 판정은 그대로 살아 있다.
+    state["quizzes"] = mark_duplicates(validated, existing + history,
+                                       use_span=not config.DEMO_MODE)
     state["choice_perms"] = perms
     return state

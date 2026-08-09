@@ -123,6 +123,9 @@ services:
       AI_MOCK: ${AI_MOCK:-0}
       # 콜백 요청에 실어 보낼 값. backend 의 AI_CALLBACK_SECRET 과 같은 값이어야 검증을 통과한다.
       AI_CALLBACK_SECRET: ${AI_CALLBACK_SECRET:-}
+      # 발표 시연용. 1 이면 교차검증(SOLVE·JUDGE)을 건너뛰고 요청 개수를 그대로 채운다.
+      # 품질 보증이 사라지므로 시연이 끝나면 서버 .env 에서 반드시 지운다.
+      AI_DEMO_MODE: ${AI_DEMO_MODE:-0}
       TZ: Asia/Seoul
     ports:
       # 로컬에서 직접 찔러볼 때만 쓴다. 백엔드는 이 포트가 아니라 컨테이너 네트워크로 ai:8000 에 붙는다.

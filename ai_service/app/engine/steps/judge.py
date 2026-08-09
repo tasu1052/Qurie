@@ -10,6 +10,17 @@ from app.engine.tools import judge_tool
 
 def node_judge(state: PipelineState) -> PipelineState:
     quizzes = state["quizzes"]
+    if config.DEMO_MODE:
+        # 구조 검증(validate)만 통과했으면 그대로 승인한다. 품질 점수는 매기지 않는다.
+        # judge_score 를 0 이 아니라 None 으로 두어 "채점 안 함"과 "0점"을 구분한다.
+        state["quizzes"] = [
+            q if q.get("status") == "REJECTED"
+            else {**q, "status": "APPROVED", "judge_score": None, "reject_reason": None}
+            for q in quizzes
+        ]
+        publish_approved_progress(state)
+        return state
+
     solver = state.get("solver_answers", [])
     matched = [
         i for i, q in enumerate(quizzes)

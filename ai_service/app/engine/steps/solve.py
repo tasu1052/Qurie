@@ -11,6 +11,11 @@ __all__ = ["node_solve", "parse_solver_answers"]
 
 def node_solve(state: PipelineState) -> PipelineState:
     quizzes = state["quizzes"]
+    if config.DEMO_MODE:
+        # 데모 모드에서는 교차검증을 하지 않는다. 호출 자체를 건너뛰어 크레딧도 안 쓴다.
+        state["solver_answers"] = [-1] * len(quizzes)
+        return state
+
     solvable = [
         (i, q) for i, q in enumerate(quizzes) if q.get("status") != "REJECTED"
     ]

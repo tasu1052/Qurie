@@ -41,26 +41,32 @@ def same_span(a: dict, b: dict) -> bool:
     return (a.get("line_start"), a.get("line_end")) == (b.get("line_start"), b.get("line_end"))
 
 
-def is_duplicate(quiz: dict, others: list[dict], ratio: float = DUPLICATE_RATIO) -> bool:
+def is_duplicate(quiz: dict, others: list[dict], ratio: float = DUPLICATE_RATIO,
+                 use_span: bool = True) -> bool:
     question = quiz.get("question") or ""
     for other in others:
         if similarity(question, other.get("question") or "") >= ratio:
             return True
-        if same_span(quiz, other):
+        if use_span and same_span(quiz, other):
             return True
     return False
 
 
-def mark_duplicates(quizzes: list[dict], existing: list[dict]) -> list[dict]:
+def mark_duplicates(quizzes: list[dict], existing: list[dict],
+                    use_span: bool = True) -> list[dict]:
     """중복을 REJECTED 로 표시한다.
 
     이미 확보한 문항(existing)뿐 아니라 같은 라운드에서 앞서 나온 문항과도 비교한다.
     한 번의 응답 안에서도 비슷한 문항이 두 개 나올 수 있다.
+
+    use_span=False 면 구간 비교를 끄고 문장 유사도만 본다. 비교 대상에는 탈락분까지
+    누적되므로, 한 번 건드린 줄이 영구 차단돼 재생성 라운드가 통째로 전멸한다
+    (실측: 2라운드 생성 5개 전량 폐기 → 5개 요청에 3개 반환). 데모 모드에서 끈다.
     """
     seen = list(existing)
     out = []
     for q in quizzes:
-        if q.get("status") != "REJECTED" and is_duplicate(q, seen):
+        if q.get("status") != "REJECTED" and is_duplicate(q, seen, use_span=use_span):
             out.append({**q, "status": "REJECTED", "reject_reason": "DUPLICATE",
                         "judge_score": None})
             continue
