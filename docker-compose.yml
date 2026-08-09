@@ -124,8 +124,13 @@ services:
       # 콜백 요청에 실어 보낼 값. backend 의 AI_CALLBACK_SECRET 과 같은 값이어야 검증을 통과한다.
       AI_CALLBACK_SECRET: ${AI_CALLBACK_SECRET:-}
       # 발표 시연용. 1 이면 교차검증(SOLVE·JUDGE)을 건너뛰고 요청 개수를 그대로 채운다.
-      # 품질 보증이 사라지므로 시연이 끝나면 서버 .env 에서 반드시 지운다.
-      AI_DEMO_MODE: ${AI_DEMO_MODE:-0}
+      # 지금은 기본값이 1(켜짐)이다 — 시연 서버에 .env 를 넣을 수 없어 여기서 켠다.
+      #
+      #   ▶ 발표가 끝나면 이 줄의 1 을 0 으로 되돌린다. 그것만 하면 원래 동작이다.
+      #
+      # 켜져 있는 동안에는 품질 보증이 없다. 다른 모델이 못 푸는 문항도, 정답이
+      # 틀린 문항도 그대로 학생에게 나간다.
+      AI_DEMO_MODE: ${AI_DEMO_MODE:-1}
       TZ: Asia/Seoul
     ports:
       # 로컬에서 직접 찔러볼 때만 쓴다. 백엔드는 이 포트가 아니라 컨테이너 네트워크로 ai:8000 에 붙는다.
