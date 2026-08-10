@@ -10,6 +10,7 @@ def fibonacci(n):
     prev, curr = 0, 1
     for _ in range(2, n + 1):
         # TODO: 이전 두 수를 더해 다음 수를 만들고, prev와 curr를 한 칸씩 옮기세요.
+        # prev, curr = curr, prev + curr
         pass
 
     return curr
