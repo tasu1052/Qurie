@@ -113,9 +113,13 @@ public class SessionController {
         return sessionReportService.createSessionReport(sessionId, request, requester);
     }
 
-    /** 세션 참여 학생 전원의 리포트 일괄 발급. 같은 반 강사만 할 수 있고, 정성 항목 없이 정량 지표만 담긴다. */
+    /**
+     * 세션 참여 학생 전원의 리포트 일괄 발급 — 접수 즉시 202 로 응답하고 발급은 백그라운드에서 진행된다.
+     * 같은 반 강사만 할 수 있다. 완료는 앱 알림으로 전달되고, 발급 중 재요청은 409 로 거절된다.
+     * (동기 응답이던 시절 학생 수 × AI 호출 시간이 게이트웨이 30초를 넘겨 504 가 났다.)
+     */
     @PostMapping("{sessionId}/reports/all")
-    @ResponseStatus(HttpStatus.CREATED)
+    @ResponseStatus(HttpStatus.ACCEPTED)
     public SessionReportBulkResponse createSessionReportsForAll(@PathVariable Long sessionId,
                                                                 @AuthenticationPrincipal AuthUser requester) {
         return sessionReportService.createSessionReportsForAll(sessionId, requester);

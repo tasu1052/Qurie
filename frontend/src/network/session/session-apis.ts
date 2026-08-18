@@ -191,16 +191,15 @@ export interface SessionReportRosterResponse {
 }
 
 /**
- * 세션 참가 학생 전원의 리포트를 한 번에 발급한다(기존 리포트는 갈아엎고 재발급 — 409 없음).
- * 강사(MANAGER/MASTER) 전용. 학생마다 AI 코멘트를 동기 생성하느라 오래 걸릴 수 있어 타임아웃을 크게 늘린다.
+ * 세션 참가 학생 전원의 리포트 일괄 발급을 접수한다. 서버가 202 로 즉시 응답하고 발급은
+ * 백그라운드(학생별 AI 병렬)에서 진행된다 — 완료되면 앱 알림이 오고, 명단을 다시 조회하면 반영돼 있다.
+ * 발급이 이미 진행 중이면 409 가 온다(재클릭 방지). 응답의 issuedCount 는 접수된 대상 학생 수다.
  */
 export const createSessionReportsForAll = async (
     sessionId: number,
 ): Promise<SessionReportBulkResponse> => {
     const { data } = await axiosInstance.post<SessionReportBulkResponse>(
         `/sessions/${sessionId}/reports/all`,
-        undefined,
-        { timeout: 300_000 },
     );
     return data;
 };
