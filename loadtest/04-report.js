@@ -1,5 +1,5 @@
 import http from 'k6/http';
-import { check } from 'k6';
+import { check, sleep } from 'k6';
 import { Trend, Counter } from 'k6/metrics';
 import { login, PASSWORD, BASE_URL } from './lib/auth.js';
 
@@ -25,8 +25,14 @@ const MODE = __ENV.MODE || 'bulk';
 const RACE_VUS = Number(__ENV.RACE_VUS || 10);
 
 const bulkDuration = new Trend('report_bulk_duration', true);
+// 비동기 전환 후: 202 접수 응답 시간과 실제 전원 발급 완료 시간을 따로 잰다.
+// EXPECTED_REPORTS(기본 0)를 주면 로스터를 폴링해 발급 완료 시점을 계측한다 —
+// 사전에 session_reports 를 비워 두고(카운트 기준) 돌리는 것을 전제로 한다.
+const bulkAcceptDuration = new Trend('report_bulk_accept_duration', true);
+const bulkCompleteDuration = new Trend('report_bulk_complete_duration', true);
 const raceServerErrors = new Counter('report_race_5xx');
 const raceCreated = new Counter('report_race_created');
+const EXPECTED_REPORTS = Number(__ENV.EXPECTED_REPORTS || 0);
 
 export const options = {
 	scenarios: MODE === 'race'
@@ -78,6 +84,26 @@ export default function () {
 		timeout: '1800s',
 	});
 	bulkDuration.add(Date.now() - started);
-	check(res, { 'bulk 201': (r) => r.status === 201 });
-	console.log(`일괄 발급 소요: ${((Date.now() - started) / 1000).toFixed(1)}s, status=${res.status}, body=${res.body}`);
+	bulkAcceptDuration.add(Date.now() - started);
+	// 동기(개선 전) 201 / 비동기(개선 후) 202 둘 다 접수 성공으로 본다.
+	check(res, { 'bulk accepted (201|202)': (r) => r.status === 201 || r.status === 202 });
+	console.log(`일괄 발급 응답: ${((Date.now() - started) / 1000).toFixed(1)}s, status=${res.status}, body=${res.body}`);
+
+	// 202(비동기)면 로스터를 폴링해 전원 발급 완료 시점을 잰다.
+	if (res.status === 202 && EXPECTED_REPORTS > 0) {
+		for (let i = 0; i < 1800; i++) {
+			sleep(1);
+			const roster = http.get(`${BASE_URL}/api/sessions/${SESSION_ID}/reports/roster`, {
+				tags: { name: 'GET /reports/roster (poll)' },
+			});
+			if (roster.status !== 200) continue;
+			const issued = (roster.json().reports || []).length;
+			if (issued >= EXPECTED_REPORTS) {
+				bulkCompleteDuration.add(Date.now() - started);
+				console.log(`전원 발급 완료: ${((Date.now() - started) / 1000).toFixed(1)}s (${issued}/${EXPECTED_REPORTS})`);
+				return;
+			}
+		}
+		console.error('폴링 시간 내에 발급이 끝나지 않았다.');
+	}
 }

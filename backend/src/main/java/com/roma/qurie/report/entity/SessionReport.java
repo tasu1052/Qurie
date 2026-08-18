@@ -121,6 +121,36 @@ public class SessionReport extends BaseTimeEntity {
         this.issuedAt = issuedAt;
     }
 
+    /**
+     * 재발급 — 기존 행을 새 스냅샷으로 덮어쓴다. delete→insert 방식은 동시 발급이 겹치면
+     * (session_id, ordinary_user_id) 유니크 제약 위반으로 500 이 나서 update 로 바꿨다.
+     * 강사 코멘트는 이전 스냅샷에 대한 것이라 재발급 시 함께 비운다(기존 delete 방식과 동일한 동작).
+     */
+    public void replaceSnapshot(Long quizSetId, int quizTotalCount, int quizAttemptedCount,
+                                int quizCorrectCount, int quizSkippedCount, BigDecimal completionRate,
+                                BigDecimal accuracy, Integer avgElapsedMs, Map<String, Object> difficultyRatio,
+                                Map<String, Object> conceptStats, BigDecimal quizRating, String aiComment,
+                                List<String> aiStrengths, List<String> aiImprovements, LocalDateTime issuedAt) {
+        this.quizSetId = quizSetId;
+        this.quizTotalCount = quizTotalCount;
+        this.quizAttemptedCount = quizAttemptedCount;
+        this.quizCorrectCount = quizCorrectCount;
+        this.quizSkippedCount = quizSkippedCount;
+        this.completionRate = completionRate;
+        this.accuracy = accuracy;
+        this.avgElapsedMs = avgElapsedMs;
+        this.difficultyRatio = difficultyRatio;
+        this.conceptStats = conceptStats;
+        this.quizRating = quizRating;
+        this.aiComment = aiComment;
+        this.aiStrengths = aiStrengths;
+        this.aiImprovements = aiImprovements;
+        this.managerComment = null;
+        this.managerCommentBy = null;
+        this.managerCommentAt = null;
+        this.issuedAt = issuedAt;
+    }
+
     public void updateManagerComment(String comment, Long authorId) {
         this.managerComment = comment;
         this.managerCommentBy = authorId;

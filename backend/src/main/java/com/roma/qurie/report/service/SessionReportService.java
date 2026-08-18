@@ -39,6 +39,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -68,6 +72,19 @@ public class SessionReportService {
     private final ReportAiFeedbackService reportAiFeedbackService;
     private final AppNotificationService appNotificationService;
     private final TransactionTemplate transactionTemplate;
+    // 파라미터 이름이 AsyncConfig 의 빈 이름과 같아 이름 매칭으로 주입된다 (Executor 빈이 여러 개).
+    private final Executor reportBulkExecutor;
+    private final Executor reportAiExecutor;
+
+    /**
+     * 발급 진행 중 가드. 같은 대상의 발급이 겹치면 두 번째 요청을 409 로 거절한다 —
+     * 집계와 저장 사이에 AI 호출(수 초)이 끼어 있어, 가드 없이는 같은 (세션, 학생) 두 발급이
+     * 그 틈에 겹쳐 유니크 제약 위반(500)과 AI 중복 호출(비용 2배)이 났다.
+     * 단일 인스턴스 배포 전제의 인메모리 가드다 — 다중 인스턴스로 가면 DB 락으로 바꿔야 한다.
+     */
+    private final Set<String> issueInFlight = ConcurrentHashMap.newKeySet();
+    /** 세션 단위 일괄 발급 진행 중 가드. 게이트웨이 타임아웃 후 재클릭이 두 번째 일괄 발급을 만들던 것을 막는다. */
+    private final Set<Long> bulkInFlight = ConcurrentHashMap.newKeySet();
 
     /**
      * 세션 리포트 발급. 정량 지표는 quiz_progress 에서 서버가 집계한다 —
@@ -86,30 +103,66 @@ public class SessionReportService {
     }
 
     /**
-     * 세션 참여 학생 전원의 리포트 일괄 발급. 정량 지표는 서버 집계, AI 정성 항목은 학생별로 AI 서버를
-     * 호출해 채운다(실패한 학생만 AI 항목 없이 발급). 평점은 일괄 발급에선 담지 않는다.
-     * 이미 발급된 학생도 새 스냅샷으로 대체되므로 여러 번 눌러도 결과는 최신 집계 하나만 남는다.
+     * 세션 참여 학생 전원의 리포트 일괄 발급 — 접수만 하고 202 로 즉시 응답한다.
+     *
+     * 원래는 학생 수 × AI 동기 호출(학생당 수 초)을 요청 안에서 순차로 돌았다. 30명 반에서 90초를
+     * 넘겨 CloudFront(오리진 응답 30초)가 먼저 504 를 끊었고, 강사가 재클릭하면 아직 돌고 있는
+     * 첫 발급과 겹쳐 유니크 제약 위반(500)까지 이어졌다. 실제 발급은 reportBulkExecutor 가 맡고,
+     * 학생별 발급은 reportAiExecutor 로 병렬(동시 6) 처리한다. 완료는 앱 알림으로 강사에게 알린다.
+     *
+     * 정량 지표는 서버 집계, AI 정성 항목은 학생별로 AI 서버를 호출해 채운다(실패한 학생만 AI 항목
+     * 없이 발급). 평점은 일괄 발급에선 담지 않는다. 이미 발급된 학생도 새 스냅샷으로 대체된다.
      */
     public SessionReportBulkResponse createSessionReportsForAll(Long sessionId, AuthUser requester) {
         requireInstructor(sessionId, requester);
         Session session = findSessionOrThrow(sessionId);
+        List<Long> studentIds = List.copyOf(participantResolver.resolveStudentIds(session));
 
-        int issuedCount = 0;
-        int failedCount = 0;
-        for (Long studentId : participantResolver.resolveStudentIds(session)) {
-            try {
-                issueReport(sessionId, new SessionReportCreateRequest(studentId, null, null, null, null));
-                issuedCount++;
-            } catch (RuntimeException e) {
-                // 한 학생 실패가 일괄 재발급 전체를 500 으로 끝내지 않도록 한다.
-                failedCount++;
-                log.warn("세션 {} 학생 {} 리포트 발급 실패: {}", sessionId, studentId, e.toString());
-            }
+        if (!bulkInFlight.add(sessionId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "이미 일괄 발급이 진행 중입니다. 완료 알림을 기다려 주세요.");
         }
-        if (issuedCount == 0 && failedCount > 0) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "리포트 발급에 실패했습니다.");
+        try {
+            Long requesterId = requester.id();
+            CompletableFuture.runAsync(() -> runBulkIssue(sessionId, studentIds, requesterId), reportBulkExecutor)
+                    .whenComplete((result, error) -> bulkInFlight.remove(sessionId));
+        } catch (RejectedExecutionException e) {
+            bulkInFlight.remove(sessionId);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "일괄 발급 처리량이 가득 찼습니다. 잠시 후 다시 시도해 주세요.");
         }
-        return new SessionReportBulkResponse(sessionId, issuedCount);
+        // 202 응답 본문 — 발급이 끝난 수가 아니라 접수된 대상 수다. 결과는 명단 조회·완료 알림으로 확인한다.
+        return new SessionReportBulkResponse(sessionId, studentIds.size());
+    }
+
+    /** 일괄 발급 본체. 요청 스레드가 아니라 reportBulkExecutor 스레드에서 돈다. */
+    private void runBulkIssue(Long sessionId, List<Long> studentIds, Long requesterId) {
+        long startedAt = System.currentTimeMillis();
+        List<CompletableFuture<Boolean>> results = studentIds.stream()
+                .map(studentId -> CompletableFuture.supplyAsync(() -> {
+                    try {
+                        issueReport(sessionId, new SessionReportCreateRequest(studentId, null, null, null, null));
+                        return true;
+                    } catch (RuntimeException e) {
+                        // 한 학생 실패가 일괄 발급 전체를 실패로 끝내지 않도록 한다.
+                        log.warn("세션 {} 학생 {} 리포트 발급 실패: {}", sessionId, studentId, e.toString());
+                        return false;
+                    }
+                }, reportAiExecutor))
+                .toList();
+        CompletableFuture.allOf(results.toArray(CompletableFuture[]::new)).join();
+
+        long issuedCount = results.stream().filter(CompletableFuture::join).count();
+        long failedCount = studentIds.size() - issuedCount;
+        long tookMs = System.currentTimeMillis() - startedAt;
+        log.info("세션 {} 리포트 일괄 발급 완료: 성공 {}건, 실패 {}건, {}ms", sessionId, issuedCount, failedCount, tookMs);
+
+        appNotificationService.notifyUsers(List.of(requesterId), "REPORT_BULK_ISSUED",
+                "세션 리포트 일괄 발급 완료",
+                failedCount == 0
+                        ? "학생 " + issuedCount + "명의 리포트가 발급되었습니다."
+                        : "학생 " + issuedCount + "명 발급, " + failedCount + "명 실패했습니다. 명단에서 확인해 주세요.",
+                null);
     }
 
     /** 리포트 발급은 학생 지표를 확정하는 조작이라 조회보다 좁게, 매니저·마스터에게만 허용한다. */
@@ -124,43 +177,65 @@ public class SessionReportService {
     }
 
     /**
-     * 재발급은 기존 리포트를 새 스냅샷으로 대체한다. (session_id, ordinary_user_id) 유니크 제약이 있고
-     * Hibernate 가 insert 를 delete 보다 먼저 내보내므로, 삭제가 저장보다 먼저 DB 에 반영되도록 flush 한다.
+     * 발급 1건. (세션, 학생) 단위 진행 중 가드로 동시 발급을 409 로 거절한다 — 집계와 저장 사이에
+     * AI 호출(수 초)이 끼어 있어, 가드 없이는 그 틈에 겹친 발급이 서로 모르는 채 AI 를 중복 호출했다.
      *
-     * AI 호출(수 초)이 DB 커넥션을 점유하지 않도록 집계(읽기)와 저장(쓰기)만 각각 트랜잭션으로
+     * AI 호출이 DB 커넥션을 점유하지 않도록 집계(읽기)와 저장(쓰기)만 각각 트랜잭션으로
      * 묶는다 — QuizService.requestQuizGeneration 과 같은 이유다.
      */
     private SessionReportCreateResponse issueReport(Long sessionId, SessionReportCreateRequest request) {
-        QuizResultAggregate aggregate =
-                transactionTemplate.execute(status -> aggregateQuizResults(sessionId, request.ordinaryUserId()));
-        SessionReportCreateRequest enriched = enrichWithAiFeedback(sessionId, request, aggregate);
+        String issueKey = sessionId + ":" + request.ordinaryUserId();
+        if (!issueInFlight.add(issueKey)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "해당 학생의 리포트 발급이 이미 진행 중입니다.");
+        }
+        try {
+            QuizResultAggregate aggregate =
+                    transactionTemplate.execute(status -> aggregateQuizResults(sessionId, request.ordinaryUserId()));
+            SessionReportCreateRequest enriched = enrichWithAiFeedback(sessionId, request, aggregate);
+            return transactionTemplate.execute(status -> saveSnapshot(sessionId, aggregate, enriched));
+        } finally {
+            issueInFlight.remove(issueKey);
+        }
+    }
 
-        return transactionTemplate.execute(status -> {
-            sessionReportRepository.deleteBySessionIdAndOrdinaryUserId(sessionId, request.ordinaryUserId());
-            sessionReportRepository.flush();
-
-            SessionReport sessionReport = SessionReport.builder()
-                    .sessionId(sessionId)
-                    .ordinaryUserId(request.ordinaryUserId())
-                    .quizSetId(aggregate.quizSetId())
-                    .quizTotalCount(aggregate.totalCount())
-                    .quizAttemptedCount(aggregate.attemptedCount())
-                    .quizCorrectCount(aggregate.correctCount())
-                    .quizSkippedCount(aggregate.skippedCount())
-                    .completionRate(aggregate.completionRate())
-                    .accuracy(aggregate.accuracy())
-                    .avgElapsedMs(aggregate.avgElapsedMs())
-                    .difficultyRatio(aggregate.difficultyRatio())
-                    .conceptStats(aggregate.conceptStats())
-                    .quizRating(enriched.quizRating())
-                    .aiComment(enriched.aiComment())
-                    .aiStrengths(enriched.aiStrengths())
-                    .aiImprovements(enriched.aiImprovements())
-                    .issuedAt(LocalDateTime.now())
-                    .build();
-
-            return SessionReportCreateResponse.from(sessionReportRepository.save(sessionReport));
-        });
+    /**
+     * 재발급은 기존 행을 update 로 덮어쓴다. 원래는 delete→flush→insert 였는데, 동시 발급이 겹치면
+     * 둘 다 "지울 것 없음 → insert" 경로를 타서 (session_id, ordinary_user_id) 유니크 제약 위반으로
+     * 500 이 났다. update 방식은 겹쳐도 마지막 저장이 이길 뿐 제약 위반이 없다.
+     */
+    private SessionReportCreateResponse saveSnapshot(
+            Long sessionId, QuizResultAggregate aggregate, SessionReportCreateRequest enriched) {
+        SessionReport sessionReport = sessionReportRepository
+                .findBySessionIdAndOrdinaryUserId(sessionId, enriched.ordinaryUserId())
+                .map(existing -> {
+                    existing.replaceSnapshot(aggregate.quizSetId(), aggregate.totalCount(),
+                            aggregate.attemptedCount(), aggregate.correctCount(), aggregate.skippedCount(),
+                            aggregate.completionRate(), aggregate.accuracy(), aggregate.avgElapsedMs(),
+                            aggregate.difficultyRatio(), aggregate.conceptStats(), enriched.quizRating(),
+                            enriched.aiComment(), enriched.aiStrengths(), enriched.aiImprovements(),
+                            LocalDateTime.now());
+                    return existing;
+                })
+                .orElseGet(() -> SessionReport.builder()
+                        .sessionId(sessionId)
+                        .ordinaryUserId(enriched.ordinaryUserId())
+                        .quizSetId(aggregate.quizSetId())
+                        .quizTotalCount(aggregate.totalCount())
+                        .quizAttemptedCount(aggregate.attemptedCount())
+                        .quizCorrectCount(aggregate.correctCount())
+                        .quizSkippedCount(aggregate.skippedCount())
+                        .completionRate(aggregate.completionRate())
+                        .accuracy(aggregate.accuracy())
+                        .avgElapsedMs(aggregate.avgElapsedMs())
+                        .difficultyRatio(aggregate.difficultyRatio())
+                        .conceptStats(aggregate.conceptStats())
+                        .quizRating(enriched.quizRating())
+                        .aiComment(enriched.aiComment())
+                        .aiStrengths(enriched.aiStrengths())
+                        .aiImprovements(enriched.aiImprovements())
+                        .issuedAt(LocalDateTime.now())
+                        .build());
+        return SessionReportCreateResponse.from(sessionReportRepository.save(sessionReport));
     }
 
     /**

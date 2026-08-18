@@ -39,10 +39,12 @@ import com.roma.qurie.session.participant.SessionParticipantResolver;
 import com.roma.qurie.session.participant.SessionParticipantService;
 import com.roma.qurie.user.entity.User;
 import com.roma.qurie.user.repository.UserRepository;
+import java.util.concurrent.Executor;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
@@ -99,8 +101,18 @@ class SessionReportServiceTest {
 	@Mock
 	private Session session;
 
-	@InjectMocks
 	private SessionReportService sessionReportService;
+
+	@BeforeEach
+	void setUp() {
+		// 실행기를 호출 스레드 직접 실행으로 주입해, 비동기 일괄 발급을 테스트에서는 동기처럼 검증한다.
+		Executor directExecutor = Runnable::run;
+		sessionReportService = new SessionReportService(
+				sessionReportRepository, sessionRepository, userRepository, sessionParticipantService,
+				participantResolver, projectRepository, quizSetRepository, quizProgressRepository,
+				reportAiFeedbackService, appNotificationService, transactionTemplate,
+				directExecutor, directExecutor);
+	}
 
 	@Test
 	void 정량_지표를_quiz_progress에서_집계해_저장한다() {
@@ -183,14 +195,23 @@ class SessionReportServiceTest {
 	}
 
 	@Test
-	void 이미_발급된_리포트가_있으면_삭제하고_새_스냅샷으로_대체한다() {
+	void 이미_발급된_리포트가_있으면_같은_행을_새_스냅샷으로_덮어쓴다() {
 		givenIssuableSession();
 		given(projectRepository.findFirstBySessionIdOrderByIdDesc(SESSION_ID)).willReturn(Optional.empty());
+		SessionReport existing = SessionReport.builder()
+				.sessionId(SESSION_ID)
+				.ordinaryUserId(USER_ID)
+				.quizTotalCount(1)
+				.build();
+		given(sessionReportRepository.findBySessionIdAndOrdinaryUserId(SESSION_ID, USER_ID))
+				.willReturn(Optional.of(existing));
 
 		sessionReportService.createSessionReport(SESSION_ID, request(), MANAGER);
 
-		verify(sessionReportRepository).deleteBySessionIdAndOrdinaryUserId(SESSION_ID, USER_ID);
-		verify(sessionReportRepository).save(any(SessionReport.class));
+		// delete→insert 는 동시 발급이 겹치면 유니크 제약 위반(500)이라 같은 행 update 로 대체했다.
+		verify(sessionReportRepository, never()).deleteBySessionIdAndOrdinaryUserId(SESSION_ID, USER_ID);
+		verify(sessionReportRepository).save(existing);
+		assertThat(existing.getQuizTotalCount()).isZero();
 	}
 
 	@Test
@@ -233,7 +254,7 @@ class SessionReportServiceTest {
 
 	/** 퀴즈셋이 없으면 AI 생성 대상도 아니므로 정성 항목 없이(평점은 일괄 발급에선 항상 없음) 발급된다. */
 	@Test
-	void 일괄_발급은_참여_학생_전원에게_발급한다() {
+	void 일괄_발급은_접수_즉시_응답하고_참여_학생_전원에게_발급한다() {
 		Long otherStudentId = 8L;
 		passThroughTransaction();
 		given(sessionRepository.findById(SESSION_ID)).willReturn(Optional.of(session));
@@ -245,9 +266,8 @@ class SessionReportServiceTest {
 		SessionReportBulkResponse response = sessionReportService.createSessionReportsForAll(SESSION_ID, MANAGER);
 
 		assertThat(response.sessionId()).isEqualTo(SESSION_ID);
+		// 202 접수 응답 — 발급 완료 수가 아니라 접수된 대상 학생 수다.
 		assertThat(response.issuedCount()).isEqualTo(2);
-		verify(sessionReportRepository).deleteBySessionIdAndOrdinaryUserId(SESSION_ID, USER_ID);
-		verify(sessionReportRepository).deleteBySessionIdAndOrdinaryUserId(SESSION_ID, otherStudentId);
 		ArgumentCaptor<SessionReport> captor = ArgumentCaptor.forClass(SessionReport.class);
 		verify(sessionReportRepository, times(2)).save(captor.capture());
 		assertThat(captor.getAllValues())
@@ -256,6 +276,9 @@ class SessionReportServiceTest {
 			assertThat(report.getQuizRating()).isNull();
 			assertThat(report.getAiComment()).isNull();
 		});
+		// 완료를 강사에게 앱 알림으로 전달한다 — 202 응답에는 결과가 없기 때문이다.
+		verify(appNotificationService).notifyUsers(
+				eq(List.of(MANAGER.id())), eq("REPORT_BULK_ISSUED"), any(), any(), org.mockito.ArgumentMatchers.isNull());
 	}
 
 	@Test
